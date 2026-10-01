@@ -1,0 +1,13 @@
+train: train/images
+val: valid/images
+test: test/images
+
+nc: 4
+names: ['drinking', 'feeding', 'lying down', 'standing']
+
+roboflow:
+  workspace: sharid-tlfxf
+  project: cow-behavior-analysiws-smnbc
+  version: 2
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/sharid-tlfxf/cow-behavior-analysiws-smnbc/dataset/2

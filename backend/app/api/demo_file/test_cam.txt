@@ -1,0 +1,35 @@
+# เปิดกล้องใน MacBook ปกติ
+import cv2
+from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
+
+router = APIRouter()
+
+# ฟังก์ชัน Generator สำหรับอ่านภาพจากกล้องทีละเฟรม
+def generate_frames():
+    # 0 คือกล้องหน้า MacBook (ถ้าสลับไปกล้อง iPhone ให้เปลี่ยนเป็น 1 หรือ 2)
+    cap = cv2.VideoCapture(0)
+    
+    while True:
+        success, frame = cap.read()
+        if not success:
+            break
+            
+        # พลิกภาพซ้ายขวาให้เหมือนกระจก จะได้ไม่งงทิศทาง
+        frame = cv2.flip(frame, 1)
+        
+        # เข้ารหัสภาพเป็น JPEG
+        ret, buffer = cv2.imencode('.jpg', frame)
+        frame_bytes = buffer.tobytes()
+        
+        # ส่งออกไปเป็น Stream ต่อเนื่อง
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+               
+    cap.release()
+
+# Endpoint ที่ฝั่ง Nuxt จะดึงไปใช้งาน
+@router.get("/stream")
+async def video_feed():
+    # ใช้ multipart/x-mixed-replace เพื่อให้เบราว์เซอร์รู้ว่านี่คือวิดีโอสตรีม
+    return StreamingResponse(generate_frames(), media_type="multipart/x-mixed-replace; boundary=frame")

@@ -1,0 +1,13 @@
+fastapi[standard]
+uvicorn[standard]
+ultralytics
+pillow
+python-multipart
+sqlalchemy
+psycopg2-binary
+pyjwt[crypto]
+bcrypt
+pydantic-settings
+python-dotenv
+supabase
+opencv-python-headless
