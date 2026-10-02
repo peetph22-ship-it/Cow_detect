@@ -20,7 +20,7 @@ app.add_middleware(
 
 @app.get('/')
 def read_root():
-    return {"message": "Server run success!"}
+    return {"message": "FastAPI server run success!"}
 
 # include api
 app.include_router(detect_router)

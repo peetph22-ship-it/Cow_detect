@@ -1,0 +1,36 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Nuxt 3
+.nuxt/
+.output/
+dist/
+
+# Python / FastAPI
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# YOLO / Ultralytics
+runs/
+*.pt
+
+# macOS
+.DS_Store
+
+# Docker
+.dockerignore
