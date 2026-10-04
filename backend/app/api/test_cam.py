@@ -1,21 +1,24 @@
 import cv2
-import os
+from pathlib import Path
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from ultralytics import YOLO
 
 router = APIRouter()
 
-# Model path :
-MODEL_PATH = "app/weights/best1.pt"
+# Prefer the custom weights. If they are unavailable, use YOLO26m only.
+backend_dir = Path(__file__).resolve().parents[2]
+model_path = backend_dir / "app" / "weights" / "best1.pt"
+if not model_path.is_file():
+    model_path = backend_dir / "app" / "weights" / "yolo26m.pt"
 
-# เช็คว่ามีไฟล์โมเดล YOLO จากโฟลเดอร์ weights หากไม่มีให้โหลดรุ่น nano มาเทสแทนเพื่อป้องกันเซิร์ฟเวอร์แครช
-if os.path.exists(MODEL_PATH):
-    model = YOLO(MODEL_PATH)
-    print(f"Loading {MODEL_PATH} Success!")
-else:
-    model = YOLO("yolov8n.pt")
-    print(f"yolo26m.pt file not found , loading yolov8n.pt")
+if not model_path.is_file():
+    raise FileNotFoundError(
+        "No camera model found. Add best1.pt or yolo26m.pt to app/weights."
+    )
+
+model = YOLO(str(model_path))
+print(f"Loading {model_path} Success!")
 
 
 # ฟังก์ชัน genetate อ่านภาพจากกล้องทีละเฟรม

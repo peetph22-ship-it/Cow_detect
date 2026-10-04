@@ -12,11 +12,14 @@
   "dependencies": {
     "@nuxtjs/supabase": "^2.0.10",
     "@supabase/supabase-js": "^2.117.2",
+    "@vueuse/core": "^15.0.0",
+    "apexcharts": "^7.8.0",
     "axios": "^1.20.0",
     "nuxt": "^4.5.2",
     "vite-plugin-vuetify": "^2.1.3",
     "vue": "^3.5.43",
     "vue-router": "^5.3.1",
+    "vue3-apexcharts": "^1.11.1",
     "vuetify": "^4.2.1",
     "vuetify-nuxt-module": "^1.0.0-rc.6"
   }
