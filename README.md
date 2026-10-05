@@ -219,4 +219,15 @@ uvicorn app.main:app --reload --port 8000
 
 ---
 
-## อ้างอิง (References)
+## 📚 อ้างอิง (References)
+
+สถาปัตยกรรมและฟีเจอร์ของระบบ **CowCare AI** ได้รับแรงบันดาลใจและพัฒนาต่อยอดจากงานวิจัยด้าน Precision Livestock Farming (PLF) และวิทยาศาสตร์โคนมระดับแนวหน้า (อัปเดตปี 2019-2026) ดังนี้:
+
+1. วรรณลักษณ์ ถาวร, อิทธิพล สักลอ, และ วิวัฒน์ พัฒนาวงศ์. (2566). **ผลของอุณหภูมิ ความชื้น และฤดูกาลต่อระดับคอร์ติซอลในโคนมสายพันธุ์โฮลสไตน์ฟรีเชียน.** *วารสารเกษตรนเรศวร*. *(งานวิจัยยืนยันผลกระทบของความชื้นในฤดูฝนต่อภาวะเครียดในโคนมไทย)*
+2. ณัชวิชญ์ ติกุล และ สุวิทย์ ประชุม. (2562). **ผลกระทบจากรูปแบบโรงเรือนและสภาพแวดล้อมต่อความสบายของโคในฟาร์มรายย่อยในจังหวัดเชียงใหม่.** *วารสารเกษตรพระวรุณ*. *(งานวิจัยวิเคราะห์ข้อจำกัดของโรงเรือนเกษตรกรรายย่อยไทย)*
+3. Onan-Martinez, D., et al. (2026). **Heat stress increases enteric methane emissions yield and intensity while impairing rumen function and productivity in lactating dairy cattle.** *Journal of Dairy Science*. *(อ้างอิง Methane Intensity ที่เพิ่มขึ้น 17.5% เมื่อเกิด Heat Stress)*
+4. Papo, M. L., et al. (2026). **Integrating Precision Livestock Farming and Genomic Tools for Heat Stress Mitigation in South African Dairy Cattle.** *Animals*. *(แนวทางลด Digital Divide ด้วย PLF ราคาประหยัดและ Computer Vision สำหรับฟาร์มรายย่อย)*
+5. Mylostyvyi, R. (2026). **Heat Stress in Dairy Cattle Production: A View from the Perspective of Sustainable Development.** *Sustainability*. *(อ้างอิง Biological Memory การส่งต่อความเครียดจากแม่สู่ลูกโค 35%)*
+6. Hasan, F.M., et al. (2026). **Impact of heat stress on cattle systems: Responses of production metrics to thermal stress.** *Computers and Electronics in Agriculture*. *(การค้นพบ "Lag Effect" 5 วันที่ผลผลิตน้ำนมจะตกลงต่ำสุด)*
+7. Mulajkar, R. M., et al. (2026). **Artificial Intelligence for Early Detection of Heat Stress and Environmental Hazards in Dairy Animals.** *Journal of Animal Environment*. *(การใช้ Edge AI และการรับรองความแม่นยำของโมเดล LSTM ในโคนม)*
+8. Abdourhamane, I. M. (2026). **Deep Learning-Based Forecasting of Heat Stress Events and Daily Milk Yield Depreciation in Dairy Cattle Using Meteorological Data: An In-Silico Study.** *Acta Veterinaria-Beograd*. *(กรอบแนวคิด LSTM 14-day lookback และการเปลี่ยนการจัดการจาก Reactive สู่ Proactive)*
