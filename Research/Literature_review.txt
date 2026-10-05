@@ -1,30 +1,79 @@
-# Literature Review: Heat Stress Mitigation in Dairy Cattle using AI and PLF
+CowCare AI Literature Review
+CowCare AI -- LITERATURE REVIEW
+การทบทวนวรรณกรรม: ภาวะเครียดจากความร้อน (Heat Stress) ในโคนม และการประยุกต์ใช้ปัญญาประดิษฐ์เพื่อการเตือนภัยล่วงหน้า
+ส่วนที่ 1 : บทสรุปรายฉบับ
+กลุ่มที่ 1 : งานวิจัยในประเทศไทย (บริบทปัญหา)
+1. ณัชวิชญ์ ติกุล และ สุวิทย์ ประชุม - ผลกระทบจากรูปแบบโรงเรือนและสภาพแวดล้อมต่อความสบายของโคในฟาร์มรายย่อยในจังหวัดเชียงใหม่
+●	ระเบียบวิธี: สำรวจภาคสนาม ฟาร์มโคเนื้อ 347 ราย และโคนม 43 ราย ในช่วงเดือนมีนาคม-เมษายน 2562 วิเคราะห์ด้วย Stepwise Regression
+●	ผลสำคัญ: ความสูงโรงเรือนเฉลี่ยเพียง 2.70 เมตร นิยมใช้หลังคาสังกะสี อุณหภูมิภายในโรงเรือนสูงกว่าหรือใกล้เคียงภายนอก (เป็นกับดักความร้อน) ตัวแปรที่มีอิทธิพลสูงสุดคือ ความสูงโรงเรือน, รูปทรงหลังคา, จำนวนอาคารรอบ, และวัสดุมุงหลังคา (โมเดลอธิบายความแปรปรวน 93.6%)
+●	ข้อเสนอแนะ: เพิ่มความสูงโรงเรือน, เลือกวัสดุนำความร้อนต่ำ, ปลูกต้นไม้, และลดสิ่งกีดขวางทางลม
+2. วรรณลักษณ์ ถาวร, อิทธิพล สักลอ และ วิวัฒน์ พัฒนาวงศ์ - ผลของอุณหภูมิ ความชื้น และฤดูกาลต่อระดับคอร์ติซอลในโคนมสายพันธุ์โฮลสไตน์ฟรีเชียน
+●	ระเบียบวิธี: แม่โคนม 40 ตัว จ.ลำพูน เก็บข้อมูลครบ 12 เดือน วัดคอร์ติซอลจากมูลด้วย Sandwich ELISA
+●	ผลสำคัญ: ค่าเฉลี่ยทั้งปี - อุณหภูมิ 28.16°C, ความชื้น 34.36%, THI 72.40, คอร์ติซอล 12.84 ng/mL. คอร์ติซอลสูงสุดในฤดูฝน (16.96 ng/mL) รองลงมาคือฤดูหนาว (7.94 ng/mL) และฤดูร้อน (7.03 ng/mL). ค่าสหสัมพันธ์: ความชื้น (r = +0.435), ฤดูกาล (r = +0.543), THI (r = +0.347), อุณหภูมิ (r = -0.17)
+●	การตีความ: ความชื้นมีอิทธิพลมากกว่าอุณหภูมิ เพราะความชื้นสูงขัดขวางการระเหยระบายความร้อน
+กลุ่มที่ 2 : งานวิจัยสากล (กลไกและผลกระทบ)
+3. Mylostyvyi, R. - Heat Stress in Dairy Cattle Production: A View from the Perspective of Sustainable Development
+●	ระเบียบวิธี: Narrative review จากเอกสาร peer-reviewed 221 ฉบับ
+●	ผลสำคัญ: HS เป็นความเสี่ยงเชิงระบบ ความรุนแรงขึ้นกับระยะเวลาคลื่นความร้อนและการฟื้นตัวตอนกลางคืนที่ไม่เพียงพอ (nocturnal recovery). เสนอใช้ THI สะสม 5 วัน ทำนายโรคได้ดีกว่ารายวัน. เกิดภาวะ immunometabolism และ oxidative stress. มีผลข้ามรุ่น (intergenerational effects) ผ่าน developmental programming. คุณภาพน้ำนมเสื่อมก่อนปริมาณลด
+4. Papo, Ncube, Lashmar, Modiba & Mtileni - Integrating Precision Livestock Farming and Genomic Tools for Heat Stress Mitigation in South African Dairy Cattle
+●	ระเบียบวิธี: Systematic/Narrative review (2000-2024)
+●	ผลสำคัญ: PLF (wearable, rumen bolus, infrared thermography) ช่วยตรวจจับ HS ได้เรียลไทม์ THI ~72 คือจุดเริ่มเครียด โฮลสไตน์ทนร้อนน้อยที่สุดเพราะผลิตความร้อนเมแทบอลิซึมสูง เจอร์ซีย์ทนร้อนที่สุด
+5. Onan-Martinez et al. - Heat stress increases enteric methane emissions yield and intensity while impairing rumen function and productivity in lactating dairy cattle
+●	ระเบียบวิธี: การทดลองควบคุม Crossover design 4 สัปดาห์ โคนม 40 ตัว เปรียบเทียบระบายความร้อนด้วยการระเหย (CL) กับร่มเงาอย่างเดียว (HS)
+●	ผลสำคัญ: HS ทำให้ DMI, รูเมน pH, การบีบตัว และผลผลิตน้ำนมลดลง มีเทนรวมต่อวันลดลง (เพราะกินน้อยลง) แต่มีเทนต่อหน่วยอาหาร (yield) และต่อหน่วยน้ำนม (intensity) เพิ่มขึ้น พบ carryover effect หลัง washout
+6. Hasan et al. - Impact of heat stress on cattle systems: Responses of production metrics to thermal stress
+●	ระเบียบวิธี: Big data analysis จากโคเนื้อ 82,026 ตัว (1.3 ล้านรายการ) และโคนม ~300 ตัว นาน 7 ปี
+●	ผลสำคัญ: โคนมน้ำนมลดลงอย่างชัดเจนที่ lag 5 วัน โคเนื้อน้ำหนักเพิ่มชั่วคราวที่ lag 0 วัน (gut fill) แล้วดิ่งลงต่ำสุดที่ lag 14 วัน. ค้นพบ threshold ของโคนมอยู่ที่ THI = 70
+กลุ่มที่ 3 : งานวิจัยด้าน AI/ML (เครื่องมือ)
+7. Mulajkar et al. (2026) - AI-Driven Early Detection of Heat Stress and Environmental Hazards in Dairy Cattle
+●	ผลสำคัญ: เปรียบเทียบโมเดล LSTM ชนะด้วย Accuracy 96.08% และ AUC 97.84%. CNN เด่นด้านภาพ (spatial) LSTM เด่นด้านอนุกรมเวลา (temporal) การทำนาย THI ได้ R² = 0.992
+8. Abdourhamane, I. M. (2026) - LSTM-Based Digital Twin for Early Warning of Heat-Stress Milk Loss
+●	ผลสำคัญ: ใช้ LSTM ใน Digital Twin จำลองฝูงโคนม 500 ตัว นาน 3 ปี ได้ RMSE 1.48 kg/วัน, MAE 1.18 kg/วัน, R² = 0.81 และ Pearson r = -0.76 ระหว่าง THI กับน้ำนม จับ biological lag effect ได้
+9. Maurya, S. & Sharma, R. (2026) - AI-Based Prediction Model for Heat Stress and Welfare in Dairy Cattle
+●	ผลสำคัญ: ปัจจัยสิ่งแวดล้อมมีนัยสำคัญสูงสุดในการทำนาย สรีรวิทยาและพฤติกรรมเป็นตัวเสริม
 
-## 1. บทนำ (Introduction)
-ภาวะเครียดจากความร้อน (Heat Stress - HS) เป็นหนึ่งในความท้าทายที่รุนแรงที่สุดต่อความยั่งยืนของอุตสาหกรรมโคนมทั่วโลกและในประเทศไทย โดยเฉพาะอย่างยิ่งจากการเปลี่ยนแปลงสภาพภูมิอากาศ (Climate Change) ซึ่งส่งผลกระทบต่อสวัสดิภาพสัตว์ (Animal Welfare) ผลผลิตน้ำนม ระบบสืบพันธุ์ และก่อให้เกิดความสูญเสียทางเศรษฐกิจอย่างมหาศาล
+ส่วนที่ 2 : ตารางเปรียบเทียบภาพรวม
+ฉบับ	ประเภทงาน	ขนาดตัวอย่าง	ระดับหลักฐาน	จุดเด่น
+[1]	สำรวจภาคสนาม	390 ฟาร์ม	ปานกลาง	โครงสร้างโรงเรือน
+[2]	วัดฮอร์โมน 12 ด.	40 ตัว	ปานกลาง-สูง	ความชื้น > อุณหภูมิ
+[3]	Narrative review	221 บทความ	สังเคราะห์	กลไก + ผลข้ามรุ่น
+[4]	Systematic rev.	วรรณกรรม 2000-2024	สังเคราะห์	PLF + Genomics
+[5]	ทดลองควบคุม	40 ตัว (crossover)	สูงสุด	รูเมน + มีเทน
+[6]	Big data	82,026 + ~300 ตัว	สูง	lag + threshold
+[7]	Comparative rev.	จากวรรณกรรม	สังเคราะห์	เทียบโมเดล ML
+[8]	In-silico sim.	500 ตัว x 1,095 วัน	ปานกลาง	Digital Twin
+[9]	Model dev.	ไม่ระบุ	ต่ำ	รวมมิติ welfare
 
-## 2. การสังเคราะห์งานวิจัย (Synthesis of Research Findings)
+ส่วนที่ 3 : จุดบรรจบของหลักฐาน (Convergence of Evidence)
+1.	ผลล่าช้า (Lag Effect): ยืนยันตรงกัน 4 ทาง ([3] THI สะสม 5 วัน, [6] lag 5 วันในนม / 14 วันในเนื้อ, [5] carryover effect, [8] LSTM จับ lag effect)
+2.	ค่า THI 70-73 คือเส้นอันตราย: งานไทยวัดค่าเฉลี่ยทั้งปีได้ 72.40 ซึ่งสูงกว่าเกณฑ์ 70 ของ Hasan et al. อยู่แล้ว แปลว่าโคนมไทยเครียดตลอดปี
+3.	ความชื้นสำคัญมาก: [2] ชี้ว่าความชื้นมีอิทธิพลต่อคอร์ติซอลมากกว่าอุณหภูมิ และสูงสุดในฤดูฝน
+4.	ร่มเงาคือด่านแรก: [3] เรียกร่มเงาว่า first line of defence และ [1] เสนอปลูกต้นไม้
 
-### 2.1 ผลกระทบทางสรีรวิทยาและชีวภาพ (Physiological & Biological Impacts)
-- **ปัญหาความชื้นในฤดูฝน:** งานวิจัยในประเทศไทย (วรรณลักษณ์ ถาวร และคณะ, 2566) ชี้ให้เห็นว่าระดับคอร์ติซอล (Cortisol) ซึ่งเป็นฮอร์โมนความเครียดในโคนม มีค่าสูงสุดในฤดูฝน (16.96 ± 7.83 ng/mL) สูงกว่าฤดูร้อน (7.03 ng/mL) เนื่องจากความชื้นสัมพัทธ์ (RH) ที่สูงเกิน 52% ขัดขวางการระบายความร้อนด้วยการระเหยน้ำ (Evaporation) ของโค
-- **ความหน่วงเวลาของผลกระทบ (Lag Effect):** ข้อมูลจากการวิเคราะห์ Big Data ในออสเตรเลีย (Hasan et al., 2026) ยืนยันว่าผลผลิตน้ำนมจะไม่ลดลงทันที แต่จะดิ่งลงต่ำสุดที่ความหน่วงเวลา **5 วัน (Lag 5 days)** หลังจากวันที่อากาศร้อนจัด ในขณะที่น้ำหนักตัวโคจะลดลงต่ำสุดที่ 14 วัน
-- **ผลกระทบข้ามรุ่น (Intergenerational Effect):** การทบทวนวรรณกรรมของ Mylostyvyi (2026) พบว่า "Biological Memory" มีผลระยะยาว หากแม่โคเผชิญความร้อนในช่วงพักรีด (Dry period) ลูกโคที่เกิดมาจะมีการพัฒนาเซลล์เต้านมลดลงถึง 35% ส่งผลให้ผลผลิตน้ำนมลดลงตลอดอายุขัย
-- **ผลกระทบต่อสิ่งแวดล้อม:** Onan-Martinez et al. (2026) พบว่าโคนมที่เผชิญ Heat Stress จะลดการกินได้ (DMI ลดลง >21%) และแม้ก๊าซมีเทนรวมจะลดลง แต่ความเข้มข้นของก๊าซมีเทนต่อกิโลกรัมน้ำนม (Methane Intensity) กลับ **เพิ่มขึ้น 17.5%** เนื่องจากกระเพาะรูเมนทำงานช้าลง
+ส่วนที่ 4 : ข้อขัดแย้งและข้อควรระวังในการตีความ
+●	ความย้อนแย้งของมีเทน: มีเทนรวมลดลงเพราะกินน้อยลง แต่มีเทนต่อหน่วยน้ำนมเพิ่มขึ้น ต้องรายงานคู่กันเสมอ
+●	ค่า R² = 0.992 ของ [7]: เกิดจากการทำนาย THI จากตัวแปรที่ใช้คำนวณ THI โดยตรง (ใกล้เคียง circular prediction) ไม่ควรนำไปเทียบกับการทำนายผลผลิตน้ำนม (R² = 0.81 ของ [8])
+●	[9] ไม่รายงานตัวเลขผลลัพธ์: ควรอ้างอิงเฉพาะแนวคิด
 
-### 2.2 ข้อจำกัดทางกายภาพของฟาร์มรายย่อยไทย (Physical Limitations in Smallholder Farms)
-- ณัชวิชญ์ ติกุล และ สุวิทย์ ประชุม (2562) รายงานว่า 92% ของเกษตรกรผู้เลี้ยงโคในเชียงใหม่เป็นรายย่อย มีข้อจำกัดด้านทุนทรัพย์ โรงเรือนมีความสูงเฉลี่ยเพียง 2.7 เมตร (ต่ำกว่ามาตรฐาน 5-8 เมตร) และนิยมใช้หลังคาสังกะสี (Zinc sheet) ที่มีค่าการนำความร้อนสูงถึง 211 W/mK ส่งผลให้ค่า THI ในโรงเรือนสูงถึง 86.60 (Moderate Stress)
+ส่วนที่ 5 : ช่องว่างการวิจัย (RESEARCH GAP)
+1.	Field Validation Gap: งาน AI ทุกชิ้นยังไม่ผ่านการทดสอบในฟาร์มจริง
+2.	Digital Divide Gap: PLF ที่มีอยู่มีต้นทุนสูงเกินไปสำหรับรายย่อย
+3.	Tropical Context Gap: โมเดลฝึกจากเขตอบอุ่น ไม่เคยเห็นสภาพเครียดต่อเนื่องตลอดปีของไทย
+4.	Humidity Weighting Gap: ผลว่าความชื้นสำคัญกว่าอุณหภูมิยังต้องการการยืนยันซ้ำ
+5.	Barn-Model Integration Gap: ไม่มีโมเดลใดนำตัวแปรโรงเรือนมาเป็น feature
+6.	AI-Methane Gap: ไม่มีโมเดล AI ใดนำมีเทนมาเป็นเอาต์พุต
+7.	Intergenerational Gap: ผลข้ามรุ่นในเขตร้อนยังไม่ถูกศึกษา
+8.	Cost-Benefit Gap: ขาดการวิเคราะห์ความคุ้มค่าทางเศรษฐกิจ
 
-### 2.3 การประยุกต์ใช้ AI และ Precision Livestock Farming (PLF)
-- **Digital Divide:** Papo et al. (2026) ชี้ให้เห็นว่าเทคโนโลยี PLF ในปัจจุบันมักพึ่งพาเซนเซอร์ราคาสูง เช่น Rumen bolus หรือ GPS Collar ซึ่งไม่เหมาะกับเกษตรกรรายย่อย (Smallholders) ในประเทศกำลังพัฒนา
-- **Multimodal AI & LSTM:** Mulajkar et al. (2026) และ Abdourhamane (2026) ยืนยันว่าการใช้โมเดล Deep Learning แบบ **LSTM (Long Short-Term Memory)** มีความแม่นยำสูงสุด (96.08%) ในการทำนาย Heat Stress เนื่องจาก LSTM สามารถจดจำข้อมูลแบบ Time-series (เช่น การนำข้อมูลสภาพอากาศย้อนหลัง 14 วันมาวิเคราะห์) ทำให้จับ Lag effect ได้ดีเยี่ยม การใช้ Computer Vision มาจับพฤติกรรมโค (เช่น ยืน นอน หอบ) ควบคู่กับเซนเซอร์ IoT ถือเป็นแนวทางที่มีประสิทธิภาพสูงสุด
-- **จาก Reactive สู่ Proactive:** ระบบ AI ช่วยยกระดับการจัดการจากเดิมที่รอให้วัวแสดงอาการแล้วค่อยแก้ปัญหา (Reactive) ไปสู่การพยากรณ์และเตือนภัยล่วงหน้า 3-7 วัน (Proactive) เพื่อให้เกษตรกรสามารถปรับแผนโภชนาการและการระบายอากาศได้ทันท่วงที
+ส่วนที่ 6 : แนวทางการต่อยอด (FUTURE DIRECTIONS)
+1.	Field Validation: เก็บข้อมูลจริง 3-6 เดือนเพื่อเติมเต็มช่องว่างโลก
+2.	Baseline Comparison: ต้องเทียบกับ Persistence, ARIMA, Random Forest
+3.	Target Variable: ทำนายผลผลิตน้ำนมหรือระดับความเครียด (หลีกเลี่ยงการทำนาย THI ตรงๆ)
+4.	Humidity Feature: แยก RH เป็น feature พิเศษ และทำ SHAP analysis
+5.	Sensor Pair: ติดเซนเซอร์คู่ ใน-นอกโรงเรือน คำนวณ Barn Penalty
+6.	Ground Truth: วัดคอร์ติซอลจากมูลเพื่อพิสูจน์ว่า AI จับความเครียดชีวภาพได้จริง
+7.	Methane Estimation: ประมาณการอย่างซื่อตรงด้วย IPCC Tier 2 (ระบุว่าเป็น estimated)
+8.	Cost-Benefit Analysis: คำนวณ ROI และระยะเวลาคืนทุน
 
-## 3. ช่องว่างงานวิจัย (Research Gaps)
-1. ขาดแคลนเทคโนโลยี PLF แบบต้นทุนต่ำ (Low-cost non-invasive PLF) ที่เหมาะสมกับบริบทฟาร์มรายย่อยและสภาพอากาศแบบร้อนชื้น (Tropical Climate)
-2. ขาดการบูรณาการข้อมูล (Data Fusion) ระหว่างสภาพแวดล้อม (IoT Sensor) และพฤติกรรมสัตว์เชิงลึกแบบประหยัดพลังงานโดยใช้ Edge AI
-3. โมเดลทำนายการลดลงของน้ำนมส่วนใหญ่ยังไม่ได้นำพฤติกรรมจำเพาะของโค (เช่น เวลาในการนอนที่ลดลง) เข้ามาร่วมคำนวณในโมเดล Time-series
-
-## 4. แนวทางการต่อยอดสู่โปรเจกต์ CowCare AI
-- สร้างระบบ **Multimodal Edge AI** ที่ผสานข้อมูลจากเซนเซอร์ราคาประหยัด (ESP32-S3 + AHT20 + BMP280) เข้ากับกล้องวงจรปิด (CCTV) ที่รัน YOLOv8 เพื่อจับพฤติกรรมการยืน นอน กิน และหอบ โดยไม่ต้องใช้เซนเซอร์ติดตัวโค
-- พัฒนาโมเดล **LSTM Forecasting** โดยใช้ข้อมูลย้อนหลัง 4-14 วัน (Lookback window) เพื่อทำนาย THI และความเสี่ยงที่ผลผลิตน้ำนมจะลดลงล่วงหน้า 3-7 วัน
-- นำ GenAI (Gemini) มาแปลงผลลัพธ์เชิงสถิติจาก LSTM ให้เป็นคำแนะนำภาษาไทยที่เกษตรกรเข้าใจง่าย และแจ้งเตือนผ่าน LINE Notify แบบ Proactive
+ส่วนที่ 7 : รายการอ้างอิง
+[1] ณัชวิชญ์ ติกุล และ สุวิทย์ ประชุม. ผลกระทบจากรูปแบบโรงเรือนและสภาพแวดล้อมต่อความสบายของโคในฟาร์มรายย่อยในจังหวัดเชียงใหม่. [2] วรรณลักษณ์ ถาวร, อิทธิพล สักลอ และ วิวัฒน์ พัฒนาวงศ์. ผลของอุณหภูมิ ความชื้น และฤดูกาลต่อระดับคอร์ติซอลในโคนมสายพันธุ์โฮลสไตน์ฟรีเชียน. [3] Mylostyvyi, R. Heat Stress in Dairy Cattle Production: A View from the Perspective of Sustainable Development. [4] Papo et al. Integrating Precision Livestock Farming and Genomic Tools for Heat Stress Mitigation in South African Dairy Cattle. [5] Onan-Martinez et al. Heat stress increases enteric methane emissions yield and intensity while impairing rumen function and productivity in lactating dairy cattle. [6] Hasan et al. Impact of heat stress on cattle systems: Responses of production metrics to thermal stress. [7] Mulajkar et al. (2026). AI-Driven Early Detection of Heat Stress and Environmental Hazards in Dairy Cattle. [8] Abdourhamane, I. M. (2026). LSTM-Based Digital Twin for Early Warning of Heat-Stress Milk Loss. [9] Maurya, S. & Sharma, R. (2026). AI-Based Prediction Model for Heat Stress and Welfare in Dairy Cattle.
