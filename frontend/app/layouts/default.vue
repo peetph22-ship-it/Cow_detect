@@ -14,10 +14,11 @@
         <a href="#solution" @click="scrollToSection($event, '#solution')">ระบบทำงานอย่างไร</a>
         <a href="#lstm" @click="scrollToSection($event, '#lstm')">AI คาดการณ์</a>
         <a href="#research" @click="scrollToSection($event, '#research')">งานวิจัย</a>
+        <a href="#solution" @click="scrollToSection($event, '#solution')">Solution</a>
       </nav>
 
-      <v-btn class="header-cta ml-5 d-none d-md-flex" href="#solution" rounded="pill" variant="flat" @click="scrollToSection($event, '#solution')">
-        ดูโซลูชัน <v-icon end icon="mdi-arrow-right" />
+      <v-btn class="header-cta ml-5 d-none d-md-flex" rounded="pill" variant="flat">
+        <nuxt-link to="Login" style="text-decoration-line: none;" class="text-white">START <v-icon end icon="mdi-arrow-right" /></nuxt-link>
       </v-btn>
 
       <v-btn class="d-md-none ml-auto" icon="mdi-menu" variant="text" color="#24433a" aria-label="Open menu" @click="drawer = !drawer" />

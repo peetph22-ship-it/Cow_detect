@@ -19,6 +19,15 @@ app.get('/',(req,res) => {
     res.json({message:'Connect node success!'})
 })
 
+// routerAPI ===================
+
+// auth
+const auth = require('./app/routes/authRouter')
+app.use('/api/auth',auth)
+
+
+// =============================
+
 // 404 Check
 app.use((req,res) => res.status(404).json({message: 'Invalid Route!'}))
 
