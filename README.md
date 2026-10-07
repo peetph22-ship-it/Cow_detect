@@ -80,7 +80,7 @@ flowchart LR
 ## 📂 โครงสร้างโปรเจกต์ (Project Structure)
 
 ```text
-testYOLO26/
+Cow_detect/
 ├── docker-compose.yml        # รวมทุก service
 ├── .env                      # ตัวแปรกลาง (ไม่ถูก commit)
 ├── .gitignore

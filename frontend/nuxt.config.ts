@@ -1,9 +1,18 @@
+import tailwindcss from '@tailwindcss/vite'
+
 export default defineNuxtConfig({
   alias: {
     cookie: 'cookie-es',
   },
 
+  css: [
+    '~/assets/css/main.css'
+  ],
+
   vite: {
+    plugins: [
+      tailwindcss(),
+    ],
     optimizeDeps: {
       include: [ 'cookie-es', '@supabase/ssr' ],
     },

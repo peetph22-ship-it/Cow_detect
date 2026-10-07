@@ -3,7 +3,7 @@
     <v-container class="d-flex align-center h-100 px-4 px-md-8">
       <NuxtLink to="/" class="brand d-flex align-center text-decoration-none" aria-label="CowCare AI home">
         <!-- <span class="brand-mark"><v-icon icon="mdi-cow" size="24" /></span> -->
-        <img src="/images/logo/logo1.png" alt="CowCare AI Logo" style="height: 40px; border-radius: 8px;" />
+        <img src="/images/logo/logo1.png" alt="PH Detection Logo" style="height: 40px; border-radius: 8px;" />
         <span>
           <strong>Detection</strong> <em>System</em>
           <small>HEAT STRESS INTELLIGENCE</small>
@@ -18,7 +18,7 @@
       </nav>
 
       <v-btn class="header-cta ml-5 d-none d-md-flex" rounded="pill" variant="flat">
-        <nuxt-link to="Login" style="text-decoration-line: none;" class="text-white">START <v-icon end icon="mdi-arrow-right" /></nuxt-link>
+        <nuxt-link to="/login" style="text-decoration-line: none;" class="text-white">START <v-icon end icon="mdi-arrow-right" /></nuxt-link>
       </v-btn>
 
       <v-btn class="d-md-none ml-auto" icon="mdi-menu" variant="text" color="#24433a" aria-label="Open menu" @click="drawer = !drawer" />

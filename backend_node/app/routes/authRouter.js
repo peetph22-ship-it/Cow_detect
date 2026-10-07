@@ -16,6 +16,7 @@ router.post('/login',async (req, res) => {
             })
         }
         const {rows} = await db.query('SELECT * FROM users WHERE email = $1 LIMIT 1', [email])
+        // const {rows2} = await db.query(`select * from users where `)
         const user = rows[0]
         if (!user) {
             return res.status(401).json({ 
