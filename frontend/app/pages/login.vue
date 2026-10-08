@@ -10,11 +10,11 @@
                     <div class="login-header text-center">
                         <div class="mx-auto mb-3">
                             <!-- <v-icon icon="mdi-cow" size="32" color="#d87939" /> -->
-                             <img src="/images/logo/logo1.png" alt="Error Logo!" style="width:30%">
+                            <center><img src="/images/logo/logo1.png" alt="Error Logo!" style="width:30%"></center>
                         </div>
                         <span class="eyebrow">PH Detection System</span>
                         <h1 class="login-title">เข้าสู่ระบบ</h1>
-                        <!-- <p class="login-subtitle"></p> -->
+                        <!-- <p class="login-subtitle">PH</p> -->
                     </div>
 
                     <v-alert v-if="errorMessage" type="error" variant="tonal" density="compact" class="mb-4" closable
@@ -55,11 +55,7 @@
             </v-container>
         </section>
 
-        <footer>
-            <v-container class="footer-content px-5">
-                <span>© 2026 CowCare AI · Heat Stress Intelligence for Dairy Farms</span>
-            </v-container>
-        </footer>
+        <AppFooter />
     </div>
 </template>
 
@@ -289,18 +285,7 @@ useHead({ title: 'เข้าสู่ระบบ | PH Deetection System' })
     color: #d87939;
 }
 
-footer {
-    padding: 16px 0;
-    color: #a8b6aa;
-    background: #19362e;
-    font-size: .65rem;
-    text-align: center;
-}
 
-.footer-content {
-    display: flex;
-    justify-content: center;
-}
 
 @keyframes drift {
     to {
