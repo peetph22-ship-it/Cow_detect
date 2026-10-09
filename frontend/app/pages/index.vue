@@ -36,7 +36,12 @@
             </div>
             <div class="scale-section">
               <div class="scale" aria-hidden="true"><i /><i /><i /><b :style="{ left: pos + '%' }" /></div>
-              <div class="ticks" aria-hidden="true"><span style="left:33.3%">70</span><span style="left:40%">72</span></div>
+              <div class="ticks" aria-hidden="true"><span style="left:53.33%">76</span><span style="left:66.67%">80</span></div>
+            </div>
+            <div style="margin-top:16px; padding:12px; background:rgba(230, 242, 231, 0.6); border-radius:12px; border:1px solid rgba(62, 125, 79, 0.2);">
+              <p style="font-size:0.7rem; color:#24433a; line-height:1.6; font-weight:500;">
+                <strong style="color:#3e7d4f;">Research-Backed:</strong> แอปพลิเคชันของเราไม่ได้ใช้เกณฑ์ THI 72 ของต่างประเทศ แต่ปรับแต่งอัลกอริทึมให้แจ้งเตือนความเสี่ยงที่ <strong>THI 76</strong> ซึ่งอิงตามงานวิจัยล่าสุด (Boonkum et al., 2024; Sungkhapreecha et al., 2022) ที่ระบุว่าเป็นจุดวิกฤตของโคนมลูกผสมไทย ทำให้การแจ้งเตือนแม่นยำ ไม่รบกวนเกษตรกรพร่ำเพรื่อ
+              </p>
             </div>
           </div>
           <div class="float-card behavior-card"><v-icon icon="mdi-video-outline" /><div><small>COMPUTER VISION</small><strong>กำลังวิเคราะห์พฤติกรรม</strong></div></div>
@@ -154,11 +159,11 @@ const rounded = computed(() => Math.round(thi.value))
 const pos = computed(() => Math.min(100, Math.max(0, ((thi.value - 60) / 30) * 100)))
 
 const states = [
-  { name: 'ปกติ', color: '#3e7d4f', bgColor: '#e6f2e7', note: 'THI ต่ำกว่า 70 โคนมยังไม่ได้รับผลกระทบจากความร้อน' },
-  { name: 'เริ่มได้รับผลกระทบ', color: '#cb6f33', bgColor: '#fffaf4', note: 'THI 70–72 ควรเริ่มระบายอากาศและเตรียมน้ำดื่มให้พอ' },
-  { name: 'น้ำนมเริ่มลด', color: '#d2401f', bgColor: '#faece8', note: 'THI เกิน 72 ผลจะตามมาอีกราว 5 วัน ควรลดความร้อนทันที' },
+  { name: 'ปกติ (สำหรับโคนมลูกผสม)', color: '#3e7d4f', bgColor: '#e6f2e7', note: 'THI ต่ำกว่า 76 โคนมลูกผสมในไทยยังปรับตัวได้' },
+  { name: 'เริ่มได้รับผลกระทบ', color: '#cb6f33', bgColor: '#fffaf4', note: 'THI 76–79 ควรเปิดพัดลมระบายอากาศและเช็กน้ำดื่ม' },
+  { name: 'วิกฤตความร้อน', color: '#d2401f', bgColor: '#faece8', note: 'THI ตั้งแต่ 80 ขึ้นไป น้ำนมลดลงชัดเจน ต้องลดความร้อนทันที' },
 ]
-const cur = computed(() => states[rounded.value < 70 ? 0 : rounded.value <= 72 ? 1 : 2])
+const cur = computed(() => states[rounded.value < 76 ? 0 : rounded.value < 80 ? 1 : 2])
 
 let observer: IntersectionObserver | undefined
 
@@ -220,9 +225,9 @@ h1, h2, h3, p { margin: 0; }.brand-mark { display: inline-flex; align-items: cen
 .tool-sliders input[type="range"] { grid-column: 1 / -1; width: 100%; accent-color: #24433a; margin-bottom: 12px; }
 .scale-section { margin-top: 10px; }
 .scale { position: relative; display: flex; height: 10px; border-radius: 99px; }
-.scale i:nth-child(1) { flex: 33.3; background: #3e7d4f; border-radius: 99px 0 0 99px; }
-.scale i:nth-child(2) { flex: 6.7; background: #e0a21f; }
-.scale i:nth-child(3) { flex: 60; background: #d2401f; border-radius: 0 99px 99px 0; }
+.scale i:nth-child(1) { flex: 53.33; background: #3e7d4f; border-radius: 99px 0 0 99px; }
+.scale i:nth-child(2) { flex: 13.34; background: #e0a21f; }
+.scale i:nth-child(3) { flex: 33.33; background: #d2401f; border-radius: 0 99px 99px 0; }
 .scale b { position: absolute; top: -4px; width: 4px; height: 18px; margin-left: -2px; box-sizing: content-box; background: #24433a; border: 2px solid #fff; border-radius: 4px; transition: left .25s; }
 .ticks { position: relative; height: 20px; margin-top: 6px; font-size: .7rem; color: #849087; font-weight: 700; }
 .ticks span { position: absolute; transform: translateX(-50%); }
