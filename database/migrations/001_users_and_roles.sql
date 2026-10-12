@@ -19,10 +19,11 @@ $$ LANGUAGE plpgsql;
 
 CREATE TABLE users (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    email           CITEXT UNIQUE NOT NULL,
-    password_hash   TEXT NOT NULL,                        -- bcrypt hash
+    email           CITEXT UNIQUE,                        -- เอา NOT NULL ออก (เกษตรกรไม่มีอีเมล)
+    password   TEXT NOT NULL,                        -- bcrypt hash
     full_name       VARCHAR(255) NOT NULL,
-    phone           VARCHAR(20),
+    phone           VARCHAR(20) UNIQUE NOT NULL,          -- ใช้เป็น Username ห้ามซ้ำ
+    organization    VARCHAR(255),                         -- สำหรับเก็บชื่อสังกัด (แอดมิน, หมอ)
     avatar_url      TEXT,
     role            user_role   NOT NULL DEFAULT 'farmer',
     status          user_status NOT NULL DEFAULT 'pending',
@@ -44,11 +45,13 @@ CREATE TRIGGER trg_users_updated_at
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 
 -- Seed: Admin คนแรก (⚠️ เปลี่ยน email/รหัสผ่านก่อนรัน)
-INSERT INTO users (email, password_hash, full_name, role, status)
+INSERT INTO users (phone, email, password, full_name, role, status, organization)
 VALUES (
+    '0800000000',
     'admin@cowcare.ai',
     crypt('ChangeMe_123!', gen_salt('bf', 10)),
     'System Administrator',
     'admin',
-    'active'
+    'active',
+    'ศูนย์ควบคุม CowCare AI'
 );

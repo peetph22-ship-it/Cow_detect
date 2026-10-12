@@ -23,7 +23,7 @@
 ออกแบบด้วยแนวคิด **Edge-to-Cloud** ตามหลัก Precision Livestock Farming (PLF)
 
 ### 1. Sense — การรับรู้ข้อมูลแบบพหุวิถี
-- **Environmental IoT:** ESP32-S3 (N16R8) + AHT20 (อุณหภูมิ/ความชื้น) + BMP280 (ความดัน) เพื่อคำนวณค่า **THI** อย่างแม่นยำ
+- **Environmental IoT:** ESP32-S3 (N16R8) + **SHT40** (เซนเซอร์วัดอุณหภูมิ/ความชื้นความแม่นยำสูง) เชื่อมต่อส่งสัญญาณผ่าน **RS485** พร้อมระบบจ่ายไฟ **Adapter 12V 2A** ร่วมกับ **Step-down to 5V** เพื่อคำนวณค่า **THI** อย่างแม่นยำและเสถียรในสภาพแวดล้อมฟาร์ม
 - **Edge Vision AI:** ใช้กล้องวงจรปิด / Webcam รันโมเดล **YOLOv8** บนอุปกรณ์ปลายทางเพื่อตรวจจับพฤติกรรม (ยืนนานผิดปกติ, นอนน้อยลง, หอบ) ซึ่งเป็นตัวชี้วัดความเครียดทางกายภาพ
 
 ### 2. Recommend — การวิเคราะห์เชิงทำนาย (Predictive Analytics)
@@ -72,7 +72,7 @@ flowchart LR
 | **API Backend** | Node.js, Express 5, Supabase JS, JWT, bcrypt, `@google/generative-ai`, nodemon |
 | **Database** | PostgreSQL (Supabase) + PgBouncer, TimescaleDB (แผนสำหรับ Time-series) |
 | **AI / ML** | YOLO (custom `best.pt`), LSTM (Time-series), Gemini (GenAI) |
-| **Hardware** | ESP32-S3 N16R8, AHT20, BMP280, IP Camera / USB Webcam |
+| **Hardware** | ESP32-S3 N16R8, SHT40 Sensor, RS485 Module, Step-down to 5V, Adapter 12V 2A, IP Camera / USB Webcam |
 | **Infrastructure** | Docker & Docker Compose |
 
 ---
@@ -197,7 +197,7 @@ uvicorn app.main:app --reload --port 8000
 | Method | Path | รายละเอียด | สถานะ |
 |---|---|---|---|
 | `GET` | `/` | ทดสอบการเชื่อมต่อ (`Connect node success!`) | ✅ |
-| `POST` | `/api/sensors/data` | รับค่าอุณหภูมิ/ความชื้น/ความดันจาก ESP32 | 🚧 |
+| `POST` | `/api/sensors/data` | รับค่าอุณหภูมิและความชื้น (SHT40) จาก ESP32 ผ่าน RS485 | 🚧 |
 | `POST` | `/api/auth/*` | สมัครสมาชิก / เข้าสู่ระบบ (JWT) | 🚧 |
 
 ---
@@ -208,7 +208,7 @@ uvicorn app.main:app --reload --port 8000
 - [x] FastAPI รองรับ Image detection และ Video streaming
 - [x] ตั้งค่า Microservices ด้วย Docker Compose (FastAPI + Node.js + Nuxt)
 - [x] Landing page (Nuxt + Vuetify) พร้อม Smooth scroll และ Scroll reveal animation
-- [ ] Endpoint รับข้อมูลจาก ESP32 (Temperature, Humidity, Pressure)
+- [ ] Endpoint รับข้อมูลจาก ESP32 (SHT40 Temperature & Humidity ผ่าน RS485)
 - [ ] เชื่อมต่อ PostgreSQL / Supabase สำหรับ Digital Logbook
 - [ ] ระบบ Auth (JWT) ฝั่ง Node.js
 - [ ] โมเดล LSTM คาดการณ์แนวโน้มค่า THI ล่วงหน้า

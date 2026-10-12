@@ -66,25 +66,27 @@ router.post('/login',async (req, res) => {
 // POST: Register API
 router.post('/register',async(req,res) => {
     try{
-        const { email,full_name,phone,password,role } = req.body
-        if(!email || !full_name || !phone || password || !role ) return res.status(400).json({
+        const { email,full_name,phone,password,role,organization } = req.body
+        if(!full_name || !phone || !password || !role ) return res.status(400).json({
             success:false,
-            message:'Please Enter your [email,full_name,phone,password,role]'
+            message:'Please Enter your [full_name,phone,password,role]'
         })
 
         const hash = await bcrypt.hash(password,10)
-        const {rows} = await db.query(`insert into users (email,full_name,phone,password,role,created_at) values($1,$2,$3,$4,$5,NOW()) returning id,email,full_name,phone,role`,[email,full_name,phone,hash,role])
+        const {rows} = await db.query(
+            `insert into users (email,full_name,phone,password,role,organization,created_at) values($1,$2,$3,$4,$5,$6,NOW()) returning id,email,full_name,phone,role,organization`,
+            [email || null, full_name, phone, hash, role, organization || null]
+        )
         return res.status(200).json({
-            rows,
+            user: rows[0],
             success:true,
             message:'Register Success!'
         })
     }catch(err){
-        // chk Email
         if (err.code === '23505') {
             return res.status(400).json({
                 success: false,
-                message: 'This email is already registered!'
+                message: 'This phone or email is already registered!'
             })
         }
         console.log("Error!, Register False!",err.message)

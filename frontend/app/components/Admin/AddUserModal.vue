@@ -1,126 +1,109 @@
 <template>
-  <Transition name="modal-fade">
-    <div v-if="modelValue" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <!-- Backdrop -->
-      <div 
-        class="backdrop absolute inset-0 bg-[#1f3d34]/30 backdrop-blur-sm" style="transform: translateZ(0); will-change: opacity;" 
-        @click="$emit('update:modelValue', false)"
-      ></div>
-
-      <!-- Modal Content -->
-      <div class="modal-card relative bg-white rounded-[24px] shadow-2xl w-full max-w-[520px] overflow-hidden flex flex-col">
+  <v-dialog v-model="internalModel" max-width="540" persistent>
+    <v-card rounded="xl" elevation="10">
       <!-- Header -->
-      <div class="px-8 py-6 border-b border-[#e5ece9] flex items-center justify-between bg-[#f4f7f6]/50">
-        <div>
-          <h3 class="text-[20px] font-black text-[#1f3d34]">เพิ่มสมาชิกใหม่</h3>
-          <p class="text-[13px] text-[#64766d] mt-1 font-medium">สร้างบัญชีสำหรับเกษตรกร ผู้เชี่ยวชาญ หรือแอดมิน</p>
+      <v-card-title class="bg-teal-darken-4 text-white px-6 py-4 d-flex justify-space-between align-center">
+        <div class="d-flex align-center gap-3">
+          <v-icon>mdi-account-plus</v-icon>
+          <span class="text-h6 font-weight-bold">เพิ่มสมาชิกใหม่</span>
         </div>
-        <button 
-          @click="$emit('update:modelValue', false)"
-          class="w-8 h-8 rounded-full flex items-center justify-center text-[#a6b5aa] hover:bg-[#e5ece9] hover:text-[#1f3d34] transition-colors cursor-pointer"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-        </button>
-      </div>
+        <v-btn icon="mdi-close" variant="text" size="small" @click="closeModal" color="white"></v-btn>
+      </v-card-title>
 
       <!-- Body -->
-      <div class="p-8 space-y-6 overflow-y-auto max-h-[70vh]">
-        
-        <!-- Role Selection -->
-        <div class="space-y-2">
-          <label class="text-[13px] font-bold text-[#4e6057]">ประเภทสมาชิก <span class="text-red-500">*</span></label>
-          <div class="grid grid-cols-3 gap-3">
-            <button 
-              type="button"
-              v-for="role in roles" 
-              :key="role.id"
-              @click="form.role = role.id"
-              :class="[
-                'py-2.5 px-3 rounded-[12px] text-[13px] font-bold border transition-all text-center cursor-pointer',
-                form.role === role.id 
-                  ? 'bg-[#e6f2e7] border-[#3e7d4f]/30 text-[#1f3d34] ring-1 ring-[#3e7d4f]' 
-                  : 'bg-white border-[#e5ece9] text-[#718078] hover:border-[#a6b5aa]'
-              ]"
-            >
-              {{ role.name }}
-            </button>
+      <v-card-text class="pa-6 bg-grey-lighten-5">
+        <v-form ref="formRef" v-model="isFormValid" @submit.prevent="submitForm">
+          
+          <!-- Role -->
+          <div class="mb-5">
+            <label class="text-subtitle-2 font-weight-bold text-blue-grey-darken-2 mb-2 d-block">ประเภทสมาชิก <span class="text-error">*</span></label>
+            <v-btn-toggle v-model="form.role" color="teal-darken-3" mandatory class="w-100 elevation-1 bg-white" style="height: 48px;">
+              <v-btn value="farmer" class="flex-grow-1 text-subtitle-2 font-weight-bold">เกษตรกร</v-btn>
+              <v-btn value="expert" class="flex-grow-1 text-subtitle-2 font-weight-bold">ผู้เชี่ยวชาญ</v-btn>
+              <v-btn value="admin" class="flex-grow-1 text-subtitle-2 font-weight-bold">ผู้ดูแลระบบ</v-btn>
+            </v-btn-toggle>
           </div>
-        </div>
 
-        <!-- Name -->
-        <div class="space-y-2">
-          <label class="text-[13px] font-bold text-[#4e6057]">ชื่อ-นามสกุล <span class="text-red-500">*</span></label>
-          <input 
+          <!-- Name -->
+          <v-text-field
             v-model="form.name"
-            type="text" 
             placeholder="เช่น สมชาย มั่งมี"
-            class="w-full bg-[#f4f7f6] border border-[#e5ece9] rounded-[12px] px-4 py-3 text-[14px] text-[#1f3d34] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1f3d34]/20 transition-all"
+            :rules="[v => !!v || 'กรุณากรอกชื่อ-นามสกุล']"
+            variant="outlined"
+            color="teal-darken-3"
+            density="comfortable"
+            class="mb-3"
+            bg-color="white"
+            prepend-inner-icon="mdi-account"
           >
-        </div>
+            <template v-slot:label>
+              ชื่อ-นามสกุล <span class="text-error">*</span>
+            </template>
+          </v-text-field>
 
-        <!-- Organization / Farm Name -->
-        <div class="space-y-2">
-          <label class="text-[13px] font-bold text-[#4e6057]">ชื่อฟาร์ม / สังกัด</label>
-          <input 
+          <!-- Organization / Farm Name -->
+          <v-text-field
             v-model="form.org"
-            type="text" 
-            placeholder="เช่น ฟาร์มสมชาย โคนมไทย"
-            class="w-full bg-[#f4f7f6] border border-[#e5ece9] rounded-[12px] px-4 py-3 text-[14px] text-[#1f3d34] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1f3d34]/20 transition-all"
+            :placeholder="orgPlaceholder"
+            :rules="[v => !!v || `กรุณากรอก${orgLabel}`]"
+            variant="outlined"
+            color="teal-darken-3"
+            density="comfortable"
+            class="mb-3"
+            bg-color="white"
+            :prepend-inner-icon="form.role === 'farmer' ? 'mdi-barn' : 'mdi-domain'"
           >
-        </div>
+            <template v-slot:label>
+              {{ orgLabel }} <span class="text-error">*</span>
+            </template>
+          </v-text-field>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          <!-- Phone (Username) -->
-          <div class="space-y-2">
-            <label class="text-[13px] font-bold text-[#4e6057]">เบอร์โทรศัพท์ <span class="text-red-500">*</span></label>
-            <input 
-              v-model="form.phone"
-              type="tel" 
-              placeholder="08X-XXX-XXXX"
-              class="w-full bg-[#f4f7f6] border border-[#e5ece9] rounded-[12px] px-4 py-3 text-[14px] text-[#1f3d34] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1f3d34]/20 transition-all"
-            >
-            <p class="text-[11px] text-[#a6b5aa]">ใช้เป็นชื่อเข้าสู่ระบบ (Username)</p>
-          </div>
+          <!-- Phone -->
+          <v-text-field
+            v-model="form.phone"
+            placeholder="08X-XXX-XXXX"
+            :rules="phoneRules"
+            variant="outlined"
+            color="teal-darken-3"
+            density="comfortable"
+            hint="ใช้เป็นชื่อเข้าสู่ระบบ (Username)"
+            persistent-hint
+            type="tel"
+            bg-color="white"
+            prepend-inner-icon="mdi-phone"
+          >
+            <template v-slot:label>
+              เบอร์โทรศัพท์ <span class="text-error">*</span>
+            </template>
+          </v-text-field>
+          
+        </v-form>
+      </v-card-text>
 
-          <!-- Password -->
-          <div class="space-y-2">
-            <label class="text-[13px] font-bold text-[#4e6057]">รหัสผ่านเริ่มต้น <span class="text-red-500">*</span></label>
-            <input 
-              v-model="form.password"
-              type="text" 
-              class="w-full bg-[#f4f7f6] border border-[#e5ece9] rounded-[12px] px-4 py-3 text-[14px] text-[#1f3d34] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1f3d34]/20 transition-all"
-            >
-            <p class="text-[11px] text-[#a6b5aa]">สามารถเปลี่ยนภายหลังได้</p>
-          </div>
-        </div>
-
-      </div>
+      <v-divider></v-divider>
 
       <!-- Footer -->
-      <div class="px-8 py-5 border-t border-[#e5ece9] bg-[#f4f7f6]/30 flex justify-end gap-3">
-        <button 
-          @click="$emit('update:modelValue', false)"
-          class="px-5 py-2.5 rounded-[12px] text-[13px] font-bold text-[#64766d] hover:bg-[#e5ece9] transition-colors cursor-pointer"
-        >
-          ยกเลิก
-        </button>
-        <button 
-          @click="submitForm"
-          class="px-6 py-2.5 rounded-[12px] text-[13px] font-bold text-white bg-[#1f3d34] hover:bg-[#142a24] shadow-md transition-all flex items-center gap-2 cursor-pointer"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+      <v-card-actions class="px-6 py-4 bg-grey-lighten-4">
+        <v-spacer></v-spacer>
+        <v-btn color="blue-grey-darken-1" variant="text" class="font-weight-bold px-4" @click="closeModal" :disabled="isLoading">ยกเลิก</v-btn>
+        <v-btn color="teal-darken-4" variant="flat" class="font-weight-bold px-6" @click="submitForm" :loading="isLoading">
+          <v-icon left class="mr-2">mdi-content-save</v-icon>
           บันทึกข้อมูล
-        </button>
-      </div>
-
-    </div>
-  </div>
-  </Transition>
-
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup>
-import { reactive } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
+import axios from 'axios'
+ 
+
+ 
+ 
+ 
+import { base } from '../../api/baseAPI'
 
 const props = defineProps({
   modelValue: {
@@ -131,72 +114,92 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'submit'])
 
-const roles = [
-  { id: 'farmer', name: 'เกษตรกร' },
-  { id: 'expert', name: 'ผู้เชี่ยวชาญ' },
-  { id: 'admin', name: 'ผู้ดูแลระบบ' }
-]
+const internalModel = computed({
+  get: () => props.modelValue,
+  set: (val) => emit('update:modelValue', val)
+})
+
+const formRef = ref(null)
+const isFormValid = ref(false)
+const isLoading = ref(false)
 
 const form = reactive({
   role: 'farmer',
   name: '',
   org: '',
-  phone: '',
-  password: 'cowcare2026' // default password
+  phone: ''
 })
 
-const submitForm = () => {
-  if (!form.name || !form.phone || !form.password) {
-    alert('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน')
-    return
+const orgLabel = computed(() => {
+  if (form.role === 'farmer') return 'ชื่อฟาร์ม'
+  if (form.role === 'expert') return 'หน่วยงานต้นสังกัด'
+  return 'สังกัด / แผนก'
+})
+
+const orgPlaceholder = computed(() => {
+  if (form.role === 'farmer') return 'เช่น ฟาร์มสมชาย โคนมไทย'
+  if (form.role === 'expert') return 'เช่น กรมปศุสัตว์, คณะสัตวแพทยศาสตร์'
+  return 'เช่น ศูนย์ควบคุมส่วนกลาง'
+})
+
+const phoneRules = [
+  v => !!v || 'กรุณากรอกเบอร์โทรศัพท์',
+  v => /^[0-9]{9,10}$/.test(v) || 'รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง'
+]
+
+// Reset form when modal closes
+watch(() => props.modelValue, (isOpen) => {
+  if (!isOpen && formRef.value) {
+    formRef.value.reset()
+    form.role = 'farmer'
   }
+})
+
+const closeModal = () => {
+  internalModel.value = false
+}
+
+const submitForm = async () => {
+  if (!formRef.value) return
   
-  emit('submit', { ...form })
+  const { valid } = await formRef.value.validate()
+  if (!valid) return
+
+  isLoading.value = true
   
-  // Reset form
-  form.name = ''
-  form.org = ''
-  form.phone = ''
-  form.password = 'cowcare2026'
-  form.role = 'farmer'
-  
-  emit('update:modelValue', false)
+  try {
+    const payload = {
+      full_name: form.name,
+      phone: form.phone,
+      role: form.role,
+      organization: form.org,
+      password: form.phone, // Default password = phone number
+      email: null // Backend has been updated to accept null email
+    }
+    
+    // Call Node.js Backend API using baseAPI
+    const response = await axios.post(`${base}/auth/register`, payload)
+    
+    // Emit event back to users.vue so the UI updates
+    emit('submit', { 
+      id: response.data.user?.id || Date.now(), 
+      name: form.name, 
+      role: form.role, 
+      org: form.org, 
+      phone: form.phone 
+    })
+    
+    closeModal()
+    
+  } catch (error) {
+    console.error("Register Error:", error)
+    alert(error.response?.data?.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาลองใหม่')
+  } finally {
+    isLoading.value = false
+  }
 }
 </script>
 
 <style scoped>
-/* Root opacity transition */
-.modal-fade-enter-active,
-.modal-fade-leave-active {
-  transition: opacity 0.4s ease;
-}
-
-.modal-fade-enter-from,
-.modal-fade-leave-to {
-  opacity: 0;
-}
-
-/* Smooth Backdrop Blur Transition */
-.modal-fade-enter-active .backdrop,
-.modal-fade-leave-active .backdrop {
-  transition: backdrop-filter 0.4s ease, background-color 0.4s ease;
-}
-
-.modal-fade-enter-from .backdrop,
-.modal-fade-leave-to .backdrop {
-  backdrop-filter: blur(0px);
-  background-color: transparent;
-}
-
-/* Modal Card Spring Animation */
-.modal-fade-enter-active .modal-card,
-.modal-fade-leave-active .modal-card {
-  transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.modal-fade-enter-from .modal-card,
-.modal-fade-leave-to .modal-card {
-  opacity: 0;
-  transform: translateY(24px) scale(0.96);
-}
+/* Vuetify styles are sufficient */
 </style>
