@@ -82,23 +82,33 @@ const areaChartOptions = ref({
   annotations: {
     yaxis: [
       {
-        y: 70,
+        y: 76,
         borderColor: '#f59e0b',
         strokeDashArray: 4,
         label: {
           borderColor: '#f59e0b',
           style: { color: '#fff', background: '#f59e0b', fontSize: '11px', fontWeight: 600, padding: { left: 8, right: 8, top: 4, bottom: 4 } },
-          text: 'THI 70 (เกณฑ์อันตราย)'
+          text: 'THI 76 (เกณฑ์วิกฤตโคนมไทย - เริ่มกระทบ)'
         }
       },
       {
         y: 80,
+        borderColor: '#ea580c',
+        strokeDashArray: 4,
+        label: {
+          borderColor: '#ea580c',
+          style: { color: '#fff', background: '#ea580c', fontSize: '11px', fontWeight: 600, padding: { left: 8, right: 8, top: 4, bottom: 4 } },
+          text: 'THI 80 (เสี่ยงปานกลาง - น้ำนมตก 2 เท่า)'
+        }
+      },
+      {
+        y: 84,
         borderColor: '#e04f4f',
         strokeDashArray: 4,
         label: {
           borderColor: '#e04f4f',
           style: { color: '#fff', background: '#e04f4f', fontSize: '11px', fontWeight: 600, padding: { left: 8, right: 8, top: 4, bottom: 4 } },
-          text: 'THI 80 (วิกฤตรุนแรง)'
+          text: 'THI 84 (วิกฤตรุนแรง - ผสมไม่ติด/ตัวอ่อนฝ่อ)'
         }
       }
     ]

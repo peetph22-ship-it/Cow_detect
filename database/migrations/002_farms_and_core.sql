@@ -133,8 +133,13 @@ CREATE TRIGGER trg_devices_updated_at
 -- PART C — Time-series (Sensor / Behavior / Milk)
 -- ============================================================
 
--- C1. sensor_readings — ค่าจาก ESP32 (AHT20 + BMP280)
---   THI (NRC 1971) = (1.8T+32) − (0.55 − 0.0055·RH)·(1.8T − 26)
+-- C1. sensor_readings — ค่าจาก ESP32 (SHT40 ผ่าน RS485 Modbus)
+--   THI (NRC 1971 / NOAA 1976) = (1.8T+32) − (0.55 − 0.0055·RH)·(1.8T − 26)
+--   เกณฑ์โคนมไทย (Boonkum et al., 2024; Sungkhapreecha et al., 2022):
+--     < 76.0  = normal   (Comfort Zone)
+--     76–79.9 = mild     (Onset จุดวิกฤตเริ่มต้น นมและอัตราผสมเริ่มลด)
+--     80–83.9 = moderate (นมลดลง 2 เท่า เซลล์โซมาติก SCS พุ่ง เสี่ยงเต้านมอักเสบ)
+--     >= 84.0 = severe   (วิกฤตรุนแรง เสี่ยงกรดในกระเพาะ FPR < 1.2 ตัวอ่อนฝ่อ)
 CREATE TABLE sensor_readings (
     id              BIGSERIAL PRIMARY KEY,
     device_id       UUID NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
@@ -146,10 +151,19 @@ CREATE TABLE sensor_readings (
     thi             NUMERIC(5,2) GENERATED ALWAYS AS (
                         (1.8 * temperature_c + 32)
                         - (0.55 - 0.0055 * humidity_pct) * (1.8 * temperature_c - 26)
+                    ) STORED,
+    stress_level    alert_level GENERATED ALWAYS AS (
+                        CASE
+                            WHEN ((1.8 * temperature_c + 32) - (0.55 - 0.0055 * humidity_pct) * (1.8 * temperature_c - 26)) < 76.0 THEN 'normal'::alert_level
+                            WHEN ((1.8 * temperature_c + 32) - (0.55 - 0.0055 * humidity_pct) * (1.8 * temperature_c - 26)) < 80.0 THEN 'mild'::alert_level
+                            WHEN ((1.8 * temperature_c + 32) - (0.55 - 0.0055 * humidity_pct) * (1.8 * temperature_c - 26)) < 84.0 THEN 'moderate'::alert_level
+                            ELSE 'severe'::alert_level
+                        END
                     ) STORED
 );
 
 CREATE INDEX idx_sensor_readings_farm_time ON sensor_readings (farm_id, recorded_at DESC);
+CREATE INDEX idx_sensor_readings_stress    ON sensor_readings (farm_id, stress_level, recorded_at DESC);
 
 -- C2. behavior_logs — ผลตรวจจับพฤติกรรมจาก YOLO
 CREATE TABLE behavior_logs (

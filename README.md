@@ -12,9 +12,9 @@
 
 | หัวข้อ | รายละเอียด |
 |---|---|
-| **ปัญหา** | Heat Stress ทำให้ผลผลิตน้ำนมลดลงมากกว่า 20% (THI > 72) และทำให้วัวปล่อยก๊าซมีเทนต่อกิโลกรัมนม (Methane Intensity) สูงขึ้น 17.5% นอกจากนี้ ฟาร์มรายย่อยส่วนใหญ่มีข้อจำกัดเรื่องโรงเรือนต่ำและใช้หลังคาสังกะสี |
+| **ปัญหา** | ในสภาพอากาศร้อนชื้นของไทย โคนมลูกผสมต้องเผชิญกับ **THI ≥ 76 สูงถึง 250 วันต่อปี (67% ของปี)** ซึ่งเป็นจุดวิกฤตที่ทำให้ผลผลิตน้ำนมลดลง อัตราผสมติด (Conception Rate) ดิ่งลง และเสี่ยงเกิดภาวะกรดในกระเพาะหมัก (Subclinical Rumen Acidosis จาก FPR < 1.2) อีกทั้งยังทำให้วัวปล่อยก๊าซมีเทนต่อกิโลกรัมนม (Methane Intensity) สูงขึ้น 17.5% นอกจากนี้ ฟาร์มรายย่อยกว่า 80% มีข้อจำกัดเรื่องโรงเรือนต่ำและใช้หลังคาสังกะสี |
 | **กลุ่มเป้าหมาย** | เกษตรกรผู้เลี้ยงโคนมรายย่อยในไทย ซึ่งกว่า 70% เป็นผู้สูงวัยและมักไม่มีทุนซื้ออุปกรณ์สวมใส่ราคาแพง (Digital Divide) |
-| **เป้าหมาย** | สร้างระบบตรวจจับแบบไม่สัมผัสตัวสัตว์ (Non-invasive) ด้วย Computer Vision + IoT ราคาประหยัด พร้อมโมเดล **LSTM** พยากรณ์ล่วงหน้า 3-7 วัน (Lookback 14 วัน) เพื่อการจัดการเชิงรุก |
+| **เป้าหมาย** | สร้างระบบตรวจจับแบบไม่สัมผัสตัวสัตว์ (Non-invasive) ด้วย Computer Vision + IoT (SHT40 ผ่าน RS485) ราคาประหยัด พร้อมโมเดล **LSTM** พยากรณ์ล่วงหน้า 3-7 วัน (Lookback 14 วัน) อิงเกณฑ์วิกฤตโคนมไทย (THI 76, 80, 84) เพื่อการจัดการเชิงรุก |
 
 ---
 
@@ -217,17 +217,31 @@ uvicorn app.main:app --reload --port 8000
 
 **กำลังพัฒนา**
 
+## 🌡️ เกณฑ์ประเมินความเครียดความร้อนโคนมไทย (Thai-Holstein Heat Stress Matrix)
+
+อ้างอิงจากงานวิจัยประชากรโคนมไทยล่าสุด (Boonkum et al., 2024; Sungkhapreecha et al., 2022) โดยมหาวิทยาลัยขอนแก่นร่วมกับกรมปศุสัตว์ พบว่าโคนมลูกผสมไทยมีความทนทานต่อสภาพอากาศร้อนชื้นสูงกว่าโคนมเมืองหนาว โดยจุดวิกฤตที่เริ่มส่งผลกระทบต่อน้ำนมและสุขภาพคือ **THI = 76**:
+
+| ช่วงค่า THI | ระดับความเสี่ยง | สถานะสรีรวิทยาและผลผลิต | มาตรการจัดการเชิงรุก (Action) |
+|---|---|---|---|
+| **< 76.0** | ปกติ (Comfort Zone) | โคนมลูกผสมไทยปรับตัวได้ดี สภาพแวดล้อมเหมาะสม | ตรวจสอบน้ำดื่มและความสะอาดโรงเรือนตามรอบปกติ |
+| **76.0 – 79.9** | เริ่มมีผลกระทบ (Mild Stress) | **จุดวิกฤตเริ่มต้น (Onset)** น้ำนมเริ่มลด (-0.28 กก./THI) อัตราผสมติดเริ่มตก | เปิดพัดลมระบายอากาศ ตรวจสอบการไหลเวียนลมในคอก |
+| **80.0 – 83.9** | เครียดปานกลาง (Moderate Stress) | อัตราสูญเสียน้ำนมสูงขึ้น 2 เท่า (BG3 ตก 0.22 กก./วัน) ค่า Somatic Cell Score พุ่ง เสี่ยงเต้านมอักเสบ | เปิดพัดลมร่วมกับระบบสเปรย์ละอองน้ำ เลี่ยงการผสมเทียมช่วงบ่าย |
+| **≥ 84.0** | วิกฤตรุนแรง (Severe Heat Stress) | น้ำนมตกหนัก (-0.42 กก./THI) ตัวอ่อนฝ่อช่วง 16 วันแรก ค่า FPR < 1.2 เสี่ยงภาวะ Subclinical Rumen Acidosis | ลดความร้อนฉุกเฉิน เสริมสารบัฟเฟอร์ (Sodium Bicarbonate) ในอาหาร |
+
 ---
 
 ## 📚 อ้างอิง (References)
 
-สถาปัตยกรรมและฟีเจอร์ของระบบ **PH Detection System** ได้รับแรงบันดาลใจและพัฒนาต่อยอดจากงานวิจัยด้าน Precision Livestock Farming (PLF) และวิทยาศาสตร์โคนมระดับแนวหน้า (อัปเดตปี 2019-2026) ดังนี้:
+สถาปัตยกรรมและฟีเจอร์ของระบบ **CowCare AI / PH Detection System** ได้รับแรงบันดาลใจและพัฒนาต่อยอดจากงานวิจัยด้าน Precision Livestock Farming (PLF) และวิทยาศาสตร์โคนมระดับแนวหน้า (อัปเดตปี 2019-2026) ดังนี้:
 
-1. วรรณลักษณ์ ถาวร, อิทธิพล สักลอ, และ วิวัฒน์ พัฒนาวงศ์. (2566). **ผลของอุณหภูมิ ความชื้น และฤดูกาลต่อระดับคอร์ติซอลในโคนมสายพันธุ์โฮลสไตน์ฟรีเชียน.** *วารสารเกษตรนเรศวร*. *(งานวิจัยยืนยันผลกระทบของความชื้นในฤดูฝนต่อภาวะเครียดในโคนมไทย)*
-2. ณัชวิชญ์ ติกุล และ สุวิทย์ ประชุม. (2562). **ผลกระทบจากรูปแบบโรงเรือนและสภาพแวดล้อมต่อความสบายของโคในฟาร์มรายย่อยในจังหวัดเชียงใหม่.** *วารสารเกษตรพระวรุณ*. *(งานวิจัยวิเคราะห์ข้อจำกัดของโรงเรือนเกษตรกรรายย่อยไทย)*
-3. Onan-Martinez, D., et al. (2026). **Heat stress increases enteric methane emissions yield and intensity while impairing rumen function and productivity in lactating dairy cattle.** *Journal of Dairy Science*. *(อ้างอิง Methane Intensity ที่เพิ่มขึ้น 17.5% เมื่อเกิด Heat Stress)*
-4. Papo, M. L., et al. (2026). **Integrating Precision Livestock Farming and Genomic Tools for Heat Stress Mitigation in South African Dairy Cattle.** *Animals*. *(แนวทางลด Digital Divide ด้วย PLF ราคาประหยัดและ Computer Vision สำหรับฟาร์มรายย่อย)*
-5. Mylostyvyi, R. (2026). **Heat Stress in Dairy Cattle Production: A View from the Perspective of Sustainable Development.** *Sustainability*. *(อ้างอิง Biological Memory การส่งต่อความเครียดจากแม่สู่ลูกโค 35%)*
-6. Hasan, F.M., et al. (2026). **Impact of heat stress on cattle systems: Responses of production metrics to thermal stress.** *Computers and Electronics in Agriculture*. *(การค้นพบ "Lag Effect" 5 วันที่ผลผลิตน้ำนมจะตกลงต่ำสุด)*
-7. Mulajkar, R. M., et al. (2026). **Artificial Intelligence for Early Detection of Heat Stress and Environmental Hazards in Dairy Animals.** *Journal of Animal Environment*. *(การใช้ Edge AI และการรับรองความแม่นยำของโมเดล LSTM ในโคนม)*
-8. Abdourhamane, I. M. (2026). **Deep Learning-Based Forecasting of Heat Stress Events and Daily Milk Yield Depreciation in Dairy Cattle Using Meteorological Data: An In-Silico Study.** *Acta Veterinaria-Beograd*. *(กรอบแนวคิด LSTM 14-day lookback และการเปลี่ยนการจัดการจาก Reactive สู่ Proactive)*
+1. Boonkum, W., Teawyoneyong, W., Chankitisakul, V., Duangjinda, M., & Buaban, S. (2024). **Impact of Heat Stress on Milk Yield, Milk Fat-to-Protein Ratio, and Conception Rate in Thai–Holstein Dairy Cattle: A Phenotypic and Genetic Perspective.** *Animals*, 14(20), 3026. *(งานวิจัยกำหนดจุดวิกฤต THI 76 สำหรับโคนมลูกผสมไทย และยืนยันผลกระทบต่ออัตราผสมติดและอัตราส่วนไขมันต่อโปรตีน)*
+2. Sungkhapreecha, P., Chankitisakul, V., Duangjinda, M., Buaban, S., & Boonkum, W. (2022). **Determining Heat Stress Effects of Multiple Genetic Traits in Tropical Dairy Cattle Using Single-Step Genomic BLUP.** *Veterinary Sciences*, 9(2), 66. *(พบว่าโคนมไทยเผชิญ THI > 76 นานถึง 250 วัน/ปี และยืนยันการเพิ่มขึ้นของ Somatic Cell Score และความเสี่ยง Acidosis)*
+3. วรรณลักษณ์ ถาวร, อิทธิพล สักลอ, และ วิวัฒน์ พัฒนาวงศ์. (2566). **ผลของอุณหภูมิ ความชื้น และฤดูกาลต่อระดับคอร์ติซอลในโคนมสายพันธุ์โฮลสไตน์ฟรีเชียน.** *วารสารเกษตรนเรศวร*. *(งานวิจัยยืนยันผลกระทบของความชื้นในฤดูฝนต่อภาวะเครียดในโคนมไทย)*
+4. ณัชวิชญ์ ติกุล และ สุวิทย์ ประชุม. (2562). **ผลกระทบจากรูปแบบโรงเรือนและสภาพแวดล้อมต่อความสบายของโคในฟาร์มรายย่อยในจังหวัดเชียงใหม่.** *วารสารเกษตรพระวรุณ*. *(งานวิจัยวิเคราะห์ข้อจำกัดของโรงเรือนเกษตรกรรายย่อยไทย)*
+5. Onan-Martinez, D., et al. (2026). **Heat stress increases enteric methane emissions yield and intensity while impairing rumen function and productivity in lactating dairy cattle.** *Journal of Dairy Science*. *(อ้างอิง Methane Intensity ที่เพิ่มขึ้น 17.5% เมื่อเกิด Heat Stress)*
+6. Papo, M. L., et al. (2026). **Integrating Precision Livestock Farming and Genomic Tools for Heat Stress Mitigation in South African Dairy Cattle.** *Animals*. *(แนวทางลด Digital Divide ด้วย PLF ราคาประหยัดและ Computer Vision สำหรับฟาร์มรายย่อย)*
+7. Mylostyvyi, R. (2026). **Heat Stress in Dairy Cattle Production: A View from the Perspective of Sustainable Development.** *Sustainability*. *(อ้างอิง Biological Memory การส่งต่อความเครียดจากแม่สู่ลูกโค 35%)*
+8. Hasan, F.M., et al. (2026). **Impact of heat stress on cattle systems: Responses of production metrics to thermal stress.** *Computers and Electronics in Agriculture*. *(การค้นพบ "Lag Effect" 5 วันที่ผลผลิตน้ำนมจะตกลงต่ำสุด)*
+9. Mulajkar, R. M., et al. (2026). **Artificial Intelligence for Early Detection of Heat Stress and Environmental Hazards in Dairy Animals.** *Journal of Animal Environment*. *(การใช้ Edge AI และการรับรองความแม่นยำของโมเดล LSTM ในโคนม)*
+10. Abdourhamane, I. M. (2026). **Deep Learning-Based Forecasting of Heat Stress Events and Daily Milk Yield Depreciation in Dairy Cattle Using Meteorological Data: An In-Silico Study.** *Acta Veterinaria-Beograd*. *(กรอบแนวคิด LSTM 14-day lookback และการเปลี่ยนการจัดการจาก Reactive สู่ Proactive)*
+

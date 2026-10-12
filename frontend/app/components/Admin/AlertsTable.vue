@@ -67,7 +67,7 @@
             </td>
             <td class="px-6 py-4">
               <span class="inline-flex items-center px-3 py-1.5 rounded-[10px] text-[12px] font-bold bg-[#d87939]/10 text-[#d87939] border border-[#d87939]/20">
-                เสี่ยงปานกลาง THI 76
+                เริ่มได้รับผลกระทบ THI 76 (Mild)
               </span>
             </td>
             <td class="px-6 py-4">
