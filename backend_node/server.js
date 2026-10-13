@@ -25,6 +25,19 @@ app.get('/',(req,res) => {
 const auth = require('./app/routes/authRouter')
 app.use('/api/auth',auth)
 
+// users
+const users = require('./app/routes/Admin/users')
+app.use('/api/Admin/users',users)
+
+// sensors / IoT (Admin & Global)
+const sensors = require('./app/routes/Admin/sensors')
+app.use('/api/Admin/sensors', sensors)
+app.use('/api/sensors', sensors)
+
+// farms (Admin)
+const farms = require('./app/routes/Admin/farms')
+app.use('/api/Admin/farms', farms)
+
 
 // =============================
 

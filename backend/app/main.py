@@ -1,6 +1,15 @@
 # import zone
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+# Filter out Docker healthcheck access logs from spamming the console
+class HealthCheckFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        message = record.getMessage()
+        return "GET / " not in message and "GET / HTTP" not in message
+
+logging.getLogger("uvicorn.access").addFilter(HealthCheckFilter())
 
 # import api zone
 from app.api.detect import router as detect_router

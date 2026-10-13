@@ -139,38 +139,37 @@
     <!-- 🟢 Filter Tabs & Search Bar -->
     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 animate-fade-up delay-200">
 
-      <!-- Minimalist Segmented Tabs -->
-      <div
-        class="inline-flex items-center gap-1 bg-[#f4f7f6] p-1.5 rounded-[16px] border border-[#e5ece9] max-w-full overflow-x-auto">
+      <!-- Pill Tabs -->
+      <div class="flex items-center gap-2 max-w-full overflow-x-auto pb-1 -mb-1">
         <button v-for="filter in filterOptions" :key="filter.value" @click="currentFilter = filter.value" :class="[
-          'flex items-center gap-2.5 px-4 py-2 rounded-[12px] text-[14px] font-bold transition-all duration-200 whitespace-nowrap flex-shrink-0 cursor-pointer select-none',
+          'group flex items-center gap-2.5 pl-3.5 pr-2.5 py-2 rounded-full text-[13.5px] font-bold transition-all duration-300 whitespace-nowrap flex-shrink-0 cursor-pointer select-none border',
           currentFilter === filter.value
-            ? 'bg-white text-[#1f3d34] border border-[#e5ece9] shadow-sm'
-            : 'text-[#64766d] border border-transparent hover:text-[#1f3d34]'
+            ? 'bg-[#24433a] text-white border-[#24433a] shadow-[0_8px_20px_rgba(36,67,58,0.22)] -translate-y-0.5'
+            : 'bg-white/80 backdrop-blur text-[#4e6057] border-[#e5ece9] hover:border-[#24433a]/30 hover:bg-white hover:-translate-y-0.5'
         ]">
+          <span :class="['w-2 h-2 rounded-full flex-shrink-0 transition-colors', filterDot(filter.value, currentFilter === filter.value)]"></span>
           <span>{{ filter.label }}</span>
           <span :class="[
-            'px-2 py-0.5 rounded-full text-[11px] font-black transition-colors',
+            'min-w-[24px] text-center px-2 py-0.5 rounded-full text-[11px] font-black transition-colors',
             currentFilter === filter.value
-              ? 'bg-[#1f3d34] text-white'
-              : 'bg-white text-[#718078] shadow-sm'
+              ? 'bg-white/20 text-white'
+              : 'bg-[#f1f5f3] text-[#718078] group-hover:bg-[#e5ece9]'
           ]">
             {{ filter.count }}
           </span>
         </button>
       </div>
 
-      <!-- Minimalist Search Input Box -->
-      <div class="relative w-full lg:w-[320px]">
-        <input v-model="searchQuery" type="text" placeholder="ค้นหาชื่อ, อีเมล หรือสังกัดฟาร์ม..."
-          class="w-full bg-white border border-[#e5ece9] rounded-[6px] px-4 py-2.5 text-[14px] font-medium text-[#1f3d34] placeholder-[#a6b5aa] focus:outline-none focus:ring-1 focus:ring-[#1f3d34]/40 transition-colors">
+      <!-- Search Input -->
+      <div class="relative w-full lg:w-[340px]">
+        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[#a6b5aa]">
+          <v-icon icon="mdi-magnify" size="18" class="text-[#a6b5aa]" />
+        </div>
+        <input v-model="searchQuery" type="text" placeholder="ค้นหาชื่อ, เบอร์โทร, อีเมล หรือสังกัด..."
+          class="w-full bg-white/80 backdrop-blur border border-[#e5ece9] rounded-full pl-11 pr-10 py-2.5 text-[13.5px] font-medium text-[#1f3d34] placeholder-[#a6b5aa] shadow-sm hover:border-[#24433a]/30 focus:outline-none focus:bg-white focus:border-[#24433a] focus:ring-4 focus:ring-[#24433a]/8 transition-all">
         <button v-if="searchQuery" @click="searchQuery = ''"
-          class="absolute right-3 top-1/2 -translate-y-1/2 text-[#a6b5aa] hover:text-[#1f3d34] p-1 cursor-pointer">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
+          class="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-[#f1f5f3] hover:bg-[#e5ece9] text-[#718078] hover:text-[#1f3d34] flex items-center justify-center transition-colors cursor-pointer">
+          <v-icon icon="mdi-close" size="14" />
         </button>
       </div>
     </div>
@@ -209,11 +208,11 @@
                   <div
                     class="w-10 h-10 rounded-full bg-gradient-to-br flex items-center justify-center font-black text-sm text-white shadow-sm flex-shrink-0"
                     :class="getAvatarColor(user.role)">
-                    {{ getInitials(user.name) }}
+                    {{ getInitials(user.full_name || user.name) }}
                   </div>
                   <div>
-                    <p class="font-black text-[#24433a] text-[14px]">{{ user.name }}</p>
-                    <p class="text-[12px] font-medium text-[#718078] mt-0.5">{{ user.org || '-' }}</p>
+                    <p class="font-black text-[#24433a] text-[14px]">{{ user.full_name || user.name }}</p>
+                    <p class="text-[12px] font-medium text-[#718078] mt-0.5">{{ user.organization || user.org || '-' }}</p>
                   </div>
                 </div>
               </td>
@@ -229,32 +228,50 @@
 
               <!-- Contact -->
               <td class="px-6 py-4">
-                <p class="text-[13px] font-bold text-[#4e6057]">{{ user.email }}</p>
-                <p class="text-[12px] text-[#718078] mt-0.5">{{ user.phone }}</p>
+                <p class="text-[13px] font-bold text-[#4e6057]">{{ user.email || '-' }}</p>
+                <p class="text-[12px] text-[#718078] mt-0.5">{{ user.phone || '-' }}</p>
               </td>
 
               <!-- Status -->
               <td class="px-6 py-4">
-                <div class="flex items-center gap-2">
-                  <div class="w-2 h-2 rounded-full"
-                    :class="user.active ? 'bg-emerald-500 animate-pulse-soft' : 'bg-gray-400'"></div>
-                  <span class="text-[13px] font-bold" :class="user.active ? 'text-[#24433a]' : 'text-[#a6b5aa]'">
-                    {{ user.active ? 'Active' : 'Inactive' }}
-                  </span>
-                </div>
+                <span
+                  class="inline-flex items-center gap-1.5 px-3 py-1 rounded-[10px] text-[11.5px] font-black border"
+                  :class="getStatusBadgeClass(user.status)">
+                  <span class="w-1.5 h-1.5 rounded-full" :class="getStatusDotClass(user.status)"></span>
+                  {{ getStatusText(user.status) }}
+                </span>
               </td>
 
               <!-- Action -->
               <td class="px-6 py-4 text-right">
-                <button
-                  class="w-8 h-8 rounded-[10px] hover:bg-[#edf3ed] text-[#718078] hover:text-[#24433a] inline-flex items-center justify-center transition-colors cursor-pointer">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="1"></circle>
-                    <circle cx="12" cy="5" r="1"></circle>
-                    <circle cx="12" cy="19" r="1"></circle>
-                  </svg>
-                </button>
+                <div class="flex items-center justify-end gap-1.5">
+                  <!-- Edit Button -->
+                  <button
+                    @click="openEditModal(user)"
+                    title="แก้ไขข้อมูล"
+                    class="w-8 h-8 rounded-[10px] hover:bg-amber-50 text-[#718078] hover:text-amber-600 inline-flex items-center justify-center transition-all duration-200 cursor-pointer">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+                      <path d="m15 5 4 4"/>
+                    </svg>
+                  </button>
+
+                  <!-- Delete Button -->
+                  <button
+                    @click="openDeleteDialog(user)"
+                    title="ลบผู้ใช้งาน"
+                    class="w-8 h-8 rounded-[10px] hover:bg-rose-50 text-[#718078] hover:text-rose-600 inline-flex items-center justify-center transition-all duration-200 cursor-pointer">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M3 6h18"/>
+                      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                      <line x1="10" y1="11" x2="10" y2="17"/>
+                      <line x1="14" y1="11" x2="14" y2="17"/>
+                    </svg>
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -279,62 +296,247 @@
       </div>
     </div>
   </div>
-    <!-- 🟢 Add User Modal -->
-    <AdminAddUserModal v-model="isModalOpen" @submit="handleAddUser" />
+
+  <!-- 🟢 Add User Modal -->
+  <AdminAddUserModal v-model="isModalOpen" @submit="handleAddUser" />
+
+  <!-- 🟢 Edit User Modal -->
+  <AdminEditUserModal v-model="isEditModalOpen" :user="selectedUser" @updated="handleUserUpdated" />
+
+  <!-- 🟢 Delete Confirmation Dialog -->
+  <v-dialog v-model="isDeleteDialogOpen" max-width="460" persistent transition="dialog-bottom-transition">
+    <div class="bg-white rounded-[32px] overflow-hidden shadow-[0_25px_70px_rgba(225,29,72,0.18)] border border-rose-100 font-sans">
+      
+      <!-- Top Accent Bar -->
+      <div class="h-2 bg-gradient-to-r from-rose-500 to-amber-500 w-full"></div>
+
+      <div class="p-6 md:p-8 text-center relative overflow-hidden">
+        <!-- Glow -->
+        <div class="absolute -top-10 -right-10 w-32 h-32 bg-rose-400/10 rounded-full blur-2xl pointer-events-none"></div>
+
+        <!-- Warning Icon Circle -->
+        <div class="w-16 h-16 rounded-[22px] bg-rose-50 border border-rose-100 text-rose-500 mx-auto flex items-center justify-center mb-4 shadow-sm">
+          <v-icon icon="mdi-trash-can-alert-outline" size="32" class="text-rose-500" />
+        </div>
+
+        <h3 class="text-xl font-black text-[#24433a] tracking-tight mb-2">ยืนยันการลบสมาชิก</h3>
+        <p class="text-xs text-[#718078] font-medium max-w-xs mx-auto mb-3">
+          คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลสมาชิกนี้ออกจากระบบอย่างถาวร?
+        </p>
+
+        <!-- User Target Chip -->
+        <div class="bg-[#f8faf9] border border-[#e5ece9] py-3 px-4 rounded-[16px] inline-flex items-center gap-2.5 my-1 max-w-full">
+          <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+          <span class="text-sm font-black text-[#24433a] truncate">
+            {{ userToDelete?.full_name || userToDelete?.name || 'ผู้ใช้งานนี้' }}
+          </span>
+          <span class="text-[11px] px-2 py-0.5 rounded-full bg-white text-[#718078] font-bold border border-[#e5ece9]">
+            {{ getRoleName(userToDelete?.role) }}
+          </span>
+        </div>
+
+        <p class="text-[11px] text-rose-500/80 font-bold mt-3">
+          * ข้อมูลที่ถูกลบจะไม่สามารถกู้คืนกลับมาได้
+        </p>
+      </div>
+
+      <!-- Footer Buttons -->
+      <div class="p-5 bg-[#fafcfb] border-t border-[#eef2f0] flex items-center justify-end gap-3">
+        <button 
+          type="button" 
+          @click="isDeleteDialogOpen = false" 
+          :disabled="isDeleting"
+          class="px-5 py-2.5 rounded-[16px] text-sm font-bold text-[#718078] hover:text-[#24433a] hover:bg-[#edf3ed] transition-all cursor-pointer">
+          ยกเลิก
+        </button>
+        <button 
+          type="button" 
+          @click="confirmDeleteUser" 
+          :disabled="isDeleting"
+          class="px-6 py-2.5 rounded-[18px] text-sm font-black bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white shadow-[0_6px_18px_rgba(225,29,72,0.25)] hover:shadow-[0_10px_22px_rgba(225,29,72,0.35)] hover:-translate-y-0.5 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50">
+          <svg v-if="isDeleting" class="animate-spin -ml-1 mr-1 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+          </svg>
+          <v-icon v-else icon="mdi-trash-can-outline" size="18" class="text-white" />
+          <span>{{ isDeleting ? 'กำลังลบ...' : 'ยืนยันการลบ' }}</span>
+        </button>
+      </div>
+
+    </div>
+  </v-dialog>
 
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import axios from 'axios'
+import { api, Admin } from '../../API/baseAPI'
 
 definePageMeta({
   layout: 'admin'
 })
 
 useHead({ title: 'User Management | CowCare AI' })
+const users = ref([])
+const isLoading = ref(false)
 
 // --- State ---
 const currentFilter = ref('all')
 const searchQuery = ref('')
 const isModalOpen = ref(false)
+
 const handleAddUser = (data) => {
   users.value.unshift({
-    id: Date.now(),
+    id: data.id || Date.now(),
     name: data.name,
+    full_name: data.name,
     role: data.role,
     org: data.org || "-",
-    email: "-",
+    organization: data.org || "-",
+    email: data.email || "-",
     phone: data.phone,
-    active: true
+    status: data.status || 'active',
+    active: (data.status || 'active') === 'active'
   })
 }
 
+// --- Edit User State & Handlers ---
+const isEditModalOpen = ref(false)
+const selectedUser = ref(null)
 
-// --- Mock Data ---
-const users = ref([])
+const openEditModal = (user) => {
+  selectedUser.value = { ...user }
+  isEditModalOpen.value = true
+}
+
+const handleUserUpdated = (updatedUser) => {
+  const idx = users.value.findIndex(u => u.id === updatedUser.id)
+  if (idx !== -1) {
+    users.value[idx] = { ...users.value[idx], ...updatedUser }
+  } else {
+    fetchUsers()
+  }
+}
+
+// --- Delete User State & Handlers ---
+const isDeleteDialogOpen = ref(false)
+const userToDelete = ref(null)
+const isDeleting = ref(false)
+
+const openDeleteDialog = (user) => {
+  userToDelete.value = user
+  isDeleteDialogOpen.value = true
+}
+
+const confirmDeleteUser = async () => {
+  if (!userToDelete.value) return
+  isDeleting.value = true
+  try {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+    const headers = token ? { Authorization: `Bearer ${token}` } : {}
+    const id = userToDelete.value.id
+
+    // ยิง DELETE API: รองรับทั้ง /api/Admin/users/:id และ fallback /api/Admin/users/users/:id
+    try {
+      await axios.delete(`${api}/Admin/users/${id}`, { headers })
+    } catch (delErr) {
+      if (delErr.response?.status === 404) {
+        await axios.delete(`${api}/Admin/users/users/${id}`, { headers })
+      } else {
+        throw delErr
+      }
+    }
+
+    users.value = users.value.filter(u => u.id !== id)
+    isDeleteDialogOpen.value = false
+    userToDelete.value = null
+  } catch (err) {
+    console.error("Delete User Error:", err)
+    alert(err.response?.data?.message || 'เกิดข้อผิดพลาดในการลบผู้ใช้งาน กรุณาลองใหม่อีกครั้ง')
+  } finally {
+    isDeleting.value = false
+  }
+}
+
+const isUserActive = (user) => {
+  return user?.status === 'active' || user?.active === true
+}
+
+const getStatusText = (status) => {
+  switch (status) {
+    case 'active': return 'Active'
+    case 'pending': return 'Pending'
+    case 'suspended': return 'Suspended'
+    default: return status || 'Inactive'
+  }
+}
+
+const getStatusBadgeClass = (status) => {
+  switch (status) {
+    case 'active':
+      return 'bg-emerald-50 text-emerald-700 border-emerald-200/80'
+    case 'pending':
+      return 'bg-amber-50 text-amber-700 border-amber-200/80'
+    case 'suspended':
+      return 'bg-rose-50 text-rose-700 border-rose-200/80'
+    default:
+      return 'bg-gray-50 text-gray-600 border-gray-200'
+  }
+}
+
+const getStatusDotClass = (status) => {
+  switch (status) {
+    case 'active':
+      return 'bg-emerald-500 animate-pulse-soft'
+    case 'pending':
+      return 'bg-amber-500'
+    case 'suspended':
+      return 'bg-rose-500'
+    default:
+      return 'bg-gray-400'
+  }
+}
 
 const countByRole = (role) => {
+  if (!Array.isArray(users.value)) return 0
   return users.value.filter(u => u.role === role).length
 }
 
 const filterOptions = computed(() => [
-  { label: 'ทั้งหมด', value: 'all', count: users.value.length },
+  { label: 'ทั้งหมด', value: 'all', count: Array.isArray(users.value) ? users.value.length : 0 },
   { label: 'เกษตรกร', value: 'farmer', count: countByRole('farmer') },
   { label: 'ผู้เชี่ยวชาญ/หมอ', value: 'expert', count: countByRole('expert') },
   { label: 'ผู้ดูแลระบบ', value: 'admin', count: countByRole('admin') }
 ])
 
 const filteredUsers = computed(() => {
+  if (!Array.isArray(users.value)) return []
   return users.value.filter(u => {
     const matchesRole = currentFilter.value === 'all' || u.role === currentFilter.value
     const query = searchQuery.value.trim().toLowerCase()
+    const name = (u.full_name || u.name || '').toLowerCase()
+    const email = (u.email || '').toLowerCase()
+    const org = (u.organization || u.org || '').toLowerCase()
+    const phone = (u.phone || '').toLowerCase()
     const matchesSearch = !query ||
-      u.name.toLowerCase().includes(query) ||
-      u.email.toLowerCase().includes(query) ||
-      (u.org && u.org.toLowerCase().includes(query))
+      name.includes(query) ||
+      email.includes(query) ||
+      org.includes(query) ||
+      phone.includes(query)
     return matchesRole && matchesSearch
   })
 })
+
+const filterDot = (value, active) => {
+  if (active) return 'bg-white'
+  switch (value) {
+    case 'farmer': return 'bg-emerald-500'
+    case 'expert': return 'bg-blue-500'
+    case 'admin': return 'bg-purple-500'
+    default: return 'bg-[#a6b5aa]'
+  }
+}
 
 const resetFilters = () => {
   currentFilter.value = 'all'
@@ -366,6 +568,40 @@ const getRoleBadge = (role) => {
   }
 }
 
+const fetchUsers = async () => {
+  isLoading.value = true
+  try {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+    const headers = token ? { Authorization: `Bearer ${token}` } : {}
+
+    // ลองดึงจาก /api/Admin/users/users (ตาม express router ปัจจุบัน) และ fallback /api/Admin/users
+    let m
+    try {
+      m = await axios.get(`${api}/Admin/users/users`, { headers })
+    } catch (routeErr) {
+      if (routeErr.response?.status === 404) {
+        m = await axios.get(`${api}/Admin/users`, { headers })
+      } else {
+        throw routeErr
+      }
+    }
+
+    if (m?.data) {
+      if (Array.isArray(m.data.rows)) {
+        users.value = m.data.rows
+      } else if (Array.isArray(m.data)) {
+        users.value = m.data
+      } else {
+        users.value = []
+      }
+    }
+  } catch (err) {
+    console.error("Error!, Fetching Users:", err.response?.data?.message || err.message)
+  } finally {
+    isLoading.value = false
+  }
+}
+
 const getRoleName = (role) => {
   switch (role) {
     case 'admin': return 'ผู้ดูแลระบบ (Admin)'
@@ -374,4 +610,8 @@ const getRoleName = (role) => {
     default: return 'Unknown'
   }
 }
+
+onMounted(() => {
+  fetchUsers()
+})
 </script>

@@ -6,6 +6,7 @@ export default defineNuxtConfig({
   },
 
   css: [
+    '@mdi/font/css/materialdesignicons.css',
     '~/assets/css/main.css'
   ],
 
@@ -21,6 +22,31 @@ export default defineNuxtConfig({
   modules: [
     'vuetify-nuxt-module',
     '@nuxtjs/supabase',
+  ],
+
+  components: [
+    {
+      path: '~/components/Admin/dashboard',
+      prefix: 'Admin',
+      pathPrefix: false,
+    },
+    {
+      path: '~/components/Admin/user',
+      prefix: 'Admin',
+      pathPrefix: false,
+    },
+    {
+      path: '~/components/Admin/farm',
+      prefix: 'Admin',
+      pathPrefix: false,
+    },
+    {
+      path: '~/components/common',
+      pathPrefix: false,
+    },
+    {
+      path: '~/components',
+    },
   ],
 
   vuetify: {

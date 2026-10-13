@@ -15,8 +15,7 @@ router.post('/login',async (req, res) => {
                 message: 'Please enter email and password!' 
             })
         }
-        const {rows} = await db.query('SELECT * FROM users WHERE email = $1 LIMIT 1', [email])
-        // const {rows2} = await db.query(`select * from users where `)
+        const {rows} = await db.query('SELECT * FROM tb_users WHERE email = $1 LIMIT 1', [email])
         const user = rows[0]
         if (!user) {
             return res.status(401).json({ 
@@ -31,14 +30,35 @@ router.post('/login',async (req, res) => {
                 message: 'Invalid email or password!'
             })
         }
+
+        // 🔒 ตรวจสอบสถานะผู้ใช้งาน (Active Only)
+        if (user.status === 'suspended') {
+            return res.status(403).json({
+                success: false,
+                message: 'บัญชีนี้ถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ'
+            })
+        }
+        if (user.status === 'pending') {
+            return res.status(403).json({
+                success: false,
+                message: 'บัญชีนี้อยู่ระหว่างรอการอนุมัติจากผู้ดูแลระบบ'
+            })
+        }
+        if (user.status && user.status !== 'active') {
+            return res.status(403).json({
+                success: false,
+                message: `บัญชีของคุณยังไม่สามารถเข้าใช้งานได้ (สถานะ: ${user.status})`
+            })
+        }
+
         const token = jwt.sign(
-            { id: user.id, email: user.email, role: user.role },
+            { id: user.id_users, email: user.email, role: user.role, status: user.status },
             SECRET_KEY,
             { expiresIn: '7d' }
         )
 
         // 6. อัปเดตเวลาเข้าสู่ระบบล่าสุด (อัปเดตแบบ background)
-        db.query('UPDATE users SET last_login_at = NOW() WHERE id = $1', [user.id])
+        db.query('UPDATE tb_users SET last_login_at = NOW() WHERE id_users = $1', [user.id_users])
             .catch(err => console.error('Error updating last_login_at:', err.message))
 
         return res.status(200).json({
@@ -46,10 +66,11 @@ router.post('/login',async (req, res) => {
             message: 'Login Success!',
             token,
             user: {
-                id_user: user.id,
+                id_users: user.id_users,
                 email: user.email,
-                full_name: user.full_name,
-                role: user.role
+                name_users: user.name_users,
+                role: user.role,
+                status: user.status
             }
         })
 
@@ -66,16 +87,17 @@ router.post('/login',async (req, res) => {
 // POST: Register API
 router.post('/register',async(req,res) => {
     try{
-        const { email,full_name,phone,password,role,organization } = req.body
+        const { email,full_name,phone,password,role,organization,status } = req.body
         if(!full_name || !phone || !password || !role ) return res.status(400).json({
             success:false,
             message:'Please Enter your [full_name,phone,password,role]'
         })
 
+        const userStatus = status || 'active'
         const hash = await bcrypt.hash(password,10)
         const {rows} = await db.query(
-            `insert into users (email,full_name,phone,password,role,organization,created_at) values($1,$2,$3,$4,$5,$6,NOW()) returning id,email,full_name,phone,role,organization`,
-            [email || null, full_name, phone, hash, role, organization || null]
+            `insert into tb_users (email,name_users,phone,password,role,organization,status,created_at) values($1,$2,$3,$4,$5,$6,$7,NOW()) returning id_users,email,name_users,phone,role,organization,status`,
+            [email || null, full_name, phone, hash, role, organization || null, userStatus]
         )
         return res.status(200).json({
             user: rows[0],
