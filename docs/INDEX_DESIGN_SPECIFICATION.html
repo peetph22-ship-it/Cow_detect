@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CowCare AI — Index Design Specification (Exportable)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+Thai:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #163026;
+      --primary-light: #24433A;
+      --dark-forest: #19362E;
+      --accent: #D87939;
+      --accent-gold: #F2BD7C;
+      --comfort: #10B981;
+      --mild: #F59E0B;
+      --moderate: #EA580C;
+      --severe: #E11D48;
+      --canvas: #FFFDF7;
+      --card-bg: #FFFFFF;
+      --border: #E5EBE7;
+      --text-main: #1F3D34;
+      --text-muted: #5C7368;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', 'Noto Sans Thai', -apple-system, sans-serif;
+      background: var(--canvas);
+      color: var(--text-main);
+      line-height: 1.68;
+      padding: 48px 20px 80px 20px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      max-width: 1040px;
+      margin: 0 auto;
+      background: var(--card-bg);
+      padding: 56px 64px;
+      border-radius: 24px;
+      box-shadow: 0 16px 48px rgba(22, 48, 38, 0.07);
+      border: 1px solid var(--border);
+    }
+
+    /* Print & Export Bar */
+    .action-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 36px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .meta-tag {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      background: rgba(216, 121, 57, 0.12);
+      color: var(--accent);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: inline-block;
+      box-shadow: 0 0 0 2px rgba(216, 121, 57, 0.25);
+    }
+
+    .export-btn {
+      background: var(--primary-light);
+      color: #FFFFFF;
+      border: none;
+      padding: 10px 22px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(36, 67, 58, 0.2);
+    }
+
+    .export-btn:hover {
+      background: var(--primary);
+      transform: translateY(-1px);
+    }
+
+    /* Header */
+    header {
+      margin-bottom: 40px;
+    }
+
+    h1 {
+      font-size: 34px;
+      font-weight: 900;
+      color: var(--primary);
+      line-height: 1.22;
+      margin-bottom: 14px;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      font-size: 16px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .doc-meta {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-top: 24px;
+      padding: 18px 24px;
+      background: #F8FAF8;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      font-size: 13px;
+    }
+
+    .doc-meta strong {
+      color: var(--primary);
+    }
+
+    /* Typography & Sections */
+    h2 {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--primary);
+      margin: 44px 0 18px 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      letter-spacing: -0.01em;
+      border-bottom: 2px solid #EDF2EE;
+      padding-bottom: 8px;
+    }
+
+    h2 .section-num {
+      background: var(--primary-light);
+      color: #FFFFFF;
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    h3 {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--primary-light);
+      margin: 24px 0 10px 0;
+    }
+
+    p {
+      margin-bottom: 14px;
+      font-size: 14.5px;
+      color: #2D473E;
+    }
+
+    ul, ol {
+      margin: 0 0 18px 24px;
+      font-size: 14.5px;
+      color: #2D473E;
+    }
+
+    li {
+      margin-bottom: 8px;
+    }
+
+    /* Cards & Callouts */
+    .callout {
+      background: #F4F8F5;
+      border-left: 4px solid var(--primary-light);
+      padding: 18px 22px;
+      border-radius: 0 12px 12px 0;
+      margin: 20px 0;
+      font-size: 14px;
+    }
+
+    .callout-warning {
+      background: #FFFBF0;
+      border-left-color: var(--mild);
+    }
+
+    .callout-dark {
+      background: var(--dark-forest);
+      color: #E2ECE7;
+      border-left-color: var(--accent-gold);
+    }
+
+    .callout-dark strong {
+      color: #FFFFFF;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 22px 0;
+      font-size: 13.5px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    th, td {
+      padding: 12px 16px;
+      text-align: left;
+    }
+
+    th {
+      background: #EDF3EF;
+      color: var(--primary);
+      font-weight: 700;
+      font-size: 12.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    tr:nth-child(even) td {
+      background: #FAFCFA;
+    }
+
+    td {
+      border-top: 1px solid #EAEFEA;
+    }
+
+    /* Code & Formulas */
+    code, pre {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    code {
+      background: #EEF3EE;
+      color: #1A3E31;
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+
+    .formula-box {
+      background: #F6FAF7;
+      border: 1px solid #DFE8E2;
+      border-radius: 14px;
+      padding: 20px;
+      margin: 20px 0;
+      text-align: center;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    .formula-box .math {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 16px;
+      color: var(--accent);
+      margin-top: 8px;
+      display: block;
+    }
+
+    /* Grid layout */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin: 20px 0;
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      background: #FFFFFF;
+    }
+
+    .card h4 {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--primary);
+      margin-bottom: 8px;
+    }
+
+    /* Print Styles */
+    @media print {
+      body {
+        padding: 0;
+        background: #FFFFFF;
+      }
+      .container {
+        box-shadow: none;
+        border: none;
+        padding: 0;
+        max-width: 100%;
+      }
+      .action-bar, .export-btn {
+        display: none !important;
+      }
+      h2 {
+        page-break-after: avoid;
+        margin-top: 30px;
+      }
+      .card, table, .formula-box, .callout {
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    
+    <!-- Top Action Bar -->
+    <div class="action-bar">
+      <div class="meta-tag">
+        <span class="pulse-dot"></span>
+        CowCare AI • Technical Architecture & Design Document
+      </div>
+      <button class="export-btn" onclick="window.print()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 9V2h12v7"></path>
+          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+          <rect x="6" y="14" width="12" height="8"></rect>
+        </svg>
+        Print / Export to PDF
+      </button>
+    </div>
+
+    <!-- Document Header -->
+    <header>
+      <h1>Comprehensive Design & UI/UX Architectural Specification of pages/index.vue</h1>
+      <div class="subtitle">System: CowCare AI (Heat Stress Intelligence for Dairy Farms) • Nuxt 3 & Biophilic Agritech</div>
+      
+      <div class="doc-meta">
+        <div><strong>Status:</strong> Production Approved (v2.1)</div>
+        <div><strong>Primary Architect:</strong> Senior Frontend & UI/UX Architect</div>
+        <div><strong>Active Model:</strong> YOLO26m (Fine-tuned, 4 Classes)</div>
+        <div><strong>Date:</strong> October 14, 2026</div>
+      </div>
+    </header>
+
+    <!-- Section 1 -->
+    <h2><span class="section-num">1</span> Executive Overview & Design Intent</h2>
+    <p>
+      The public-facing <code>pages/index.vue</code> is the central digital gateway of <strong>CowCare AI</strong>. 
+      Rather than functioning merely as marketing copy, it is engineered as an <strong>Enterprise-Grade Agritech Showcase and Interactive Scientific Sandbox</strong>.
+    </p>
+    <div class="callout">
+      <strong>Core Paradigm Shift:</strong>
+      Transitioning tropical smallholder dairy management from <em>"Reactive"</em> (discovering milk yield loss 5 days after heat stress) 
+      to <em>"Proactive"</em> (preempting metabolic exhaustion with 3–7 day AI forecasts and automated IoT ventilation).
+    </div>
+
+    <!-- Section 2 -->
+    <h2><span class="section-num">2</span> Design System & Tokens (Biophilic Agritech)</h2>
+    <p>
+      The interface employs the <strong>Biophilic Agritech Design System</strong>, fusing biological warmth with industrial precision.
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Token Name</th>
+          <th>Hex Code</th>
+          <th>Semantic Context</th>
+          <th>Scientific / Functional Role</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Warm Ivory Canvas</strong></td>
+          <td><code>#FFFDF7</code></td>
+          <td>Global Page Background</td>
+          <td>Reduces outdoor screen glare and eye strain for farmers and field agronomists.</td>
+        </tr>
+        <tr>
+          <td><strong>Deep Forest Green</strong></td>
+          <td><code>#24433A / #163026</code></td>
+          <td>Primary Brand & Framing</td>
+          <td>Reflects biological balance, vitality, and enterprise-grade agritech stability.</td>
+        </tr>
+        <tr>
+          <td><strong>Deep Night Forest</strong></td>
+          <td><code>#19362E</code></td>
+          <td>Predictive AI Section</td>
+          <td>Inverted dark tone highlighting computational depth for the LSTM Neural Network.</td>
+        </tr>
+        <tr>
+          <td><strong>Terracotta Amber</strong></td>
+          <td><code>#D87939 / #F2BD7C</code></td>
+          <td>Primary Accent & Trajectory</td>
+          <td>Signals thermal inflection points, critical warnings, and forecast trend lines.</td>
+        </tr>
+        <tr>
+          <td><strong>Comfort Zone</strong></td>
+          <td><code>#10B981</code> (Bg <code>#ECFDF5</code>)</td>
+          <td>THI &lt; 76.0</td>
+          <td>Baseline physiological comfort for Thai crossbred dairy cattle; zero production penalty.</td>
+        </tr>
+        <tr>
+          <td><strong>Mild Stress</strong></td>
+          <td><code>#F59E0B</code> (Bg <code>#FFFBEB</code>)</td>
+          <td>THI 76.0 – 79.9</td>
+          <td>Biological onset threshold; initial drop in dry matter intake (-0.28 kg milk/THI unit).</td>
+        </tr>
+        <tr>
+          <td><strong>Moderate Stress</strong></td>
+          <td><code>#EA580C</code> (Bg <code>#FFF7ED</code>)</td>
+          <td>THI 80.0 – 83.9</td>
+          <td>Elevated respiration rate; double production decline (-0.56 kg/day); somatic cell rise.</td>
+        </tr>
+        <tr>
+          <td><strong>Severe Heat Stress</strong></td>
+          <td><code>#E11D48</code> (Bg <code>#FFF1F2</code>)</td>
+          <td>THI &ge; 84.0</td>
+          <td>Emergency thermal load; severe risk of subclinical acidosis (FPR &lt; 1.2) and embryonic death.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Section 3 -->
+    <h2><span class="section-num">3</span> Detailed Architecture of the 7 Key Sections</h2>
+
+    <h3>Section 1: Hero Section & Interactive Telemetry Sandbox</h3>
+    <p>
+      Arranged in an asymmetrical split grid (7 cols narrative : 5 cols interactive sandbox):
+    </p>
+    <ul>
+      <li><strong>Value Proposition & Eyebrow:</strong> Pulsing live indicator <code>PRECISION LIVESTOCK FARMING • MULTIMODAL AI</code>, highlighting that Thai cows endure &ge; 76 THI for 250 days/year (67% of the year).</li>
+      <li><strong>Direct Authentication Route:</strong> Primary CTA button routes securely to <code>/login</code> (protecting internal administrator portals), accompanied by a smooth-scroll simulator button.</li>
+      <li><strong>Interactive NRC 1971 Simulator:</strong> Calculates THI client-side in real time:</li>
+    </ul>
+
+    <div class="formula-box">
+      <strong>NRC (1971) Standard Temperature-Humidity Index Formula</strong>
+      <span class="math">THI = (1.8 × T + 32) - (0.55 - 0.0055 × RH) × (1.8 × T - 26)</span>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h4>4 Thai Regional Weather Presets</h4>
+        <ul style="margin: 0; padding-left: 18px; font-size: 13.5px;">
+          <li><strong>Chiang Mai (Winter):</strong> 24.0°C, 55% RH → THI 70.8 (Comfort)</li>
+          <li><strong>Saraburi (Summer):</strong> 34.0°C, 60% RH → THI 83.8 (Moderate)</li>
+          <li><strong>Pak Chong / Korat (Rainy):</strong> 31.5°C, 82% RH → THI 85.2 (Severe)</li>
+          <li><strong>Heatwave Crisis:</strong> 36.5°C, 78% RH → THI 92.5 (Extreme Severe)</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>Live Economic Impact & Advisory</h4>
+        <p style="font-size: 13px; margin: 0;">
+          Outputs immediate milk loss estimations (-0.28 to -0.42 kg/THI unit), subclinical acidosis risk (FPR &lt; 1.2), 
+          and enteric methane surge (+17.5%), paired with immediate action protocols (fans, misting, Sodium Bicarbonate buffer).
+        </p>
+      </div>
+    </div>
+
+    <h3>Section 2: Scientific Signal Strip (Deep Green Banner #24433A)</h3>
+    <p>
+      A high-contrast four-column data banner highlighting the scientific cornerstones of CowCare AI:
+    </p>
+    <ul>
+      <li><strong>THI 76.0:</strong> Physiological heat stress onset threshold for tropical crossbred cattle (Boonkum et al., 2024).</li>
+      <li><strong>5 Days:</strong> Peak biological lag effect before milk yield bottom-out (Hasan et al., 2026).</li>
+      <li><strong>14 Days:</strong> Historical thermal accumulation lookback window for the LSTM neural network.</li>
+      <li><strong>3–7 Days:</strong> Proactive advance warning lead-time delivered directly via LINE Messaging API.</li>
+    </ul>
+
+    <h3>Section 3: 3-Layer Architecture & Bento Feature Matrix</h3>
+    <p>
+      Visualizes the end-to-end data pipeline in three distinct cards:
+    </p>
+    <ul>
+      <li>
+        <strong>Sense (Card 01 — Deep Forest #24433A):</strong> 
+        Industrial ESP32-S3 (N16R8) microcontroller with high-accuracy SHT40 temperature/humidity sensor over RS485 Modbus RTU. 
+        Features a simulated edge viewfinder mockup running the project's actual fine-tuned <strong>YOLO26m</strong> model (<code>best1.pt</code>) 
+        detecting bovine postures: <code>standing</code> (94.2%), <code>lying down</code> (91.8%), <code>drinking</code> (89.4%), and <code>feeding</code> (88.5%).
+      </li>
+      <li>
+        <strong>Recommend (Card 02 — Elevated Glass):</strong> 
+        LSTM time-series forecasting engine coupled with Context-Aware Gemini GenAI, translating mathematical predictions into actionable, farmer-friendly Thai recommendations.
+      </li>
+      <li>
+        <strong>Capitalize (Card 03 — Elevated Glass):</strong> 
+        Transforming raw telemetry into verifiable digital assets on PostgreSQL / Supabase for ESG compliance, green banking credit, and parametric insurance.
+      </li>
+    </ul>
+
+    <h3>Section 4: Predictive Analytics & LSTM Brain Engine (#19362E)</h3>
+    <p>
+      Deep night-forest contrast section detailing the machine learning inference pipeline:
+    </p>
+    <div class="callout callout-dark">
+      <strong>LSTM Neural Pipeline (96.08% Validation Accuracy):</strong><br>
+      • <em>Input Vectors:</em> SHT40 Microclimate Data + 14-Day Cumulative Thermal Load + YOLO26m Behavioral Frequencies.<br>
+      • <em>Core Processing:</em> Bidirectional LSTM with temporal attention layers capturing non-linear biological lag.<br>
+      • <em>Output Actuation:</em> 3–7 Day Trajectory curve, preventative fan/fogger actuation, and automated LINE push alerts.
+    </div>
+
+    <h3>Section 5: Digital Logbook & Smallholder ESG Preview</h3>
+    <p>
+      Addresses the reality of Thai smallholder dairy farming: over 80% of barns are 2.7m low-roof structures with zinc sheets that amplify radiant heat.
+      Includes a mockup logbook displaying 7-day average THI (74.8), cumulative heat hours (12.5 hrs), and a custom vector SVG sparkline tracking the weekly trajectory.
+    </p>
+
+    <h3>Section 6: Academic Foundation & Peer-Reviewed Citation Matrix</h3>
+    <p>
+      Integrates rigorous academic validation from four international research papers (2022–2026):
+    </p>
+    <ol>
+      <li><strong>Boonkum et al. (2024, Animals):</strong> Verified THI 76 threshold and conception decline in Thai-Holstein crossbreds.</li>
+      <li><strong>Hasan et al. (2026, Comput. Electron. Agric.):</strong> Discovery of the 5-day lag effect across 82,000+ dairy cattle.</li>
+      <li><strong>Onan-Martinez et al. (2026, J. Dairy Sci.):</strong> Documented +17.5% enteric methane emission intensity under heat stress.</li>
+      <li><strong>Mulajkar et al. & Abdourhamane (2026):</strong> Edge AI multimodal fusion and 14-day LSTM forecasting accuracy.</li>
+    </ol>
+
+    <h3>Section 7: Final Conversion CTA & Global Footer</h3>
+    <p>
+      Directs users to member sign-in at <code>/login</code> and documentation anchors (<code>#solution</code>), concluded with the semantic <code>&lt;AppFooter /&gt;</code> component.
+    </p>
+
+    <!-- Section 4 -->
+    <h2><span class="section-num">4</span> Security & Access Control Architecture</h2>
+    <div class="callout callout-warning">
+      <strong>Zero Administrative Exposure on Public Surfaces:</strong><br>
+      In accordance with security standards, all direct references and navigation links to <code>/Admin</code> ("Command Center") 
+      have been stripped from the public landing page. All visitors authenticate through <code>/login</code>.
+    </div>
+    <ul>
+      <li><strong>Layout Guard (<code>frontend/app/layouts/admin.vue</code>):</strong> Automatic verification of authentication token and role claims. Users without the <code>role === 'admin'</code> property are redirected immediately to <code>/login</code>.</li>
+      <li><strong>User Interface Preparation:</strong> Establishes the foundation for the upcoming general member dashboard (<code>/user</code>), maintaining strict role segregation.</li>
+    </ul>
+
+    <!-- Section 5 -->
+    <h2><span class="section-num">5</span> Verification & Technical Specifications</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Specification Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Framework & Script</strong></td>
+          <td>Nuxt 3.16+, Vue 3 Composition API (<code>&lt;script setup&gt;</code>)</td>
+        </tr>
+        <tr>
+          <td><strong>Styling Architecture</strong></td>
+          <td>Tailwind CSS 3.4 + Custom Scoped CSS + Vuetify 3 Integration</td>
+        </tr>
+        <tr>
+          <td><strong>Computer Vision Model</strong></td>
+          <td>Fine-tuned <strong>YOLO26m</strong> (<code>best1.pt</code>, 44.03 MB, 4 classes)</td>
+        </tr>
+        <tr>
+          <td><strong>Motion & Performance</strong></td>
+          <td>Native <code>IntersectionObserver</code> (threshold 0.12), GPU accelerated (<code>translate3d</code>), <code>prefers-reduced-motion</code> compliant</td>
+        </tr>
+        <tr>
+          <td><strong>Public Accessibility</strong></td>
+          <td>SSR rendered, HTTP 200 OK verified, zero exposed administrative routes</td>
+        </tr>
+      </tbody>
+    </table>
+
+  </div>
+
+</body>
+</html>

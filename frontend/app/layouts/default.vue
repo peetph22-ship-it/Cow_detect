@@ -1,58 +1,145 @@
 <template>
-  <v-app-bar class="site-header" elevation="0" height="76">
-    <v-container class="d-flex align-center h-100 px-4 px-md-8 mx-auto" style="max-width: 1400px;">
-      <NuxtLink to="/" class="brand d-flex align-center text-decoration-none" aria-label="CowCare AI home">
-        <!-- <span class="brand-mark"><v-icon icon="mdi-cow" size="24" /></span> -->
-        <img src="/images/logo/logo1.png" alt="PH Detection Logo" style="height: 40px; border-radius: 8px;" />
-        <span>
-          <strong>Detection</strong> <em>System</em>
-          <small>HEAT STRESS INTELLIGENCE</small>
-        </span>
-      </NuxtLink>
+  <div class="min-h-screen flex flex-col bg-[#FAF9F5] text-[#142820] font-sans selection:bg-[#D87939]/15 selection:text-[#142820]">
+    
+    <!-- Floating Modern Navbar -->
+    <header 
+      class="fixed top-0 inset-x-0 z-50 transition-all duration-300 px-4 sm:px-6 lg:px-8"
+      :class="isScrolled ? 'py-3' : 'py-5'">
+      <div 
+        class="max-w-[1280px] mx-auto flex items-center justify-between transition-all duration-300 rounded-full px-4 sm:px-6"
+        :class="isScrolled 
+          ? 'h-14 bg-white/85 backdrop-blur-xl border border-[#142820]/8 shadow-[0_8px_30px_rgba(20,40,32,0.06)]' 
+          : 'h-16 bg-white/60 backdrop-blur-md border border-[#142820]/5'">
+        
+        <!-- Brand Logo -->
+        <NuxtLink to="/" class="flex items-center gap-3 group text-decoration-none">
+          <div class="w-9 h-9 rounded-xl bg-[#142820] flex items-center justify-center shadow-sm group-hover:bg-[#D87939] transition-colors duration-300">
+            <img src="/images/logo/logo1.png" alt="CowCare AI" class="h-5 w-auto object-contain brightness-0 invert" />
+          </div>
+          <div class="flex flex-col">
+            <div class="text-[15px] font-extrabold tracking-tight text-[#142820] leading-none">
+              CowCare <span class="text-[#D87939]">AI</span>
+            </div>
+            <span class="text-[9px] font-bold tracking-[0.16em] text-[#6E7E76] uppercase mt-1">
+              Heat Stress Intelligence
+            </span>
+          </div>
+        </NuxtLink>
 
-      <nav class="desktop-nav ml-auto" aria-label="Main navigation">
-        <a href="#solution" @click="scrollToSection($event, '#solution')">ระบบทำงานอย่างไร</a>
-        <a href="#lstm" @click="scrollToSection($event, '#lstm')">AI คาดการณ์</a>
-        <a href="#research" @click="scrollToSection($event, '#research')">งานวิจัย</a>
-        <a href="#solution" @click="scrollToSection($event, '#solution')">Solution</a>
-      </nav>
+        <!-- Desktop Pill Navigation -->
+        <nav class="hidden md:flex items-center gap-1 bg-[#F2F4F2]/80 p-1 rounded-full border border-[#142820]/5" aria-label="Main navigation">
+          <a 
+            v-for="item in navItems" 
+            :key="item.target"
+            :href="item.target" 
+            @click="scrollToSection($event, item.target)"
+            class="px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-200 text-decoration-none"
+            :class="activeSection === item.target 
+              ? 'bg-white text-[#142820] shadow-sm' 
+              : 'text-[#5A6B63] hover:text-[#142820]'">
+            {{ item.label }}
+          </a>
+        </nav>
 
-      <v-btn class="header-cta ml-5 d-none d-md-flex" rounded="pill" variant="flat">
-        <nuxt-link to="/login" style="text-decoration-line: none;" class="text-white">START <v-icon end icon="mdi-arrow-right" /></nuxt-link>
-      </v-btn>
+        <!-- Right CTA Actions -->
+        <div class="hidden md:flex items-center gap-2.5">
+          <button 
+            type="button"
+            @click="scrollToSection($event, '#sandbox-card')"
+            class="px-4 py-2 rounded-full text-xs font-bold text-[#142820] hover:bg-[#142820]/5 transition-colors cursor-pointer">
+            คำนวณ THI
+          </button>
+          <NuxtLink 
+            to="/login" 
+            class="px-5 py-2 rounded-full bg-[#142820] hover:bg-[#D87939] text-white text-xs font-bold transition-all duration-300 flex items-center gap-1.5 shadow-sm text-decoration-none group">
+            <span>เข้าสู่ระบบ</span>
+            <v-icon icon="mdi-arrow-top-right" size="14" class="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+          </NuxtLink>
+        </div>
 
-      <v-btn class="d-md-none ml-auto" icon="mdi-menu" variant="text" color="#24433a" aria-label="Open menu" @click="drawer = !drawer" />
-    </v-container>
-  </v-app-bar>
-
-  <ClientOnly>
-    <v-navigation-drawer v-model="drawer" location="right" width="300" temporary class="mobile-drawer">
-      <div class="pa-6 d-flex align-center justify-space-between">
-        <span class="drawer-title">CowCare AI</span>
-        <v-btn icon="mdi-close" variant="text" @click="drawer = false" />
+        <!-- Mobile Menu Button -->
+        <button 
+          type="button"
+          @click="drawer = !drawer"
+          class="md:hidden w-9 h-9 rounded-full bg-[#F2F4F2] flex items-center justify-center text-[#142820] hover:bg-[#E5EAE7] transition-colors"
+          aria-label="Open menu">
+          <v-icon :icon="drawer ? 'mdi-close' : 'mdi-menu'" size="18" />
+        </button>
       </div>
-      <v-divider />
-      <nav class="mobile-nav pa-4" aria-label="Mobile navigation">
-        <a href="#solution" @click="scrollToSection($event, '#solution')"><v-icon icon="mdi-radar" /> ระบบทำงานอย่างไร</a>
-        <a href="#lstm" @click="scrollToSection($event, '#lstm')"><v-icon icon="mdi-chart-timeline-variant" /> AI คาดการณ์</a>
-        <a href="#research" @click="scrollToSection($event, '#research')"><v-icon icon="mdi-book-open-variant" /> งานวิจัย</a>
-      </nav>
-    </v-navigation-drawer>
-  </ClientOnly>
 
-  <v-main>
-    <slot />
-  </v-main>
+      <!-- Clean Dropdown Mobile Menu -->
+      <Transition name="fade-slide">
+        <div 
+          v-if="drawer" 
+          class="md:hidden mt-2 max-w-[1280px] mx-auto bg-white/95 backdrop-blur-xl rounded-3xl p-4 border border-[#142820]/10 shadow-xl">
+          <nav class="flex flex-col gap-1">
+            <a 
+              v-for="item in navItems" 
+              :key="item.target"
+              :href="item.target"
+              @click="scrollToSection($event, item.target)"
+              class="flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-bold text-[#142820] hover:bg-[#F2F4F2] transition-colors text-decoration-none">
+              <span class="flex items-center gap-3">
+                <v-icon :icon="item.icon" size="18" class="text-[#D87939]" />
+                {{ item.label }}
+              </span>
+              <v-icon icon="mdi-chevron-right" size="16" class="text-[#8C9B93]" />
+            </a>
+          </nav>
+          <div class="mt-3 pt-3 border-t border-[#142820]/10 flex flex-col gap-2">
+            <NuxtLink 
+              to="/login" 
+              @click="drawer = false"
+              class="w-full py-3 rounded-2xl bg-[#142820] text-white text-center text-xs font-bold text-decoration-none">
+              เข้าสู่ระบบใช้งาน (Command Center)
+            </NuxtLink>
+          </div>
+        </div>
+      </Transition>
+    </header>
+
+    <!-- Main Slot -->
+    <main class="flex-1">
+      <slot />
+    </main>
+
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 
 const drawer = ref(false)
+const isScrolled = ref(false)
+const activeSection = ref('#sandbox-card')
+
+const navItems = [
+  { label: 'จำลองค่า THI', target: '#sandbox-card', icon: 'mdi-thermometer-lines' },
+  { label: 'สถาปัตยกรรม 3 ชั้น', target: '#solution', icon: 'mdi-layers-triple-outline' },
+  { label: 'AI พยากรณ์ล่วงหน้า', target: '#lstm', icon: 'mdi-brain' },
+  { label: 'งานวิจัยรองรับ', target: '#research', icon: 'mdi-book-open-page-variant-outline' }
+]
+
+const handleScroll = () => {
+  isScrolled.value = window.scrollY > 24
+
+  const sections = ['#sandbox-card', '#solution', '#lstm', '#research']
+  for (const sec of sections) {
+    const el = document.querySelector(sec)
+    if (el) {
+      const rect = el.getBoundingClientRect()
+      if (rect.top <= 180 && rect.bottom >= 180) {
+        activeSection.value = sec
+        break
+      }
+    }
+  }
+}
 
 const scrollToSection = (event: MouseEvent, selector: string) => {
   event.preventDefault()
   drawer.value = false
+  activeSection.value = selector
 
   const target = document.querySelector(selector)
   if (!target) return
@@ -60,38 +147,24 @@ const scrollToSection = (event: MouseEvent, selector: string) => {
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
 }
+
+onMounted(() => {
+  window.addEventListener('scroll', handleScroll, { passive: true })
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll)
+})
 </script>
 
 <style scoped>
-.site-header {
-  background: rgba(255, 253, 247, 0.8) !important;
-  backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(36, 67, 58, 0.08) !important;
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
-
-.brand { color: #24433a; gap: 10px; letter-spacing: -0.04em; }
-.brand-mark { display: grid; place-items: center; width: 40px; height: 40px; color: #fffdf7; background: #24433a; border-radius: 13px 13px 13px 4px; }
-.brand strong, .brand em { font-size: 1.25rem; font-style: normal; }
-.brand em { color: #d87939; margin-left: 2px; }
-.brand small { display: block; color: #718078; font-size: 0.53rem; font-weight: 800; letter-spacing: 0.12em; }
-.desktop-nav { display: flex; gap: 28px; }
-.desktop-nav a { color: #4e6057; font-size: 0.9rem; font-weight: 700; text-decoration: none; transition: color 0.2s ease; }
-.desktop-nav a:hover { color: #d87939; }
-.header-cta { color: white !important; background: #24433a !important; font-weight: 800; letter-spacing: 0; }
-.mobile-drawer { background: #fffdf7 !important; }
-.drawer-title { color: #24433a; font-size: 1.2rem; font-weight: 850; }
-.mobile-nav { display: grid; gap: 8px; }
-.mobile-nav a { display: flex; align-items: center; gap: 12px; padding: 14px; color: #24433a; font-weight: 750; text-decoration: none; border-radius: 12px; }
-.mobile-nav a:hover { background: #edf3ed; }
-
-.site-header :deep(.v-toolbar__content) {
-  justify-content: center;
+.fade-slide-enter-from,
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
 }
-.site-header :deep(.v-container) {
-  max-width: 1400px;
-  width: 100%;
-  margin-inline: auto;
-}
-
-@media (max-width: 960px) { .site-header :deep(.v-container) { max-width: none; } }
 </style>

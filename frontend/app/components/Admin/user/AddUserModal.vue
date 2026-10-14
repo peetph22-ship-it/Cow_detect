@@ -51,9 +51,9 @@
                 v-model="form.role"
                 required
                 class="w-full appearance-none bg-white border border-[#e5ece9] rounded-[16px] pl-10 pr-10 py-3 text-sm font-bold text-[#1f3d34] focus:outline-none focus:border-[#24433a] focus:ring-4 focus:ring-[#24433a]/8 transition-all cursor-pointer">
-                <option value="farmer">🚜 เกษตรกร (ฟาร์ม)</option>
-                <option value="expert">🩺 ผู้เชี่ยวชาญ (สัตวแพทย์)</option>
-                <option value="admin">🛡️ ผู้ดูแลระบบ (Admin)</option>
+                <option value="farmer">เกษตรกร (ฟาร์ม)</option>
+                <option value="expert">ผู้เชี่ยวชาญ (สัตวแพทย์)</option>
+                <option value="admin">ผู้ดูแลระบบ (Admin)</option>
               </select>
               <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-[#718078]">
                 <v-icon icon="mdi-chevron-down" size="20" class="text-[#718078]" />
@@ -74,9 +74,9 @@
                 v-model="form.status"
                 required
                 class="w-full appearance-none bg-white border border-[#e5ece9] rounded-[16px] pl-10 pr-10 py-3 text-sm font-bold text-[#1f3d34] focus:outline-none focus:border-[#24433a] focus:ring-4 focus:ring-[#24433a]/8 transition-all cursor-pointer">
-                <option value="active">🟢 ใช้งานอยู่ (Active)</option>
-                <option value="pending">🟡 รออนุมัติ (Pending)</option>
-                <option value="suspended">🔴 ระงับการใช้งาน (Suspended)</option>
+                <option value="active">ใช้งานอยู่ (Active)</option>
+                <option value="pending">รออนุมัติ (Pending)</option>
+                <option value="suspended">ระงับการใช้งาน (Suspended)</option>
               </select>
               <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-[#718078]">
                 <v-icon icon="mdi-chevron-down" size="20" class="text-[#718078]" />

@@ -1,260 +1,256 @@
 <template>
-  <div
-    class="min-h-screen bg-[#FDFCF8] flex font-sans text-[#24433a] relative overflow-x-hidden selection:bg-[#d87939]/20 selection:text-[#24433a]">
+  <div class="min-h-screen bg-[#F6F7F5] flex font-sans text-[#142820] relative overflow-x-hidden selection:bg-[#D87939]/15 selection:text-[#142820]">
 
-    <!-- 🌟 Ambient Background Glows -->
-    <div
-      class="fixed top-[-15%] left-[-10%] w-[50%] h-[50%] rounded-full bg-[#d87939]/10 blur-[120px] pointer-events-none z-0 animate-float">
-    </div>
-    <div
-      class="fixed bottom-[-10%] right-[-5%] w-[40%] h-[40%] rounded-full bg-[#24433a]/5 blur-[100px] pointer-events-none z-0 animate-float-delayed">
-    </div>
-
-    <!-- 📌 Mobile Overlay (ปิด Sidebar เมื่อกดพื้นหลังบนมือถือ) -->
-    <Transition name="overlay">
-      <div v-if="isSidebarOpen && isMobile" @click="isSidebarOpen = false"
-        class="fixed inset-0 bg-[#24433a]/30 backdrop-blur-sm z-40 lg:hidden"></div>
+    <!-- Mobile Backdrop Overlay -->
+    <Transition name="fade">
+      <div 
+        v-if="isSidebarOpen && isMobile" 
+        @click="isSidebarOpen = false"
+        class="fixed inset-0 bg-[#142820]/40 backdrop-blur-xs z-40 lg:hidden">
+      </div>
     </Transition>
 
-    <!-- 📌 Sidebar (สไลด์เปิด-ปิดได้ทั้ง Desktop และ Mobile) -->
-    <aside :class="[
-      'h-screen bg-white/80 backdrop-blur-3xl border-r border-[#24433a]/5 flex flex-col z-50 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shadow-[4px_0_30px_rgba(36,67,58,0.03)] flex-shrink-0',
-      'fixed lg:sticky top-0 left-0',
-      isSidebarOpen
-        ? 'w-[280px] translate-x-0 opacity-100'
-        : '-translate-x-full lg:translate-x-0 lg:w-0 lg:opacity-0 lg:overflow-hidden lg:border-none'
-    ]" style="will-change: width, transform;">
+    <!-- 📌 Sleek Collapsible Sidebar (Full Width or Mini Icon Rail on Desktop) -->
+    <aside 
+      :class="[
+        'h-screen bg-white border-r border-[#E4E8E5] flex flex-col z-50 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shrink-0',
+        'fixed lg:sticky top-0 left-0',
+        isMobile 
+          ? (isSidebarOpen ? 'w-[260px] translate-x-0 shadow-2xl' : 'w-[260px] -translate-x-full')
+          : (isSidebarOpen ? 'w-[256px]' : 'w-[76px]')
+      ]">
 
-      <!-- Close Button (เฉพาะหน้าจอมือถือ) -->
-      <button v-if="isMobile" @click="isSidebarOpen = false"
-        class="absolute top-7 right-5 w-9 h-9 rounded-full bg-[#edf3ed] text-[#4e6057] flex items-center justify-center z-50 hover:bg-[#d87939] hover:text-white transition-all duration-200">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
-      </button>
-
-      <!-- Logo Area -->
-      <div class="h-24 flex items-center px-8 flex-shrink-0">
-        <NuxtLink to="/Admin" @click="handleNavClick" class="flex items-center gap-3.5 group">
-          <div class="relative">
-            <div
-              class="absolute inset-0 bg-[#d87939]/30 blur-xl rounded-full group-hover:scale-125 transition-all duration-700 opacity-0 group-hover:opacity-100">
-            </div>
-            <div
-              class="w-11 h-11 rounded-[14px] bg-[#24433a] flex items-center justify-center relative z-10 shadow-[0_4px_12px_rgba(36,67,58,0.2)] transition-transform duration-500 group-hover:scale-105 group-hover:-rotate-3">
-              <img src="/images/logo/logo1.png" alt="CowCare AI"
-                class="h-6 w-auto object-contain drop-shadow-md filter brightness-0 invert" />
-            </div>
+      <!-- Brand Header -->
+      <div class="h-16 flex items-center justify-between px-4 border-b border-[#E4E8E5] shrink-0">
+        <NuxtLink to="/Admin" @click="handleNavClick" class="flex items-center gap-3 overflow-hidden text-decoration-none">
+          <div class="w-9 h-9 rounded-xl bg-[#142820] flex items-center justify-center shrink-0 shadow-xs">
+            <img src="/images/logo/logo1.png" alt="CowCare AI" class="h-5 w-auto object-contain brightness-0 invert" />
           </div>
-          <div class="flex flex-col pt-1">
-            <span class="font-extrabold text-[15px] tracking-tight text-[#24433a] leading-none">Detection <em
-                class="not-italic text-[#d87939]">System</em></span>
-            <span class="text-[9px] text-[#718078] font-black tracking-[0.18em] mt-1.5 opacity-80">ADMIN CONSOLE</span>
+          <div v-show="isSidebarOpen || isMobile" class="flex flex-col whitespace-nowrap transition-opacity duration-200">
+            <span class="font-extrabold text-sm tracking-tight text-[#142820] leading-none">
+              CowCare <span class="text-[#D87939]">AI</span>
+            </span>
+            <span class="text-[9px] text-[#718078] font-bold tracking-[0.16em] uppercase mt-1">
+              ADMIN CONSOLE
+            </span>
           </div>
         </NuxtLink>
+
+        <!-- Mobile Close Button -->
+        <button 
+          v-if="isMobile" 
+          @click="isSidebarOpen = false"
+          class="w-8 h-8 rounded-lg text-[#5A6B63] hover:bg-[#F2F4F2] flex items-center justify-center">
+          <v-icon icon="mdi-close" size="18" />
+        </button>
       </div>
 
-      <!-- Navigation Links -->
-      <div class="flex-1 py-4 px-5 space-y-7 overflow-y-auto custom-scrollbar">
+      <!-- Navigation List -->
+      <div class="flex-1 py-5 px-3 space-y-6 overflow-y-auto custom-scrollbar">
+        
+        <div v-for="group in navGroups" :key="group.title">
+          <p 
+            v-show="isSidebarOpen || isMobile" 
+            class="px-3 text-[10px] font-bold text-[#84948C] uppercase tracking-[0.15em] mb-2">
+            {{ group.title }}
+          </p>
+          <div class="space-y-1">
+            <NuxtLink
+              v-for="item in group.items"
+              :key="item.to"
+              :to="item.to"
+              @click="handleNavClick"
+              :title="!isSidebarOpen && !isMobile ? item.label : ''"
+              class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-200 text-decoration-none relative group"
+              :class="isActiveRoute(item.to)
+                ? 'bg-[#142820] text-white shadow-xs'
+                : 'text-[#52635B] hover:bg-[#F2F4F2] hover:text-[#142820]'">
+              
+              <!-- Active Left Pill Indicator -->
+              <span 
+                v-if="isActiveRoute(item.to)"
+                class="w-1 h-4 rounded-full bg-[#D87939] absolute left-1">
+              </span>
 
-        <!-- Group 1: Overview -->
-        <div>
-          <p class="px-4 text-[10px] font-black text-[#718078]/60 uppercase tracking-[0.2em] mb-3">ภาพรวมระบบ</p>
-          <nav class="space-y-1.5">
-            <NuxtLink to="/Admin" @click="handleNavClick"
-              class="flex items-center gap-3.5 px-4 py-3.5 rounded-[20px] text-[#4e6057] hover:bg-[#edf3ed] hover:text-[#24433a] font-semibold transition-all group"
-              active-class="!bg-[#24433a] !text-white shadow-[0_8px_20px_rgba(36,67,58,0.15)]">
-              <div
-                class="w-8 h-8 rounded-[12px] bg-[#edf3ed] group-hover:bg-white flex items-center justify-center text-[#718078] group-hover:text-[#d87939] group-hover:scale-110 transition-all duration-300 shadow-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
-                  class="w-4.5 h-4.5 flex-shrink-0">
-                  <rect width="7" height="9" x="3" y="3" rx="1" />
-                  <rect width="7" height="5" x="14" y="3" rx="1" />
-                  <rect width="7" height="9" x="14" y="12" rx="1" />
-                  <rect width="7" height="5" x="3" y="16" rx="1" />
-                </svg>
-              </div>
-              <span class="text-[13px] tracking-wide">ภาพรวม (Dashboard)</span>
+              <v-icon 
+                :icon="item.icon" 
+                size="19" 
+                class="shrink-0 mx-auto lg:mx-0"
+                :class="isActiveRoute(item.to) ? 'text-[#F2BD7C]' : 'text-[#718078] group-hover:text-[#142820]'" 
+              />
+              
+              <span v-show="isSidebarOpen || isMobile" class="truncate flex-1">
+                {{ item.label }}
+              </span>
             </NuxtLink>
-          </nav>
+          </div>
         </div>
 
-        <!-- Group 2: Management -->
-        <div>
-          <p class="px-4 text-[10px] font-black text-[#718078]/60 uppercase tracking-[0.2em] mb-3">การจัดการ</p>
-          <nav class="space-y-1.5">
-            <NuxtLink to="/Admin/users" @click="handleNavClick"
-              class="flex items-center gap-3.5 px-4 py-3 rounded-[20px] text-[#4e6057] hover:bg-[#edf3ed] hover:text-[#24433a] font-semibold transition-all group"
-              active-class="!bg-[#24433a] !text-white shadow-[0_8px_20px_rgba(36,67,58,0.15)]">
-              <div
-                class="w-8 h-8 rounded-[12px] bg-[#edf3ed] group-hover:bg-white flex items-center justify-center text-[#718078] group-hover:text-[#d87939] group-hover:scale-110 transition-all duration-300 shadow-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                  class="w-4.5 h-4.5 flex-shrink-0">
-                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                  <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                </svg>
-              </div>
-              <span class="text-[13px] tracking-wide">สมาชิกเกษตรกร</span>
-            </NuxtLink>
-
-            <NuxtLink to="/Admin/farms" @click="handleNavClick"
-              class="flex items-center gap-3.5 px-4 py-3 rounded-[20px] text-[#4e6057] hover:bg-[#edf3ed] hover:text-[#24433a] font-semibold transition-all group"
-              active-class="!bg-[#24433a] !text-white shadow-[0_8px_20px_rgba(36,67,58,0.15)]">
-              <div
-                class="w-8 h-8 rounded-[12px] bg-[#edf3ed] group-hover:bg-white flex items-center justify-center text-[#718078] group-hover:text-[#d87939] group-hover:scale-110 transition-all duration-300 shadow-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                  class="w-4.5 h-4.5 flex-shrink-0">
-                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                  <polyline points="9 22 9 12 15 12 15 22" />
-                </svg>
-              </div>
-              <span class="text-[13px] tracking-wide">ข้อมูลฟาร์ม (Farms)</span>
-            </NuxtLink>
-
-            <NuxtLink to="/Admin/devices" @click="handleNavClick"
-              class="flex items-center gap-3.5 px-4 py-3 rounded-[20px] text-[#4e6057] hover:bg-[#edf3ed] hover:text-[#24433a] font-semibold transition-all group"
-              active-class="!bg-[#24433a] !text-white shadow-[0_8px_20px_rgba(36,67,58,0.15)]">
-              <div
-                class="w-8 h-8 rounded-[12px] bg-[#edf3ed] group-hover:bg-white flex items-center justify-center text-[#718078] group-hover:text-[#d87939] group-hover:scale-110 transition-all duration-300 shadow-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                  class="w-4.5 h-4.5 flex-shrink-0">
-                  <rect width="16" height="16" x="4" y="4" rx="2" />
-                  <rect width="6" height="6" x="9" y="9" rx="1" />
-                  <path d="M15 2v2" />
-                  <path d="M15 20v2" />
-                  <path d="M2 15h2" />
-                  <path d="M2 9h2" />
-                </svg>
-              </div>
-              <span class="text-[13px] tracking-wide">อุปกรณ์ IoT & เซ็นเซอร์</span>
-            </NuxtLink>
-
-            <NuxtLink to="/Admin/alerts" @click="handleNavClick"
-              class="flex items-center gap-3.5 px-4 py-3 rounded-[20px] text-[#4e6057] hover:bg-[#edf3ed] hover:text-[#24433a] font-semibold transition-all group"
-              active-class="!bg-[#24433a] !text-white shadow-[0_8px_20px_rgba(36,67,58,0.15)]">
-              <div
-                class="w-8 h-8 rounded-[12px] bg-[#edf3ed] group-hover:bg-white flex items-center justify-center text-[#718078] group-hover:text-[#d87939] group-hover:scale-110 transition-all duration-300 shadow-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                  class="w-4.5 h-4.5 flex-shrink-0">
-                  <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-                  <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-                </svg>
-              </div>
-              <span class="text-[13px] tracking-wide">ประวัติการเตือนภัย</span>
-            </NuxtLink>
-          </nav>
-        </div>
       </div>
 
-      <!-- User Profile / Logout -->
-      <div class="p-5 mt-auto flex-shrink-0">
-        <div
-          class="bg-white/60 backdrop-blur-xl border border-white/80 rounded-[24px] p-2 shadow-[0_8px_20px_rgba(36,67,58,0.03)]">
-          <div
-            class="flex items-center gap-3 px-3 py-2.5 mb-1.5 rounded-[18px] bg-gradient-to-br from-[#edf3ed] to-transparent">
-            <div
-              class="w-10 h-10 rounded-[14px] bg-[#d87939] text-white flex items-center justify-center font-bold text-sm shadow-[0_4px_12px_rgba(216,121,57,0.25)] flex-shrink-0">
-              AD
-            </div>
-            <div class="flex flex-col min-w-0 flex-1">
-              <span class="text-sm font-extrabold text-[#24433a] truncate">{{ user?.name || 'Administrator' }}</span>
-              <span class="text-[10px] font-bold text-[#718078] uppercase tracking-wider truncate">{{ user?.email ||
-                'admin@cowcare.ai' }}</span>
-            </div>
+      <!-- User Profile & Clean Logout Footer -->
+      <div class="p-3 border-t border-[#E4E8E5] shrink-0">
+        <div 
+          class="flex items-center gap-2.5 p-2 rounded-xl bg-[#F6F7F5] border border-[#E4E8E5]/80"
+          :class="!isSidebarOpen && !isMobile ? 'justify-center' : ''">
+          
+          <div class="w-8 h-8 rounded-lg bg-[#D87939] text-white flex items-center justify-center font-bold text-xs shrink-0">
+            {{ userInitials }}
           </div>
 
-          <button @click="handleLogout"
-            class="flex items-center justify-center gap-2 px-4 py-3 w-full rounded-[16px] text-[#e04f4f] hover:bg-[#e04f4f]/10 hover:text-[#c43a3a] transition-all text-[13px] font-bold group cursor-pointer">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
-              class="w-4 h-4 flex-shrink-0 group-hover:-translate-x-1 transition-transform">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-              <polyline points="16 17 21 12 16 7" />
-              <line x1="21" x2="9" y1="12" y2="12" />
-            </svg>
-            ออกจากระบบ
+          <div v-show="isSidebarOpen || isMobile" class="min-w-0 flex-1">
+            <div class="text-xs font-extrabold text-[#142820] truncate">{{ user?.name || 'Administrator' }}</div>
+            <div class="text-[10px] text-[#718078] truncate">{{ user?.email || 'admin@cowcare.ai' }}</div>
+          </div>
+
+          <button 
+            v-show="isSidebarOpen || isMobile"
+            type="button"
+            @click="showLogoutConfirm = true"
+            title="ออกจากระบบ"
+            class="w-8 h-8 rounded-lg text-[#718078] hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors cursor-pointer shrink-0">
+            <v-icon icon="mdi-logout-variant" size="17" />
           </button>
         </div>
       </div>
+
     </aside>
 
-    <!-- 🌌 Main Content Area (ปรับขนาดแบบ Smooth ตามการเปิด-ปิด Sidebar) -->
-    <div class="flex-1 flex flex-col min-w-0 h-screen relative z-10 transition-all duration-300">
-
-      <!-- Glassmorphic Topbar -->
-      <header
-        class="h-20 px-6 md:px-10 flex items-center justify-between flex-shrink-0 z-30 sticky top-0 bg-[#FDFCF8]/80 backdrop-blur-2xl border-b border-[#24433a]/5">
-        <div class="flex items-center gap-4">
-          <!-- ☰ Hamburger Menu Button (สลับเปิด-ปิด Sidebar ได้ตลอดเวลา) -->
-          <button type="button" @click="toggleSidebar"
-            class="w-11 h-11 rounded-[16px] bg-white border border-[#24433a]/10 text-[#24433a] hover:text-[#d87939] hover:border-[#d87939]/30 hover:shadow-md flex items-center justify-center shadow-sm transition-all duration-200 active:scale-95 cursor-pointer"
-            :title="isSidebarOpen ? 'ย่อแถบเมนู (Collapse Sidebar)' : 'ขยายแถบเมนู (Expand Sidebar)'">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
-              class="w-5.5 h-5.5">
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <line x1="3" y1="18" x2="21" y2="18" />
-            </svg>
+    <!-- 🌌 Main Content Workspace -->
+    <div class="flex-1 flex flex-col min-w-0 h-screen">
+      
+      <!-- Crisp Sticky Topbar (h-16) -->
+      <header class="h-16 px-4 sm:px-8 bg-white/85 backdrop-blur-md border-b border-[#E4E8E5] flex items-center justify-between sticky top-0 z-30 shrink-0">
+        
+        <!-- Left: Sidebar Toggle & Dynamic Page Breadcrumb -->
+        <div class="flex items-center gap-3">
+          <button 
+            type="button" 
+            @click="toggleSidebar"
+            class="w-9 h-9 rounded-xl border border-[#E4E8E5] bg-white hover:bg-[#F2F4F2] text-[#142820] flex items-center justify-center transition-colors cursor-pointer"
+            :title="isSidebarOpen ? 'ย่อเมนูด้านข้าง' : 'ขยายเมนูด้านข้าง'">
+            <v-icon :icon="isSidebarOpen ? 'mdi-menu-open' : 'mdi-menu'" size="19" />
           </button>
 
-          <div
-            class="inline-flex items-center px-3.5 py-1.5 rounded-full bg-white/80 border border-[#24433a]/10 shadow-sm backdrop-blur-md">
-            <span class="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse-soft"></span>
-            <span class="text-[11px] font-black tracking-widest text-[#24433a] uppercase">Live Network</span>
+          <div class="h-4 w-[1px] bg-[#E4E8E5] hidden sm:block"></div>
+
+          <div class="flex items-center gap-2 text-xs sm:text-sm">
+            <span class="text-[#718078] font-medium hidden sm:inline">Admin Console</span>
+            <v-icon icon="mdi-chevron-right" size="15" class="text-[#84948C] hidden sm:inline" />
+            <span class="font-extrabold text-[#142820]">{{ currentPageTitle }}</span>
           </div>
         </div>
 
-        <div class="flex items-center gap-3 sm:gap-5">
-          <!-- Notification Bell -->
-          <button
-            class="relative w-11 h-11 rounded-[16px] bg-white border border-[#24433a]/5 text-[#4e6057] hover:text-[#d87939] hover:shadow-md transition-all flex items-center justify-center hover:-translate-y-0.5 cursor-pointer">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-              class="w-5 h-5 flex-shrink-0">
-              <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-              <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-            </svg>
-            <span class="absolute top-2.5 right-3 w-2.5 h-2.5 bg-[#d87939] rounded-full border-2 border-white"></span>
-          </button>
+        <!-- Right: Status Pill & Main Website Link -->
+        <div class="flex items-center gap-2.5">
+          <!-- Telemetry Status Pill -->
+          <div class="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#ECFDF5] border border-[#A7F3D0] text-[#047857] text-[11px] font-bold">
+            <span class="w-2 h-2 rounded-full bg-[#10B981] animate-pulse"></span>
+            <span>IoT Network Online</span>
+          </div>
 
-          <!-- Back to Main Site -->
-          <NuxtLink to="/"
-            class="hidden sm:flex items-center gap-2 px-5 py-2.5 rounded-[16px] bg-white border border-[#24433a]/5 text-[#24433a] font-bold text-xs hover:bg-[#edf3ed] hover:border-[#24433a]/20 hover:-translate-y-0.5 transition-all shadow-sm">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-              class="w-4 h-4 flex-shrink-0">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <polyline points="9 22 9 12 15 12 15 22" />
-            </svg>
-            หน้าหลักเว็บไซต์
+          <!-- Back to Front Website -->
+          <NuxtLink 
+            to="/Admin"
+            class="px-3.5 py-1.5 rounded-xl border border-[#E4E8E5] bg-white hover:bg-[#F2F4F2] text-[#142820] font-bold text-xs flex items-center gap-1.5 transition-colors text-decoration-none">
+            <v-icon icon="mdi-web" size="15" class="text-[#D87939]" />
+            <span class="hidden sm:inline">หน้าเว็บหลัก</span>
           </NuxtLink>
         </div>
+
       </header>
 
-      <!-- Scrollable Page Content -->
-      <main class="flex-1 overflow-y-auto px-6 md:px-10 pb-16 pt-8 custom-scrollbar relative z-10 w-full">
-        <slot />
+      <!-- Scrollable Viewport -->
+      <main class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 custom-scrollbar">
+        <div class="max-w-[1400px] mx-auto">
+          <slot />
+        </div>
       </main>
+
     </div>
+
+    <!-- Clean Non-blocking Logout Confirmation Modal -->
+    <Transition name="fade">
+      <div v-if="showLogoutConfirm" class="fixed inset-0 z-50 bg-[#142820]/40 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-sm w-full p-6 border border-[#E4E8E5] shadow-2xl space-y-4">
+          <div class="w-11 h-11 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center">
+            <v-icon icon="mdi-logout-variant" size="22" />
+          </div>
+          <div>
+            <h3 class="text-base font-extrabold text-[#142820]">ยืนยันการออกจากระบบ</h3>
+            <p class="text-xs text-[#5A6B63] mt-1">ท่านต้องการออกจากระบบ CowCare AI Admin Console ใช่หรือไม่?</p>
+          </div>
+          <div class="flex items-center justify-end gap-2 pt-2">
+            <button 
+              type="button" 
+              @click="showLogoutConfirm = false"
+              class="px-4 py-2 rounded-xl text-xs font-bold text-[#52635B] hover:bg-[#F2F4F2] cursor-pointer">
+              ยกเลิก
+            </button>
+            <button 
+              type="button" 
+              @click="confirmLogout"
+              class="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white cursor-pointer">
+              ออกจากระบบ
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { useRoute } from 'vue-router'
 
+const route = useRoute()
 const user = ref(null)
 const isSidebarOpen = ref(true)
 const isMobile = ref(false)
+const showLogoutConfirm = ref(false)
+
+const navGroups = [
+  {
+    title: 'Monitoring',
+    items: [
+      { label: 'ภาพรวมระบบ (Dashboard)', to: '/Admin', icon: 'mdi-view-dashboard-outline' },
+      { label: 'ข้อมูลฟาร์ม (Farms)', to: '/Admin/farms', icon: 'mdi-barn' }
+    ]
+  },
+  {
+    title: 'Administration',
+    items: [
+      { label: 'สมาชิกเกษตรกร (Users)', to: '/Admin/users', icon: 'mdi-account-group-outline' },
+      { label: 'อุปกรณ์ IoT (Devices)', to: '/Admin/devices', icon: 'mdi-memory' },
+      { label: 'ประวัติแจ้งเตือน (Alerts)', to: '/Admin/alerts', icon: 'mdi-bell-outline' }
+    ]
+  }
+]
+
+const isActiveRoute = (targetPath) => {
+  if (targetPath === '/Admin') {
+    return route.path === '/Admin' || route.path === '/Admin/'
+  }
+  return route.path.startsWith(targetPath)
+}
+
+const currentPageTitle = computed(() => {
+  const path = route.path
+  if (path === '/Admin' || path === '/Admin/') return 'ภาพรวมระบบ (Command Center)'
+  if (path === '/Admin/farms' || path === '/Admin/farms/') return 'จัดการข้อมูลฟาร์ม (Farm Roster)'
+  if (path.startsWith('/Admin/farms/') || path.includes('/Admin/farm_detail')) return 'ข้อมูลโทรมาตรรายฟาร์ม (Barn Cockpit)'
+  if (path.includes('/Admin/users')) return 'จัดการสมาชิก (User Management)'
+  if (path.includes('/Admin/devices')) return 'จัดการอุปกรณ์ IoT (Devices)'
+  if (path.includes('/Admin/alerts')) return 'ประวัติการแจ้งเตือน (Thermal Alerts)'
+  return 'ระบบผู้ดูแล (Admin)'
+})
+
+const userInitials = computed(() => {
+  const name = user.value?.name || 'AD'
+  return name.slice(0, 2).toUpperCase()
+})
 
 const toggleSidebar = () => {
   isSidebarOpen.value = !isSidebarOpen.value
@@ -267,10 +263,9 @@ const handleNavClick = () => {
 }
 
 const checkScreen = () => {
-  if (process.client) {
+  if (import.meta.client) {
     const mobile = window.innerWidth < 1024
     isMobile.value = mobile
-    // หากเป็นมือถือให้เริ่มต้นด้วยการปิด sidebar, หากเป็น desktop ให้เปิดไว้
     if (mobile && isSidebarOpen.value) {
       isSidebarOpen.value = false
     } else if (!mobile && !isSidebarOpen.value) {
@@ -280,30 +275,40 @@ const checkScreen = () => {
 }
 
 onMounted(() => {
-  if (process.client) {
+  if (import.meta.client) {
     checkScreen()
     window.addEventListener('resize', checkScreen)
 
     try {
+      const token = localStorage.getItem('token')
       const stored = localStorage.getItem('user')
-      if (stored) {
-        user.value = JSON.parse(stored)
+
+      if (!token || !stored) {
+        return navigateTo('/login')
+      }
+
+      const parsedUser = JSON.parse(stored)
+      user.value = parsedUser
+
+      if (parsedUser.role !== 'admin') {
+        return navigateTo('/login')
       }
     } catch (e) {
-      console.error(e)
+      console.error('[Admin Guard Error]:', e)
+      return navigateTo('/login')
     }
   }
 })
 
 onBeforeUnmount(() => {
-  if (process.client) {
+  if (import.meta.client) {
     window.removeEventListener('resize', checkScreen)
   }
 })
 
-const handleLogout = () => {
-  if (process.client) {
-    if(!confirm('ท่านต้องการออกจากระบบใช่หรือไม่?')) return
+const confirmLogout = () => {
+  if (import.meta.client) {
+    showLogoutConfirm.value = false
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     navigateTo('/')
@@ -312,72 +317,23 @@ const handleLogout = () => {
 </script>
 
 <style scoped>
-/* Overlay transition */
-.overlay-enter-active,
-.overlay-leave-active {
-  transition: opacity 0.25s ease;
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
 }
-
-.overlay-enter-from,
-.overlay-leave-to {
+.fade-enter-from,
+.fade-leave-to {
   opacity: 0;
 }
 
-/* 🎨 Custom Soft Animations */
-@keyframes float {
-
-  0%,
-  100% {
-    transform: translateY(0) scale(1);
-  }
-
-  50% {
-    transform: translateY(-30px) scale(1.05);
-  }
-}
-
-.animate-float {
-  animation: float 12s ease-in-out infinite;
-}
-
-.animate-float-delayed {
-  animation: float 15s ease-in-out infinite 2s;
-}
-
-@keyframes pulseSoft {
-
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-
-  50% {
-    opacity: 0.7;
-    transform: scale(1.1);
-    box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
-  }
-}
-
-.animate-pulse-soft {
-  animation: pulseSoft 2s ease-in-out infinite;
-}
-
-/* Custom Scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
-
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
-
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgba(36, 67, 58, 0.1);
+  background-color: rgba(20, 40, 32, 0.12);
   border-radius: 10px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(36, 67, 58, 0.2);
 }
 </style>

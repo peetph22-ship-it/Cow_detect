@@ -640,12 +640,13 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
-import { Admin } from '../../API/baseAPI'
-import AdminAddFarmModal from '../../components/Admin/farm/AddFarmModal.vue'
-import AdminEditFarmModal from '../../components/Admin/farm/EditFarmModal.vue'
+import { Admin } from '~/API/baseAPI'
+import AdminAddFarmModal from '~/components/Admin/farm/AddFarmModal.vue'
+import AdminEditFarmModal from '~/components/Admin/farm/EditFarmModal.vue'
 
 definePageMeta({
-  layout: 'admin'
+  layout: 'admin',
+  alias: ['/Admin/farms']
 })
 
 useHead({ title: 'Network Farm Roster | CowCare AI' })

@@ -1,193 +1,715 @@
 <template>
-  <div class="landing-page">
-    <section class="hero section-shell">
-      <span class="ambient ambient-one" />
-      <span class="ambient ambient-two" />
-      <v-container class="hero-grid px-5 px-md-8">
-        <div class="hero-copy hero-enter">
-          <div class="eyebrow"><span class="pulse-dot" /> PRECISION LIVESTOCK INTELLIGENCE SYSTEM</div>
-          <div class="brand-mark">PLIS <span>PRECISION LIVESTOCK INTELLIGENCE</span></div>
-          <h1><span>ระบบประเมินและเตือนภัย</span>ความเครียดจากความร้อนในโคนม</h1>
-          <p class="hero-description">แพลตฟอร์มบริหารจัดการความเครียดจากความร้อน (Heat Stress) สำหรับฟาร์มโคนมรายย่อย บูรณาการเทคโนโลยีอินเทอร์เน็ตสรรพสิ่ง (IoT) ร่วมกับปัญญาประดิษฐ์ (YOLO และ LSTM) เพื่อวิเคราะห์สภาพแวดล้อมและพฤติกรรมสัตว์ สู่การแจ้งเตือนเชิงรุกเพื่อป้องกันความเสียหายต่อผลผลิตน้ำนม</p>
-          <div class="hero-actions">
-            <v-btn class="primary-btn" href="#solution" @click.prevent="scrollToSection('#solution')" size="large" rounded="pill" elevation="0">ศึกษาการทำงานของระบบ <v-icon end icon="mdi-arrow-down" /></v-btn>
-            <v-btn class="text-btn" href="#research" @click.prevent="scrollToSection('#research')" variant="text" rounded="pill">กรอบแนวคิดและงานวิจัย <v-icon end icon="mdi-arrow-top-right" /></v-btn>
-          </div>
-          <div class="trust-row">
-            <div class="cow-stack"><span>🐄</span><span>🐄</span><span>🐄</span></div>
-            <p><strong>ออกแบบตามหลักเกษตรแม่นยำ (Precision Agriculture)</strong><br />มุ่งเน้นการใช้งานจริงสำหรับฟาร์มขนาดกลางและรายย่อย</p>
-          </div>
-        </div>
+  <div class="landing-page bg-[#FAF9F5] text-[#142820] overflow-x-hidden">
+    
+    <!-- ========================================================================= -->
+    <!-- 🟢 SECTION 1: AIRY HERO & INTERACTIVE THI SIMULATOR                       -->
+    <!-- ========================================================================= -->
+    <section class="relative pt-32 pb-20 lg:pt-36 lg:pb-28 px-4 sm:px-6 lg:px-8 overflow-hidden">
+      <!-- Subtle Background Grid & Soft Radial Glow -->
+      <div class="absolute inset-0 bg-[radial-gradient(#142820_1px,transparent_1px)] [background-size:28px_28px] opacity-[0.03] pointer-events-none"></div>
+      <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-gradient-to-b from-[#D87939]/10 to-transparent blur-3xl pointer-events-none"></div>
 
-        <div class="hero-visual hero-enter-delay" aria-label="ตัวอย่างหน้าจอแสดงผลระบบประเมินภาวะความร้อน">
-          <div class="visual-glow" />
-          <div class="dashboard-card">
-            <div class="dashboard-head">
-              <div><span class="mini-label">INTERACTIVE DEMO</span><h2>ลองคำนวณค่า THI</h2></div>
-              <span class="live-badge"><i /> ทดสอบด้วยตัวเอง</span>
+      <div class="max-w-[1280px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-12 items-center relative z-10">
+        
+        <!-- Left Column: Clean Typography & Value Prop (7 Cols) -->
+        <div class="lg:col-span-7 space-y-7 hero-enter">
+          
+          <!-- Minimal Pill Badge -->
+          <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-[#142820]/10 shadow-[0_2px_10px_rgba(20,40,32,0.03)]">
+            <span class="w-2 h-2 rounded-full bg-[#10B981] animate-pulse"></span>
+            <span class="text-[11px] font-bold tracking-wider text-[#142820] uppercase">Multimodal AI for Thai Dairy Farms</span>
+          </div>
+
+          <!-- Modern Balanced Headline -->
+          <h1 class="text-4xl sm:text-5xl lg:text-[52px] font-extrabold text-[#142820] leading-[1.18] tracking-tight">
+            ดูแลโคนมก่อนเกิดวิกฤตความร้อน 
+            <span class="text-transparent bg-clip-text bg-gradient-to-r from-[#142820] via-[#2B5946] to-[#D87939] block mt-1">
+              ด้วยระบบพยากรณ์ล่วงหน้าอัจฉริยะ
+            </span>
+          </h1>
+
+          <!-- Easy-to-read Subtitle -->
+          <p class="text-base sm:text-lg text-[#5A6B63] leading-relaxed max-w-xl font-normal">
+            ผสานเซนเซอร์ <span class="text-[#142820] font-semibold">IoT (SHT40)</span>, กล้องตรวจจับพฤติกรรม <span class="text-[#142820] font-semibold">YOLO26m</span> และโมเดล <span class="text-[#142820] font-semibold">LSTM</span> เพื่อแจ้งเตือนล่วงหน้า 3–7 วัน ป้องกันน้ำนมตกจากภาวะความหน่วง 5 วัน (Lag Effect)
+          </p>
+
+          <!-- Clean Inline Highlights instead of Heavy Boxes -->
+          <div class="grid grid-cols-3 gap-4 pt-1 max-w-lg">
+            <div class="border-l-2 border-[#D87939] pl-3">
+              <div class="text-xl font-extrabold text-[#142820] tabular-nums">THI 76</div>
+              <div class="text-xs text-[#6E7E76]">เกณฑ์วิกฤตโคนมไทย</div>
             </div>
-            <div class="risk-panel" :style="{ background: cur.bgColor }">
-              <div class="risk-ring" :style="{ borderColor: cur.color }"><strong :style="{ color: cur.color }">{{ rounded }}</strong><small>THI</small></div>
-              <div><span class="risk-label" :style="{ color: cur.color }">ระดับความเสี่ยง</span><h3 :style="{ color: cur.color }">{{ cur.name }}</h3><p>{{ cur.note }}</p></div>
+            <div class="border-l-2 border-[#142820]/20 pl-3">
+              <div class="text-xl font-extrabold text-[#142820] tabular-nums">3–7 วัน</div>
+              <div class="text-xs text-[#6E7E76]">เตือนล่วงหน้าผ่าน LINE</div>
             </div>
-            <div class="tool-sliders">
-              <label>อุณหภูมิ <b>{{ t.toFixed(1) }} °C</b><input v-model.number="t" type="range" min="20" max="40" step="0.5" /></label>
-              <label>ความชื้นสัมพัทธ์ <b>{{ rh }} %</b><input v-model.number="rh" type="range" min="30" max="100" /></label>
-            </div>
-            <div class="scale-section">
-              <div class="scale" aria-hidden="true"><i /><i /><i /><b :style="{ left: pos + '%' }" /></div>
-              <div class="ticks" aria-hidden="true"><span style="left:53.33%">76</span><span style="left:66.67%">80</span></div>
-            </div>
-            <div style="margin-top:16px; padding:12px; background:rgba(230, 242, 231, 0.6); border-radius:12px; border:1px solid rgba(62, 125, 79, 0.2);">
-              <p style="font-size:0.7rem; color:#24433a; line-height:1.6; font-weight:500;">
-                <strong style="color:#3e7d4f;">Research-Backed:</strong> แอปพลิเคชันของเราไม่ได้ใช้เกณฑ์ THI 72 ของต่างประเทศ แต่ปรับแต่งอัลกอริทึมให้แจ้งเตือนความเสี่ยงที่ <strong>THI 76</strong> ซึ่งอิงตามงานวิจัยล่าสุด (Boonkum et al., 2024; Sungkhapreecha et al., 2022) ที่ระบุว่าเป็นจุดวิกฤตของโคนมลูกผสมไทย ทำให้การแจ้งเตือนแม่นยำ ไม่รบกวนเกษตรกรพร่ำเพรื่อ
-              </p>
+            <div class="border-l-2 border-[#10B981] pl-3">
+              <div class="text-xl font-extrabold text-[#142820] tabular-nums">-17.5%</div>
+              <div class="text-xs text-[#6E7E76]">ลดมีเทนต่อ กก.น้ำนม</div>
             </div>
           </div>
-          <div class="float-card behavior-card"><v-icon icon="mdi-video-outline" /><div><small>COMPUTER VISION</small><strong>กำลังวิเคราะห์พฤติกรรม</strong></div></div>
-        </div>
-      </v-container>
-    </section>
 
-    <section class="signal-strip">
-      <v-container class="signal-grid px-5 px-md-8">
-        <div><span>THI 76</span><p>จุดวิกฤตเริ่มต้นโคนมไทย<br />เริ่มส่งผลต่อผลผลิตและการสืบพันธุ์</p></div>
-        <div><span>5 วัน</span><p>ช่วงเวลาความหน่วงของผลผลิต<br />(Lag Effect ของผลผลิตน้ำนม)</p></div>
-        <div><span>14 วัน</span><p>กรอบเวลาข้อมูลย้อนหลัง<br />สำหรับการประมวลผลของ AI</p></div>
-        <div><span>3–7 วัน</span><p>ระยะเวลาการเตือนภัยล่วงหน้า<br />เพื่อการจัดการเชิงรุก</p></div>
-      </v-container>
-    </section>
+          <!-- Action Buttons -->
+          <div class="flex flex-wrap items-center gap-3.5 pt-2">
+            <NuxtLink
+              to="/login"
+              class="px-7 py-3.5 rounded-full bg-[#142820] hover:bg-[#D87939] text-white font-bold text-sm shadow-[0_10px_25px_rgba(20,40,32,0.15)] transition-all duration-300 flex items-center gap-2 text-decoration-none group">
+              <span>เริ่มต้นใช้งานระบบ</span>
+              <v-icon icon="mdi-arrow-right" size="16" class="group-hover:translate-x-1 transition-transform" />
+            </NuxtLink>
 
-    <section id="solution" class="content-section section-shell reveal">
-      <v-container class="px-5 px-md-8">
-        <div class="section-heading">
-            <span class="eyebrow">THREE-LAYER ARCHITECTURE</span>
-            <h2>สถาปัตยกรรมระบบ 3 ชั้น จากข้อมูลดิบสู่สินทรัพย์สารสนเทศ</h2>
-            <p>ออกแบบภายใต้แนวคิด Edge-to-Cloud เพื่อเปลี่ยนข้อมูลด้านสิ่งแวดล้อมและพฤติกรรม ให้กลายเป็นคำแนะนำเชิงปฏิบัติที่มีหลักฐานอ้างอิงชัดเจน</p>
+            <button
+              type="button"
+              @click="scrollToSection('#solution')"
+              class="px-6 py-3.5 rounded-full bg-white hover:bg-[#F2F4F2] text-[#142820] border border-[#142820]/10 font-bold text-sm transition-all flex items-center gap-2 cursor-pointer">
+              <span>ดูหลักการทำงาน</span>
+            </button>
           </div>
-        <div class="architecture-map" aria-label="สถาปัตยกรรมระบบ 3 ชั้น">
-          <article>
-            <span>01</span>
-            <v-icon icon="mdi-radar" />
-            <h3>Sense (การรับรู้ข้อมูล)</h3>
-            <p>ตรวจวัดอุณหภูมิ ความชื้น และความดันบรรยากาศ พร้อมวิเคราะห์พฤติกรรมผ่านกล้องวงจรปิดแบบไม่สัมผัสตัวสัตว์</p>
-          </article>
-          <i />
-          <article>
-            <span>02</span>
-            <v-icon icon="mdi-lightbulb-on-outline" />
-            <h3>Recommend (การวิเคราะห์)</h3>
-            <p>ประมวลผลด้วยโมเดล LSTM เพื่อคาดการณ์ความเสี่ยง และสังเคราะห์คำแนะนำที่สอดคล้องกับบริบทฟาร์ม</p>
-          </article>
-          <i />
-          <article>
-            <span>03</span>
-            <v-icon icon="mdi-file-chart-outline" />
-            <h3>Capitalize (การต่อยอด)</h3>
-            <p>จัดเก็บข้อมูลเป็น Digital Logbook เพื่อสนับสนุนการบริหารจัดการฟาร์ม การขอสินเชื่อ และการทำประกันภัยอิงดัชนี</p>
-          </article>
-        </div>
-        <div class="feature-grid">
-          <article class="feature-card feature-primary"><div class="feature-icon"><v-icon icon="mdi-access-point" /></div><span class="card-number">01</span><h3>ระบบตรวจวัดสิ่งแวดล้อม IoT</h3><p>ใช้งานไมโครคอนโทรลเลอร์ ESP32-S3 ร่วมกับเซนเซอร์อุตสาหกรรม SHT40 ผ่านการสื่อสาร RS485 Modbus RTU เพื่อเก็บข้อมูลสภาพอากาศทั้งภายในและภายนอกโรงเรือน นำมาคำนวณค่าดัชนี THI อย่างแม่นยำ</p><div class="feature-tags"><span>ESP32-S3</span><span>SHT40</span><span>RS485 Modbus</span><span>THI Calculation</span></div></article>
-          <article class="feature-card"><div class="feature-icon icon-sand"><v-icon icon="mdi-cctv" /></div><span class="card-number">02</span><h3>ระบบคอมพิวเตอร์วิทัศน์</h3><p>ประยุกต์ใช้โมเดล YOLOv8 เพื่อตรวจจับและติดตามพฤติกรรมบ่งชี้ความเครียด เช่น อัตราการยืน/นอน และการรวมกลุ่มกันบริเวณร่มเงา</p><div class="behavior-bars"><span /><span /><span /><span /></div></article>
-          <article class="feature-card"><div class="feature-icon icon-blue"><v-icon icon="mdi-bell-outline" /></div><span class="card-number">03</span><h3>ระบบแจ้งเตือนเชิงรุก</h3><p>ส่งข้อความแจ้งเตือนผ่านช่องทาง LINE พร้อมข้อเสนอแนะในการจัดการฟาร์มที่ทำได้จริงและเหมาะสมตามระดับความรุนแรง</p><div class="mini-alert"><v-icon icon="mdi-check-circle-outline" /> แจ้งเตือนเฉพาะเมื่อข้ามเกณฑ์วิกฤต</div></article>
-        </div>
-      </v-container>
-    </section>
 
-    <section id="lstm" class="ai-section reveal">
-      <v-container class="ai-grid px-5 px-md-8">
-        <div class="ai-copy"><span class="eyebrow light-eyebrow">PREDICTIVE ANALYTICS</span><h2>การพยากรณ์ล่วงหน้าด้วยโครงข่ายประสาทเทียม <em>LSTM</em></h2><p>เนื่องจากผลกระทบจากความร้อนมีความหน่วงเวลา (Lag Effect) โมเดล LSTM จึงถูกพัฒนาขึ้นเพื่อเรียนรู้ข้อมูลอนุกรมเวลา (Time-series) ย้อนหลัง 14 วัน ช่วยให้ระบบสามารถแจ้งเตือนแนวโน้มความเสี่ยงล่วงหน้าได้ 3–7 วัน</p><div class="ai-stat"><strong>96.08%</strong><span>ความแม่นยำสูงสุดของโมเดล LSTM จากการทบทวนวรรณกรรมและงานวิจัยที่เกี่ยวข้อง<sup>1</sup></span></div></div>
-        <div class="lstm-flow">
-          <div class="flow-node"><v-icon icon="mdi-thermometer" /><span>อุณหภูมิ</span></div><i />
-          <div class="flow-node"><v-icon icon="mdi-water-percent" /><span>ความชื้น</span></div><i />
-          <div class="flow-node model-node"><v-icon icon="mdi-brain" /><strong>LSTM</strong><small>Time-Series Model</small></div><i />
-          <div class="flow-node alert-node"><v-icon icon="mdi-shield-alert-outline" /><span>พยากรณ์<br />ล่วงหน้า</span></div>
         </div>
-      </v-container>
-    </section>
 
-    <section class="logbook-section section-shell reveal">
-      <v-container class="logbook-grid px-5 px-md-8">
-        <div class="logbook-panel">
-          <div class="logbook-head">
-            <div><span class="mini-label">DIGITAL LOGBOOK</span><h3>บันทึกสถิติฟาร์ม</h3></div>
-            <v-icon icon="mdi-shield-check-outline" />
+        <!-- Right Column: Sleek Interactive THI Widget (5 Cols) -->
+        <div id="sandbox-card" class="lg:col-span-5 hero-enter-delay">
+          <div class="bg-white rounded-[28px] p-6 sm:p-7 border border-[#142820]/8 shadow-[0_24px_60px_rgba(20,40,32,0.06)] relative">
+            
+            <!-- Widget Header -->
+            <div class="flex items-center justify-between mb-5">
+              <div>
+                <h2 class="text-base font-extrabold text-[#142820]">เครื่องจำลองดัชนีความร้อน (THI)</h2>
+                <p class="text-xs text-[#6E7E76]">ปรับค่าหรือเลือกสภาพอากาศเพื่อดูคำแนะนำทันที</p>
+              </div>
+              <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#F2F4F2] text-[#142820]">
+                NRC 1971
+              </span>
+            </div>
+
+            <!-- Interactive Weather Chips -->
+            <div class="flex flex-wrap gap-1.5 mb-5">
+              <button
+                v-for="(p, idx) in presets"
+                :key="idx"
+                type="button"
+                @click="applyPreset(p, idx)"
+                class="px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer"
+                :class="activePresetIdx === idx 
+                  ? 'bg-[#142820] text-white shadow-sm' 
+                  : 'bg-[#F5F7F6] text-[#5A6B63] hover:bg-[#EAECEB]'">
+                {{ p.icon }} {{ p.name }}
+              </button>
+            </div>
+
+            <!-- Live THI Score Display -->
+            <div 
+              class="p-5 rounded-2xl transition-colors duration-300 mb-5"
+              :style="{ backgroundColor: riskState.bgColor }">
+              <div class="flex items-baseline justify-between">
+                <div>
+                  <span class="text-[11px] font-bold uppercase tracking-wider" :style="{ color: riskState.color }">
+                    {{ riskState.name }}
+                  </span>
+                  <div class="text-5xl font-black tabular-nums tracking-tight mt-0.5" :style="{ color: riskState.color }">
+                    {{ roundedThi }}
+                  </div>
+                </div>
+                <div class="text-right">
+                  <span class="text-[11px] text-[#6E7E76] block">ผลกระทบน้ำนม</span>
+                  <span class="text-sm font-extrabold" :style="{ color: riskState.color }">
+                    {{ riskState.milkImpact }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Smooth Progress Bar -->
+              <div class="mt-4">
+                <div class="relative h-2 w-full rounded-full bg-black/10 overflow-hidden">
+                  <div 
+                    class="h-full rounded-full transition-all duration-300"
+                    :style="{ width: gaugePos + '%', backgroundColor: riskState.color }">
+                  </div>
+                </div>
+                <div class="flex justify-between text-[10px] text-[#6E7E76] font-semibold mt-1.5">
+                  <span>ปกติ (&lt;76)</span>
+                  <span>เริ่มเครียด (76)</span>
+                  <span>ปานกลาง (80)</span>
+                  <span>วิกฤต (84+)</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Clean Sliders -->
+            <div class="space-y-4 mb-5">
+              <div>
+                <div class="flex justify-between text-xs mb-1.5">
+                  <span class="text-[#5A6B63] font-medium">อุณหภูมิอากาศ (T)</span>
+                  <span class="font-bold text-[#142820] tabular-nums">{{ t.toFixed(1) }} °C</span>
+                </div>
+                <input 
+                  type="range" 
+                  v-model.number="t" 
+                  @input="activePresetIdx = null"
+                  min="20" max="42" step="0.5" 
+                  class="w-full accent-[#142820] cursor-pointer h-1.5 bg-[#EAECEB] rounded-lg appearance-none" 
+                />
+              </div>
+
+              <div>
+                <div class="flex justify-between text-xs mb-1.5">
+                  <span class="text-[#5A6B63] font-medium">ความชื้นสัมพัทธ์ (RH)</span>
+                  <span class="font-bold text-[#142820] tabular-nums">{{ rh }} %</span>
+                </div>
+                <input 
+                  type="range" 
+                  v-model.number="rh" 
+                  @input="activePresetIdx = null"
+                  min="30" max="100" step="1" 
+                  class="w-full accent-[#142820] cursor-pointer h-1.5 bg-[#EAECEB] rounded-lg appearance-none" 
+                />
+              </div>
+            </div>
+
+            <!-- Minimal Advisory Footer -->
+            <div class="p-3.5 rounded-2xl bg-[#FAF9F5] border border-[#142820]/6 flex items-start gap-3">
+              <div 
+                class="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5"
+                :style="{ backgroundColor: riskState.color + '20', color: riskState.color }">
+                <v-icon icon="mdi-lightbulb-on-outline" size="15" />
+              </div>
+              <div class="text-xs text-[#4A5A52] leading-relaxed">
+                <strong class="text-[#142820] block mb-0.5">คำแนะนำจาก AI:</strong>
+                {{ riskState.action }}
+              </div>
+            </div>
+
           </div>
-          <div class="log-row"><span>ค่า THI เฉลี่ยรอบสัปดาห์</span><strong>74.2</strong></div>
-          <div class="log-row"><span>ชั่วโมงสะสมในระดับเสี่ยง</span><strong>18 ชม.</strong></div>
-          <div class="log-row"><span>ความผิดปกติทางพฤติกรรม</span><strong>3 ครั้ง</strong></div>
-          <div class="log-row positive"><span>สถานะการบันทึกประวัติ</span><strong>สมบูรณ์</strong></div>
         </div>
-        <div class="logbook-copy">
-          <span class="eyebrow">DATA THAT CREATES VALUE</span>
-          <h2>ยกระดับข้อมูลฟาร์มสู่สินทรัพย์สารสนเทศ เพื่อการต่อยอดทางธุรกิจ</h2>
-          <p>การจัดเก็บข้อมูลด้านสิ่งแวดล้อมและพฤติกรรมอย่างเป็นระบบ ช่วยสร้างฐานข้อมูลประวัติการจัดการฟาร์มที่โปร่งใสและน่าเชื่อถือ ซึ่งสามารถนำไปใช้เป็นเอกสารประกอบการประเมินเพื่อขอสินเชื่อทางการเกษตรหรือการทำประกันภัยอิงดัชนีในอนาคต</p>
-        </div>
-      </v-container>
+
+      </div>
     </section>
 
-    <section id="research" class="research-section section-shell reveal">
-      <v-container class="research-grid px-5 px-md-8">
-        <div><span class="eyebrow">ACADEMIC FOUNDATION</span><h2>พัฒนาบนพื้นฐานงานวิจัยที่ตรวจสอบได้</h2></div>
-        <div class="research-stack">
-          <div class="citation-card"><span class="citation-mark">“</span><p>การบูรณาการข้อมูลสิ่งแวดล้อมและการวิเคราะห์อนุกรมเวลา ช่วยเพิ่มประสิทธิภาพในการตรวจจับและแจ้งเตือนภาวะเครียดจากความร้อนในปศุสัตว์ได้อย่างแม่นยำ</p><div><strong>Mulajkar et al. (2026)</strong><br /><span>AI-Driven Early Detection of Heat Stress and Environmental Hazards in Dairy Cattle</span></div></div>
-          <div class="reference-grid">
-            <div><strong>Environmental & Behavioral Integration</strong><span>ผสานตัวแปรด้านสภาพอากาศและพฤติกรรมสัตว์ เพื่อลดความคลาดเคลื่อนจากการสังเกตด้วยสายตา</span></div>
-            <div><strong>Time-Series Forecasting</strong><span>ประยุกต์ใช้โมเดล LSTM เพื่อวิเคราะห์แนวโน้มและความต่อเนื่องของข้อมูลสภาพแวดล้อมย้อนหลัง</span></div>
+
+    <!-- ========================================================================= -->
+    <!-- 🟢 SECTION 2: INTERACTIVE 3-LAYER ARCHITECTURE (SWITCHABLE SHOWCASE)      -->
+    <!-- ========================================================================= -->
+    <section id="solution" class="py-20 lg:py-28 px-4 sm:px-6 lg:px-8 max-w-[1280px] mx-auto reveal">
+      
+      <div class="text-center max-w-2xl mx-auto mb-12">
+        <span class="text-xs font-bold text-[#D87939] uppercase tracking-widest">HOW IT WORKS</span>
+        <h2 class="text-3xl sm:text-4xl font-extrabold text-[#142820] tracking-tight mt-2">
+          ทำงานครบวงจรใน 3 ขั้นตอนอัจฉริยะ
+        </h2>
+        <p class="text-sm sm:text-base text-[#5A6B63] mt-2">
+          คลิกเลือกแต่ละชั้นเพื่อดูว่าเรานำข้อมูลจากโรงเรือนมาแปลงเป็นคำแนะนำได้อย่างไร
+        </p>
+      </div>
+
+      <!-- Interactive Layer Selector Pills -->
+      <div class="flex flex-wrap justify-center gap-2 mb-10">
+        <button
+          v-for="(layer, idx) in archLayers"
+          :key="layer.id"
+          type="button"
+          @click="activeLayer = idx"
+          class="px-5 py-3 rounded-2xl text-xs sm:text-sm font-bold transition-all duration-300 flex items-center gap-2.5 cursor-pointer"
+          :class="activeLayer === idx 
+            ? 'bg-[#142820] text-white shadow-md scale-[1.02]' 
+            : 'bg-white text-[#5A6B63] border border-[#142820]/8 hover:bg-[#F2F4F2]'">
+          <span 
+            class="w-6 h-6 rounded-full text-[11px] flex items-center justify-center font-extrabold"
+            :class="activeLayer === idx ? 'bg-[#D87939] text-white' : 'bg-[#F2F4F2] text-[#142820]'">
+            0{{ idx + 1 }}
+          </span>
+          <span>{{ layer.tabTitle }}</span>
+        </button>
+      </div>
+
+      <!-- Active Layer Content Panel -->
+      <div class="bg-white rounded-[32px] p-6 sm:p-10 lg:p-12 border border-[#142820]/8 shadow-[0_16px_40px_rgba(20,40,32,0.04)]">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+          
+          <!-- Left Description (6 Cols) -->
+          <div class="lg:col-span-6 space-y-5">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-[#FAF9F5] text-[#D87939] border border-[#D87939]/20">
+              <v-icon :icon="archLayers[activeLayer].icon" size="16" />
+              <span>{{ archLayers[activeLayer].badge }}</span>
+            </div>
+            
+            <h3 class="text-2xl sm:text-3xl font-extrabold text-[#142820] leading-snug">
+              {{ archLayers[activeLayer].title }}
+            </h3>
+            
+            <p class="text-sm sm:text-base text-[#5A6B63] leading-relaxed">
+              {{ archLayers[activeLayer].desc }}
+            </p>
+
+            <ul class="space-y-2.5 pt-2">
+              <li 
+                v-for="(point, pIdx) in archLayers[activeLayer].points" 
+                :key="pIdx"
+                class="flex items-start gap-2.5 text-xs sm:text-sm text-[#142820] font-medium">
+                <v-icon icon="mdi-check-circle" size="18" class="text-[#10B981] shrink-0 mt-0.5" />
+                <span>{{ point }}</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Right Interactive Visual Preview (6 Cols) -->
+          <div class="lg:col-span-6">
+            
+            <!-- Visual 0: SENSE (Camera + IoT Preview) -->
+            <div v-if="activeLayer === 0" class="bg-[#142820] text-white rounded-3xl p-6 space-y-4">
+              <div class="flex items-center justify-between text-xs text-white/70 pb-3 border-b border-white/10">
+                <span class="flex items-center gap-2 font-mono">
+                  <span class="w-2 h-2 rounded-full bg-[#10B981] animate-ping"></span>
+                  YOLO26m Vision + SHT40 Sensor
+                </span>
+                <span class="px-2 py-0.5 rounded bg-white/10 text-[10px] font-mono">RS485 Modbus</span>
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div 
+                  v-for="cow in cowBehaviors" 
+                  :key="cow.id"
+                  class="p-3.5 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
+                  <div class="flex justify-between items-center text-[11px] text-white/60 font-mono mb-1">
+                    <span>{{ cow.id }}</span>
+                    <span class="text-[#10B981]">{{ cow.conf }}</span>
+                  </div>
+                  <div class="text-sm font-bold text-white">{{ cow.label }}</div>
+                  <div class="text-[11px] text-white/60 mt-0.5">{{ cow.sub }}</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Visual 1: RECOMMEND (LINE Proactive Chat) -->
+            <div v-else-if="activeLayer === 1" class="bg-[#FAF9F5] rounded-3xl p-6 border border-[#142820]/8 space-y-4">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-9 h-9 rounded-2xl bg-[#06C755] text-white flex items-center justify-center font-black text-xs">
+                    LINE
+                  </div>
+                  <div>
+                    <div class="text-xs font-extrabold text-[#142820]">CowCare AI Assistant</div>
+                    <div class="text-[11px] text-[#6E7E76]">ส่งแจ้งเตือนล่วงหน้าอัตโนมัติ</div>
+                  </div>
+                </div>
+                <span class="text-[11px] font-bold text-[#D87939] bg-[#FFF7ED] px-2.5 py-1 rounded-full">
+                  ล่วงหน้า 3 วัน
+                </span>
+              </div>
+
+              <div class="p-4 rounded-2xl bg-white border border-[#142820]/6 text-xs text-[#142820] leading-relaxed shadow-sm space-y-2">
+                <div class="font-bold text-[#D87939]">⚠️ พยากรณ์อากาศร้อนสะสม (17–19 ต.ค.)</div>
+                <p class="text-[#4A5A52]">
+                  ระบบคาดการณ์ว่าค่า THI ในโรงเรือนจะแตะระดับ <strong>82.4 (เครียดปานกลาง)</strong> ในอีก 3 วันข้างหน้า
+                </p>
+                <div class="p-2.5 rounded-xl bg-[#FAF9F5] text-[11.5px] font-medium text-[#142820]">
+                  ✅ <strong>สิ่งที่ควรทำดักล่วงหน้า:</strong> เปิดพัดลมระบายอากาศและสเปรย์พ่นหมอกช่วง 11:30–15:30 น. เพื่อป้องกันน้ำนมตกในสัปดาห์หน้า
+                </div>
+              </div>
+            </div>
+
+            <!-- Visual 2: CAPITALIZE (ESG & Digital Logbook) -->
+            <div v-else class="bg-[#FAF9F5] rounded-3xl p-6 border border-[#142820]/8 space-y-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="text-sm font-extrabold text-[#142820]">Digital Farm Logbook</div>
+                  <div class="text-xs text-[#6E7E76]">รายงานความยั่งยืนและสุขภาพโคนมรายสัปดาห์</div>
+                </div>
+                <span class="px-3 py-1 rounded-full text-xs font-bold bg-[#ECFDF5] text-[#047857]">
+                  ESG Ready
+                </span>
+              </div>
+
+              <div class="grid grid-cols-3 gap-3 text-center">
+                <div class="p-3 bg-white rounded-2xl border border-[#142820]/6">
+                  <span class="text-[10px] text-[#6E7E76] block">THI เฉลี่ย</span>
+                  <span class="text-lg font-extrabold text-[#142820] tabular-nums">74.8</span>
+                </div>
+                <div class="p-3 bg-white rounded-2xl border border-[#142820]/6">
+                  <span class="text-[10px] text-[#6E7E76] block">ลดมีเทนสะสม</span>
+                  <span class="text-lg font-extrabold text-[#10B981] tabular-nums">-17.5%</span>
+                </div>
+                <div class="p-3 bg-white rounded-2xl border border-[#142820]/6">
+                  <span class="text-[10px] text-[#6E7E76] block">ความครบถ้วน</span>
+                  <span class="text-lg font-extrabold text-[#142820] tabular-nums">98.4%</span>
+                </div>
+              </div>
+
+              <!-- Clean Sparkline -->
+              <div class="p-4 bg-white rounded-2xl border border-[#142820]/6">
+                <svg viewBox="0 0 320 60" class="w-full h-14 overflow-visible">
+                  <line x1="0" y1="25" x2="320" y2="25" stroke="#D87939" stroke-width="1" stroke-dasharray="4,4" />
+                  <polyline
+                    fill="none"
+                    stroke="#142820"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    points="0,45 53,40 106,32 160,22 213,16 266,30 320,42"
+                  />
+                  <circle cx="213" cy="16" r="4" fill="#D87939" />
+                </svg>
+                <div class="flex justify-between text-[10px] text-[#6E7E76] mt-1">
+                  <span>จันทร์</span>
+                  <span>พุธ</span>
+                  <span class="text-[#D87939] font-bold">ศุกร์ (เตือนล่วงหน้าสำเร็จ)</span>
+                  <span>อาทิตย์</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+
+    </section>
+
+
+    <!-- ========================================================================= -->
+    <!-- 🟢 SECTION 3: INTERACTIVE REACTIVE VS PROACTIVE COMPARISON (#LSTM)        -->
+    <!-- ========================================================================= -->
+    <section id="lstm" class="py-20 lg:py-28 px-4 sm:px-6 lg:px-8 bg-[#142820] text-white reveal">
+      <div class="max-w-[1280px] mx-auto">
+        
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+          
+          <!-- Left: Explanation & Interactive Mode Switcher (6 Cols) -->
+          <div class="lg:col-span-6 space-y-6">
+            <span class="text-xs font-bold text-[#F2BD7C] uppercase tracking-widest">5-DAY LAG EFFECT PROTECTION</span>
+            <h2 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
+              ทำไมการรอดูอาการวัวหอบ ถึงสายเกินไปเสมอ?
+            </h2>
+            <p class="text-sm sm:text-base text-white/75 leading-relaxed">
+              งานวิจัยพบว่าหลังโคนมเผชิญความร้อนสะสม น้ำนมจะดิ่งลงต่ำสุดในอีก <strong>5 วันถัดมา</strong> โมเดล <strong>LSTM (ความแม่นยำ 96.08%)</strong> ของเราจึงจดจำข้อมูลย้อนหลัง 14 วัน เพื่อเตือนให้คุณเปิดพัดลมและพ่นหมอกดักล่วงหน้า
+            </p>
+
+            <!-- Toggle Switch: Reactive vs Proactive -->
+            <div class="inline-flex p-1.5 rounded-2xl bg-white/10 border border-white/10">
+              <button
+                type="button"
+                @click="comparisonMode = 'proactive'"
+                class="px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                :class="comparisonMode === 'proactive' 
+                  ? 'bg-[#10B981] text-[#142820] shadow-sm' 
+                  : 'text-white/70 hover:text-white'">
+                ✨ ใช้ CowCare AI (เชิงรุก)
+              </button>
+              <button
+                type="button"
+                @click="comparisonMode = 'reactive'"
+                class="px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                :class="comparisonMode === 'reactive' 
+                  ? 'bg-rose-500 text-white shadow-sm' 
+                  : 'text-white/70 hover:text-white'">
+                ⚠️ ฟาร์มทั่วไป (ตั้งรับ)
+              </button>
+            </div>
+          </div>
+
+          <!-- Right: Dynamic Comparison Outcome Card (6 Cols) -->
+          <div class="lg:col-span-6">
+            <div class="rounded-[28px] p-6 sm:p-8 bg-white/5 border border-white/10 backdrop-blur-sm space-y-6">
+              
+              <div class="flex items-center justify-between">
+                <div>
+                  <span class="text-xs uppercase tracking-wider font-bold" :class="comparisonMode === 'proactive' ? 'text-[#10B981]' : 'text-rose-400'">
+                    {{ comparisonMode === 'proactive' ? 'PROACTIVE FARMING' : 'REACTIVE MANAGEMENT' }}
+                  </span>
+                  <h3 class="text-xl font-extrabold text-white mt-0.5">
+                    {{ comparisonMode === 'proactive' ? 'ป้องกันน้ำนมตกได้ก่อนเกิดวิกฤต' : 'สูญเสียน้ำนมสะสมต่อเนื่อง 5 วัน' }}
+                  </h3>
+                </div>
+                <div 
+                  class="px-3.5 py-1.5 rounded-full text-xs font-extrabold"
+                  :class="comparisonMode === 'proactive' ? 'bg-[#10B981]/20 text-[#10B981]' : 'bg-rose-500/20 text-rose-300'">
+                  {{ comparisonMode === 'proactive' ? 'น้ำนมคงที่ 100%' : 'น้ำนมลด -15 ถึง -25%' }}
+                </div>
+              </div>
+
+              <!-- Timeline Steps -->
+              <div class="space-y-3">
+                <div 
+                  v-for="(step, sIdx) in activeComparisonSteps" 
+                  :key="sIdx"
+                  class="p-4 rounded-2xl bg-white/5 border border-white/8 flex items-center justify-between">
+                  <div class="flex items-center gap-3">
+                    <span class="text-xs font-mono px-2.5 py-1 rounded-lg bg-white/10 text-[#F2BD7C]">
+                      {{ step.day }}
+                    </span>
+                    <span class="text-xs sm:text-sm font-medium text-white/90">{{ step.event }}</span>
+                  </div>
+                  <span class="text-xs font-bold" :class="step.statusClass">{{ step.outcome }}</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+
+    <!-- ========================================================================= -->
+    <!-- 🟢 SECTION 4: PEER-REVIEWED RESEARCH FOUNDATION                           -->
+    <!-- ========================================================================= -->
+    <section id="research" class="py-20 lg:py-28 px-4 sm:px-6 lg:px-8 max-w-[1280px] mx-auto reveal">
+      
+      <div class="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
+        <div>
+          <span class="text-xs font-bold text-[#D87939] uppercase tracking-widest">SCIENTIFIC BACKING</span>
+          <h2 class="text-3xl sm:text-4xl font-extrabold text-[#142820] tracking-tight mt-1">
+            อ้างอิงจากงานวิจัยโคนมระดับนานาชาติ
+          </h2>
+        </div>
+        <p class="text-xs sm:text-sm text-[#5A6B63] max-w-md">
+          ทุกตัวแปรในระบบถูกออกแบบตามหลักสรีรวิทยาของโคนมลูกผสมไทยและงานวิจัยล่าสุดปี 2024–2026
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div 
+          v-for="(paper, idx) in citations" 
+          :key="idx"
+          class="bg-white rounded-3xl p-6 border border-[#142820]/8 hover:-translate-y-1 hover:shadow-[0_12px_30px_rgba(20,40,32,0.06)] transition-all duration-300 flex flex-col justify-between">
+          <div>
+            <span class="inline-block px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#FAF9F5] text-[#D87939] border border-[#D87939]/20 mb-3">
+              {{ paper.journal }}
+            </span>
+            <h3 class="text-base font-extrabold text-[#142820] mb-2">
+              {{ paper.metric }}
+            </h3>
+            <p class="text-xs text-[#5A6B63] leading-relaxed">
+              {{ paper.summary }}
+            </p>
+          </div>
+          <div class="pt-4 mt-4 border-t border-[#142820]/6 text-[11px] font-bold text-[#142820]">
+            {{ paper.authors }}
           </div>
         </div>
-      </v-container>
+      </div>
+
     </section>
 
-    <section class="cta-section">
-      <v-container class="cta-content px-5 px-md-8"><div><span class="eyebrow">PROACTIVE MANAGEMENT</span><h2>เตรียมพร้อมรับมือล่วงหน้า เพื่อรักษาเสถียรภาพผลผลิตฟาร์ม</h2></div><v-btn class="cta-button" href="#solution" @click.prevent="scrollToSection('#solution')" size="x-large" rounded="pill">ศึกษารายละเอียดระบบ <v-icon end icon="mdi-arrow-up" /></v-btn></v-container>
+
+    <!-- ========================================================================= -->
+    <!-- 🟢 SECTION 5: MINIMAL CALL TO ACTION & FOOTER                             -->
+    <!-- ========================================================================= -->
+    <section class="pb-20 px-4 sm:px-6 lg:px-8 max-w-[1280px] mx-auto">
+      <div class="bg-[#142820] rounded-[32px] p-8 sm:p-12 lg:p-14 text-white flex flex-col lg:flex-row items-center justify-between gap-8 relative overflow-hidden">
+        <div class="absolute -right-20 -bottom-20 w-72 h-72 rounded-full bg-[#D87939]/20 blur-3xl pointer-events-none"></div>
+
+        <div class="space-y-2 text-center lg:text-left max-w-xl relative z-10">
+          <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight">
+            พร้อมยกระดับการดูแลฟาร์มโคนมของคุณหรือยัง?
+          </h2>
+          <p class="text-xs sm:text-sm text-white/75">
+            เข้าสู่ระบบเพื่อตรวจสอบค่า THI แบบเรียลไทม์ ดูกราฟพยากรณ์ล่วงหน้า และจัดการอุปกรณ์ IoT ในเครือข่าย
+          </p>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-center gap-3 relative z-10 shrink-0">
+          <NuxtLink
+            to="/login"
+            class="px-7 py-3.5 rounded-full bg-[#D87939] hover:bg-[#c56728] text-white font-bold text-sm transition-all flex items-center gap-2 text-decoration-none shadow-lg">
+            <span>เข้าสู่ระบบใช้งาน</span>
+            <v-icon icon="mdi-arrow-right" size="16" />
+          </NuxtLink>
+        </div>
+      </div>
     </section>
 
     <AppFooter />
+
   </div>
 </template>
 
-<script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+<script setup>
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 
-const t = ref(27)
-const rh = ref(65)
-// สูตร THI (NRC) : (1.8T + 32) − (0.55 − 0.0055·RH)(1.8T − 26)
-const thi = computed(() => (1.8 * t.value + 32) - (0.55 - 0.0055 * rh.value) * (1.8 * t.value - 26))
-const rounded = computed(() => Math.round(thi.value))
-const pos = computed(() => Math.min(100, Math.max(0, ((thi.value - 60) / 30) * 100)))
-
-const states = [
-  { name: 'ปกติ (Comfort Zone)', color: '#3e7d4f', bgColor: '#e6f2e7', note: 'THI ต่ำกว่า 76 โคนมลูกผสมในไทยยังปรับตัวได้ สภาพแวดล้อมเหมาะสม' },
-  { name: 'เริ่มได้รับผลกระทบ (Mild Stress)', color: '#d97706', bgColor: '#fffbeb', note: 'THI 76–79 จุดวิกฤตเริ่มต้น นมเริ่มลดและอัตราผสมติดเริ่มตก ควรเปิดพัดลมระบายอากาศ' },
-  { name: 'เครียดปานกลาง (Moderate Stress)', color: '#ea580c', bgColor: '#fff7ed', note: 'THI 80–83 นมตกเพิ่มขึ้น 2 เท่า เสี่ยงเต้านมอักเสบ (SCS สูง) ควรเปิดพัดลม + สเปรย์น้ำ' },
-  { name: 'วิกฤตรุนแรง (Severe Heat Stress)', color: '#dc2626', bgColor: '#fef2f2', note: 'THI ≥ 84 เสี่ยงภาวะกระเพาะเป็นกรด (FPR < 1.2) และตัวอ่อนฝ่อ ต้องลดความร้อนฉุกเฉินทันที' },
-]
-const cur = computed(() => {
-  if (rounded.value < 76) return states[0]
-  if (rounded.value < 80) return states[1]
-  if (rounded.value < 84) return states[2]
-  return states[3]
+useHead({
+  title: 'CowCare AI — ระบบพยากรณ์และป้องกันความเครียดความร้อนในโคนม',
+  meta: [
+    { name: 'description', content: 'ยกระดับการจัดการฟาร์มโคนมไทยด้วย IoT + Computer Vision YOLO26m + LSTM AI Forecast' }
+  ]
 })
 
-let observer: IntersectionObserver | undefined
+// 1. THI Simulator State
+const t = ref(31.5)
+const rh = ref(75)
+const activePresetIdx = ref(2)
 
-// ฟังก์ชันสำหรับเลื่อนหน้าจอแบบนุ่มนวล (Smooth Scroll) ด้วย JavaScript
-const scrollToSection = (id: string) => {
-  const element = document.querySelector(id)
-  if (element) {
-    element.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
+const presets = [
+  { name: 'เชียงใหม่ (หนาว)', icon: '🌤️', t: 24.0, rh: 55 },
+  { name: 'สระบุรี (ร้อน)', icon: '☀️', t: 34.0, rh: 60 },
+  { name: 'ปากช่อง (ฝนชื้น)', icon: '🌧️', t: 31.5, rh: 82 },
+  { name: 'คลื่นความร้อนจัด', icon: '🔥', t: 36.5, rh: 78 }
+]
+
+const applyPreset = (preset, idx) => {
+  t.value = preset.t
+  rh.value = preset.rh
+  activePresetIdx.value = idx
 }
 
+const thi = computed(() => {
+  return (1.8 * t.value + 32) - (0.55 - 0.0055 * rh.value) * (1.8 * t.value - 26)
+})
+
+const roundedThi = computed(() => Number(thi.value.toFixed(1)))
+
+const gaugePos = computed(() => {
+  const clamped = Math.min(92, Math.max(62, roundedThi.value))
+  return ((clamped - 62) / (92 - 62)) * 100
+})
+
+const riskState = computed(() => {
+  const val = roundedThi.value
+  if (val < 76.0) {
+    return {
+      name: 'สภาวะปกติ (Comfort Zone)',
+      color: '#059669',
+      bgColor: '#ECFDF5',
+      milkImpact: 'ปกติ (ไม่สูญเสียน้ำนม)',
+      action: 'โคนมกินอาหารและพักผ่อนได้ตามปกติ ดูแลน้ำดื่มสะอาดตามรอบเวลา'
+    }
+  }
+  if (val < 80.0) {
+    return {
+      name: 'เริ่มเครียด (Mild Stress)',
+      color: '#D97706',
+      bgColor: '#FFFBEB',
+      milkImpact: 'ลดลง -0.28 กก./THI',
+      action: 'เปิดพัดลมระบายอากาศเพื่อเร่งการไหลเวียนลมในโรงเรือนทันที'
+    }
+  }
+  if (val < 84.0) {
+    return {
+      name: 'เครียดปานกลาง (Moderate)',
+      color: '#EA580C',
+      bgColor: '#FFF7ED',
+      milkImpact: 'ลดลง 2 เท่า (-0.56 กก./วัน)',
+      action: 'เปิดพัดลมคู่กับระบบสเปรย์พ่นหมอก และหลีกเลี่ยงการผสมเทียมช่วงบ่าย'
+    }
+  }
+  return {
+    name: 'วิกฤตรุนแรง (Severe Stress)',
+    color: '#E11D48',
+    bgColor: '#FFF1F2',
+    milkImpact: 'ดิ่งลงหนัก (-0.42 กก./THI)',
+    action: 'พ่นหมอกระบายความร้อนเต็มกำลัง และเสริมสารบัฟเฟอร์ Sodium Bicarbonate ในอาหาร'
+  }
+})
+
+// 2. Interactive 3-Layer Tabs Data
+const activeLayer = ref(0)
+const archLayers = [
+  {
+    id: 'sense',
+    tabTitle: 'รับรู้สภาพแวดล้อม (Sense)',
+    badge: 'LAYER 01 • EDGE & IOT SENSING',
+    icon: 'mdi-access-point',
+    title: 'เก็บข้อมูลแม่นยำโดยไม่ต้องติดอุปกรณ์บนตัววัว',
+    desc: 'ลดต้นทุนให้เกษตรกรรายย่อยด้วยการใช้กล้องวงจรปิดร่วมกับโมเดล YOLO26m ตรวจจับพฤติกรรมโคนม และใช้เซนเซอร์ SHT40 เกรดอุตสาหกรรมวัดอุณหภูมิ-ความชื้นผ่านสาย RS485',
+    points: [
+      'ตรวจจับ 4 พฤติกรรมหลัก: ยืน, นอนพัก, กินน้ำ, กินอาหาร แบบเรียลไทม์',
+      'ไม่ต้องซื้อปลอกคออัจฉริยะราคาแพง ไม่ทำให้วัวเครียด',
+      'ส่งข้อมูลเสถียร ทนทานต่อความชื้นและก๊าซแอมโมเนียในโรงเรือน'
+    ]
+  },
+  {
+    id: 'recommend',
+    tabTitle: 'วิเคราะห์และเตือนล่วงหน้า (Recommend)',
+    badge: 'LAYER 02 • PREDICTIVE AI & LINE BOT',
+    icon: 'mdi-brain',
+    title: 'แปลงข้อมูลซับซ้อนเป็นคำแนะนำภาษาไทยส่งตรงถึง LINE',
+    desc: 'โมเดล Deep Learning (LSTM) วิเคราะห์ความร้อนสะสมย้อนหลัง 14 วัน เพื่อพยากรณ์ล่วงหน้า 3–7 วัน พร้อมใช้ Gemini AI สรุปวิธีจัดการโรงเรือนที่เข้าใจง่าย',
+    points: [
+      'แจ้งเตือนก่อนเกิดผลกระทบน้ำนมตก 5 วัน (5-Day Lag Effect)',
+      'ปรับคำแนะนำตามโครงสร้างโรงเรือนจริงของแต่ละฟาร์ม',
+      'ใช้งานง่ายผ่าน LINE เหมาะสำหรับเกษตรกรทุกวัย'
+    ]
+  },
+  {
+    id: 'capitalize',
+    tabTitle: 'ต่อยอดมูลค่าข้อมูล (Capitalize)',
+    badge: 'LAYER 03 • DIGITAL LOGBOOK & ESG',
+    icon: 'mdi-leaf-circle-outline',
+    title: 'สร้างสมุดบันทึกดิจิทัลเพื่อสินเชื่อสีเขียวและความยั่งยืน',
+    desc: 'ข้อมูลทุกจุดถูกจัดเก็บลงฐานข้อมูลคลาวด์อย่างเป็นระบบ ช่วยให้ฟาร์มมีหลักฐานยืนยันการจัดการสวัสดิภาพสัตว์และการลดก๊าซเรือนกระจก',
+    points: [
+      'ลดการปล่อยก๊าซมีเทนต่อกิโลกรัมนม (Methane Intensity) ลงได้ถึง 17.5%',
+      'ใช้เป็นหลักฐานประกอบการขอสินเชื่อฟาร์มยั่งยืน (ESG Finance)',
+      'รองรับการเคลมประกันภัยโคนมอิงดัชนีสภาพอากาศในอนาคต'
+    ]
+  }
+]
+
+const cowBehaviors = [
+  { id: 'COW #102', label: 'Standing (ยืนปกติ)', sub: 'บริเวณรางอาหาร', conf: '94.2%' },
+  { id: 'COW #105', label: 'Lying (นอนพักเคี้ยวเอื้อง)', sub: 'ซองนอนโซน B', conf: '91.8%' },
+  { id: 'COW #107', label: 'Drinking (ดื่มน้ำ)', sub: 'อ่างน้ำอัตโนมัติ', conf: '89.4%' },
+  { id: 'COW #108', label: 'Feeding (กินอาหาร)', sub: 'รางอาหารหลัก', conf: '88.5%' }
+]
+
+// 3. Reactive vs Proactive Interactive Comparison
+const comparisonMode = ref('proactive')
+const activeComparisonSteps = computed(() => {
+  if (comparisonMode.value === 'proactive') {
+    return [
+      { day: 'ล่วงหน้า 3 วัน', event: 'LSTM แจ้งเตือนผ่าน LINE ว่าค่า THI จะพุ่งแตะ 82', outcome: 'เตรียมพร้อมทันที', statusClass: 'text-[#10B981]' },
+      { day: 'วันที่อากาศร้อน', event: 'เปิดพัดลมและพ่นหมอกดักล่วงหน้าตามคำแนะนำ AI', outcome: 'วัวไม่เครียดสะสม', statusClass: 'text-[#10B981]' },
+      { day: '5 วันถัดมา', event: 'โคนมกินอาหารปกติ อัตราการให้น้ำนมเสถียรต่อเนื่อง', outcome: 'น้ำนมไม่ตก 100%', statusClass: 'text-[#F2BD7C]' }
+    ]
+  }
+  return [
+    { day: 'ล่วงหน้า 3 วัน', event: 'ไม่มีระบบพยากรณ์ เกษตรกรไม่ทราบล่วงหน้า', outcome: 'ไม่ได้เตรียมการ', statusClass: 'text-white/50' },
+    { day: 'วันที่อากาศร้อน', event: 'รอจนวัวยืนหอบและไม่กินอาหารจึงเพิ่งเปิดพัดลม', outcome: 'เกิดความเครียดสะสม', statusClass: 'text-rose-400' },
+    { day: '5 วันถัดมา', event: 'เกิด Lag Effect น้ำนมดิ่งลงและเสี่ยงภาวะกระเพาะเป็นกรด', outcome: 'สูญเสียรายได้หนัก', statusClass: 'text-rose-400' }
+  ]
+})
+
+// 4. Citations
+const citations = [
+  {
+    journal: 'Animals (MDPI, 2024)',
+    metric: 'เกณฑ์วิกฤต THI 76',
+    summary: 'พิสูจน์ว่าโคนมลูกผสมไทยเริ่มสูญเสียน้ำนม (-0.28 กก./THI) และอัตราผสมติดลดลงเมื่อค่า THI แตะระดับ 76',
+    authors: 'Boonkum et al. (2024)'
+  },
+  {
+    journal: 'Comp. & Elec. in Agr. (2026)',
+    metric: '5-Day Lag Effect',
+    summary: 'ศึกษาโคนมกว่า 82,000 ตัว พบว่าผลผลิตน้ำนมจะดิ่งลงต่ำสุดใน 5 วันหลังจากสัมผัสความร้อนสะสม',
+    authors: 'Hasan et al. (2026)'
+  },
+  {
+    journal: 'J. of Dairy Science (2026)',
+    metric: 'Methane +17.5%',
+    summary: 'ความเครียดจากความร้อนทำให้โคนมปล่อยก๊าซมีเทนต่อกิโลกรัมนมสูงขึ้นถึง 17.5% การลดความร้อนจึงช่วยโลกได้จริง',
+    authors: 'Onan-Martinez et al. (2026)'
+  },
+  {
+    journal: 'J. Anim. Environ. (2026)',
+    metric: 'LSTM แม่นยำ 96.08%',
+    summary: 'ยืนยันการใช้โมเดล LSTM จดจำข้อมูลย้อนหลัง 14 วัน ร่วมกับ Edge AI ช่วยเตือนภัยความร้อนล่วงหน้าได้แม่นยำสูง',
+    authors: 'Mulajkar & Abdourhamane (2026)'
+  }
+]
+
+const scrollToSection = (selector) => {
+  const el = document.querySelector(selector)
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+let observer = null
+
 onMounted(() => {
-  // บังคับให้หน้าเว็บเริ่มที่บนสุดเสมอเวลารีเฟรช (ล้างค่า Scroll เดิมของเบราว์เซอร์)
-  if ('scrollRestoration' in history) {
+  if (typeof window !== 'undefined' && 'scrollRestoration' in history) {
     history.scrollRestoration = 'manual'
   }
-  window.scrollTo(0, 0)
-
   observer = new IntersectionObserver((entries) => {
     entries.forEach((entry) => {
       if (entry.isIntersecting) {
@@ -195,55 +717,35 @@ onMounted(() => {
         observer?.unobserve(entry.target)
       }
     })
-  }, { threshold: 0.14 })
+  }, { threshold: 0.1 })
 
-  document.querySelectorAll('.reveal').forEach((element) => observer?.observe(element))
+  document.querySelectorAll('.reveal').forEach((el) => observer?.observe(el))
 })
 
-onBeforeUnmount(() => observer?.disconnect())
-
-useHead({ title: 'CowCare AI | Heat Stress Intelligence' })
+onUnmounted(() => {
+  observer?.disconnect()
+})
 </script>
 
 <style scoped>
-:global(html) { scroll-behavior: auto; }
-:global(body) { background: #fffdf7; color: #24433a; }
-.landing-page { overflow: hidden; background: #fffdf7; font-family: "Noto Sans Thai", Inter, ui-sans-serif, system-ui, sans-serif; }.landing-page :where(p, h1, h2, h3, span, strong) { overflow-wrap: anywhere; }
-.landing-page :deep(.v-container) { max-width: 1400px; width: 100%; margin-inline: auto; }
-.section-shell { position: relative; background-image: linear-gradient(rgba(255, 253, 247, .80), rgba(255, 253, 247, .92)), url('/images/bg2.jpg'); background-position: center; background-size: cover; }
-.hero { min-height: min(760px, calc(100vh - 76px)); display: grid; align-items: center; justify-items: center; isolation: isolate; }
-.hero-grid { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(400px, .95fr); gap: clamp(40px, 5vw, 76px); align-items: center; padding-top: clamp(60px, 8vw, 92px); padding-bottom: clamp(60px, 8vw, 92px); max-width: 1400px; width: 100%; margin-inline: auto; }
-.ambient { position: absolute; z-index: -1; display: block; border-radius: 50%; filter: blur(2px); animation: drift 9s ease-in-out infinite alternate; }.ambient-one { width: 330px; height: 330px; top: 8%; left: -120px; background: rgba(221, 179, 111, .26); }.ambient-two { width: 280px; height: 280px; bottom: 5%; right: -100px; background: rgba(97, 144, 122, .18); animation-delay: -4s; }
-.eyebrow { display: flex; align-items: center; gap: 9px; color: #d87939; font-size: .69rem; font-weight: 850; letter-spacing: .14em; }.pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: #d87939; box-shadow: 0 0 0 6px rgba(216, 121, 57, .12); animation: pulse 2s infinite; }
-h1, h2, h3, p { margin: 0; }.brand-mark { display: inline-flex; align-items: center; gap: 9px; margin-bottom: 14px; color: #24433a; font-size: .72rem; font-weight: 900; letter-spacing: .11em; }.brand-mark::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: #d87939; box-shadow: 0 0 0 6px rgba(216, 121, 57, .10); }.brand-mark span { color: #849087; font-size: .57rem; letter-spacing: .08em; font-weight: 750; }.hero h1 { max-width: 780px; margin: 0 0 21px; color: #24433a; font-size: clamp(2.2rem, 4vw, 3.2rem); font-weight: 700; line-height: 1.35; }.hero h1 span { display: block; color: #d87939; }.hero-description { max-width: 610px; color: #52675d; font-size: 1rem; line-height: 1.9; text-wrap: pretty; }.hero-actions { display: flex; align-items: center; gap: 10px; margin-top: 34px; }.primary-btn { padding-inline: 24px !important; color: white !important; background: #24433a !important; font-weight: 800; }.text-btn { color: #24433a !important; font-weight: 800; }.trust-row { display: flex; align-items: center; gap: 13px; margin-top: 40px; }.trust-row p { color: #67786f; font-size: .79rem; line-height: 1.5; }.trust-row strong { color: #24433a; }.cow-stack { display: flex; }.cow-stack span { display: grid; place-items: center; width: 32px; height: 32px; margin-left: -7px; background: #f5e8db; border: 2px solid #fffdf7; border-radius: 50%; font-size: .8rem; }.cow-stack span:first-child { margin-left: 0; }
-.hero-visual { position: relative; min-height: 470px; }.visual-glow { position: absolute; inset: 40px 20px 0; border-radius: 42px; background: linear-gradient(135deg, #e0ab69, #b6d2bf); opacity: .46; transform: rotate(-5deg); }.dashboard-card { position: relative; width: min(100%, 480px); margin: 22px auto 0; padding: 28px; background: rgba(255, 253, 247, .9); border: 1px solid rgba(255,255,255,.86); border-radius: 28px; box-shadow: 0 30px 70px rgba(36, 67, 58, .18); backdrop-filter: blur(12px); }.dashboard-head, .forecast-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; }.mini-label { color: #849087; font-size: .6rem; font-weight: 850; letter-spacing: .11em; }.dashboard-head h2 { margin-top: 3px; font-size: 1.25rem; letter-spacing: -.04em; }.live-badge { display: flex; align-items: center; gap: 6px; padding: 7px 9px; color: #467153; background: #e6f2e7; border-radius: 99px; font-size: .66rem; font-weight: 800; }.live-badge i { width: 6px; height: 6px; background: #5eaa6d; border-radius: 50%; }.risk-panel { display: flex; align-items: center; gap: 20px; margin: 23px 0 15px; padding: 18px; background: linear-gradient(110deg, #f9e7d4, #faeee1); border-radius: 20px; }.risk-ring { display: grid; place-content: center; width: 82px; height: 82px; flex: 0 0 auto; text-align: center; background: #fffaf4; border: 7px solid #e7a560; border-radius: 50%; }.risk-ring strong { color: #cb6f33; font-size: 1.65rem; letter-spacing: -.08em; line-height: 1; }.risk-ring small { color: #8e7056; font-size: .57rem; font-weight: 850; }.risk-label { color: #9c6e45; font-size: .62rem; font-weight: 800; letter-spacing: .08em; }.risk-panel h3 { margin: 3px 0; color: #9d5526; font-size: 1rem; }.risk-panel p { color: #7f684f; font-size: .73rem; }.condition-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }.condition-grid div { display: grid; gap: 3px; padding: 11px 8px; border: 1px solid #edf0eb; border-radius: 13px; }.condition-grid .v-icon { color: #698d77; font-size: 16px; }.condition-grid span { color: #829087; font-size: .61rem; }.condition-grid strong { color: #294a3e; font-size: .85rem; }.forecast { margin-top: 18px; padding-top: 14px; border-top: 1px solid #ebeee8; }.forecast-title { color: #53675d; font-size: .74rem; font-weight: 800; }.forecast-title small { color: #d87939; font-size: .61rem; }.chart-lines { position: relative; height: 76px; margin-top: 5px; background: repeating-linear-gradient(to bottom, transparent 0 22px, #edf1ec 23px); }.chart-lines svg { width: 100%; height: 100%; }.sample-note { display: block; margin-top: 5px; color: #9aa49d; font-size: .55rem; text-align: right; }.float-card { position: absolute; right: -9px; bottom: -18px; display: flex; align-items: center; gap: 10px; padding: 13px; color: #24433a; background: #fffdf7; border-radius: 16px; box-shadow: 0 12px 30px rgba(36, 67, 58, .15); z-index: 2; }.float-card .v-icon { padding: 8px; color: #d87939; background: #f9ebde; border-radius: 10px; }.float-card small { display: block; color: #d87939; font-size: .55rem; font-weight: 850; letter-spacing: .08em; }.float-card strong { display: block; margin-top: 2px; font-size: .68rem; }
-.signal-strip { color: #f7f2e7; background: #24433a; }.signal-grid { display: grid; grid-template-columns: repeat(4, 1fr); }.signal-grid div { display: grid; align-content: center; gap: 8px; min-height: 116px; padding: 18px 23px; border-right: 1px solid rgba(255,255,255,.13); }.signal-grid div:first-child { border-left: 1px solid rgba(255,255,255,.13); }.signal-grid span { color: #dca067; font-size: 1.22rem; font-weight: 850; letter-spacing: -.03em; }.signal-grid p { max-width: 220px; font-size: .82rem; font-weight: 700; line-height: 1.45; }
-.content-section { padding: clamp(90px, 9vw, 130px) 0; }.section-heading { max-width: 660px; }.section-heading h2, .research-section h2, .cta-section h2 { margin-top: 15px; max-width: 720px; color: #24433a; font-size: clamp(1.7rem, 3vw, 2.4rem); font-weight: 700; letter-spacing: -.02em; line-height: 1.35; }.section-heading p { max-width: 610px; margin-top: 19px; color: #64766d; line-height: 1.85; text-wrap: pretty; }.feature-grid { display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 18px; margin-top: 54px; }.feature-card { position: relative; min-height: 300px; padding: 28px; background: rgba(255,253,247,.87); border: 1px solid rgba(70,100,84,.1); border-radius: 22px; box-shadow: 0 12px 34px rgba(36,67,58,.05); transition: transform .35s ease, box-shadow .35s ease; }.feature-card:hover { box-shadow: 0 21px 42px rgba(36,67,58,.13); transform: translateY(-8px); }.feature-primary { color: white; background: #315c4d; border: 0; }.feature-icon { display: grid; place-items: center; width: 45px; height: 45px; color: #476956; background: #e0efdf; border-radius: 14px; }.feature-primary .feature-icon { color: #f6cc99; background: rgba(255,255,255,.12); }.icon-sand { color: #bf7040; background: #fae5d1; }.icon-blue { color: #4c7890; background: #dfedf0; }.card-number { position: absolute; top: 30px; right: 28px; color: #a6b5aa; font-size: .73rem; font-weight: 850; }.feature-primary .card-number { color: rgba(255,255,255,.5); }.feature-card h3 { margin-top: 22px; max-width: 270px; font-size: 1.22rem; letter-spacing: -.035em; line-height: 1.35; text-wrap: balance; }.feature-card p { margin-top: 10px; color: #687a70; font-size: .86rem; line-height: 1.8; text-wrap: pretty; }.feature-primary p { color: #dce9df; }.feature-tags { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 20px; }.feature-tags span { padding: 5px 8px; color: #ddeddf; background: rgba(255,255,255,.1); border-radius: 5px; font-size: .61rem; font-weight: 700; }.behavior-bars { display: flex; align-items: end; gap: 7px; height: 38px; margin-top: 24px; }.behavior-bars span { display: block; width: 15%; border-radius: 6px 6px 0 0; background: #b6d1b8; }.behavior-bars span:nth-child(1) { height: 40%; }.behavior-bars span:nth-child(2) { height: 65%; background: #89ae8d; }.behavior-bars span:nth-child(3) { height: 90%; background: #d98549; }.behavior-bars span:nth-child(4) { height: 55%; }.mini-alert { display: flex; gap: 6px; align-items: center; margin-top: 23px; color: #577b63; font-size: .66rem; font-weight: 750; }
-.architecture-map { display: grid; grid-template-columns: 1fr 52px 1fr 52px 1fr; align-items: stretch; margin-top: 48px; }.architecture-map article { position: relative; min-height: 218px; padding: 26px; color: #24433a; background: rgba(255,253,247,.82); border: 1px solid rgba(70,100,84,.11); border-radius: 22px; box-shadow: 0 14px 36px rgba(36,67,58,.06); }.architecture-map article:nth-of-type(2) { background: #f8ead9; }.architecture-map article:nth-of-type(3) { color: #fffdf7; background: #315c4d; }.architecture-map span { color: #d87939; font-size: .68rem; font-weight: 850; letter-spacing: .12em; }.architecture-map article:nth-of-type(3) span { color: #f2bd7c; }.architecture-map .v-icon { display: block; margin-top: 24px; color: #789983; font-size: 32px; }.architecture-map article:nth-of-type(2) .v-icon { color: #d87939; }.architecture-map article:nth-of-type(3) .v-icon { color: #f2bd7c; }.architecture-map h3 { margin-top: 15px; font-size: 1.2rem; letter-spacing: -.03em; line-height: 1.35; text-wrap: balance; }.architecture-map p { margin-top: 9px; color: #63766b; font-size: .83rem; line-height: 1.82; text-wrap: pretty; }.architecture-map article:nth-of-type(3) p { color: #dce9df; }.architecture-map > i { align-self: center; height: 2px; background: linear-gradient(90deg, rgba(216,121,57,.28), rgba(49,92,77,.6)); }
-.ai-section { padding: 116px 0; color: #f7f2e7; background: #19362e; }.ai-grid { display: grid; grid-template-columns: .92fr 1.08fr; gap: 80px; align-items: center; }.light-eyebrow { color: #e6ac71; }.ai-copy h2 { margin-top: 15px; max-width: 640px; color: #fffdf7; font-size: clamp(1.7rem, 3vw, 2.4rem); font-weight: 700; letter-spacing: -.02em; line-height: 1.35; }.ai-copy h2 em { color: #e6ac71; font-style: normal; }.ai-copy p { max-width: 560px; margin-top: 20px; color: #c7d6ca; line-height: 1.9; text-wrap: pretty; }.ai-stat { display: flex; align-items: center; gap: 15px; margin-top: 35px; }.ai-stat strong { color: #f2bd7c; font-size: 2.1rem; letter-spacing: -.07em; }.ai-stat span { max-width: 185px; color: #b6c8ba; font-size: .69rem; line-height: 1.5; }.lstm-flow { display: flex; align-items: center; justify-content: center; }.flow-node { display: grid; place-items: center; width: 108px; height: 108px; padding: 10px; color: #cce0cf; text-align: center; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.11); border-radius: 18px; }.flow-node .v-icon { margin-bottom: 6px; color: #f2bd7c; }.flow-node span { font-size: .7rem; line-height: 1.35; }.lstm-flow > i { width: 38px; height: 1px; background: #617b6d; }.model-node { color: white; background: #d87939; border-color: #eaa56f; box-shadow: 0 0 0 9px rgba(216,121,57,.12); }.model-node .v-icon { color: white; }.model-node strong { font-size: 1.1rem; }.model-node small { font-size: .52rem; opacity: .85; }.alert-node { color: #fff0d8; background: #496e5b; }.alert-node .v-icon { color: #fff0d8; }
-.farmer-section { padding: 122px 0; background: #fffdf7; }.farmer-grid { display: grid; grid-template-columns: .95fr 360px; gap: 84px; align-items: center; }.farmer-copy h2, .logbook-copy h2 { margin-top: 15px; max-width: 650px; color: #24433a; font-size: clamp(1.7rem, 3vw, 2.4rem); font-weight: 700; letter-spacing: -.02em; line-height: 1.35; }.farmer-copy p, .logbook-copy p { max-width: 620px; margin-top: 18px; color: #64766d; line-height: 1.9; text-wrap: pretty; }.persona-list { display: grid; gap: 12px; margin-top: 28px; }.persona-list div { display: flex; align-items: center; gap: 12px; color: #36564a; font-size: .91rem; font-weight: 720; }.persona-list .v-icon { display: grid; place-items: center; width: 38px; height: 38px; flex: 0 0 auto; color: #d87939; background: #faeadb; border-radius: 12px; }.phone-alert { position: relative; padding: 22px; background: #1f3d34; border: 9px solid #142a24; border-radius: 34px; box-shadow: 0 24px 54px rgba(31,61,52,.24); }.phone-top { display: flex; justify-content: center; gap: 5px; margin-bottom: 24px; }.phone-top span { width: 6px; height: 6px; background: rgba(255,255,255,.35); border-radius: 50%; }.chat-bubble { width: fit-content; max-width: 100%; padding: 12px 14px; border-radius: 16px; font-size: .78rem; }.chat-bubble.system { margin-bottom: 10px; color: #bfd4c4; background: rgba(255,255,255,.08); }.chat-bubble.alert { margin-left: auto; color: #24433a; background: #fff7ea; border-bottom-right-radius: 5px; }.chat-bubble.alert strong { display: block; margin-bottom: 8px; color: #bf6230; font-size: .83rem; }.chat-bubble.alert p { color: #4f6358; line-height: 1.65; }.action-chip { display: flex; align-items: center; gap: 7px; width: fit-content; margin-top: 18px; padding: 9px 11px; color: #dce9df; background: rgba(255,255,255,.09); border-radius: 99px; font-size: .68rem; font-weight: 780; }
-.logbook-section { padding: 116px 0; }.logbook-grid { display: grid; grid-template-columns: 420px 1fr; gap: 84px; align-items: center; }.logbook-panel { padding: 28px; background: rgba(255,253,247,.9); border: 1px solid rgba(70,100,84,.12); border-radius: 24px; box-shadow: 0 24px 58px rgba(36,67,58,.12); }.logbook-head { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 20px; }.logbook-head h3 { margin-top: 4px; color: #24433a; font-size: 1.15rem; letter-spacing: -.03em; line-height: 1.35; }.logbook-head .v-icon { display: grid; place-items: center; width: 48px; height: 48px; color: #fffdf7; background: #315c4d; border-radius: 15px; }.log-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 0; color: #64766d; border-top: 1px solid #e7ece6; font-size: .84rem; }.log-row strong { color: #24433a; font-size: .98rem; white-space: nowrap; }.log-row.positive strong { color: #3f8352; }
-.research-section { padding: 115px 0; }.research-grid { display: grid; grid-template-columns: .85fr 1.15fr; gap: 80px; align-items: center; }.research-stack { display: grid; gap: 14px; }.citation-card { position: relative; padding: 38px 42px 34px; background: rgba(255,253,247,.86); border: 1px solid rgba(71,100,84,.12); border-radius: 22px; box-shadow: 0 17px 45px rgba(36,67,58,.07); }.citation-mark { position: absolute; top: 13px; left: 24px; color: #e6ac71; font-family: Georgia, serif; font-size: 4.6rem; line-height: 1; }.citation-card p { position: relative; color: #355447; font-size: 1.02rem; font-weight: 650; letter-spacing: -.02em; line-height: 1.8; text-wrap: pretty; }.citation-card div { margin-top: 22px; padding-top: 18px; color: #687a70; border-top: 1px solid #e6ece6; font-size: .7rem; line-height: 1.55; }.citation-card strong { color: #d87939; }.reference-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }.reference-grid div { padding: 18px; background: rgba(255,253,247,.72); border: 1px solid rgba(70,100,84,.1); border-radius: 16px; }.reference-grid strong { display: block; color: #24433a; font-size: .86rem; }.reference-grid span { display: block; margin-top: 7px; color: #64766d; font-size: .73rem; line-height: 1.55; }
-.cta-section { padding: 86px 0; background: #e9dcc6; }.cta-content { display: flex; align-items: center; justify-content: space-between; gap: 32px; }.cta-content > div { min-width: 0; }.cta-section h2 { max-width: 760px; }.cta-button { flex: 0 0 auto; padding-inline: 25px !important; color: white !important; background: #24433a !important; font-weight: 800; }
-.hero-enter { animation: rise .8s cubic-bezier(.22, .72, .26, 1) .1s both; }.hero-enter-delay { animation: rise .9s cubic-bezier(.22, .72, .26, 1) .2s both; }.reveal { opacity: 0; transform: translate3d(0, 24px, 0); transition: opacity .56s ease-out, transform .56s cubic-bezier(.22, .72, .26, 1); will-change: opacity, transform; }.reveal.is-visible { opacity: 1; transform: translate3d(0, 0, 0); }#solution, #lstm, #research { scroll-margin-top: 88px; }@keyframes rise { from { opacity: 0; transform: translate3d(0, 28px, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }@keyframes drift { to { transform: translate3d(26px, -17px, 0) scale(1.07); } }@keyframes pulse { 50% { box-shadow: 0 0 0 10px rgba(216,121,57,0); } }
-.tool-sliders { margin: 20px 0; padding-top: 15px; border-top: 1px solid #edf0eb; }
-.tool-sliders label { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; margin-bottom: 8px; font-size: .88rem; color: #52675d; }
-.tool-sliders label b { font-variant-numeric: tabular-nums; color: #24433a; }
-.tool-sliders input[type="range"] { grid-column: 1 / -1; width: 100%; accent-color: #24433a; margin-bottom: 12px; }
-.scale-section { margin-top: 10px; }
-.scale { position: relative; display: flex; height: 10px; border-radius: 99px; }
-.scale i:nth-child(1) { flex: 53.33; background: #3e7d4f; border-radius: 99px 0 0 99px; }
-.scale i:nth-child(2) { flex: 13.34; background: #e0a21f; }
-.scale i:nth-child(3) { flex: 33.33; background: #d2401f; border-radius: 0 99px 99px 0; }
-.scale b { position: absolute; top: -4px; width: 4px; height: 18px; margin-left: -2px; box-sizing: content-box; background: #24433a; border: 2px solid #fff; border-radius: 4px; transition: left .25s; }
-.ticks { position: relative; height: 20px; margin-top: 6px; font-size: .7rem; color: #849087; font-weight: 700; }
-.ticks span { position: absolute; transform: translateX(-50%); }
-@media (min-width: 961px) {
-  .hero-copy { padding-right: 12px; }
-  .section-heading { max-width: 760px; }
-  .feature-grid { align-items: stretch; }
+@keyframes rise {
+  from { opacity: 0; transform: translate3d(0, 18px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
 }
-@media (max-width: 960px) { .hero-grid, .ai-grid, .research-grid, .farmer-grid, .logbook-grid { grid-template-columns: 1fr; gap: 46px; }.hero { min-height: auto; }.hero-grid { padding-top: 68px; }.hero-copy { text-align: center; }.hero-copy .eyebrow, .hero-actions, .trust-row { justify-content: center; }.hero-description { margin-inline: auto; }.hero-visual { min-height: 425px; max-width: 550px; width: 100%; margin: auto; }.architecture-map { grid-template-columns: 1fr; gap: 14px; }.architecture-map > i { width: 2px; height: 24px; justify-self: center; background: linear-gradient(180deg, rgba(216,121,57,.28), rgba(49,92,77,.6)); }.feature-grid { grid-template-columns: 1fr; }.feature-card { min-height: 250px; }.ai-copy, .farmer-copy, .logbook-copy { text-align: center; }.ai-copy p, .farmer-copy p, .logbook-copy p { margin-inline: auto; }.ai-stat { justify-content: center; }.signal-grid { grid-template-columns: repeat(2, 1fr); }.signal-grid div:nth-child(3) { border-left: 1px solid rgba(255,255,255,.13); }.phone-alert, .logbook-panel { max-width: 420px; width: 100%; margin: auto; }.persona-list { max-width: 560px; margin-inline: auto; text-align: left; }.research-grid { text-align: center; }.citation-card { text-align: left; }.cta-content { align-items: flex-start; flex-direction: column; } }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
-@media (max-width: 600px) { .hero-grid { padding-top: 51px; padding-bottom: 60px; }.brand-mark { margin-bottom: 10px; font-size: .67rem; }.brand-mark span { display: none; }.hero h1 { font-size: clamp(1.8rem, 8vw, 2.2rem); line-height: 1.25; }.hero-description { font-size: .94rem; line-height: 1.85; }.hero-actions { flex-direction: column; }.hero-actions .v-btn { width: 100%; }.dashboard-card { padding: 20px; }.float-card { right: 0; bottom: -10px; }.signal-grid div { min-height: 118px; padding: 15px 12px; }.signal-grid span { font-size: 1rem; }.signal-grid p { font-size: .72rem; }.content-section, .research-section, .farmer-section, .logbook-section { padding: 78px 0; }.architecture-map article { min-height: auto; }.ai-section { padding: 78px 0; }.lstm-flow { flex-wrap: wrap; gap: 12px; }.lstm-flow > i { width: 16px; }.flow-node { width: 98px; height: 98px; }.research-grid { gap: 32px; }.citation-card { padding: 31px 25px 27px; }.citation-card p { font-size: 1rem; }.reference-grid { grid-template-columns: 1fr; }.log-row { align-items: flex-start; flex-direction: column; gap: 5px; } }
+.hero-enter { animation: rise 0.6s ease-out both; }
+.hero-enter-delay { animation: rise 0.7s ease-out 0.15s both; }
+
+.reveal {
+  opacity: 0;
+  transform: translate3d(0, 20px, 0);
+  transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+
+#solution, #lstm, #research, #sandbox-card {
+  scroll-margin-top: 90px;
+}
 </style>

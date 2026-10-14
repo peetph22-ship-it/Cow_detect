@@ -6,7 +6,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Express](https://img.shields.io/badge/Express-5.x-000000?logo=express&logoColor=white)](https://expressjs.com/)
 [![PostgreSQL](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
-[![YOLOv8](https://img.shields.io/badge/YOLO-v8-00FFFF?logo=yolo&logoColor=black)](https://ultralytics.com/)
+[![YOLO26](https://img.shields.io/badge/YOLO-26m-00FFFF?logo=yolo&logoColor=black)](https://ultralytics.com/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 
 ---
@@ -71,7 +71,7 @@ flowchart TD
 
 1. **Sense (การรับรู้ข้อมูล):**
    - **Environmental IoT:** โมดูล ESP32-S3 + เซนเซอร์ **SHT40** ส่งสัญญาณผ่าน RS485 หรือ HTTP POST อัปเดตข้อมูลจุลภูมิอากาศ (Microclimate) คำนวณค่า **THI (Temperature-Humidity Index)** อัตโนมัติทุกรอบการอ่าน
-   - **Edge Vision AI:** กล้องวงจรปิดตรวจจับพฤติกรรมโคนมด้วยโมเดล **YOLOv8** (ยืน, นอน, กินน้ำ, กินอาหาร, อาการหอบ) แบบ Non-invasive
+   - **Edge Vision AI:** กล้องวงจรปิดตรวจจับพฤติกรรมโคนมด้วยโมเดล **YOLO26m** (`best1.pt`: ยืน, นอน, กินน้ำ, กินอาหาร) แบบ Non-invasive
 2. **Recommend (การวิเคราะห์และแนะนำ):**
    - จัดเก็บข้อมูล Telemetry อนุกรมเวลาบน Supabase PostgreSQL
    - คำนวณระดับความเสี่ยง THI แบบเรียลไทม์ (Normal < 76, Mild 76–79.9, Moderate 80–83.9, Severe ≥ 84)
@@ -92,7 +92,7 @@ flowchart LR
     Nuxt -->|REST / Stream| Fast["AI Backend: FastAPI :8000"]
     
     Node -->|SQL Query / Pooling| DB[("Supabase PostgreSQL")]
-    Fast -->|YOLOv8 Inference| Weights["Model Weights (best.pt)"]
+    Fast -->|YOLO26m Inference| Weights["Model Weights (best1.pt)"]
     
     ESP32["ESP32-S3 + SHT40 IoT"] -->|HTTP POST /api/sensors/data| Node
     Camera["กล้อง RTSP / Webcam"] -->|Video Feed / Stream| Fast
@@ -102,7 +102,7 @@ flowchart LR
 |---|---|---|---|---|
 | **Frontend** | `cow_detect_frontend` | `3000` | Nuxt 3, Vue 3, Tailwind CSS, Vuetify 3, ApexCharts | เว็บแอปพลิเคชันระบบ Admin Command Center, Cockpit เฝ้าระวังฟาร์ม, และ Farm Roster |
 | **API Backend** | `cow_detect_node` | `4001` | Node.js, Express 5, JWT, bcrypt, pg (PostgreSQL) | Business Logic, ระบบ Authentication & Role-based Access, REST API สำหรับฟาร์มและเซนเซอร์ IoT |
-| **AI Backend** | `cow_detect_backend` | `8000` | FastAPI, Uvicorn, Ultralytics YOLOv8, OpenCV | AI Inference สำหรับวิเคราะห์พฤติกรรมโคนมจากภาพนิ่ง และ Live Video MJPEG Stream |
+| **AI Backend** | `cow_detect_backend` | `8000` | FastAPI, Uvicorn, Ultralytics YOLO26m, OpenCV | AI Inference สำหรับวิเคราะห์พฤติกรรมโคนมจากภาพนิ่ง และ Live Video MJPEG Stream |
 | **Database** | *Cloud Managed* | `5432/6543` | PostgreSQL (Supabase) + PgBouncer | จัดเก็บตารางผู้ใช้ (`tb_users`), ฟาร์ม (`tb_farms`), อุปกรณ์ (`tb_devices`), และข้อมูลเซนเซอร์ (`tb_sensor_readings`) |
 
 ---

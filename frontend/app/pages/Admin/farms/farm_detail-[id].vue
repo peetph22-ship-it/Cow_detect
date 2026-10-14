@@ -594,11 +594,12 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
-import { Admin } from '../../API/baseAPI'
-import AdminEditFarmModal from '../../components/Admin/farm/EditFarmModal.vue'
+import { Admin } from '~/API/baseAPI'
+import AdminEditFarmModal from '~/components/Admin/farm/EditFarmModal.vue'
 
 definePageMeta({
-  layout: 'admin'
+  layout: 'admin',
+  alias: ['/Admin/farm_detail-:id', '/Admin/farms/:id']
 })
 
 const route = useRoute()
