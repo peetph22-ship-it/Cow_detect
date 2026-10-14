@@ -79,6 +79,25 @@
           <p class="text-[11px] text-[#718078] mt-1">เลือกชื่อฟาร์ม/สังกัดจากสมาชิกในระบบ</p>
         </div>
 
+        <!-- 1.1 โรงเรือนย่อย (Sub-Barn Unit) -->
+        <div>
+          <label class="block text-xs font-black text-[#4e6057] uppercase tracking-wider mb-1.5 flex items-center justify-between">
+            <span>หมายเลข/ชื่อโรงเรือนย่อย <span class="text-rose-500">*</span></span>
+            <span class="text-[11px] text-[#718078] font-normal">เช่น โรงเรือนที่ 1 (โครีดนม)</span>
+          </label>
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#718078]">
+              <v-icon icon="mdi-home-analytics" size="19" class="text-[#718078]" />
+            </div>
+            <input 
+              v-model="form.barn_unit" 
+              type="text" 
+              required
+              placeholder="ระบุชื่อโรงเรือน เช่น โรงเรือนที่ 1 (โครีดนม), โรงเรือน A"
+              class="w-full bg-white border border-[#e5ece9] rounded-[16px] pl-10 pr-4 py-3 text-sm font-bold text-[#1f3d34] placeholder-[#a6b5aa] focus:outline-none focus:border-[#24433a] focus:ring-4 focus:ring-[#24433a]/8 transition-all" />
+          </div>
+        </div>
+
         <!-- 2. จังหวัด (แบบพิมพ์) -->
         <div>
           <label class="block text-xs font-black text-[#4e6057] uppercase tracking-wider mb-1.5">
@@ -274,6 +293,7 @@ const usersList = ref([])
 // Form State
 const form = ref({
   name_farms: '',
+  barn_unit: 'โรงเรือนหลัก (Unit 1)',
   province: '',
   district: '',
   address: '',
@@ -287,6 +307,7 @@ const loadFarmData = () => {
   if (props.farm) {
     form.value = {
       name_farms: props.farm.name_farms || '',
+      barn_unit: props.farm.barn_unit || 'โรงเรือนหลัก (Unit 1)',
       province: props.farm.province || '',
       district: props.farm.district || '',
       address: props.farm.address || '',
@@ -370,6 +391,10 @@ const submitEdit = async () => {
     errorMessage.value = 'กรุณาระบุชื่อฟาร์ม'
     return
   }
+  if (!form.value.barn_unit || !form.value.barn_unit.trim()) {
+    errorMessage.value = 'กรุณาระบุหมายเลขหรือชื่อโรงเรือนย่อย'
+    return
+  }
   if (!form.value.province || !form.value.province.trim()) {
     errorMessage.value = 'กรุณากรอกชื่อจังหวัด'
     return
@@ -387,8 +412,11 @@ const submitEdit = async () => {
   errorMessage.value = ''
 
   try {
+    const selectedOption = userFarmOptions.value.find(opt => opt.farmName === form.value.name_farms)
     const payload = {
       name_farms: form.value.name_farms.trim(),
+      barn_unit: form.value.barn_unit.trim(),
+      id_users: selectedOption ? selectedOption.id_users : props.farm?.id_users,
       province: form.value.province.trim(),
       district: form.value.district ? form.value.district.trim() : null,
       address: form.value.address ? form.value.address.trim() : null,

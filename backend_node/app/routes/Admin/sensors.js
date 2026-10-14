@@ -148,18 +148,33 @@ router.get('/history', async (req, res) => {
     try {
         const limit = parseInt(req.query.limit) || 50
         const { rows } = await db.query(`
-            SELECT sr.id, sr.temperature_c, sr.humidity_pct, sr.pressure_hpa, sr.thi, sr.stress_level, sr.recorded_at,
-                   d.serial_no, d.name AS device_name
-            FROM sensor_readings sr
-            LEFT JOIN devices d ON d.id = sr.device_id
+            SELECT sr.*, d.serial_no, d.name_devices AS device_name
+            FROM tb_sensor_readings sr
+            LEFT JOIN tb_devices d ON d.id_devices = sr.id_devices
             ORDER BY sr.recorded_at DESC
             LIMIT $1
         `, [limit])
 
+        const mapped = rows.map(r => {
+            const temp = r.temperature_c != null ? parseFloat(r.temperature_c) : null
+            const hum = r.humidity_pct != null ? parseFloat(r.humidity_pct) : null
+            let thi = r.thi != null ? parseFloat(r.thi) : null
+            if (thi === null && temp !== null && hum !== null) {
+                thi = parseFloat(calculateTHI(temp, hum).toFixed(2))
+            }
+            return {
+                ...r,
+                temperature_c: temp,
+                humidity_pct: hum,
+                thi,
+                stress_level: r.stress_level || (thi != null ? getStressLevel(thi) : 'normal')
+            }
+        })
+
         return res.json({
             success: true,
-            count: rows.length,
-            data: rows.reverse() // เรียงจากเก่าไปใหม่สำหรับวาดกราฟ
+            count: mapped.length,
+            data: mapped.reverse() // เรียงจากเก่าไปใหม่สำหรับวาดกราฟ
         })
     } catch (err) {
         console.error('[Get Sensor History Error]:', err.message)

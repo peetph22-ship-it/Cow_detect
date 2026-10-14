@@ -154,6 +154,45 @@
 
     </div>
 
+    <!-- 🟢 2.5 Status Category Tabs (รองรับแท็บฟาร์มที่ยังไม่มีค่าอุปกรณ์/ข้อผิดพลาด) -->
+    <div class="flex items-center gap-2 border-b border-[#e5ece9] pb-3 overflow-x-auto animate-fade-up delay-150">
+      <button
+        type="button"
+        @click="statusTab = 'all'"
+        :class="statusTab === 'all' ? 'bg-[#163026] text-white shadow-sm' : 'bg-white text-[#718078] hover:text-[#163026] border border-[#e5ece9]'"
+        class="px-4 py-2 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap">
+        <v-icon icon="mdi-view-grid" size="16" />
+        <span>ฟาร์มทั้งหมด</span>
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-mono" :class="statusTab === 'all' ? 'bg-white/20 text-white' : 'bg-[#edf3ed] text-[#163026]'">
+          {{ farmData.length }}
+        </span>
+      </button>
+
+      <button
+        type="button"
+        @click="statusTab = 'active'"
+        :class="statusTab === 'active' ? 'bg-emerald-700 text-white shadow-sm' : 'bg-white text-[#718078] hover:text-emerald-700 border border-[#e5ece9]'"
+        class="px-4 py-2 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span>ออนไลน์ / รับส่งข้อมูลปกติ</span>
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-mono" :class="statusTab === 'active' ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-800'">
+          {{ activeFarmsCount }}
+        </span>
+      </button>
+
+      <button
+        type="button"
+        @click="statusTab = 'pending'"
+        :class="statusTab === 'pending' ? 'bg-amber-600 text-white shadow-sm' : 'bg-white text-[#718078] hover:text-amber-700 border border-[#e5ece9]'"
+        class="px-4 py-2 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap">
+        <v-icon icon="mdi-alert-circle-outline" size="16" />
+        <span>รอเชื่อมต่อ / อุปกรณ์ขัดข้อง</span>
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-mono" :class="statusTab === 'pending' ? 'bg-white/20 text-white' : 'bg-amber-50 text-amber-800'">
+          {{ pendingFarmsCount }}
+        </span>
+      </button>
+    </div>
+
     <!-- 🟢 3. View Switcher & Search Toolbar -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 animate-fade-up delay-200">
 
@@ -162,7 +201,7 @@
         <div class="w-full md:w-[360px]">
           <v-text-field
             v-model="searchQuery"
-            placeholder="ค้นหาชื่อฟาร์ม, จังหวัด, อำเภอ หรือรหัสอุปกรณ์..."
+            placeholder="ค้นหาชื่อฟาร์ม, โรงเรือนย่อย, สมาชิก, จังหวัด..."
             prepend-inner-icon="mdi-magnify"
             variant="outlined"
             density="compact"
@@ -250,29 +289,39 @@
                 {{ index + 1 }}
               </td>
 
-              <!-- Farm Info -->
+              <!-- Farm Info (ชื่อฟาร์ม, โรงเรือนย่อย, สมาชิกเจ้าของฟาร์ม) -->
               <td class="px-6 py-4">
                 <div class="flex items-center gap-3.5">
                   <div class="w-10 h-10 rounded-[14px] bg-[#163026]/10 text-[#163026] flex items-center justify-center font-black text-sm flex-shrink-0 group-hover:scale-105 transition-transform duration-300">
                     <v-icon icon="mdi-barn" size="20" />
                   </div>
                   <div>
-                    <p class="font-black text-[#163026] text-[14.5px] leading-snug group-hover:text-[#d87939] transition-colors">
-                      {{ item.name_farms }}
-                    </p>
-                    <p class="text-[12px] font-medium text-[#718078] mt-0.5 flex items-center gap-1">
-                      <v-icon icon="mdi-map-marker-outline" size="14" class="text-[#a6b5aa]" />
-                      <span>{{ item.province || 'ไม่ระบุจังหวัด' }}</span>
-                      <span v-if="item.district" class="text-[#cbd5e1]">•</span>
-                      <span v-if="item.district">{{ item.district }}</span>
-                    </p>
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <p class="font-black text-[#163026] text-[14.5px] leading-snug group-hover:text-[#d87939] transition-colors">
+                        {{ item.name_farms }}
+                      </p>
+                      <span class="px-2 py-0.5 rounded-[8px] bg-[#d87939]/10 text-[#d87939] text-[10.5px] font-bold border border-[#d87939]/20">
+                        {{ item.barn_unit || 'โรงเรือนหลัก (Unit 1)' }}
+                      </span>
+                    </div>
+                    <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+                      <p class="text-[12px] font-medium text-[#718078] flex items-center gap-1">
+                        <v-icon icon="mdi-map-marker-outline" size="14" class="text-[#a6b5aa]" />
+                        <span>{{ item.province || 'ไม่ระบุจังหวัด' }}</span>
+                        <span v-if="item.district" class="text-[#cbd5e1]">•</span>
+                        <span v-if="item.district">{{ item.district }}</span>
+                      </p>
+                      <span v-if="item.owner_name" class="text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60">
+                        สมาชิก: {{ item.owner_name }}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </td>
 
-              <!-- IoT Device -->
+              <!-- IoT Device (รองรับหลายอุปกรณ์ต่อฟาร์ม) -->
               <td class="px-6 py-4">
-                <div v-if="item.serial_no || item.name_devices" class="flex flex-col">
+                <div v-if="item.total_devices > 0" class="flex flex-col">
                   <div class="flex items-center gap-2">
                     <span class="inline-flex items-center px-2 py-0.5 rounded-[6px] text-[11px] font-mono font-bold bg-[#edf3ed] text-[#163026] border border-[#163026]/10">
                       {{ item.serial_no || 'DEVICE' }}
@@ -282,14 +331,17 @@
                       :class="item.device_status === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'"
                       :title="item.device_status === 'online' ? 'อุปกรณ์ออนไลน์' : 'อุปกรณ์ออฟไลน์'">
                     </span>
+                    <span v-if="item.total_devices > 1" class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                      +{{ item.total_devices - 1 }} อุปกรณ์
+                    </span>
                   </div>
                   <span class="text-[11.5px] text-[#718078] font-medium mt-1 truncate max-w-[200px]">
                     {{ item.name_devices || 'ESP32 Telemetry Node' }}
                   </span>
                 </div>
-                <div v-else class="text-[#a6b5aa] text-xs italic flex items-center gap-1.5">
-                  <v-icon icon="mdi-lan-disconnect" size="16" />
-                  <span>ยังไม่ผูกอุปกรณ์</span>
+                <div v-else class="text-amber-700 bg-amber-50/80 border border-amber-200/80 px-2.5 py-1 rounded-[10px] text-xs font-medium inline-flex items-center gap-1.5 w-fit">
+                  <v-icon icon="mdi-lan-disconnect" size="14" class="text-amber-600" />
+                  <span>ยังไม่มีอุปกรณ์</span>
                 </div>
               </td>
 
@@ -299,7 +351,7 @@
                   {{ Number(item.temperature_c).toFixed(1) }}
                   <span class="text-[11px] font-bold text-[#718078]">°C</span>
                 </span>
-                <span v-else class="text-[#a6b5aa]">-</span>
+                <span v-else class="text-[#a6b5aa] font-mono text-xs">-</span>
               </td>
 
               <!-- Humidity -->
@@ -308,7 +360,7 @@
                   {{ Number(item.humidity_pct).toFixed(1) }}
                   <span class="text-[11px] font-bold text-[#718078]">%</span>
                 </span>
-                <span v-else class="text-[#a6b5aa]">-</span>
+                <span v-else class="text-[#a6b5aa] font-mono text-xs">-</span>
               </td>
 
               <!-- THI -->
@@ -316,16 +368,24 @@
                 <span v-if="item.thi" class="font-black text-[15px]" :class="getThiStatus(item.thi).textClass">
                   {{ Number(item.thi).toFixed(1) }}
                 </span>
-                <span v-else class="text-[#a6b5aa]">-</span>
+                <span v-else class="text-[#a6b5aa] font-mono text-xs">-</span>
               </td>
 
               <!-- Status Badge -->
               <td class="px-6 py-4 text-center">
-                <span 
+                <span v-if="item.thi"
                   class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black border tracking-wide"
                   :class="getThiStatus(item.thi).badgeClass">
                   <span class="w-1.5 h-1.5 rounded-full" :class="getThiStatus(item.thi).dotClass"></span>
                   {{ getThiStatus(item.thi).label }}
+                </span>
+                <span v-else-if="item.total_devices > 0" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                  <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                  รอสัญญาณแรก
+                </span>
+                <span v-else class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-gray-100 text-gray-600 border border-gray-200">
+                  <span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+                  ไม่มีอุปกรณ์
                 </span>
               </td>
 
@@ -408,27 +468,32 @@
                   <h3 class="font-black text-[#163026] text-[16px] leading-snug truncate group-hover:text-[#d87939] transition-colors">
                     {{ item.name_farms }}
                   </h3>
-                  <p class="text-xs text-[#718078] flex items-center gap-1 mt-0.5 truncate">
-                    <v-icon icon="mdi-map-marker-outline" size="14" class="text-[#a6b5aa]" />
-                    <span>{{ item.province || 'ไม่ระบุจังหวัด' }}</span>
-                    <span v-if="item.district" class="text-[#cbd5e1]">•</span>
-                    <span v-if="item.district">{{ item.district }}</span>
-                  </p>
+                  <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                    <span class="px-2 py-0.5 rounded-[6px] bg-[#d87939]/10 text-[#d87939] text-[10.5px] font-bold border border-[#d87939]/20 truncate">
+                      {{ item.barn_unit || 'โรงเรือนหลัก (Unit 1)' }}
+                    </span>
+                    <span v-if="item.owner_name" class="text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60 truncate">
+                      {{ item.owner_name }}
+                    </span>
+                  </div>
                 </div>
               </div>
 
               <!-- IoT Status Pill -->
               <div class="flex-shrink-0">
                 <span 
-                  v-if="item.serial_no" 
+                  v-if="item.total_devices > 0" 
                   class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border"
                   :class="item.device_status === 'online' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-gray-100 text-gray-600 border-gray-200'">
                   <span class="w-1.5 h-1.5 rounded-full" :class="item.device_status === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'"></span>
                   {{ item.device_status === 'online' ? 'Online' : 'Offline' }}
+                  <span v-if="item.total_devices > 1" class="text-[9.5px] font-mono font-bold bg-blue-100 text-blue-800 px-1 rounded">
+                    {{ item.total_devices }} ตัว
+                  </span>
                 </span>
                 <span 
                   v-else 
-                  class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                  class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
                   <v-icon icon="mdi-lan-disconnect" size="13" />
                   ไม่มีอุปกรณ์
                 </span>
@@ -440,14 +505,22 @@
               <span class="text-[11px] font-black text-[#718078] uppercase tracking-wider mb-1">
                 ดัชนี THI ปัจจุบัน
               </span>
-              <div class="text-[44px] font-black tabular-nums leading-none tracking-tight my-1" :class="getThiStatus(item.thi).textClass">
+              <div class="text-[44px] font-black tabular-nums leading-none tracking-tight my-1" :class="item.thi ? getThiStatus(item.thi).textClass : 'text-gray-400'">
                 {{ item.thi ? Number(item.thi).toFixed(1) : '--' }}
               </div>
-              <span 
+              <span v-if="item.thi"
                 class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-black border tracking-wide mt-1"
                 :class="getThiStatus(item.thi).badgeClass">
                 <span class="w-1.5 h-1.5 rounded-full" :class="getThiStatus(item.thi).dotClass"></span>
                 {{ getThiStatus(item.thi).label }}
+              </span>
+              <span v-else-if="item.total_devices > 0" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200 mt-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                รอรับสัญญาณแรก
+              </span>
+              <span v-else class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-gray-100 text-gray-500 border border-gray-200 mt-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+                ยังไม่ผูกอุปกรณ์
               </span>
             </div>
 
@@ -661,6 +734,7 @@ let syncInterval = null
 const viewMode = ref('table') // 'table' | 'grid'
 const searchQuery = ref('')
 const currentFilter = ref('all') // 'all' | 'comfort' | 'warning' | 'severe'
+const statusTab = ref('all') // 'all' | 'active' | 'pending'
 
 // Modals & Dialogs States
 const isAddModalOpen = ref(false)
@@ -750,9 +824,17 @@ const getThiStatus = (val) => {
   }
 }
 
-// Summary KPIs
+// Summary KPIs & Status Counts
 const onlineFarmsCount = computed(() => {
   return farmData.value.filter(f => f.device_status === 'online').length
+})
+
+const activeFarmsCount = computed(() => {
+  return farmData.value.filter(f => f.id_devices && f.id_sensor_readings && f.device_status === 'online').length
+})
+
+const pendingFarmsCount = computed(() => {
+  return farmData.value.filter(f => !f.id_devices || !f.id_sensor_readings || f.device_status !== 'online').length
 })
 
 const countComfort = computed(() => {
@@ -779,6 +861,13 @@ const countSevere = computed(() => {
 // Filtered Farms Computed
 const filteredFarms = computed(() => {
   return farmData.value.filter(item => {
+    // 0. Status Category Tab Matching
+    if (statusTab.value === 'active') {
+      if (!item.id_devices || !item.id_sensor_readings || item.device_status !== 'online') return false
+    } else if (statusTab.value === 'pending') {
+      if (item.id_devices && item.id_sensor_readings && item.device_status === 'online') return false
+    }
+
     // 1. Filter Strip Matching
     if (currentFilter.value === 'comfort') {
       const t = getThiNumber(item.thi)
@@ -795,18 +884,21 @@ const filteredFarms = computed(() => {
     if (!searchQuery.value || !searchQuery.value.trim()) return true
     const q = searchQuery.value.trim().toLowerCase()
     const nameMatch = (item.name_farms || '').toLowerCase().includes(q)
+    const barnMatch = (item.barn_unit || '').toLowerCase().includes(q)
+    const ownerMatch = (item.owner_name || '').toLowerCase().includes(q)
     const provinceMatch = (item.province || '').toLowerCase().includes(q)
     const districtMatch = (item.district || '').toLowerCase().includes(q)
     const serialMatch = (item.serial_no || '').toLowerCase().includes(q)
     const deviceMatch = (item.name_devices || '').toLowerCase().includes(q)
 
-    return nameMatch || provinceMatch || districtMatch || serialMatch || deviceMatch
+    return nameMatch || barnMatch || ownerMatch || provinceMatch || districtMatch || serialMatch || deviceMatch
   })
 })
 
 // Reset Filters
 const resetFilters = () => {
   currentFilter.value = 'all'
+  statusTab.value = 'all'
   searchQuery.value = ''
 }
 

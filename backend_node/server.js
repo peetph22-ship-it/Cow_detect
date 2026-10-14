@@ -44,5 +44,11 @@ app.use('/api/Admin/farms', farms)
 // 404 Check
 app.use((req,res) => res.status(404).json({message: 'Invalid Route!'}))
 
+// Start Daily LSTM Scheduler (Runs daily at 20:00 Bangkok Time)
+const { startDailyLstmCron } = require('./app/services/dailyLstmScheduler')
+
 // End , Listen Port;
-app.listen(PORT , () => console.log(`Server Running On Port ${PORT}`))
+app.listen(PORT , () => {
+    console.log(`Server Running On Port ${PORT}`)
+    startDailyLstmCron()
+})
