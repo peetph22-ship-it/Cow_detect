@@ -137,48 +137,68 @@
     </div>
 
     <!-- 🟢 Filter Tabs & Search Bar -->
+    <!-- 🟢 Filter Tabs & Search Bar -->
     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 animate-fade-up delay-200">
 
-      <!-- Pill Tabs -->
-      <div class="flex items-center gap-2 max-w-full overflow-x-auto pb-1 -mb-1">
-        <button v-for="filter in filterOptions" :key="filter.value" @click="currentFilter = filter.value" :class="[
-          'group flex items-center gap-2.5 pl-3.5 pr-2.5 py-2 rounded-full text-[13.5px] font-bold transition-all duration-300 whitespace-nowrap flex-shrink-0 cursor-pointer select-none border',
-          currentFilter === filter.value
-            ? 'bg-[#24433a] text-white border-[#24433a] shadow-[0_8px_20px_rgba(36,67,58,0.22)] -translate-y-0.5'
-            : 'bg-white/80 backdrop-blur text-[#4e6057] border-[#e5ece9] hover:border-[#24433a]/30 hover:bg-white hover:-translate-y-0.5'
-        ]">
-          <span :class="['w-2 h-2 rounded-full flex-shrink-0 transition-colors', filterDot(filter.value, currentFilter === filter.value)]"></span>
-          <span>{{ filter.label }}</span>
-          <span :class="[
-            'min-w-[24px] text-center px-2 py-0.5 rounded-full text-[11px] font-black transition-colors',
-            currentFilter === filter.value
-              ? 'bg-white/20 text-white'
-              : 'bg-[#f1f5f3] text-[#718078] group-hover:bg-[#e5ece9]'
-          ]">
-            {{ filter.count }}
-          </span>
-        </button>
+      <!-- 1. Vuetify Tabs (Pill Tabs) -->
+      <div class="max-w-full overflow-x-auto pb-1 -mb-1">
+        <v-tabs
+          v-model="currentFilter"
+          color="#24433a"
+          bg-color="transparent"
+          density="comfortable"
+          hide-slider
+          class="user-filter-vtabs"
+        >
+          <v-tab
+            v-for="filter in filterOptions"
+            :key="filter.value"
+            :value="filter.value"
+            rounded="pill"
+            class="text-none font-bold mr-2 text-[13.5px] transition-all duration-300 select-none border"
+            :class="[
+              currentFilter === filter.value
+                ? '!bg-[#24433a] !text-white !border-[#24433a] shadow-[0_8px_20px_rgba(36,67,58,0.22)] -translate-y-0.5'
+                : 'bg-white/80 backdrop-blur text-[#4e6057] border-[#e5ece9] hover:border-[#24433a]/30 hover:bg-white hover:-translate-y-0.5'
+            ]"
+          >
+            <span :class="['w-2 h-2 rounded-full mr-2 transition-colors', filterDot(filter.value, currentFilter === filter.value)]"></span>
+            <span>{{ filter.label }}</span>
+            <span :class="[
+              'ml-2 min-w-[24px] text-center px-2 py-0.5 rounded-full text-[11px] font-black transition-colors',
+              currentFilter === filter.value
+                ? 'bg-white/20 text-white'
+                : 'bg-[#f1f5f3] text-[#718078]'
+            ]">
+              {{ filter.count }}
+            </span>
+          </v-tab>
+        </v-tabs>
       </div>
 
-      <!-- Search Input -->
-      <div class="relative w-full lg:w-[340px]">
-        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[#a6b5aa]">
-          <v-icon icon="mdi-magnify" size="18" class="text-[#a6b5aa]" />
-        </div>
-        <input v-model="searchQuery" type="text" placeholder="ค้นหาชื่อ, เบอร์โทร, อีเมล หรือสังกัด..."
-          class="w-full bg-white/80 backdrop-blur border border-[#e5ece9] rounded-full pl-11 pr-10 py-2.5 text-[13.5px] font-medium text-[#1f3d34] placeholder-[#a6b5aa] shadow-sm hover:border-[#24433a]/30 focus:outline-none focus:bg-white focus:border-[#24433a] focus:ring-4 focus:ring-[#24433a]/8 transition-all">
-        <button v-if="searchQuery" @click="searchQuery = ''"
-          class="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-[#f1f5f3] hover:bg-[#e5ece9] text-[#718078] hover:text-[#1f3d34] flex items-center justify-center transition-colors cursor-pointer">
-          <v-icon icon="mdi-close" size="14" />
-        </button>
+      <!-- 2. Vuetify Search Box -->
+      <div class="w-full lg:w-[340px]">
+        <v-text-field
+          v-model="searchQuery"
+          placeholder="ค้นหาชื่อ, เบอร์โทร, อีเมล หรือสังกัด..."
+          prepend-inner-icon="mdi-magnify"
+          variant="outlined"
+          density="compact"
+          rounded="pill"
+          color="#24433a"
+          bg-color="white"
+          clearable
+          hide-details
+          class="user-vsearch-input"
+        />
       </div>
     </div>
 
-    <!-- 🟢 Data Table -->
+    <!-- 🟢 Data Table (3. Vuetify Table) -->
     <div
       class="bg-white/70 backdrop-blur-xl rounded-[32px] border border-white shadow-[0_8px_30px_rgba(36,67,58,0.04)] overflow-hidden animate-fade-up delay-300 relative">
       <div class="overflow-x-auto p-2">
-        <table class="w-full text-left whitespace-nowrap">
+        <v-table hover class="modern-user-vtable bg-transparent w-full text-left whitespace-nowrap">
           <thead>
             <tr>
               <th
@@ -275,7 +295,7 @@
               </td>
             </tr>
           </tbody>
-        </table>
+        </v-table>
       </div>
 
       <!-- Empty State -->
@@ -615,3 +635,73 @@ onMounted(() => {
   fetchUsers()
 })
 </script>
+
+<style scoped>
+/* 🟢 Vuetify Tabs (Pills) */
+:deep(.user-filter-vtabs) {
+  min-height: 44px !important;
+  height: auto !important;
+}
+
+:deep(.user-filter-vtabs .v-slide-group__content) {
+  gap: 8px !important;
+  align-items: center !important;
+}
+
+:deep(.user-filter-vtabs .v-tab) {
+  min-height: 38px !important;
+  height: 38px !important;
+  letter-spacing: normal !important;
+  text-transform: none !important;
+  font-size: 13.5px !important;
+  font-weight: 700 !important;
+  padding: 0 16px !important;
+}
+
+/* 🟢 Vuetify Search (Curved Soft Input) */
+:deep(.user-vsearch-input .v-field) {
+  border-radius: 9999px !important;
+  background-color: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid #e5ece9 !important;
+  box-shadow: 0 1px 4px rgba(36, 67, 58, 0.04) !important;
+  transition: all 0.25s ease !important;
+}
+
+:deep(.user-vsearch-input .v-field--focused) {
+  border-color: #24433a !important;
+  background-color: #ffffff !important;
+  box-shadow: 0 0 0 4px rgba(36, 67, 58, 0.08) !important;
+}
+
+:deep(.user-vsearch-input .v-field__outline) {
+  display: none !important;
+}
+
+:deep(.user-vsearch-input input) {
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+  color: #1f3d34 !important;
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+}
+
+/* 🟢 Vuetify Table (Transparent Glassmorphic Table) */
+:deep(.modern-user-vtable) {
+  background: transparent !important;
+}
+
+:deep(.modern-user-vtable .v-table__wrapper) {
+  overflow-x: auto !important;
+}
+
+:deep(.modern-user-vtable table) {
+  width: 100% !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+
+:deep(.modern-user-vtable th) {
+  background-color: transparent !important;
+}
+</style>

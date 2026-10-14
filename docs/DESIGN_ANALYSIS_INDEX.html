@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Comprehensive Design Analysis of index.vue | CowCare AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+Thai:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #163026;
+      --primary-light: #24433a;
+      --accent: #d87939;
+      --comfort: #3e7d4f;
+      --bg: #fffdf7;
+      --card-bg: rgba(255, 255, 255, 0.85);
+      --border: #e2e8e4;
+      --text-main: #1f3d34;
+      --text-muted: #5e7267;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', 'Noto Sans Thai', sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      line-height: 1.65;
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 48px;
+      border-radius: 24px;
+      box-shadow: 0 10px 40px rgba(22, 48, 38, 0.06);
+      border: 1px solid var(--border);
+    }
+    header {
+      border-bottom: 2px solid #edf2ee;
+      padding-bottom: 28px;
+      margin-bottom: 36px;
+    }
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      background: rgba(216, 121, 57, 0.12);
+      color: var(--accent);
+      margin-bottom: 12px;
+    }
+    h1 {
+      font-size: 32px;
+      font-weight: 900;
+      color: var(--primary);
+      line-height: 1.25;
+      margin-bottom: 8px;
+    }
+    .meta {
+      font-size: 13px;
+      color: var(--text-muted);
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    h2 {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--primary);
+      margin: 36px 0 16px 0;
+      border-left: 4px solid var(--accent);
+      padding-left: 12px;
+    }
+    h3 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--primary-light);
+      margin: 20px 0 10px 0;
+    }
+    p {
+      margin-bottom: 14px;
+      color: #334d42;
+      font-size: 14.5px;
+    }
+    ul, ol {
+      margin-left: 20px;
+      margin-bottom: 16px;
+      color: #334d42;
+      font-size: 14px;
+    }
+    li { margin-bottom: 6px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 13.5px;
+    }
+    th, td {
+      padding: 12px 14px;
+      text-align: left;
+      border-bottom: 1px solid #eef2ef;
+    }
+    th {
+      background: #f4f7f5;
+      color: var(--primary);
+      font-weight: 800;
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.05em;
+    }
+    .math-box {
+      background: #f9fbf9;
+      border: 1px solid #dce8df;
+      padding: 16px 20px;
+      border-radius: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13.5px;
+      color: var(--primary);
+      margin: 16px 0;
+    }
+    .bento-preview {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin: 20px 0;
+    }
+    .bento-card {
+      background: #fafcfb;
+      border: 1px solid #e6ece8;
+      border-radius: 14px;
+      padding: 16px;
+      font-size: 13px;
+    }
+    .bento-card strong {
+      display: block;
+      color: var(--primary);
+      margin-bottom: 4px;
+      font-size: 14px;
+    }
+    .print-btn {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--primary);
+      color: #ffffff;
+      padding: 12px 24px;
+      border-radius: 9999px;
+      font-weight: 700;
+      font-size: 13px;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(22, 48, 38, 0.25);
+      transition: all 0.2s ease;
+    }
+    .print-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 28px rgba(22, 48, 38, 0.35);
+    }
+    @media print {
+      .print-btn { display: none; }
+      body { padding: 0; background: #fff; }
+      .container { box-shadow: none; border: none; padding: 0; max-width: 100%; }
+      h2 { page-break-after: avoid; }
+      table { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <span class="badge">Architecture & UI/UX Specification</span>
+      <h1>Comprehensive Architectural & UI/UX Design Analysis of index.vue</h1>
+      <div class="meta">
+        <span><strong>Project:</strong> CowCare AI / PLIS</span>
+        <span><strong>Document Status:</strong> Approved Specification</span>
+        <span><strong>Date:</strong> October 14, 2026</span>
+        <span><strong>Author:</strong> Senior Frontend & System Design Engineer</span>
+      </div>
+    </header>
+
+    <h2>1. Executive Summary & Design Philosophy</h2>
+    <p>The primary <code>pages/index.vue</code> serves as the public-facing gateway for CowCare AI. It is built upon the <strong>"Biophilic Agritech Design System"</strong>, which strategically combines:</p>
+    <ul>
+      <li><strong>Biophilic Aesthetic:</strong> Natural, earthy tones (Deep Forest Green, Warm Terracotta, Sage, and Ivory Canvas) that resonate with sustainable agriculture and precision dairy farming.</li>
+      <li><strong>Micro-SaaS & Glassmorphism:</strong> Semi-transparent cards (<code>backdrop-blur</code>, subtle borders, soft ambient elevation) creating an enterprise-grade, modern web feel.</li>
+      <li><strong>Evidence-Based Storytelling:</strong> Seamlessly transitioning the user from agricultural challenges to scientific evidence (Thai-Holstein THI thresholds, 5-day lag effect), architectural solutions, and interactive verification.</li>
+    </ul>
+
+    <h2>2. Design System & Visual Hierarchy</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Design Token</th>
+          <th>Hex Code</th>
+          <th>Semantic Role</th>
+          <th>Psychological & Functional Impact</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Deep Forest Green</strong></td>
+          <td><code>#24433a</code> / <code>#163026</code></td>
+          <td>Primary Brand Color</td>
+          <td>Conveys stability, vitality, deep agricultural roots, and trust.</td>
+        </tr>
+        <tr>
+          <td><strong>Terracotta Amber</strong></td>
+          <td><code>#d87939</code> / <code>#ea580c</code></td>
+          <td>Primary Accent / Warning</td>
+          <td>Represents thermal energy, high-priority notifications, and callouts.</td>
+        </tr>
+        <tr>
+          <td><strong>Sage & Comfort Green</strong></td>
+          <td><code>#3e7d4f</code> / <code>#e6f2e7</code></td>
+          <td>Normal / Optimal Status</td>
+          <td>Represents the Comfort Zone (THI &lt; 76), safety, and optimal milk yield.</td>
+        </tr>
+        <tr>
+          <td><strong>Warm Ivory Canvas</strong></td>
+          <td><code>#fffdf7</code></td>
+          <td>Global Background</td>
+          <td>Eliminates sterile pure-white #ffffff fatigue, giving a warm tactile feel.</td>
+        </tr>
+        <tr>
+          <td><strong>Deep Night Forest</strong></td>
+          <td><code>#19362e</code></td>
+          <td>Section Accent (AI / LSTM)</td>
+          <td>Creates an intentional visual contrast for deep tech and AI intelligence.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>3. Mathematical Model in Interactive Sandbox</h2>
+    <p>The live simulator embedded directly in the hero section computes the Temperature-Humidity Index using the National Research Council (NRC, 1971) formulation:</p>
+    <div class="math-box">
+      THI = (1.8 &times; T + 32) &minus; (0.55 &minus; 0.0055 &times; RH) &times; (1.8 &times; T &minus; 26)
+    </div>
+    <p>Where <em>T</em> is ambient temperature in &deg;C and <em>RH</em> is relative humidity percentage.</p>
+
+    <h2>4. Three-Layer Architecture Matrix</h2>
+    <div class="bento-preview">
+      <div class="bento-card">
+        <strong>01. SENSE (Edge & IoT)</strong>
+        ESP32-S3 + SHT40 via RS485 Modbus RTU alongside non-invasive CCTV Computer Vision with YOLOv8.
+      </div>
+      <div class="bento-card">
+        <strong>02. RECOMMEND (Cloud AI)</strong>
+        LSTM Time-series predictive analytics (14-day lookback, 3-7 day forecast) and Gemini context-aware advisory.
+      </div>
+      <div class="bento-card">
+        <strong>03. CAPITALIZE (Value)</strong>
+        Digital Logbook, ESG verification, and parametric index-based climate insurance enabling.
+      </div>
+    </div>
+
+    <h2>5. Comparison: pages/index.vue vs. pages/Admin/index.vue</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Architectural Dimension</th>
+          <th>Public Landing (pages/index.vue)</th>
+          <th>Admin Command Center (pages/Admin/index.vue)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Primary Audience</strong></td>
+          <td>Public, Farmers, Investors, Grant Judges</td>
+          <td>Farm Managers, Veterinarians, System Administrators</td>
+        </tr>
+        <tr>
+          <td><strong>UX Objective</strong></td>
+          <td>Educate, demonstrate scientific validity, convert</td>
+          <td>Operational monitoring, rapid incident response</td>
+        </tr>
+        <tr>
+          <td><strong>Data Binding</strong></td>
+          <td>Client-side reactive math simulation (computed)</td>
+          <td>Live server state via REST API (/dashboard-stats)</td>
+        </tr>
+        <tr>
+          <td><strong>Update Cycle</strong></td>
+          <td>User-triggered range inputs</td>
+          <td>Background polling every 12 seconds with unmount cleanup</td>
+        </tr>
+        <tr>
+          <td><strong>Layout Pattern</strong></td>
+          <td>Long-scroll thematic narrative sections</td>
+          <td>High-density 12-column Bento Grid (KPIs, Donut, Charts)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>6. Strategic Optimization Opportunities</h2>
+    <ul>
+      <li><strong>Preset Quick-Selector in Sandbox:</strong> Add one-click preset buttons (e.g., "Chiang Mai Summer", "Saraburi Rainy Season") for rapid threshold demonstration.</li>
+      <li><strong>Dynamic Chart Sparkline in Logbook:</strong> Embed a miniature 7-day sparkline SVG into the logbook card to visually depict cumulative heat load.</li>
+      <li><strong>PWA / Standalone Offline Support:</strong> Introduce progressive web app service workers for low-bandwidth farming environments.</li>
+    </ul>
+
+  </div>
+
+  <button class="print-btn" onclick="window.print()">🖨️ Export as PDF / Print</button>
+
+</body>
+</html>

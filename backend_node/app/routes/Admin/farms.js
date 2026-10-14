@@ -45,10 +45,7 @@ router.get('/all', verifyToken, requireRole('admin'), async (req, res) => {
     }
 })
 
-// -----------------------------------------------------------------
 // 2. GET: /api/Admin/farms/user_farms
-// ดึงข้อมูลสมาชิกประเภทเกษตรกร (farmer) สำหรับชื่อฟาร์ม
-// -----------------------------------------------------------------
 router.get('/user_farms', verifyToken, requireRole('admin'), async (req, res) => {
     try {
         const { rows } = await db.query(`SELECT * FROM tb_users WHERE role = 'farmer' ORDER BY id_users DESC`)

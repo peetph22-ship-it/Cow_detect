@@ -1,110 +1,205 @@
 <template>
-  <div class="lg:col-span-2 bg-white/70 backdrop-blur-xl rounded-[32px] border border-white shadow-[0_8px_30px_rgba(36,67,58,0.04)] overflow-hidden flex flex-col relative">
-    <div class="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-white to-transparent pointer-events-none"></div>
-
-    <div class="px-8 py-7 flex items-center justify-between relative z-10 border-b border-[#24433a]/5">
+  <div class="lg:col-span-2 bg-white/80 backdrop-blur-xl rounded-[32px] border border-white/90 shadow-[0_8px_30px_rgba(36,67,58,0.04)] overflow-hidden flex flex-col justify-between">
+    
+    <!-- Header -->
+    <div class="px-8 py-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#24433a]/5">
       <div>
-        <h3 class="font-black text-[#24433a] text-lg flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-[#d87939] w-5 h-5"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" /><polyline points="14 2 14 8 20 8" /></svg>
-          ระบบบริหารจัดการข้อแจ้งเตือน (Alert Workflow)
+        <h3 class="font-black text-[#24433a] text-lg md:text-xl flex items-center gap-2.5">
+          <span class="w-8 h-8 rounded-[10px] bg-[#d87939]/10 text-[#d87939] flex items-center justify-center text-xs">
+            <v-icon icon="mdi-shield-alert-outline" size="18" />
+          </span>
+          <span>ระบบบริหารจัดการเหตุการณ์แจ้งเตือน (Alert Workflow)</span>
         </h3>
-        <p class="text-[13px] text-[#718078] mt-1 font-medium">ติดตามสถานะการแจ้งเตือนและบันทึกประวัติ (Audit Log)</p>
+        <p class="text-[13px] text-[#718078] mt-1 font-medium">
+          จัดการกระบวนการตอบสนองต่อสภาวะวิกฤตความร้อน (New &rarr; Acknowledged &rarr; Resolved)
+        </p>
       </div>
-      <button class="text-sm font-bold text-[#d87939] hover:text-[#c2682b] transition-colors">
-        ดูประวัติทั้งหมด &rarr;
-      </button>
+
+      <NuxtLink 
+        to="/Admin/farms" 
+        class="text-xs font-bold text-[#d87939] hover:text-[#b85b20] transition-colors flex items-center gap-1 self-start sm:self-auto">
+        <span>ดูฟาร์มทั้งหมด</span>
+        <v-icon icon="mdi-arrow-right" size="14" />
+      </NuxtLink>
     </div>
 
+    <!-- Alert Items Table Container -->
     <div class="overflow-x-auto flex-1 p-2">
-      <table class="w-full text-left whitespace-nowrap">
+      <table class="w-full text-left whitespace-nowrap text-xs">
         <thead>
-          <tr>
-            <th class="px-6 py-4 text-[11px] font-black text-[#718078] uppercase tracking-[0.1em]">ฟาร์ม / เกษตรกร</th>
-            <th class="px-6 py-4 text-[11px] font-black text-[#718078] uppercase tracking-[0.1em]">สถานะสภาวะ (Issue)</th>
-            <th class="px-6 py-4 text-[11px] font-black text-[#718078] uppercase tracking-[0.1em]">Workflow Status</th>
-            <th class="px-6 py-4 text-[11px] font-black text-[#718078] uppercase tracking-[0.1em] text-right">เวลา</th>
+          <tr class="text-[#718078] font-black uppercase text-[11px] tracking-wider border-b border-[#f0f4f2]">
+            <th class="px-6 py-4">ฟาร์ม / อุปกรณ์</th>
+            <th class="px-6 py-4">สภาวะความร้อน (Thermal Issue)</th>
+            <th class="px-6 py-4">ขั้นตอนรับมือ (Workflow)</th>
+            <th class="px-6 py-4 text-right">เวลาตรวจพบ</th>
+            <th class="px-4 py-4 text-center">ดูฟาร์ม</th>
           </tr>
         </thead>
-        <tbody class="text-[#4e6057]">
-          <!-- Row 1: New -->
-          <tr class="hover:bg-white transition-colors group cursor-pointer border-b border-[#24433a]/5 last:border-0 rounded-2xl bg-red-50/30">
-            <td class="px-6 py-4 rounded-l-2xl">
-              <div class="flex items-center gap-4">
-                <div class="w-11 h-11 rounded-[14px] bg-[#edf3ed] text-[#24433a] flex items-center justify-center font-black text-xs border border-white shadow-sm group-hover:scale-110 transition-transform">
-                  F01
+        <tbody class="divide-y divide-[#f0f4f2]">
+          <tr 
+            v-for="(alert, index) in localAlerts" 
+            :key="alert.id || index"
+            class="hover:bg-white/90 transition-colors group"
+            :class="{ 'bg-rose-50/20': alert.status === 'new' && alert.level === 'critical' }">
+            
+            <!-- Farm Details -->
+            <td class="px-6 py-4">
+              <div class="flex items-center gap-3.5">
+                <div 
+                  class="w-10 h-10 rounded-[12px] flex items-center justify-center font-black text-xs border shadow-sm flex-shrink-0"
+                  :class="alert.level === 'critical' 
+                    ? 'bg-rose-50 text-rose-700 border-rose-200' 
+                    : alert.level === 'moderate' 
+                    ? 'bg-orange-50 text-orange-700 border-orange-200'
+                    : 'bg-amber-50 text-amber-700 border-amber-200'">
+                  {{ alert.farm_code || 'F0' + (index + 1) }}
                 </div>
                 <div>
-                  <p class="font-black text-[#24433a] text-[15px]">ฟาร์มสมชาย โคนมไทย</p>
-                  <p class="text-[13px] font-medium text-[#718078] mt-0.5">สมชาย มั่งมี (ESP32-01)</p>
+                  <p class="font-black text-[#24433a] text-[13.5px]">
+                    {{ alert.name_farms }}
+                  </p>
+                  <p class="text-[11.5px] font-medium text-[#718078] mt-0.5 font-mono">
+                    Node: {{ alert.serial_no }}
+                  </p>
                 </div>
               </div>
             </td>
+
+            <!-- Issue Level Badge -->
             <td class="px-6 py-4">
-              <span class="inline-flex items-center px-3 py-1.5 rounded-[10px] text-[12px] font-bold bg-[#fff0f0] text-[#e04f4f] border border-[#e04f4f]/20">
-                วิกฤต THI 84 (Severe)
+              <span 
+                class="inline-flex items-center gap-1.5 px-3 py-1 rounded-[10px] text-[11px] font-bold border"
+                :class="getIssueBadgeClass(alert.level)">
+                <span class="w-1.5 h-1.5 rounded-full" :class="getIssueDotClass(alert.level)"></span>
+                <span>{{ alert.level_label }}</span>
               </span>
             </td>
+
+            <!-- Interactive Workflow Status Button -->
             <td class="px-6 py-4">
-              <button class="px-4 py-1.5 rounded-full text-[12px] font-bold bg-[#e04f4f] text-white shadow-sm hover:bg-[#c43a3a] transition-colors flex items-center gap-1.5">
+              <!-- Case: New -->
+              <button 
+                v-if="alert.status === 'new'"
+                type="button"
+                @click="transitionAlert(alert, 'acknowledged')"
+                title="คลิกเพื่อบันทึกว่ารับทราบเหตุการณ์แล้ว"
+                class="px-3.5 py-1.5 rounded-full text-[11px] font-black bg-rose-500 hover:bg-rose-600 text-white shadow-sm flex items-center gap-1.5 transition-all cursor-pointer">
                 <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
-                ใหม่ (New)
+                <span>ใหม่ (คลิกรับทราบ)</span>
               </button>
+
+              <!-- Case: Acknowledged -->
+              <button 
+                v-else-if="alert.status === 'acknowledged'"
+                type="button"
+                @click="transitionAlert(alert, 'resolved')"
+                title="คลิกเมื่อดำเนินการแก้ไขเรียบร้อยแล้ว"
+                class="px-3.5 py-1.5 rounded-full text-[11px] font-bold bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-300 flex items-center gap-1.5 transition-all cursor-pointer">
+                <v-icon icon="mdi-account-check-outline" size="14" />
+                <span>รับทราบแล้ว (คลิกปิดงาน)</span>
+              </button>
+
+              <!-- Case: Resolved -->
+              <span 
+                v-else
+                class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                <v-icon icon="mdi-check-circle-outline" size="14" class="text-emerald-600" />
+                <span>แก้ไขแล้ว (Resolved)</span>
+              </span>
             </td>
-            <td class="px-6 py-4 text-right text-[#718078] text-[13px] font-bold rounded-r-2xl">2 นาทีที่แล้ว</td>
+
+            <!-- Time Detected -->
+            <td class="px-6 py-4 text-right text-[#718078] text-[12px] font-bold">
+              {{ formatAlertTime(alert.recorded_at) }}
+            </td>
+
+            <!-- View Farm Link -->
+            <td class="px-4 py-4 text-center">
+              <NuxtLink 
+                :to="'/Admin/farm_detail-' + alert.id"
+                title="ดูรายละเอียดฟาร์มนี้"
+                class="w-8 h-8 rounded-[10px] bg-white border border-[#e5ece9] hover:border-[#24433a]/30 text-[#24433a] hover:bg-[#edf3ed] inline-flex items-center justify-center transition-all shadow-sm">
+                <v-icon icon="mdi-chevron-right" size="18" />
+              </NuxtLink>
+            </td>
+
           </tr>
-          <!-- Row 2: Ack -->
-          <tr class="hover:bg-white transition-colors group cursor-pointer border-b border-[#24433a]/5 last:border-0 rounded-2xl">
-            <td class="px-6 py-4 rounded-l-2xl">
-              <div class="flex items-center gap-4">
-                <div class="w-11 h-11 rounded-[14px] bg-[#edf3ed] text-[#24433a] flex items-center justify-center font-black text-xs border border-white shadow-sm group-hover:scale-110 transition-transform">
-                  F12
-                </div>
-                <div>
-                  <p class="font-black text-[#24433a] text-[15px]">โคนมแสงทอง สหกรณ์</p>
-                  <p class="text-[13px] font-medium text-[#718078] mt-0.5">แสงดาว ศรีสุข (ESP32-12)</p>
-                </div>
-              </div>
+
+          <!-- Empty State -->
+          <tr v-if="localAlerts.length === 0">
+            <td colspan="5" class="py-12 text-center text-[#718078]">
+              <v-icon icon="mdi-shield-check" size="36" class="text-emerald-500 block mx-auto mb-2" />
+              <p class="font-bold text-[14px] text-[#24433a]">ทุกฟาร์มในระบบอยู่ในสภาวะปกติ</p>
+              <p class="text-xs text-[#718078] mt-0.5">ไม่มีรายการแจ้งเตือนสภาวะความร้อนวิกฤตที่ค้างอยู่</p>
             </td>
-            <td class="px-6 py-4">
-              <span class="inline-flex items-center px-3 py-1.5 rounded-[10px] text-[12px] font-bold bg-[#d87939]/10 text-[#d87939] border border-[#d87939]/20">
-                เริ่มได้รับผลกระทบ THI 76 (Mild)
-              </span>
-            </td>
-            <td class="px-6 py-4">
-              <span class="inline-flex items-center px-4 py-1.5 rounded-full text-[12px] font-bold bg-amber-100 text-amber-700 border border-amber-200">
-                รับทราบแล้ว (Ack)
-              </span>
-            </td>
-            <td class="px-6 py-4 text-right text-[#718078] text-[13px] font-bold rounded-r-2xl">45 นาทีที่แล้ว</td>
-          </tr>
-          <!-- Row 3: Resolved -->
-          <tr class="hover:bg-white transition-colors group cursor-pointer border-b border-[#24433a]/5 last:border-0 rounded-2xl opacity-70">
-            <td class="px-6 py-4 rounded-l-2xl">
-              <div class="flex items-center gap-4">
-                <div class="w-11 h-11 rounded-[14px] bg-[#edf3ed]/50 text-[#24433a]/50 flex items-center justify-center font-black text-xs border border-white">
-                  F08
-                </div>
-                <div>
-                  <p class="font-black text-[#24433a] text-[15px]">ฟาร์มลุงบุญมี เจริญฟาร์ม</p>
-                  <p class="text-[13px] font-medium text-[#718078] mt-0.5">บุญมี รักวัว (ESP32-08)</p>
-                </div>
-              </div>
-            </td>
-            <td class="px-6 py-4">
-              <span class="inline-flex items-center px-3 py-1.5 rounded-[10px] text-[12px] font-bold bg-gray-100 text-gray-600 border border-gray-200">
-                อุปกรณ์ออฟไลน์
-              </span>
-            </td>
-            <td class="px-6 py-4">
-              <span class="inline-flex items-center px-4 py-1.5 rounded-full text-[12px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><polyline points="20 6 9 17 4 12" /></svg>
-                แก้ไขแล้ว (Resolved)
-              </span>
-            </td>
-            <td class="px-6 py-4 text-right text-[#718078] text-[13px] font-bold rounded-r-2xl">3 ชม. ที่แล้ว</td>
           </tr>
         </tbody>
       </table>
     </div>
+
+    <!-- Footer Note -->
+    <div class="px-8 py-3 bg-[#fbfdfc] border-t border-[#f0f4f2] flex items-center justify-between text-[11px] text-[#718078]">
+      <span>* การกดเปลี่ยนสถานะจะบันทึก Audit Log เข้าสู่ระบบ AI ประจำฟาร์มโดยอัตโนมัติ</span>
+      <span class="font-bold text-[#24433a]">ทั้งหมด {{ localAlerts.length }} รายการ</span>
+    </div>
+
   </div>
 </template>
+
+<script setup>
+import { ref, watch } from 'vue'
+
+const props = defineProps({
+  alerts: {
+    type: Array,
+    default: () => []
+  },
+  isLoading: {
+    type: Boolean,
+    default: false
+  }
+})
+
+// Local reactive array to allow instant interactive transition
+const localAlerts = ref([])
+
+watch(
+  () => props.alerts,
+  (newAlerts) => {
+    if (newAlerts && newAlerts.length > 0) {
+      localAlerts.value = JSON.parse(JSON.stringify(newAlerts))
+    } else {
+      localAlerts.value = []
+    }
+  },
+  { immediate: true }
+)
+
+// Workflow transition trigger
+const transitionAlert = (alert, nextStatus) => {
+  alert.status = nextStatus
+}
+
+// Styling Helpers
+const getIssueBadgeClass = (level) => {
+  if (level === 'critical') return 'bg-rose-50 text-rose-700 border-rose-200'
+  if (level === 'moderate') return 'bg-orange-50 text-orange-700 border-orange-200'
+  return 'bg-amber-50 text-amber-700 border-amber-200'
+}
+
+const getIssueDotClass = (level) => {
+  if (level === 'critical') return 'bg-rose-500'
+  if (level === 'moderate') return 'bg-orange-500'
+  return 'bg-amber-500'
+}
+
+const formatAlertTime = (dateStr) => {
+  if (!dateStr) return 'เมื่อสักครู่'
+  try {
+    const d = new Date(dateStr)
+    return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.'
+  } catch {
+    return 'เมื่อสักครู่'
+  }
+}
+</script>
