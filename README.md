@@ -171,7 +171,7 @@ testYOLO26/
 ├── README.md                                   # เอกสารคู่มือและสถาปัตยกรรมระบบฉบับสมบูรณ์ (v3.0.0)
 ├── PROJECT_OVERVIEW.md                         # เอกสารสรุปภาพรวมเชิงวิชาการและสถาปัตยกรรม
 │
-├── backend/                                    # 🐍 AI Vision Backend (FastAPI + YOLO26m + ByteTrack)
+├── backend/                                    # AI Vision Backend (FastAPI + YOLO26m + ByteTrack)
 │   ├── app/
 │   │   ├── api/
 │   │   │   ├── detect.py                       # Endpoint ตรวจจับภาพนิ่ง
