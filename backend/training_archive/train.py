@@ -5,9 +5,10 @@ from pathlib import Path
 from ultralytics import YOLO
 
 
-BACKEND_DIR = Path(__file__).resolve().parent
+ARCHIVE_DIR = Path(__file__).resolve().parent
+BACKEND_DIR = ARCHIVE_DIR.parent
 WEIGHTS_DIR = BACKEND_DIR / "app" / "weights"
-DATASET_CONFIG = BACKEND_DIR / "cow-behavior-analysiws--2" / "data.yaml"
+DATASET_CONFIG = ARCHIVE_DIR / "cow-behavior-analysiws--2" / "data.yaml"
 BASE_MODEL = WEIGHTS_DIR / "yolo26m.pt"
 OUTPUT_NAME = "cow_behavior_yolo26m"
 

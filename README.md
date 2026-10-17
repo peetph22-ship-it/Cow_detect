@@ -182,7 +182,10 @@ testYOLO26/
 │   │   ├── active_learning_samples/            # โฟลเดอร์เก็บภาพความมั่นใจต่ำอัตโนมัติ (0.20 <= conf < 0.40)
 │   │   ├── weights/                            # โมเดล best1.pt, yolo26m.pt, farm_lstm.onnx, sample_barn.mp4
 │   │   └── main.py                             # FastAPI Entrypoint (:8000)
-│   └── ml_lstm/                                # โครงสร้างโมเดลและสคริปต์เทรน Bi-LSTM
+│   ├── ml_lstm/                                # โครงสร้างโมเดลและสคริปต์เทรน Bi-LSTM
+│   └── training_archive/                       # โฟลเดอร์จัดเก็บชุดข้อมูล Roboflow และสคริปต์เทรน YOLO
+│       ├── cow-behavior-analysiws--2/          # ชุดข้อมูลภาพและ Annotations สำหรับพฤติกรรมโคนม
+│       └── train.py                            # สคริปต์ Fine-tune YOLO26m บน Apple MPS / CUDA
 │
 ├── backend_node/                               # 🟩 Core API Backend (Node.js + Express + ONNX)
 │   ├── app/
