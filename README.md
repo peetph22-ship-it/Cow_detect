@@ -1,15 +1,15 @@
 # PH Detection System — Precision Herd Heat Stress & Cow Behavior Intelligence
 ### (CowCare AI Initiative for Tropical Dairy Farms)
 
-ระบบประเมิน ตรวจจับ และพยากรณ์ภาวะความเครียดจากความร้อน (**Heat Stress**) และพฤติกรรมโคนม ด้วยสถาปัตยกรรม **Multimodal Deep Learning & IoT Telemetry** (Computer Vision + IoT Microclimate + Bi-LSTM Temporal Attention + Daily Scheduled Batch) ออกแบบมาเพื่อยกระดับฟาร์มโคนมไทย (โดยเฉพาะเกษตรกรรายย่อย) เปลี่ยนรูปแบบการจัดการฟาร์มจาก **"ตั้งรับ (Reactive)" เป็น "เชิงรุก (Proactive Management)"** ป้องกันผลผลิตน้ำนมลดฮวบจากภาวะหน่วงทางชีวภาพ (Biological Lag Effect 5 วัน) และส่งเสริมมาตรฐานฟาร์มคาร์บอนต่ำ (ESG)
+ระบบประเมิน ตรวจจับ และพยากรณ์ภาวะความเครียดจากความร้อน (**Heat Stress**) และพฤติกรรมโคนม ด้วยสถาปัตยกรรม **Multimodal Deep Learning, Computer Vision (YOLO + ByteTrack) & IoT Telemetry** ออกแบบมาเพื่อยกระดับฟาร์มโคนมไทย (โดยเฉพาะเกษตรกรรายย่อย) เปลี่ยนรูปแบบการจัดการฟาร์มจาก **"ตั้งรับ (Reactive)" เป็น "เชิงรุก (Proactive Management)"** ป้องกันผลผลิตน้ำนมลดฮวบจากภาวะหน่วงทางชีวภาพ (Biological Lag Effect 5 วัน) และส่งเสริมมาตรฐานฟาร์มคาร์บอนต่ำ (ESG)
 
-[![System Version](https://img.shields.io/badge/Version-2.5.0-blue.svg)](https://github.com/)
+[![System Version](https://img.shields.io/badge/Version-3.0.0-emerald.svg)](https://github.com/)
 [![Nuxt 3](https://img.shields.io/badge/Nuxt-3.x-00DC82?logo=nuxt.js&logoColor=white)](https://nuxt.com/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Express](https://img.shields.io/badge/Express-5.x-000000?logo=express&logoColor=white)](https://expressjs.com/)
 [![ONNX Runtime](https://img.shields.io/badge/ONNX_Runtime-Node.js-005CED?logo=onnx&logoColor=white)](https://onnxruntime.ai/)
 [![PostgreSQL](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
-[![YOLO26](https://img.shields.io/badge/YOLO-26m-00FFFF?logo=yolo&logoColor=black)](https://ultralytics.com/)
+[![YOLO26](https://img.shields.io/badge/YOLO26m_+_ByteTrack-Vision_AI-00FFFF?logo=yolo&logoColor=black)](https://ultralytics.com/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 
 ---
@@ -18,8 +18,8 @@
 
 1. [ภาพรวมโครงการ (Project Overview)](#-ภาพรวมโครงการ-project-overview)
 2. [สถาปัตยกรรมระบบ 3 ชั้น (3-Layer Architecture)](#-สถาปัตยกรรมระบบ-3-ชั้น-3-layer-architecture)
-3. [สถาปัตยกรรมซอฟต์แวร์ (Microservices Ecosystem)](#-สถาปัตยกรรมซอฟต์แวร์-microservices-ecosystem)
-4. [ระบบ AI & Multimodal Bi-LSTM Predictive Brain](#-ระบบ-ai--multimodal-bi-lstm-predictive-brain)
+3. [การไหลของข้อมูลจากหน้าฟาร์มสู่ Cloud (Field-to-Cloud Data Flow)](#-การไหลของข้อมูลจากหน้าฟาร์มสู่-cloud-field-to-cloud-data-flow)
+4. [ระบบ AI, Multimodal Cross-Validation & Uncertainty Bands](#-ระบบ-ai-multimodal-cross-validation--uncertainty-bands)
 5. [ฟีเจอร์เด่นของระบบ (Core Features & Cockpit Modules)](#-ฟีเจอร์เด่นของระบบ-core-features--cockpit-modules)
 6. [เทคโนโลยีที่ใช้ (Tech Stack)](#-เทคโนโลยีที่ใช้-tech-stack)
 7. [โครงสร้างโปรเจกต์ (Project Structure)](#-โครงสร้างโปรเจกต์-project-structure)
@@ -33,158 +33,133 @@
 
 ## 🎯 ภาพรวมโครงการ (Project Overview)
 
-อิงจากงานวิจัยชีววิทยาโคนมเขตร้อนชื้นระดับสากลและในประเทศไทย (ปี 2019–2026) พบว่าโคนมตอบสนองต่อความร้อนสะสมด้วย **"ความหน่วงทางชีวภาพ (Biological Lag Effect)"** โดยผลผลิตน้ำนมมักจะดิ่งลงต่ำสุดใน **5 วัน** หลังจากสัมผัสความร้อนจัด (Hasan et al., 2026; Abdourhamane, 2026) นอกจากนี้ หากค่า THI ในช่วงเวลากลางคืน (00:00–06:00 น.) ไม่ลดลงต่ำกว่าเกณฑ์ แม่โคจะไม่สามารถคายความร้อนสะสมได้ (Night Recovery Failure - Mylostyvyi, 2026)
+อิงจากงานวิจัยชีววิทยาโคนมเขตร้อนชื้นระดับสากลและในประเทศไทย (Boonkum et al., 2024; Hasan et al., 2026; Abdourhamane, 2026) โคนมตอบสนองต่อความร้อนสะสมด้วย **"ความหน่วงทางชีวภาพ (Biological Lag Effect)"** โดยผลผลิตน้ำนมจะดิ่งลงต่ำสุดใน **5 วัน** หลังจากสัมผัสความร้อนจัด และหากค่า THI ในช่วงเวลากลางคืน (00:00–06:00 น.) ไม่ลดลงต่ำกว่าเกณฑ์ แม่โคจะไม่สามารถคายความร้อนสะสมได้ (Night Recovery Failure - Mylostyvyi, 2026)
 
 | หัวข้อ | รายละเอียดเชิงวิชาการและบริบทจริง |
 |---|---|
-| **ปัญหาหลัก** | โคนมลูกผสมไทยต้องเผชิญกับ **THI ≥ 76 สูงถึง 250 วันต่อปี** ซึ่งเป็นจุดวิกฤตที่ทำให้ผลผลิตน้ำนมเริ่มลดลงเฉลี่ย **0.45 กก./THI unit**, อัตราผสมติดดิ่งลง, เสี่ยงเกิดภาวะ Subclinical Rumen Acidosis (FPR < 1.2) และทำให้วัวปล่อยก๊าซมีเทนต่อกิโลกรัมนม (**Methane Intensity**) สูงขึ้นถึง **17.5%** นอกจากนี้ ฟาร์มรายย่อยกว่า 80% มีข้อจำกัดเรื่องโรงเรือนเตี้ย (เฉลี่ย 2.7 ม.) และใช้หลังคาสังกะสีสะสมความร้อน (Tikul & Prachum, 2019) |
-| **กลุ่มเป้าหมาย** | เกษตรกรผู้เลี้ยงโคนมรายย่อยในไทย ซึ่งส่วนใหญ่เป็นผู้สูงวัย ไม่มีเงินทุนติดตั้งอุปกรณ์สวมใส่ราคาแพง (Wearable Sensors / Ruminal Bolus) ก่อให้เกิดภาวะ **Digital Divide** และไม่สะดวกลงบันทึกตัวเลขน้ำนมดิบรายวัน |
-| **แนวทางแก้ไข** | พัฒนาระบบเฝ้าระวังแบบไม่สัมผัสตัวสัตว์ (**Non-invasive Multimodal Sensing**) ด้วยกล้อง CCTV + Edge YOLO + IoT เซ็นเซอร์อุตสาหกรรม เชื่อมต่อกับ **Multimodal Bi-LSTM ONNX Engine** (Latency < 5ms) รันสรุปผลอัตโนมัติวันละ 1 ครั้ง (20:00 น.) และคำนวณ **Zero-Input Milk Loss Proxy** โดยไม่ต้องรบกวนให้เกษตรกรกรอกข้อมูลน้ำนมดิบ |
+| **ปัญหาหลัก** | โคนมลูกผสมไทย (Thai-Friesian) ต้องเผชิญกับ **THI ≥ 76 สูงถึง 250 วันต่อปี** ทำให้ผลผลิตน้ำนมลดลงเฉลี่ย **0.45 กก./THI unit**, อัตราผสมติดดิ่งลง และปล่อยก๊าซมีเทนต่อกิโลกรัมนม (**Methane Intensity**) สูงขึ้นถึง **17.5%** ขณะที่ฟาร์มรายย่อยกว่า 80% มีโรงเรือนเตี้ย (เฉลี่ย 2.7 ม.) และใช้หลังคาสังกะสีสะสมความร้อน (Tikul & Prachum, 2019) |
+| **กลุ่มเป้าหมาย** | เกษตรกรผู้เลี้ยงโคนมรายย่อยในไทย ซึ่งไม่มีทุนทรัพย์ติดตั้งอุปกรณ์สวมใส่ราคาแพง (Wearable Collars / Ruminal Bolus) และไม่สะดวกลงบันทึกปริมาณน้ำนมดิบรายวันด้วยตนเอง |
+| **แนวทางแก้ไข** | พัฒนาระบบเฝ้าระวังแบบไม่สัมผัสตัวสัตว์ (**Non-invasive Multimodal Sensing**) ด้วยกล้องวงจรปิด IP Camera + YOLO ByteTrack + เซ็นเซอร์อุตสาหกรรม ESP32-S3 เชื่อมต่อกับ **Multimodal Bi-LSTM ONNX Engine** พร้อมระบบ **Cross-Validation Gate & Fail-Safe Engine** และคำนวณ **Zero-Input Milk Loss Proxy** อัตโนมัติ 100% |
 
 ---
 
 ## 🏗️ สถาปัตยกรรมระบบ 3 ชั้น (3-Layer Architecture)
 
-ออกแบบด้วยแนวคิด **Edge-to-Cloud Precision Livestock Farming (PLF)**:
-
 ```mermaid
 flowchart TD
-    subgraph Layer1["1. SENSE — การรับรู้ข้อมูลแบบพหุวิถี (Edge & IoT)"]
+    subgraph Layer1["1. SENSE — การรับรู้ข้อมูลหน้าฟาร์มโดยไม่ต้องใช้คอมพิวเตอร์ (Computerless Smart Barn)"]
         direction LR
-        S1["ESP32-S3 + SHT40 / AHT20<br/>(อุณหภูมิ, ความชื้น, คำนวณ THI NRC 1971)"]
-        S2["กล้อง CCTV / RTSP Stream<br/>(FastAPI :8000 + YOLO26m / best1.pt)"]
+        S1["ESP32-S3 N16R8 + SHT40 / AHT20<br/>(วัดอุณหภูมิ, ความชื้น, คำนวณ THI NRC 1971)"]
+        S2["กล้องวงจรปิด Hikvision IP Camera<br/>(ส่งสตรีม RTSP Sub-Stream 360p)"]
+        WIFI["4G Pocket Wi-Fi / Router<br/>(แชร์เน็ตให้ทั้ง ESP32 และกล้อง)"]
+        S1 --> WIFI
+        S2 --> WIFI
     end
 
-    subgraph Layer2["2. RECOMMEND — ปัญญาประดิษฐ์พยากรณ์และคำแนะนำ (Intelligence Core)"]
+    subgraph Layer2["2. RECOMMEND — สมองกล AI และการตรวจสอบไขว้พหุวิถี (Cloud Intelligence Core)"]
         direction LR
-        A1["Supabase PostgreSQL<br/>(ACID Transactions, Time-Series)"]
-        A2["Multimodal Bi-LSTM + Attention<br/>(farm_lstm.onnx รันตรงบน Node.js < 5ms)"]
-        A3["Daily Scheduled Batch (20:00 น.)<br/>(tb_farm_daily_summaries)"]
+        FAST["FastAPI Vision Engine (:8000)<br/>(YOLO26m + ByteTrack + Spatial ROI)"]
+        NODE["Node.js Core Backend (:4001)<br/>(Multimodal Gate + Bi-LSTM ONNX + Cron 20:00)"]
+        DB[("Supabase PostgreSQL<br/>(เก็บเฉพาะข้อมูล JSON & Telemetry)")]
+        FAST -->|แปลงภาพเป็น JSON Telemetry| NODE
+        NODE <--> DB
     end
 
-    subgraph Layer3["3. CAPITALIZE — แดชบอร์ดเชิงรุกและการเพิ่มมูลค่า (Cockpit & Proactive Action)"]
+    subgraph Layer3["3. CAPITALIZE — แดชบอร์ดเชิงรุกและสภาพแวดล้อมจำลอง (Nuxt 3 Bento Cockpit)"]
         direction LR
-        D1["Executive Command Center<br/>(Bento Grid Dashboard)"]
-        D2["Smart Barn Telemetry Cockpit<br/>(Hero LSTM, 72h Lookback, ApexCharts)"]
-        D3["Precision Farm Roster<br/>(3-Tab Filter: Active / Pending)"]
+        D1["Executive Command Center<br/>(/Admin)"]
+        D2["Smart Barn Real-Data Cockpit<br/>(/Admin/farms/farm_detail-id)"]
+        D3["Standalone Simulation Lab<br/>(/Admin/simulation)"]
     end
 
-    Layer1 --> Layer2
+    WIFI --> Layer2
     Layer2 --> Layer3
 ```
 
-1. **Sense (การรับรู้ข้อมูล):**
-   - **Environmental IoT:** ESP32-S3 + เซ็นเซอร์ **SHT40 / AHT20** ส่งสัญญาณผ่าน HTTP POST เข้ามาที่ `/api/Admin/sensors/data` คำนวณค่า **THI (NRC 1971)** สดตามจริง (ไม่บวกค่าชดเชยโรงเรือนทับลงในค่าสด)
-   - **Edge Vision AI:** กล้องวงจรปิดตรวจจับพฤติกรรมโคนมด้วยโมเดล **YOLO26m** (`best1.pt`: ยืน, นอน, กินน้ำ, กินอาหาร, หายใจหอบ) แปลงเป็นสัดส่วนการยืน (`standing_ratio`) และอัตราการหอบ (`panting_rate`)
-2. **Recommend (การประมวลผลและการพยากรณ์):**
-   - **Multimodal Bi-LSTM with Temporal Attention:** วิเคราะห์ Time-Series 72 ชม. ย้อนหลัง ผสานกับพฤติกรรมสัตว์และคุณลักษณะโรงเรือน พยากรณ์ THI และความเสี่ยงน้ำนมลดล่วงหน้า 3 วัน
-   - **Daily Scheduled Batch Job (20:00 น. ทุกวัน):** รันอัตโนมัติด้วย `node-cron` บันทึกค่าสถิติประจำวัน, ค่าเปรียบเทียบเมื่อวาน, ดัชนี Night Recovery และผลพยากรณ์ลงตาราง `tb_farm_daily_summaries`
-   - **Context-Aware Seasonal Advisory:** ปรับคำแนะนำตามฤดูกาล (เช่น ฤดูฝนชื้นจัด $\ge 75\%$ แนะนำเปิดพัดลมแรงสุดแต่งดเปิดระบบพ่นหมอก เพื่อป้องกันเต้านมอักเสบ)
-3. **Capitalize (การสร้างคุณค่าและบริหารจัดการ):**
-   - แดชบอร์ด Nuxt 3 แสดงผลค่าเฝ้าระวังแบบ Bento Grid พร้อม Data Gap Alert ตรวจจับสัญญาณหลุด
-   - Digital Audit Log รองรับการขอมาตรฐานฟาร์มคาร์บอนต่ำ (ESG) และการประเมินสินเชื่อสีเขียว
-
 ---
 
-## 🧩 สถาปัตยกรรมซอฟต์แวร์ (Microservices Ecosystem)
+## 🌐 การไหลของข้อมูลจากหน้าฟาร์มสู่ Cloud (Field-to-Cloud Data Flow)
 
-```mermaid
-flowchart LR
-    Browser["เว็บเบราว์เซอร์ / ผู้ใช้งาน"] -->|Port 3000| Nuxt["Frontend: Nuxt 3 + Vuetify 3 + Tailwind"]
-    
-    Nuxt -->|REST API / Auth / Admin| Node["API Backend: Node.js (Express) :4001"]
-    Nuxt -->|REST / Stream| Fast["AI Backend: FastAPI :8000"]
-    
-    Node -->|SQL Query / Pool| DB[("Supabase PostgreSQL")]
-    Node -->|Inference < 5ms| ONNX["ONNX Engine (farm_lstm.onnx)"]
-    Fast -->|YOLO26m Inference| Weights["Model Weights (best1.pt)"]
-    
-    ESP32["ESP32-S3 IoT Hardware"] -->|HTTP POST /api/Admin/sensors/data| Node
-    Camera["กล้อง CCTV / RTSP"] -->|Video Feed / Stream| Fast
+ในฟาร์มจริง **ไม่ต้องมีคอมพิวเตอร์ตั้งอยู่ที่คอกวัว** อุปกรณ์หน้าฟาร์มใช้เพียง **ปลั๊กไฟ + Pocket Wi-Fi ใส่ซิม 4G 1 ตัว** เพื่อส่งข้อมูลเข้าสู่ระบบ:
+
+### 1. ฝั่งเซ็นเซอร์ IoT (ESP32-S3 N16R8)
+1. บอร์ด **ESP32-S3** เชื่อมต่อ Wi-Fi จาก Pocket Wi-Fi
+2. อ่านค่าอุณหภูมิและความชื้น แล้วส่งข้อมูลเป็น **`JSON`** ผ่าน HTTP POST ไปยัง Node.js Backend (`/api/Admin/sensors/data`) เพื่อบันทึกลง **Supabase**
+3. **Dynamic Heartbeat:** หากไฟดับหรือถอดปลั๊ก ESP32 เกิน **2 นาที** ระบบจะเปลี่ยนสถานะอุปกรณ์เป็น **`Offline` (ออฟไลน์)** บนหน้าเว็บโดยอัตโนมัติทันที
+
+### 2. ฝั่งกล้องวงจรปิด (IP Camera ➔ Python YOLO ➔ JSON ➔ Supabase)
+1. **กล้องถ่ายภาพดิบ:** กล้องวงจรปิด (Hikvision IP Camera) ที่ผูกไว้กับฟาร์ม ส่งสัญญาณภาพวิดีโอ **RTSP Stream** ผ่าน Pocket Wi-Fi
+2. **Python (FastAPI :8000) รับภาพมาประมวลผล AI:**
+   - โมเดล **YOLO26m + ByteTrack** ตรวจจับและนับจำนวนแม่โค (`standing`, `lying down`, `feeding`, `drinking`)
+   - คำนวณดัชนีความสบายของฝูงโค (**Cow Comfort Index - CCI**)
+3. **แปลงภาพเป็นก้อน `JSON`:**
+   - เมื่อประมวลผลเสร็จ Python จะสร้างผลลัพธ์เป็น **`JSON`** ส่งต่อไปยัง Node.js เพื่อบันทึกลงตาราง `cctv_behavior_telemetry` ใน **Supabase** พร้อมส่งสตรีมภาพที่ตีกรอบแล้ว (Detection Stream) ไปแสดงบนหน้าเว็บ
+
+```json
+{
+  "farm_id": "63e1196a-0a67-479f-8743-2d2e2cafd767",
+  "total_cows_detected": 6,
+  "standing_count": 2,
+  "lying_count": 3,
+  "feeding_count": 1,
+  "drinking_count": 0,
+  "cow_comfort_index": 75.0,
+  "ai_confidence_avg": 0.88
+}
 ```
 
-| Service | Container Name | Port | เทคโนโลยีหลัก | หน้าที่สำคัญ |
-|---|---|---|---|---|
-| **Frontend** | `cow_detect_frontend` | `3000` | Nuxt 3, Vue 3, Tailwind CSS, Vuetify 3, ApexCharts | เว็บแอปพลิเคชันระบบ Admin Command Center, Cockpit เฝ้าระวังฟาร์ม, และ Farm Roster |
-| **API Backend** | `cow_detect_node` | `4001` | Node.js (LTS), Express 5, onnxruntime-node, node-cron, pg | Business Logic, Telemetry Ingestion, Daily Batch 20:00 น., ONNX Inference, ACID Transactions |
-| **AI Backend** | `cow_detect_backend` | `8000` | FastAPI, Uvicorn, Ultralytics YOLO26m, OpenCV | AI Inference สำหรับวิเคราะห์พฤติกรรมโคนมจากภาพนิ่ง และ Live Video MJPEG Stream |
-| **Database** | *Cloud Managed* | `5432/6543` | PostgreSQL (Supabase) + PgBouncer | จัดเก็บตารางผู้ใช้ (`tb_users`), ฟาร์ม (`tb_farms`), อุปกรณ์ (`tb_devices`), เซนเซอร์ (`tb_sensor_readings`), สรุปรายวัน (`tb_farm_daily_summaries`) |
-
 ---
 
-## 🧠 ระบบ AI & Multimodal Bi-LSTM Predictive Brain
+## 🧠 ระบบ AI, Multimodal Cross-Validation & Uncertainty Bands
 
-ระบบขับเคลื่อนด้วยโมเดล **True Deep Learning** ประสิทธิภาพสูง:
+### 1. Vision Accuracy Recovery & Active Learning (`Port 8000`)
+- **Spatial ROI-Assisted Classification:** แก้ปัญหาเหล็กกั้นคอก (Stanchion Bars) บังตัววัวขณะก้มกินอาหารหรือดื่มน้ำ หากรหัสติดตามตัววัว (`track_id` จาก ByteTrack `MOTA: 81.2%`) มีจุดศูนย์กลางอยู่ในเขต `feed_bunk_roi` หรือ `water_trough_roi` ต่อเนื่อง $\ge 60$ วินาที ระบบจะช่วยเพิ่มค่าความมั่นใจ `+0.15` (สูงสุด `0.99`) และระบุพฤติกรรมเป็น `feeding` หรือ `drinking` อย่างแม่นยำ
+- **Active Learning Auto-Sampler:** เมื่อพบเฟรมที่มีความมั่นใจต่ำ (`0.20 <= ai_confidence_avg < 0.40`) จากแสงสะท้อนหรือฝุ่น ระบบจะเซฟภาพพร้อมไฟล์ JSON Annotation ลง `backend/app/active_learning_samples/` อัตโนมัติ (จำกัดไม่เกิน 50 ภาพ/วัน/กล้อง) เพื่อนำไปเทรนโมเดลต่อยอด
 
-### 1. สถาปัตยกรรมโมเดล ([`backend/ml_lstm/model.py`](file:///Users/phattaradanai/Desktop/testYOLO26/backend/ml_lstm/model.py))
-- **Temporal Input (`x_temporal`):** Shape `[batch, 72, 10]` อนุกรมเวลาย้อนหลัง 72 ชม. (3 วัน) ครอบคลุม:
-  `temperature_c`, `humidity_pct`, `thi`, `thi_rate_of_change`, `accumulated_heat_hours`, `night_recovery_thi`, `hour_sin`, `hour_cos`, `standing_ratio`, `panting_rate`
-- **Static Input (`x_static`):** Shape `[batch, 3]` คุณลักษณะโรงเรือน:
-  `barn_height_m`, `roof_type_id`, `cooling_type_id`
-- **เครือข่ายประสาท:** Bi-LSTM (2 Layers, 128 Hidden) + Temporal Attention Mechanism + Static Dense Fusion
-- **Multi-Output Heads:**
-  1. `predicted_thi` `[batch, 3]`: พยากรณ์ค่า THI ล่วงหน้า 3 วัน (Day +1, +2, +3)
-  2. `predicted_milk_loss` `[batch, 3]`: คำนวณความเสี่ยงน้ำนมลดเชิงทฤษฎี (กก./ตัว/วัน)
-  3. `risk_logits` `[batch, 3, 4]`: จำแนกระดับความเสี่ยง 4 ระดับตามเกณฑ์ไทย
-  4. `attention_weights` `[batch, 72, 1]`: ระบุน้ำหนักชั่วโมงวิกฤตของวัน
+### 2. Multimodal Cross-Validation Gate & Fail-Safe Engine (`Port 4001`)
+ระบบตรวจสอบไขว้ระหว่าง **ค่าเซ็นเซอร์ IoT** และ **ผลตรวจจับจากกล้อง AI** ([`multimodalValidationService.js`](file:///Users/phattaradanai/Desktop/testYOLO26/backend_node/app/services/multimodalValidationService.js)):
+- 🟢 **Case A — `MULTIMODAL_VERIFIED`:** เซ็นเซอร์และกล้องเห็นตรงกันว่าเกิดความเครียดความร้อน (`THI >= 76.0` และ `CCI < 70%`) คำนวณความเชื่อมั่นรวมด้วยสมการ $P_{\text{final}} = 1 - (1 - P_{\text{sensor}})(1 - P_{\text{vision}})$
+- 🟡 **Case B — `SENSOR_DRIFT_SUSPECTED` (ป้องกันแจ้งเตือนหลอก):** เซ็นเซอร์รายงานค่าความร้อนสูง (`THI >= 80.0`) แต่กล้อง AI มองเห็นชัดเจน (`conf >= 0.50`) และพบว่าแม่โคนอนพักผ่อนสบาย (`CCI >= 75%`, ไม่หอบ) ระบบจะระงับการแจ้งเตือนฉุกเฉิน และเตือนให้เกษตรกรตรวจสอบว่าแดดส่องโดนกล่องเซ็นเซอร์โดยตรงหรือไม่
+- 🟠 **Case C — `FAILSAFE_THAI_HEURISTIC` (โหมดสำรองเมื่อกล้องมัว/ไม่ได้ติดกล้อง):** หากฟาร์มยังไม่ได้ติดตั้งกล้อง กล้องออฟไลน์ หรือเลนส์สกปรก (`conf < 0.40`) ในขณะที่ `THI >= 80.0` ระบบจะสลับไปใช้สมการฟิสิกส์โรงเรือนไทยจากเซ็นเซอร์ทันที เพื่อให้การแจ้งเตือนทำงานได้ 100% ไม่มีสะดุด
 
-### 2. กลไก Progressive Warm-up Engine
-แก้ปัญหา Cold-start สำหรับฟาร์มที่เพิ่งติดตั้งเซ็นเซอร์:
-- **ข้อมูล < 24 ชั่วโมง:** ใช้ Heuristic Fallback อิงค่าเฉลี่ยเซ็นเซอร์สด
-- **ข้อมูล 24–71 ชั่วโมง:** ใช้ Diurnal Padding จำลองวงจรความร้อนรายวันจนครบ 72 ชม.
-- **ข้อมูล ≥ 72 ชั่วโมง:** รัน Full Multimodal ONNX Bi-LSTM เต็มประสิทธิภาพ
-
-### 3. ประสิทธิภาพการรันบน Production
-- ไฟล์น้ำหนัก: [`backend/app/weights/farm_lstm.onnx`](file:///Users/phattaradanai/Desktop/testYOLO26/backend/app/weights/farm_lstm.onnx) (ขนาดเพียง **124 KB**)
-- รันด้วย `onnxruntime-node` ภายใน Node.js Backend **ความเร็วเฉลี่ย 4.2 ms ต่อการพยากรณ์** กินหน่วยความจำน้อยกว่า 15 MB
+### 3. Bi-LSTM 72-Hour Forecast & Empirical Uncertainty Bands
+พยากรณ์ล่วงหน้า 3 วันด้วยโมเดล `farm_lstm.onnx` พร้อมแถบความคลาดเคลื่อนมาตรฐาน (MAE Uncertainty Bands):
+- **Day +1 (+24h):** `Predicted THI ±0.58` | `Milk Risk ±0.19 kg` (`Confidence: 95.8%`)
+- **Day +2 (+48h):** `Predicted THI ±0.84` | `Milk Risk ±0.28 kg` (`Confidence: 91.2%`)
+- **Day +3 (+72h):** `Predicted THI ±1.18` | `Milk Risk ±0.39 kg` (`Confidence: 86.4%`)
 
 ---
 
 ## 🌟 ฟีเจอร์เด่นของระบบ (Core Features & Cockpit Modules)
 
 ### 1. 🎛️ Executive Agritech Command Center (`/Admin`)
-- **Bento Grid Dashboard:** รวมศูนย์ข้อมูลการดำเนินงานระดับเครือข่าย คำนวณค่าจริงจากฐานข้อมูล Supabase แบบ Real-time
-- **4 Bento KPI Cards:** ฟาร์มทั้งหมด, อัตราออนไลน์ของฮาร์ดแวร์ IoT %, THI เฉลี่ยเครือข่าย, และรายการแจ้งเตือนความร้อนที่ต้องติดตาม
-- **Interactive Network Charts:** กราฟ THI เครือข่ายเทียบกับค่าพยากรณ์ และ Donut Chart สัดส่วนระดับความเสี่ยง 4 ระดับ
+- แดชบอร์ดภาพรวมระดับเครือข่ายแบบ Bento Grid แสดง KPI ฟาร์มทั้งหมด, อัตราออนไลน์ของอุปกรณ์ IoT ตามเวลาจริง, THI เฉลี่ยเครือข่าย และรายการแจ้งเตือนความร้อน
 
-### 2. 📊 Smart Barn Telemetry Cockpit (`/Admin/farm_detail-[id]`)
-- **Data Gap Alert Banner:** แบนเนอร์สีส้มแจ้งเตือนทันทีเมื่อกล่อง IoT ไม่ส่งสัญญาณเกิน 10 นาที พร้อมระบุระยะเวลาที่สัญญาณขาดหายอย่างแม่นยำ
-- **Hero Telemetry Bento (12 คอลัมน์):** ค่า THI ขนาดใหญ่, แถบสถานะความเสี่ยงตามเกณฑ์ไทย, และคำแนะนำฉุกเฉิน
-- **AI LSTM Predictive Brain Section:**
-  - 3 Bento Cards พยากรณ์ล่วงหน้า 3 วัน (Day +1, +2, +3)
-  - แถบ **ความเสี่ยงน้ำนมลดคาดการณ์ (กก./ตัว/วัน)** ตามหลัก Biological Lag Effect 5 วัน
-  - แผนจัดการเชิงรุก (Proactive Strategy) ระบุเวลาเปิดพัดลมพ่นหมอกล่วงหน้า
-  - ป้ายแสดงสถานะ **สรุปผลรายวัน (Batch 20:00 น.)**, ค่าเปรียบเทียบเมื่อวาน, ค่า Night Recovery และปุ่ม **"รันสรุปประจำวัน (Daily Job)"**
-- **Interactive Telemetry ApexCharts:** กราฟความละเอียดสูงพร้อมระบบตัดข้อมูลส่วนที่ขาดหาย ไม่พล็อตกราฟหลอก
-- **Real-Time Lightweight Polling:** Polling ทุก 8 วินาทีผ่าน `/api/Admin/farms/:id/latest` (แพ็กเก็ตเพียง ~200 bytes) ลดภาระระบบกว่า 95%
+### 2. 📋 Precision Farm Roster & Direct Camera Binding (`/Admin/farms`)
+- **ผูกกล้องวงจรปิดตั้งแต่สร้าง/แก้ไขฟาร์ม:** ใน Modal เพิ่มฟาร์ม ([`AddFarmModal.vue`](file:///Users/phattaradanai/Desktop/testYOLO26/frontend/app/components/Admin/farm/AddFarmModal.vue)) และแก้ไขฟาร์ม ([`EditFarmModal.vue`](file:///Users/phattaradanai/Desktop/testYOLO26/frontend/app/components/Admin/farm/EditFarmModal.vue)) สามารถเปิดสวิตช์ผูกกล้อง Hikvision IP Camera (ชื่อกล้อง, IP Address, RTSP Port, Username, Password) พร้อมบันทึกใน ACID Transaction เดียวกันทันที
+- **3-Tab Quick Filter:** แยกฟาร์มทั้งหมด (All), ฟาร์มที่ออนไลน์ปกติ (Active), และฟาร์มที่อุปกรณ์ออฟไลน์/รอเชื่อมต่อ (Pending)
 
-### 3. 📋 Precision Agritech Bento Farm Roster (`/Admin/farms`)
-- **3-Tab Quick Filter:**
-  - **ฟาร์มทั้งหมด (All):** แสดงทุกฟาร์มในระบบ
-  - **ออนไลน์ / รับส่งข้อมูลปกติ (Active):** แสดงเฉพาะฟาร์มที่เซ็นเซอร์ส่งข้อมูลสม่ำเสมอ (< 10 นาที)
-  - **รอเชื่อมต่อ / อุปกรณ์ขัดข้อง (Pending):** แยกฟาร์มที่ยังไม่ได้ติดตั้งอุปกรณ์ หรืออุปกรณ์ออฟไลน์ออกมาต่างหาก
-- **Dual View & Sub-Barn Grouping:** สลับมุมมอง Table View และ Bento Grid View รองรับการแสดงผลฟาร์มที่มีหลายโรงเรือนย่อย (`barn_unit`) และหลายอุปกรณ์โดยไม่มีการ์ดซ้ำซ้อน
-- **Interactive THI Filter Strip:** กรองด่วน 4 สถานะ: ทั้งหมด, ปกติ (<76), เฝ้าระวัง (76–83.9), วิกฤต (≥84)
+### 3. 📊 Smart Barn Real-Data Cockpit (`/Admin/farms/farm_detail-[id]`)
+- **แสดงเฉพาะข้อมูลจริง 100% (`is_simulation = FALSE`):** แยกข้อมูลจริงออกจากโหมดจำลองอย่างเด็ดขาด
+- **Direct Bound Camera Stream:** ตัด Dropdown เลือกกล้องออกทั้งหมด โดยดึงภาพสตรีมตรงจากกล้องประจำฟาร์มที่ผูกไว้ทันที หากฟาร์มใดยังไม่ได้ผูกกล้อง ระบบจะแสดงการ์ดแจ้งเตือน **"ยังไม่ได้ติดตั้งกล้องวงจรปิดในฟาร์มนี้"** พร้อมปุ่มลัดให้กดติดตั้งกล้องได้ทันที
+- **ApexCharts Uncertainty Bands:** กราฟพยากรณ์ 72 ชั่วโมงพร้อมพื้นที่แรเงาขอบเขตความคลาดเคลื่อน (`predicted_thi ± thi_mae`)
+- **Human-in-the-Loop Feedback:** ปุ่ม 👍 `แม่นยำ` / 👎 `คลาดเคลื่อน` บนการ์ดแจ้งเตือน เพื่อเก็บสถิติ False Positive Rate (FPR) ในการใช้งานจริง
 
-### 4. 👥 Glassmorphic User Management (`/Admin/users`)
-- ระบบจัดการสมาชิกและสิทธิ์การใช้งาน (`admin`, `expert`, `farmer`)
-- แท็บตัวกรองทรงแคปซูล ค้นหาข้อมูลสมาชิกแบบเรียลไทม์ และระบบ Audit ป้องกันข้อผิดพลาด
+### 4. 🧪 Standalone Simulation Environment (`/Admin/simulation`)
+- เมนู **"สภาพแวดล้อมจำลอง"** แยกอิสระสำหรับทดสอบจำลองค่าความร้อน (THI Slider), ทดสอบกล้อง AI ด้วยวิดีโอโรงเรือนจำลอง (`sample_barn.mp4`), และจำลองการเกิดพฤติกรรมผิดปกติโดยไม่ปะปนกับฐานข้อมูลฟาร์มจริง
 
 ---
 
 ## 💻 เทคโนโลยีที่ใช้ (Tech Stack)
 
-```text
-Frontend:               Nuxt 3, Vue 3 (Composition API, <script setup>), Tailwind CSS, Vuetify 3
-Data Visualization:     ApexCharts (vue3-apexcharts)
-State & Utilities:      VueUse, Axios
-Deep Learning Engine:   PyTorch (Model Training), ONNX Runtime (onnxruntime-node for Inference)
-Vision AI Backend:      FastAPI, Uvicorn, Ultralytics YOLO26m, OpenCV Headless
-Core API Backend:       Node.js (LTS), Express 5, node-cron, JWT, bcrypt, pg (PostgreSQL)
-Database Engine:        Supabase PostgreSQL, Connection Pooling (PgBouncer)
-Hardware Telemetry:     ESP32-S3 Microcontroller, SHT40 / AHT20 Temperature & Humidity Sensors
-DevOps & Container:     Docker, Docker Compose
-```
+| หมวดหมู่ | เทคโนโลยี |
+|---|---|
+| **Frontend** | Nuxt 3, Vue 3 (Composition API), Tailwind CSS, Vuetify 3, ApexCharts |
+| **Vision AI Backend (`:8000`)** | Python, FastAPI, Uvicorn, Ultralytics YOLO26m (`best1.pt`), ByteTrack, OpenCV |
+| **Core API Backend (`:4001`)** | Node.js, Express 5, `onnxruntime-node` (`farm_lstm.onnx`), `node-cron`, `pg` |
+| **Database** | Supabase PostgreSQL (Transaction Pooler + Idle Connection Error Guard) |
+| **IoT & Barn Hardware** | ESP32-S3 N16R8, SHT40 / AHT20, Hikvision IP Camera (RTSP), 4G Pocket Wi-Fi |
+| **DevOps & Deployment** | Docker, Docker Compose |
 
 ---
 
@@ -192,85 +167,73 @@ DevOps & Container:     Docker, Docker Compose
 
 ```text
 testYOLO26/
-├── docker-compose.yml              # นิยาม Service: Frontend, Node Backend, FastAPI Backend
-├── PROJECT_OVERVIEW.md             # รายงานภาพรวมระบบฉบับสมบูรณ์ (v2.5.0)
-├── README.md                       # เอกสารแนะนำโครงการฉบับสมบูรณ์
+├── docker-compose.yml                          # นิยาม Service: Frontend (:3000), Node (:4001), FastAPI (:8000)
+├── README.md                                   # เอกสารคู่มือและสถาปัตยกรรมระบบฉบับสมบูรณ์ (v3.0.0)
+├── PROJECT_OVERVIEW.md                         # เอกสารสรุปภาพรวมเชิงวิชาการและสถาปัตยกรรม
 │
-├── backend/                        # 🐍 AI Backend (FastAPI + YOLO + PyTorch LSTM)
+├── backend/                                    # 🐍 AI Vision Backend (FastAPI + YOLO26m + ByteTrack)
 │   ├── app/
-│   │   ├── api/                    # Endpoint ตรวจจับภาพและสตรีมวิดีโอ (detect.py, test_cam.py)
-│   │   ├── weights/                # ไฟล์น้ำหนักโมเดล (best1.pt, farm_lstm.onnx 124 KB)
-│   │   └── main.py                 # FastAPI Application Entrypoint (:8000)
-│   ├── ml_lstm/                    # 🧠 True Deep Learning Training Pipeline
-│   │   ├── model.py                # PyTorch FarmMultimodalBiLSTM Architecture
-│   │   └── synthetic_pretrain.py   # สคริปต์เทรนและส่งออก farm_lstm.onnx
-│   └── requirements.txt
-│
-├── backend_node/                   # 🟩 Core API Backend (Node.js + Express + ONNX)
-│   ├── app/
-│   │   ├── config/db.js            # PostgreSQL Pool Connection (Supabase)
+│   │   ├── api/
+│   │   │   ├── detect.py                       # Endpoint ตรวจจับภาพนิ่ง
+│   │   │   └── test_cam.py                     # RTSP / Simulation Streaming + Active Learning Sampler
 │   │   ├── services/
-│   │   │   ├── lstmOnnxService.js  # ONNX Inference Service, 72h Lookback, Seasonal Advisory
-│   │   │   └── dailyLstmScheduler.js # Daily Scheduled Batch Job (20:00 น. node-cron)
-│   │   └── routes/Admin/
-│   │       ├── farms.js            # /api/Admin/farms (CRUD, Transaction, Telemetry, Daily Job API)
-│   │       ├── sensors.js          # /api/Admin/sensors (Telemetry Ingestion NRC 1971)
-│   │       └── users.js            # /api/Admin/users (User Management)
-│   ├── server.js                   # Express Server Entrypoint (:4001)
-│   └── package.json                # รวม onnxruntime-node, node-cron
+│   │   │   ├── behavior_engine.py              # ByteTrack State Tracker + Spatial ROI Confidence Boost
+│   │   │   └── yolo_service.py                 # YOLO Inference Service
+│   │   ├── active_learning_samples/            # โฟลเดอร์เก็บภาพความมั่นใจต่ำอัตโนมัติ (0.20 <= conf < 0.40)
+│   │   ├── weights/                            # โมเดล best1.pt, yolo26m.pt, farm_lstm.onnx, sample_barn.mp4
+│   │   └── main.py                             # FastAPI Entrypoint (:8000)
+│   └── ml_lstm/                                # โครงสร้างโมเดลและสคริปต์เทรน Bi-LSTM
 │
-└── frontend/                       # 🟢 Frontend (Nuxt 3 + Vuetify + Tailwind)
-    ├── app/
-    │   ├── pages/Admin/
-    │   │   ├── index.vue           # Executive Command Center
-    │   │   ├── farms.vue           # Precision Farm Roster (Active/Pending Tabs)
-    │   │   └── farm_detail-[id].vue # Smart Barn Telemetry Cockpit (Hero LSTM 72h)
-    │   └── components/Admin/farm/  # AddFarmModal.vue, EditFarmModal.vue
-    └── nuxt.config.ts
+├── backend_node/                               # 🟩 Core API Backend (Node.js + Express + ONNX)
+│   ├── app/
+│   │   ├── config/db.js                        # Supabase PostgreSQL Pool (พร้อม Idle Error Handler)
+│   │   ├── services/
+│   │   │   ├── lstmOnnxService.js              # Bi-LSTM ONNX Inference + 72h Lookback
+│   │   │   ├── dailyLstmScheduler.js           # Batch Job 20:00 น. พร้อม Uncertainty Bands (MAE)
+│   │   │   └── multimodalValidationService.js  # Multimodal Cross-Validation Gate & Fail-Safe Engine
+│   │   └── routes/Admin/
+│   │       ├── farms.js                        # CRUD ฟาร์ม + ผูกกล้อง CCTV ใน ACID Transaction + เช็คสถานะ Online
+│   │       ├── cctvCameras.js                  # จัดการกล้อง RTSP, Telemetry Rollup และ Alert Feedback
+│   │       ├── system.js                       # Argon Accuracy Benchmarks & Multimodal Status API
+│   │       └── sensors.js                      # รับค่าเซ็นเซอร์จาก ESP32-S3 (NRC 1971)
+│   └── server.js                               # Express Server Entrypoint (:4001)
+│
+└── frontend/                                   # 🟢 Frontend Web Application (Nuxt 3)
+    └── app/
+        ├── pages/Admin/
+        │   ├── index.vue                       # Executive Command Center
+        │   ├── farms.vue                       # Precision Farm Roster
+        │   ├── simulation.vue                  # เมนูสภาพแวดล้อมจำลองแยกอิสระ (Simulation Sandbox)
+        │   └── farms/farm_detail-[id].vue      # Smart Barn Real-Data Cockpit
+        └── components/Admin/farm/
+            ├── AddFarmModal.vue                # Modal เพิ่มฟาร์มพร้อมผูกอุปกรณ์ IoT และกล้อง CCTV
+            ├── EditFarmModal.vue               # Modal แก้ไขฟาร์มและตั้งค่ากล้อง CCTV
+            ├── AddCameraModal.vue              # Modal ผูกกล้อง Hikvision ด่วน
+            └── SystemAccuracyModal.vue         # Modal แสดงผล Argon Benchmarks & System Accuracy
 ```
 
 ---
 
 ## 🚀 การติดตั้งและการรันระบบ (Getting Started)
 
-### 1. ตั้งค่า Environment Variables
-สร้างไฟล์ `.env` ที่ root directory ของโครงการ:
-
-```env
-# Database & Supabase (PostgreSQL)
-SUPABASE_URL=https://<your-project>.supabase.co
-SUPABASE_KEY=<your-supabase-key>
-DATABASE_URL=postgresql://postgres:<password>@<host>:6543/postgres?pgbouncer=true
-
-# Security
-SECRET_KEY=YourSuperSecretKeyCowCareAI2026
-
-# Ports
-PORT_NODE=4001
-PORT_AI=8000
-PORT_FRONTEND=3000
-```
-
-### 2. การรันระบบ
-
-#### วิธีที่ 1: รันผ่าน Docker Compose (แนะนำสำหรับ Production/Staging)
+### 1. รันผ่าน Docker Compose (แนะนำ)
 ```bash
 docker compose up --build -d
 ```
 
-#### วิธีที่ 2: รันแบบ Local Development
+### 2. รันแยกแต่ละบริการ (Local Development)
 ```bash
-# 1. รัน Node.js Core Backend (Terminal 1)
+# 1. รัน Node.js Core Backend (:4001)
 cd backend_node
 npm install
 npm run dev
 
-# 2. รัน FastAPI AI Backend (Terminal 2)
+# 2. รัน FastAPI Vision Backend (:8000)
 cd backend
 source venv/bin/activate
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
-# 3. รัน Nuxt 3 Frontend (Terminal 3)
+# 3. รัน Nuxt 3 Frontend (:3000)
 cd frontend
 npm install
 npm run dev
@@ -278,8 +241,9 @@ npm run dev
 
 | บริการ / หน้าจอ | URL สำหรับเข้าใช้งาน |
 |---|---|
-| **Frontend Web Portal** | [http://localhost:3000](http://localhost:3000) |
-| **Admin Command Center** | [http://localhost:3000/Admin](http://localhost:3000/Admin) |
+| **Executive Command Center** | [http://localhost:3000/Admin](http://localhost:3000/Admin) |
+| **หน้าจัดการฟาร์ม (Farm Roster)** | [http://localhost:3000/Admin/farms](http://localhost:3000/Admin/farms) |
+| **หน้าสภาพแวดล้อมจำลอง (Simulation Lab)** | [http://localhost:3000/Admin/simulation](http://localhost:3000/Admin/simulation) |
 | **FastAPI Swagger Docs** | [http://localhost:8000/docs](http://localhost:8000/docs) |
 | **Node.js API Health** | [http://localhost:4001](http://localhost:4001) |
 
@@ -287,62 +251,50 @@ npm run dev
 
 ## 📡 คู่มือ API Endpoints ที่สำคัญ
 
-### 1. IoT Telemetry Ingestion (`POST /api/Admin/sensors/data`)
-รับข้อมูลสภาพแวดล้อมจาก ESP32-S3 คำนวณ THI (NRC 1971) และอัปเดตสถานะออนไลน์ทันที:
-```json
-{
-  "serial_no": "ESP32-S3-01",
-  "temperature_c": 30.2,
-  "humidity_pct": 72.5,
-  "pressure_hpa": 1010.5
-}
-```
-
-### 2. Lightweight Real-time Polling (`GET /api/Admin/farms/:id/latest`)
-ดึงเฉพาะข้อมูลเซ็นเซอร์ล่าสุด ขนาดเพียง ~200 bytes สำหรับ Real-time Dashboard Polling ทุก 8 วินาที
-
-### 3. Daily Scheduled Batch Job APIs
-- `POST /api/Admin/farms/:id/run-daily-summary` — สั่งรันคำนวณและสรุปผลประจำวันเฉพาะฟาร์มนั้นด้วยตนเองทันที
-- `POST /api/Admin/farms/run-all-daily-summaries` — สั่งรัน Batch สรุปผลพร้อมกันทุกฟาร์มในระบบ
+| Method | Endpoint | รายละเอียด |
+|---|---|---|
+| `POST` | `/api/Admin/sensors/data` | รับข้อมูลอุณหภูมิและความชื้นจาก ESP32-S3 คำนวณ THI และอัปเดต `last_seen_at` |
+| `GET` | `/api/Admin/farms/:id/latest` | ดึงค่าเซ็นเซอร์ล่าสุดและตรวจสอบสถานะ Online/Offline แบบไดนามิก (Timeout 2 นาที) |
+| `POST` | `/api/Admin/farms` | สร้างฟาร์มใหม่ พร้อมผูกอุปกรณ์ IoT และกล้องวงจรปิดใน ACID Transaction |
+| `PUT` | `/api/Admin/farms/:id` | แก้ไขข้อมูลฟาร์ม อุปกรณ์ IoT และการตั้งค่ากล้องวงจรปิด |
+| `GET` | `/api/Admin/system/accuracy-benchmarks` | ดึงค่าพารามิเตอร์ความแม่นยำเชิงประจักษ์และ Argon Benchmarks (In-Silico F1 `0.915`, Field F1 `0.862`) |
+| `GET` | `/api/Admin/system/farms/:farmId/multimodal-status` | ตรวจสอบสถานะ Cross-Validation ระหว่างเซ็นเซอร์ IoT และกล้อง AI |
+| `POST` | `/api/alerts/:alertId/feedback` | บันทึกผลประเมินความแม่นยำของการแจ้งเตือนโดยเกษตรกร (`is_accurate: true/false`) |
+| `GET` | `/api/cam/stream` | สตรีมวิดีโอ MJPEG ที่ผ่านการตรวจจับด้วย YOLO26m + ByteTrack (`Port 8000`) |
 
 ---
 
 ## 🌡️ เกณฑ์ประเมินความเครียดความร้อนโคนมไทย (Thai Tropical Calibration Matrix)
 
-คำนวณค่า **THI** ตามสูตรมาตรฐานสากล **NRC (1971)**:
+คำนวณค่า **THI** ตามสมการ **NRC (1971)** โดยปรับเกณฑ์ให้สอดคล้องกับพันธุกรรมโคนมลูกผสมไทย (Boonkum et al., 2024):
 $$\text{THI} = (1.8 \times T + 32) - (0.55 - 0.0055 \times \text{RH}) \times (1.8 \times T - 26)$$
 
 | ช่วงค่า THI | ระดับความเสี่ยง | ผลกระทบต่อโคนมลูกผสมไทย | มาตรการปฏิบัติการเชิงรุก (Actionable Advisory) |
 |---|---|---|---|
-| **< 76.0**<br>*(หรือ $T < 27.5^\circ\text{C}$ & $\text{THI} < 77.5$ ไม่หอบ)* | **สภาวะปกติ (Comfort Zone)** | โคนมลูกผสมไทยสบายตัว การกินอาหารและการเคี้ยวเอื้องปกติ | ดูแลรักษาการระบายอากาศและน้ำดื่มตามวงรอบปกติ |
-| **76.0 – 79.9** | **เริ่มเฝ้าระวัง (Mild Stress)** | **Threshold Onset:** เริ่มมีความร้อนสะสม แม่โคยืนนานขึ้น เริ่มเสี่ยงน้ำนมลดลง | เปิดพัดลมระบายอากาศในโรงเรือนเพื่อเร่งการระบายความร้อน |
-| **80.0 – 83.9** | **เริ่มกระทบผลผลิต (Moderate Stress)** | การเคี้ยวเอื้องลดลง การหายใจเร็วขึ้น น้ำนมเริ่มลดชัดเจน | **ฤดูร้อน:** เปิดพัดลมเต็มกำลัง + เปิดระบบพ่นหมอก<br>**ฤดูฝน ($RH \ge 75\%$):** เปิดพัดลมเต็มกำลัง **งดเปิดระบบพ่นหมอก** ป้องกันคอกแฉะและเต้านมอักเสบ |
-| **≥ 84.0** | **วิกฤตรุนแรง (Severe Heat Stress)** | แม่โคหอบรุนแรง น้ำนมลดฮวบ อัตราผสมติดต่ำ เสี่ยงล้มป่วย | ดำเนินการลดความร้อนฉุกเฉิน เสริมสารบัฟเฟอร์ในอาหาร TMR เลื่อนการผสมเทียม |
+| **< 76.0** | **ปกติ (Comfort Zone)** | แม่โคสบายตัว กินอาหารและนอนเคี้ยวเอื้องตามปกติ ($\text{CCI} \ge 75\%$) | ดูแลการระบายอากาศและน้ำดื่มสะอาดตามปกติ |
+| **76.0 – 79.9** | **เริ่มเฝ้าระวัง (Mild)** | เริ่มสะสมความร้อน แม่โคยืนนานขึ้น เสี่ยงน้ำนมเริ่มลดลง | เปิดพัดลมระบายอากาศเร่งการถ่ายเทความร้อน |
+| **80.0 – 83.9** | **ปานกลาง (Moderate)** | การเคี้ยวเอื้องลดลง หายใจเร็วขึ้น น้ำนมลดลงชัดเจน | **ฤดูร้อน:** เปิดพัดลม + พ่นหมอก<br>**ฤดูฝน ($RH \ge 75\%$):** เปิดพัดลมเต็มกำลัง **งดพ่นหมอก** ป้องกันคอกแฉะและเต้านมอักเสบ |
+| **≥ 84.0** | **วิกฤต (Severe)** | แม่โคหอบรุนแรง น้ำนมดิ่งฮวบ เสี่ยงภาวะเลือดเป็นกรดและผสมไม่ติด | ลดความร้อนฉุกเฉินทันที เสริมแร่ธาตุบัฟเฟอร์ และเลื่อนการผสมเทียม |
 
 ---
 
 ## 🗺️ แผนการพัฒนาระบบ (Roadmap)
 
-- [x] **YOLO26m Edge Vision:** ตรวจจับพฤติกรรมโคนม (ยืน, นอน, หอบ, กินอาหาร, กินน้ำ)
-- [x] **Microservices Architecture:** แยกบริการ Frontend, Node Backend, FastAPI Backend ด้วย Docker Compose
-- [x] **Telemetry Ingestion Pipeline:** รับข้อมูลเซ็นเซอร์จาก ESP32-S3 พร้อมคำนวณ THI อัตโนมัติ (NRC 1971)
-- [x] **Database ACID Transactions:** ระบบเพิ่ม/ลบฟาร์มปลอดภัย 100% ไม่มีข้อมูลตกค้าง และไม่มีการแทรก Mock Data
-- [x] **Executive Agritech Command Center (`/Admin`):** แดชบอร์ดภาพรวมเครือข่ายฟาร์ม
-- [x] **Smart Barn Telemetry Cockpit (`/Admin/farm_detail-[id]`):** แดชบอร์ดรายฟาร์มพร้อม Data Gap Alert Banner
-- [x] **Precision Agritech Bento Farm Roster (`/Admin/farms`):** ระบบจัดการฟาร์มแยกแท็บ Active / Pending และจัดกลุ่มโรงเรือนย่อย
-- [x] **Multimodal Bi-LSTM with Temporal Attention:** โมเดล True Deep Learning (PyTorch $\rightarrow$ ONNX ขนาด 124 KB) พยากรณ์ล่วงหน้า 72 ชม.
-- [x] **Zero-Input Milk Loss Proxy:** โมเดลประเมินความเสี่ยงน้ำนมลดเชิงทฤษฎีตามหลัก Biological Lag Effect 5 วัน
-- [x] **Daily Scheduled Batch Job (20:00 น.):** รันสรุปผลอัตโนมัติวันละ 1 ครั้งพร้อมตัวชี้วัด Thai Night Recovery (< 74.0)
-- [x] **Thai Tropical Context Calibration (v2.5):** ปรับเกณฑ์ความสบายและคำแนะนำแยกฤดูฝน/ฤดูร้อนตามงานวิจัย ม.แม่โจ้
-- [ ] **Context-Aware LINE Messaging Bot:** บอทแจ้งเตือนอัตโนมัติส่งตรงถึงสมาร์ตโฟนเกษตรกรผ่าน LINE Messaging API
-- [ ] **Methane Intensity & Green Loan Scoring API:** เชื่อมโยงดัชนีการลดก๊าซมีเทนสำหรับสินเชื่อคาร์บอนต่ำ
+- [x] **YOLO26m + ByteTrack Vision Engine:** ตรวจจับและติดตามพฤติกรรมโคนม (ยืน, นอน, กินอาหาร, ดื่มน้ำ)
+- [x] **Spatial ROI-Assisted Recovery & Active Learning:** บูสต์ความแม่นยำในจุดอับสายตาและเก็บภาพความมั่นใจต่ำอัตโนมัติ
+- [x] **Multimodal Cross-Validation Gate & Fail-Safe Engine:** ตรวจสอบไขว้ IoT + Vision ป้องกันแดดส่องเซ็นเซอร์และสลับโหมดอัตโนมัติเมื่อกล้องออฟไลน์
+- [x] **Bi-LSTM 72h Forecast with Empirical Uncertainty Bands:** พยากรณ์ล่วงหน้า 3 วันพร้อมค่าความคลาดเคลื่อน `±MAE`
+- [x] **Direct CCTV Camera Binding in Farm Modals:** ผูกกล้องวงจรปิดตั้งแต่ขั้นตอนเพิ่ม/แก้ไขฟาร์ม พร้อมระบบแจ้งเตือนหากยังไม่ได้ติดตั้งกล้อง
+- [x] **Standalone Simulation Sandbox (`/Admin/simulation`):** แยกหน้าจำลองสภาพแวดล้อมและกล้องออกจากหน้าฟาร์มจริง 100%
+- [x] **Dynamic ESP32 Offline Detection:** ตรวจจับการถอดปลั๊กหรือเน็ตหลุดภายใน 2 นาทีพร้อมอัปเดตฐานข้อมูลอัตโนมัติ
+- [ ] **Context-Aware LINE Messaging Bot:** แจ้งเตือนเกษตรกรผ่าน LINE Official Account พร้อมปุ่มกดยืนยันผล
 
 ---
 
 ## 📚 งานวิจัยอ้างอิง (Academic References)
 
-1. Boonkum, W., Teawyoneyong, W., Chankitisakul, V., Duangjinda, M., & Buaban, S. (2024). **Impact of Heat Stress on Milk Yield, Milk Fat-to-Protein Ratio, and Conception Rate in Thai–Holstein Dairy Cattle: A Phenotypic and Genetic Perspective.** *Animals*, 14(20), 3026.
-2. Sungkhapreecha, P., Chankitisakul, V., Duangjinda, M., Buaban, S., & Boonkum, W. (2022). **Determining Heat Stress Effects of Multiple Genetic Traits in Tropical Dairy Cattle Using Single-Step Genomic BLUP.** *Veterinary Sciences*, 9(2), 66.
+1. Boonkum, W., et al. (2024). **Impact of Heat Stress on Milk Yield, Milk Fat-to-Protein Ratio, and Conception Rate in Thai–Holstein Dairy Cattle: A Phenotypic and Genetic Perspective.** *Animals*, 14(20), 3026.
+2. Sungkhapreecha, P., et al. (2022). **Determining Heat Stress Effects of Multiple Genetic Traits in Tropical Dairy Cattle Using Single-Step Genomic BLUP.** *Veterinary Sciences*, 9(2), 66.
 3. วรรณลักษณ์ ถาวร, อิทธิพล สักลอ, และ วิวัฒน์ พัฒนาวงศ์. (2566). **ผลของอุณหภูมิ ความชื้น และฤดูกาลต่อระดับคอร์ติซอลในโคนมสายพันธุ์โฮลสไตน์ฟรีเชียน.** *วารสารเกษตรนเรศวร*.
 4. ณัชวิชญ์ ติกุล และ สุวิทย์ ประชุม. (2562). **ผลกระทบจากรูปแบบโรงเรือนและสภาพแวดล้อมต่อความสบายของโคในฟาร์มรายย่อยในจังหวัดเชียงใหม่.** *วารสารเกษตรพระวรุณ*.
 5. Hasan, F. M., et al. (2026). **Impact of heat stress on cattle systems: Responses of production metrics to thermal stress.** *Computers and Electronics in Agriculture*.

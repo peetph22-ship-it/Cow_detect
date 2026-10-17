@@ -217,7 +217,7 @@ CREATE TABLE thi_forecasts (
 
 CREATE INDEX idx_thi_forecasts_farm ON thi_forecasts (farm_id, target_date DESC);
 
--- D2. ai_advices — คำแนะนำจาก Gemini
+-- D2. ai_advices — คำแนะนำจาก 
 CREATE TABLE ai_advices (
     id              BIGSERIAL PRIMARY KEY,
     farm_id         UUID NOT NULL REFERENCES farms(id) ON DELETE CASCADE,
@@ -225,7 +225,7 @@ CREATE TABLE ai_advices (
     category        VARCHAR(50),                          -- 'cooling','feed','water','schedule'
     advice_text     TEXT NOT NULL,                        -- ภาษาไทย
     prompt_context  JSONB,                                -- ข้อมูลที่ส่งเข้า LLM (ไว้ debug/ตรวจสอบ)
-    model_name      VARCHAR(50),                          -- 'gemini-x'
+    model_name      VARCHAR(50),                          -- '-x'
     feedback_score  SMALLINT CHECK (feedback_score BETWEEN 1 AND 5),
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

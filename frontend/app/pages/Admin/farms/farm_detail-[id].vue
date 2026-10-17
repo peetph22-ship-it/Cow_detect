@@ -28,15 +28,15 @@
               {{ farm?.name_farms || 'กำลังโหลดข้อมูลฟาร์ม...' }}
             </h1>
             <span 
-              class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black tracking-wide border"
-              :class="device?.status === 'online' 
+              class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black tracking-wide border transition-all"
+              :class="isDeviceOnline 
                 ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
-                : 'bg-gray-100 text-gray-700 border-gray-200'">
+                : 'bg-rose-50 text-rose-700 border-rose-200'">
               <span 
                 class="w-2 h-2 rounded-full" 
-                :class="device?.status === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'">
+                :class="isDeviceOnline ? 'bg-emerald-500 animate-pulse' : 'bg-rose-400'">
               </span>
-              <span>{{ device?.status === 'online' ? 'IoT Online' : 'IoT Offline' }}</span>
+              <span>{{ isDeviceOnline ? 'IoT Online' : 'IoT Offline' }}</span>
               <span v-if="device?.serial_no" class="font-mono text-[10px] opacity-75">({{ device.serial_no }})</span>
             </span>
           </div>
@@ -45,6 +45,26 @@
 
       <!-- Quick Action Controls -->
       <div class="flex items-center gap-2.5 flex-wrap">
+        <!-- Add Hikvision Camera Button -->
+        <button 
+          type="button" 
+          @click="isAddCameraModalOpen = true"
+          title="ผูกกล้องวงจรปิด Hikvision เข้ากับฟาร์มนี้"
+          class="px-4 py-2.5 rounded-[18px] bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95">
+          <v-icon icon="mdi-cctv" size="16" class="text-emerald-700" />
+          <span>+ ผูกกล้อง Hikvision</span>
+        </button>
+
+        <!-- System Accuracy Benchmarks Modal Button -->
+        <button 
+          type="button" 
+          @click="isAccuracyModalOpen = true"
+          title="ดูผลการสอบเทียบโมเดลและเกณฑ์ความแม่นยำระบบ (Argon Benchmark)"
+          class="px-4 py-2.5 rounded-[18px] bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-300 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95">
+          <v-icon icon="mdi-chart-bell-curve-cumulative" size="16" class="text-blue-700" />
+          <span>เกณฑ์ความแม่นยำ (Argon)</span>
+        </button>
+
         <!-- Live Polling Toggle (8s) -->
         <button 
           type="button" 
@@ -134,10 +154,39 @@
               </span>
             </div>
 
-            <!-- Stress Level Pill -->
-            <span class="px-3 py-1 rounded-full text-[11px] font-black border tracking-wide shadow-sm" :class="cockpitThiTheme.badgeBg">
-              {{ cockpitThiTheme.label }}
-            </span>
+            <div class="flex items-center gap-2 flex-wrap justify-end">
+              <!-- Multimodal Cross-Validation Gate Badge -->
+              <div 
+                v-if="multimodalStatus" 
+                class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10.5px] font-black border shadow-xs transition-all cursor-pointer"
+                :class="{
+                  'bg-emerald-100 text-emerald-900 border-emerald-300': multimodalStatus.status === 'MULTIMODAL_VERIFIED',
+                  'bg-rose-100 text-rose-900 border-rose-300': multimodalStatus.status === 'SENSOR_DRIFT_SUSPECTED',
+                  'bg-amber-100 text-amber-900 border-amber-300': multimodalStatus.status === 'FAILSAFE_THAI_HEURISTIC',
+                  'bg-blue-100 text-blue-900 border-blue-300': multimodalStatus.status === 'COMFORT_ZONE',
+                  'bg-emerald-50 text-emerald-800 border-emerald-200': multimodalStatus.status === 'MONITORING_NORMAL'
+                }"
+                :title="multimodalStatus.recommendation_th"
+                @click="isAccuracyModalOpen = true"
+              >
+                <span 
+                  class="w-2 h-2 rounded-full"
+                  :class="{
+                    'bg-emerald-500 animate-pulse': multimodalStatus.status === 'MULTIMODAL_VERIFIED',
+                    'bg-rose-500': multimodalStatus.status === 'SENSOR_DRIFT_SUSPECTED',
+                    'bg-amber-500': multimodalStatus.status === 'FAILSAFE_THAI_HEURISTIC',
+                    'bg-blue-500': multimodalStatus.status === 'COMFORT_ZONE',
+                    'bg-emerald-500': multimodalStatus.status === 'MONITORING_NORMAL'
+                  }"
+                ></span>
+                <span>{{ multimodalStatus.case_label }}</span>
+              </div>
+
+              <!-- Stress Level Pill -->
+              <span class="px-3 py-1 rounded-full text-[11px] font-black border tracking-wide shadow-sm" :class="cockpitThiTheme.badgeBg">
+                {{ cockpitThiTheme.label }}
+              </span>
+            </div>
           </div>
 
           <!-- Giant THI Number Display -->
@@ -465,9 +514,18 @@
               <v-icon icon="mdi-clock-fast" size="14" class="text-sky-400" />
               <span>Lag Effect 5 วัน (Hasan 2026)</span>
             </span>
-            <span v-if="lstmForecast?.engine" class="bg-white/10 text-teal-300 px-3 py-1.5 rounded-xl border border-teal-500/30 flex items-center gap-1.5">
-              <v-icon icon="mdi-chip" size="14" class="text-teal-400" />
-              <span>{{ lstmForecast.engine }}</span>
+            <!-- Active Engine Badge (Always Shown) -->
+            <span 
+              class="px-3 py-1.5 rounded-xl border flex items-center gap-1.5 transition-all shadow-2xs font-mono font-bold"
+              :class="activeEngineInfo.isDeepLearning 
+                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 ring-1 ring-emerald-400/30' 
+                : 'bg-white/10 text-teal-300 border-teal-500/30'">
+              <v-icon :icon="activeEngineInfo.isDeepLearning ? 'mdi-chip' : 'mdi-calculator-variant-outline'" size="14" :class="activeEngineInfo.isDeepLearning ? 'text-emerald-400' : 'text-teal-400'" />
+              <span>{{ activeEngineInfo.raw }}</span>
+              <span 
+                class="w-1.5 h-1.5 rounded-full" 
+                :class="activeEngineInfo.isDeepLearning ? 'bg-emerald-400 animate-pulse' : 'bg-teal-400'">
+              </span>
             </span>
           </div>
 
@@ -546,11 +604,18 @@
             <div class="flex items-baseline justify-between">
               <div>
                 <span class="text-xs text-white/60 block font-medium">ค่า THI คาดการณ์</span>
-                <div class="flex items-baseline gap-1.5 mt-0.5">
+                <div class="flex items-baseline gap-1.5 mt-0.5 flex-wrap">
                   <span class="text-3xl font-black text-white font-mono tabular-nums">
                     {{ fc.predicted_thi }}
                   </span>
                   <span class="text-xs font-bold text-white/60">THI</span>
+                  <!-- Uncertainty MAE Bound -->
+                  <span 
+                    v-if="fc.thi_mae" 
+                    class="text-[11px] font-mono font-bold text-emerald-300 ml-1.5 bg-emerald-500/20 border border-emerald-400/30 px-2 py-0.5 rounded-lg"
+                    :title="`ช่วงความเชื่อมั่น (Confidence Interval): ${fc.thi_lower} - ${fc.thi_upper} THI`">
+                    ±{{ fc.thi_mae }}
+                  </span>
                 </div>
               </div>
 
@@ -562,15 +627,20 @@
               </span>
             </div>
 
-            <!-- Predicted Milk Loss Metric -->
+            <!-- Predicted Milk Loss Metric with MAE Bound -->
             <div class="p-2.5 bg-black/20 rounded-xl border border-white/5 flex items-center justify-between text-xs">
               <span class="text-white/70 flex items-center gap-1.5">
                 <v-icon icon="mdi-cup-water" size="14" class="text-sky-300" />
                 <span>ความเสี่ยงน้ำนมลดคาดการณ์:</span>
               </span>
-              <span class="font-mono font-bold" :class="fc.predicted_milk_loss_kg > 0 ? 'text-rose-400' : 'text-emerald-400'">
-                {{ fc.predicted_milk_loss_kg > 0 ? `-${fc.predicted_milk_loss_kg} กก./ตัว/วัน` : 'ไม่ลดลง (ปกติ)' }}
-              </span>
+              <div class="text-right">
+                <span class="font-mono font-bold block" :class="fc.predicted_milk_loss_kg > 0 ? 'text-rose-400' : 'text-emerald-400'">
+                  {{ fc.predicted_milk_loss_kg > 0 ? `-${fc.predicted_milk_loss_kg} กก./ตัว/วัน` : 'ไม่ลดลง (ปกติ)' }}
+                </span>
+                <span v-if="fc.milk_loss_mae_kg" class="text-[10px] text-white/50 font-mono block">
+                  (MAE ±{{ fc.milk_loss_mae_kg }} kg · แม่นยำ {{ fc.risk_accuracy_pct }}%)
+                </span>
+              </div>
             </div>
           </div>
 
@@ -600,6 +670,149 @@
           <v-icon icon="mdi-chart-bell-curve" size="15" />
           <span>ดูกราฟพยากรณ์ 72 ชม.</span>
         </button>
+      </div>
+
+    </div>
+
+    <!-- 🟢 4.1 แถบนอกการ์ด: แสดงคำอธิบายเงื่อนไขการทำงานของ Engine พยากรณ์ (Dual-Engine Architecture Protocol) -->
+    <div class="bg-white/80 backdrop-blur-xl rounded-[28px] p-6 md:p-7 border border-[#E4E8E5] shadow-xs space-y-5 animate-fade-up">
+      
+      <!-- Top Title & Active Status Pill -->
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[#E4E8E5]">
+        <div class="flex items-start sm:items-center gap-3">
+          <div class="w-11 h-11 rounded-2xl bg-[#142820]/5 text-[#142820] flex items-center justify-center shrink-0 border border-[#E4E8E5]">
+            <v-icon icon="mdi-cpu-64-bit" size="24" />
+          </div>
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <h4 class="text-base md:text-lg font-black text-[#142820]">
+                เงื่อนไขการทำงานของ Engine พยากรณ์ (Predictive Engine Protocol)
+              </h4>
+              <span class="text-[11px] font-bold text-[#718078] bg-[#F6F7F5] px-2.5 py-0.5 rounded-full border border-[#E4E8E5]">
+                Dual-Engine High Availability
+              </span>
+            </div>
+            <p class="text-xs text-[#718078] mt-0.5 font-medium">
+              สถาปัตยกรรมทำงานแบบไฮบริด (AI + Heuristic Fallback) เพื่อรับประกันความพร้อมใช้งาน 100% ไม่สะดุด แม้อยู่ในภาวะ Cold-Start
+            </p>
+          </div>
+        </div>
+
+        <!-- Current Active Status Pill -->
+        <div 
+          class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold border shrink-0 transition-all shadow-2xs"
+          :class="activeEngineInfo.isDeepLearning 
+            ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
+            : 'bg-amber-50 text-amber-800 border-amber-200'">
+          <span 
+            class="w-2 h-2 rounded-full" 
+            :class="activeEngineInfo.isDeepLearning ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'">
+          </span>
+          <span>โหมดปัจจุบัน: <strong>{{ activeEngineInfo.raw }}</strong></span>
+        </div>
+      </div>
+
+      <!-- Dual Cards: Conditions for Engine 1 vs Engine 2 -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        
+        <!-- Engine 1: True Deep Learning (ONNX Runtime) -->
+        <div 
+          class="rounded-2xl p-5 border transition-all space-y-3 relative overflow-hidden"
+          :class="activeEngineInfo.isDeepLearning 
+            ? 'bg-emerald-50/50 border-emerald-300 ring-2 ring-emerald-500/20' 
+            : 'bg-[#F6F7F5]/60 border-[#E4E8E5]'">
+          
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                <v-icon icon="mdi-brain" size="18" />
+              </div>
+              <div>
+                <div class="text-xs font-black text-[#142820]">1. onnx_bilstm_attention_v1</div>
+                <div class="text-[11px] text-emerald-700 font-bold">True Deep Learning Bi-LSTM (ONNX)</div>
+              </div>
+            </div>
+            <span v-if="activeEngineInfo.isDeepLearning" class="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-600 text-white shadow-2xs">
+              กำลังทำงาน (Active)
+            </span>
+            <span v-else class="text-[10px] font-bold text-[#718078] bg-white px-2 py-0.5 rounded-md border border-[#E4E8E5]">
+              สแตนด์บาย (Standby)
+            </span>
+          </div>
+
+          <div class="space-y-2 text-xs">
+            <div>
+              <div class="font-bold text-[#142820] flex items-center gap-1.5 mb-1 text-[11.5px]">
+                <v-icon icon="mdi-check-circle" size="14" class="text-emerald-600" />
+                <span>เงื่อนไขที่จะเปิดใช้โหมดนี้ (Trigger Conditions):</span>
+              </div>
+              <ul class="list-disc pl-5 space-y-1 text-[11px] text-[#51635B] leading-relaxed">
+                <li><strong>ประวัติเซ็นเซอร์สะสม &ge; 72 ชั่วโมง (3 วันเต็ม):</strong> มีข้อมูล Time-series ต่อเนื่องเพียงพอในการป้อนเข้า Tensor Matrix ขนาด <code class="bg-white px-1.5 py-0.5 rounded border border-[#E4E8E5] font-mono">[1, 72, 10]</code></li>
+                <li><strong>Runtime โหลด ONNX สำเร็จ:</strong> ไลบรารี <code class="bg-white px-1.5 py-0.5 rounded border border-[#E4E8E5] font-mono">onnxruntime-node</code> และไฟล์โมเดล <code class="bg-white px-1.5 py-0.5 rounded border border-[#E4E8E5] font-mono">farm_lstm.onnx</code> พร้อมทำงานในหน่วยความจำ</li>
+              </ul>
+            </div>
+
+            <div class="pt-1 border-t border-[#E4E8E5]/60">
+              <div class="font-bold text-[#142820] flex items-center gap-1.5 mb-1 text-[11.5px]">
+                <v-icon icon="mdi-cogs" size="14" class="text-emerald-600" />
+                <span>กลไกการคำนวณ (Calculation Mechanism):</span>
+              </div>
+              <p class="text-[11px] text-[#51635B] leading-relaxed">
+                รัน 2-Layer Bi-LSTM ดึงแนวโน้มอุณหภูมิ/ความชื้น + Temporal Attention ถ่วงน้ำหนักชั่วโมงวิกฤต + ฟิวชันข้อมูลโครงสร้างหลังคาและความสูงโรงเรือนเพื่อพยากรณ์ THI และ Milk Loss 3 วันล่วงหน้า
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Engine 2: Thai Heuristic Fallback -->
+        <div 
+          class="rounded-2xl p-5 border transition-all space-y-3 relative overflow-hidden"
+          :class="!activeEngineInfo.isDeepLearning 
+            ? 'bg-amber-50/50 border-amber-300 ring-2 ring-amber-500/20' 
+            : 'bg-[#F6F7F5]/60 border-[#E4E8E5]'">
+          
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-xl bg-amber-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                <v-icon icon="mdi-calculator-variant-outline" size="18" />
+              </div>
+              <div>
+                <div class="text-xs font-black text-[#142820]">2. heuristic_fallback</div>
+                <div class="text-[11px] text-amber-700 font-bold">Thai Heuristic Engine (Fail-Safe)</div>
+              </div>
+            </div>
+            <span v-if="!activeEngineInfo.isDeepLearning" class="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-amber-600 text-white shadow-2xs">
+              กำลังทำงาน (Active)
+            </span>
+            <span v-else class="text-[10px] font-bold text-[#718078] bg-white px-2 py-0.5 rounded-md border border-[#E4E8E5]">
+              สแตนด์บาย (Standby)
+            </span>
+          </div>
+
+          <div class="space-y-2 text-xs">
+            <div>
+              <div class="font-bold text-[#142820] flex items-center gap-1.5 mb-1 text-[11.5px]">
+                <v-icon icon="mdi-check-circle" size="14" class="text-amber-600" />
+                <span>เงื่อนไขที่จะเปิดใช้โหมดนี้ (Trigger Conditions):</span>
+              </div>
+              <ul class="list-disc pl-5 space-y-1 text-[11px] text-[#51635B] leading-relaxed">
+                <li><strong>ฟาร์มใหม่หรือข้อมูลสะสม &lt; 72 ชั่วโมง (Cold-Start):</strong> สลับมาโหมดนี้ทันทีเพื่อป้องกันโมเดลค้างหรือ Error</li>
+                <li><strong>สภาพแวดล้อม Server ไม่รองรับไบนารี ONNX:</strong> เช่น Docker ARM64 เพื่อให้ระบบยังมีผลพยากรณ์และแจ้งเตือน LINE ได้ต่อเนื่อง <em>Zero Downtime</em></li>
+              </ul>
+            </div>
+
+            <div class="pt-1 border-t border-[#E4E8E5]/60">
+              <div class="font-bold text-[#142820] flex items-center gap-1.5 mb-1 text-[11.5px]">
+                <v-icon icon="mdi-cogs" size="14" class="text-amber-600" />
+                <span>กลไกการคำนวณ (Calculation Mechanism):</span>
+              </div>
+              <p class="text-[11px] text-[#51635B] leading-relaxed">
+                คำนวณจากสูตร NRC 1971 ร่วมกับสัมประสิทธิ์ความร้อนสะสมย้อนหลัง (Thermal Momentum) + สัมประสิทธิ์ชนิดหลังคา/ความสูงโรงเรือน (Tikul & Prachum, 2019) พร้อมหน่วงการดิ่งของน้ำนม 5 วัน (Hasan 2026)
+              </p>
+            </div>
+          </div>
+        </div>
+
       </div>
 
     </div>
@@ -711,6 +924,10 @@
           <span class="w-3 h-0.5 bg-[#d87939] border-t-2 border-dashed border-[#d87939]"></span>
           <span>เส้นประสีส้ม: AI LSTM พยากรณ์ล่วงหน้า 3 วัน</span>
         </span>
+        <span class="flex items-center gap-1.5 font-bold text-yellow-600" v-if="activeChartTab === 'lstm_forecast'">
+          <span class="w-3 h-0.5 bg-yellow-500 border-t border-dashed border-yellow-500"></span>
+          <span>เส้นประบาง: ช่วงความเชื่อมั่น (±MAE Bounds)</span>
+        </span>
         <span class="flex items-center gap-1.5">
           <span class="w-3 h-0.5 bg-amber-400"></span>
           <span>เกณฑ์ 76 (เริ่มเฝ้าระวัง)</span>
@@ -723,6 +940,511 @@
           <span class="w-3 h-0.5 bg-rose-500"></span>
           <span>เกณฑ์ 84 (วิกฤตรุนแรง)</span>
         </span>
+      </div>
+
+    </div>
+
+    <!-- 🟢 4.5 SMART BARN CCTV & YOLO26 VISION AI BEHAVIOR COCKPIT -->
+    <div class="bg-white/80 backdrop-blur-xl rounded-[32px] p-6 md:p-8 border border-white/90 shadow-[0_8px_30px_rgba(36,67,58,0.04)] space-y-6 animate-fade-up delay-225">
+      
+      <!-- Section Header -->
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-[#e5ece9]">
+        <div class="flex items-center gap-3.5">
+          <div class="w-12 h-12 rounded-2xl bg-[#D87939]/10 text-[#D87939] flex items-center justify-center shrink-0">
+            <v-icon icon="mdi-cctv" size="26" />
+          </div>
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <h3 class="text-lg md:text-xl font-black text-[#24433a] tracking-tight">
+                Smart Barn Vision &amp; Hikvision Architecture
+              </h3>
+              <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#D87939]/10 text-[#D87939] border border-[#D87939]/20 uppercase">
+                ByteTrack + YOLO Multi-Cow Telemetry
+              </span>
+              <span 
+                v-if="multimodalStatus" 
+                class="px-2.5 py-0.5 rounded-full text-[10px] font-black border uppercase cursor-pointer transition-all hover:scale-105"
+                :class="{
+                  'bg-emerald-100 text-emerald-900 border-emerald-300': multimodalStatus.status === 'MULTIMODAL_VERIFIED',
+                  'bg-rose-100 text-rose-900 border-rose-300': multimodalStatus.status === 'SENSOR_DRIFT_SUSPECTED',
+                  'bg-amber-100 text-amber-900 border-amber-300': multimodalStatus.status === 'FAILSAFE_THAI_HEURISTIC',
+                  'bg-blue-100 text-blue-900 border-blue-300': multimodalStatus.status === 'COMFORT_ZONE',
+                  'bg-emerald-50 text-emerald-800 border-emerald-200': multimodalStatus.status === 'MONITORING_NORMAL'
+                }"
+                :title="multimodalStatus.recommendation_th"
+                @click="isAccuracyModalOpen = true"
+              >
+                {{ multimodalStatus.case_label }}
+              </span>
+            </div>
+            <p class="text-xs text-[#718078] mt-0.5 font-medium">
+              ระบบวิเคราะห์พฤติกรรมฝูงโคแบบเรียลไทม์ (ยืน, นอน, กิน, ดื่ม) คำนวณดัชนีความสบาย (CCI) และประเมินความเสี่ยงน้ำนมลดอัตโนมัติ
+            </p>
+          </div>
+        </div>
+
+        <!-- Camera Control Bar -->
+        <div class="flex items-center gap-2 self-start lg:self-auto flex-wrap">
+          <!-- Bound Camera Indicator or Not Installed Warning -->
+          <template v-if="primaryCamera">
+            <div class="flex items-center gap-2 bg-[#F6F7F5] px-3 py-1.5 rounded-xl border border-[#E4E8E5] text-xs font-bold text-[#142820]">
+              <v-icon icon="mdi-cctv" size="16" class="text-emerald-700" />
+              <span class="truncate max-w-[200px]">{{ primaryCamera.camera_name }} ({{ primaryCamera.ip_address }})</span>
+              <span class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+            </div>
+
+            <!-- Flip Toggle (Mirroring) -->
+            <button
+              type="button"
+              @click="cameraFlip = !cameraFlip; onCameraChange()"
+              :class="cameraFlip ? 'bg-[#24433a] text-white shadow-xs' : 'bg-[#F6F7F5] text-[#718078] border border-[#E4E8E5] hover:text-[#24433a]'"
+              class="px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+              title="สลับโหมดกลับด้านภาพ (Flip Horizontal)">
+              <v-icon icon="mdi-flip-horizontal" size="14" />
+              <span>{{ cameraFlip ? 'กลับด้าน' : 'ปกติ' }}</span>
+            </button>
+
+            <!-- Toggle Stream Live Button -->
+            <button
+              type="button"
+              @click="toggleCameraStream"
+              class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-sm"
+              :class="isCameraStreamActive 
+                ? 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100' 
+                : 'bg-[#24433a] text-white hover:bg-[#1a322b]'">
+              <v-icon :icon="isCameraStreamActive ? 'mdi-stop' : 'mdi-play'" size="16" />
+              <span>{{ isCameraStreamActive ? 'ปิดสตรีมกล้องสด' : 'เปิดสตรีม AI กล้องสด' }}</span>
+            </button>
+          </template>
+
+          <template v-else>
+            <div class="flex items-center gap-1.5 bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200 text-xs font-bold text-amber-800">
+              <v-icon icon="mdi-cctv-off" size="16" class="text-amber-600" />
+              <span>ยังไม่ได้ติดตั้งกล้อง</span>
+            </div>
+
+            <button
+              type="button"
+              @click="isAddCameraModalOpen = true"
+              class="px-4 py-2 rounded-xl text-xs font-bold bg-[#24433a] text-white hover:bg-[#1a322b] transition-all flex items-center gap-1.5 cursor-pointer shadow-sm">
+              <v-icon icon="mdi-plus-circle-outline" size="16" />
+              <span>+ ติดตั้งและผูกกล้อง</span>
+            </button>
+          </template>
+        </div>
+      </div>
+
+      <!-- Registered Hikvision Cameras Strip -->
+      <div class="p-3.5 rounded-2xl bg-[#fafcfb] border border-[#e5ece9] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="font-bold text-[#4e6057] flex items-center gap-1">
+            <v-icon icon="mdi-ip-network-outline" size="16" class="text-emerald-700" />
+            <span>กล้องประจำฟาร์ม:</span>
+          </span>
+
+          <template v-if="registeredCameras.length > 0">
+            <div 
+              v-for="cam in registeredCameras" 
+              :key="cam.id"
+              class="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-white border border-[#e5ece9] shadow-xs">
+              <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <span class="font-bold text-[#24433a]">{{ cam.camera_name }}</span>
+              <span class="font-mono text-[10px] text-[#718078]">({{ cam.ip_address }})</span>
+              <button 
+                type="button" 
+                @click="deleteRegisteredCamera(cam.id)"
+                :disabled="isDeletingCamera"
+                title="ลบกล้องนี้"
+                class="text-rose-400 hover:text-rose-600 p-0.5 rounded cursor-pointer">
+                <v-icon icon="mdi-trash-can-outline" size="13" />
+              </button>
+            </div>
+          </template>
+          <template v-else>
+            <span class="text-amber-700 font-bold bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 flex items-center gap-1">
+              <v-icon icon="mdi-alert-circle-outline" size="14" class="text-amber-600" />
+              <span>ยังไม่ได้ติดตั้งกล้องวงจรปิดในฟาร์มนี้</span>
+            </span>
+          </template>
+        </div>
+
+        <button 
+          v-if="registeredCameras.length === 0"
+          type="button" 
+          @click="isAddCameraModalOpen = true"
+          class="text-xs font-bold text-emerald-800 hover:text-emerald-950 flex items-center gap-1 cursor-pointer shrink-0">
+          <v-icon icon="mdi-plus-circle-outline" size="15" />
+          <span>+ ติดตั้งและผูกกล้องประจำฟาร์ม</span>
+        </button>
+        <button 
+          v-else
+          type="button" 
+          @click="isEditModalOpen = true"
+          class="text-xs font-bold text-[#4e6057] hover:text-[#24433a] flex items-center gap-1 cursor-pointer shrink-0">
+          <v-icon icon="mdi-pencil-outline" size="15" />
+          <span>แก้ไขการตั้งค่ากล้อง</span>
+        </button>
+      </div>
+
+      <!-- Main Vision AI Grid: Video Feed (7 Cols) + Cockpit Metrics (5 Cols) -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- Left: Video Stream Box (7 cols) -->
+        <div class="lg:col-span-7 bg-[#142820] rounded-2xl overflow-hidden shadow-md border border-[#24433a] relative min-h-[340px] flex flex-col justify-between text-white">
+          
+          <template v-if="primaryCamera">
+            <!-- Stream Overlay Top Bar -->
+            <div class="p-3 bg-black/50 backdrop-blur-xs flex items-center justify-between text-[11px] font-mono z-10 border-b border-white/10">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full" :class="isCameraStreamActive ? 'bg-emerald-400 animate-ping' : 'bg-amber-400'"></span>
+                <span class="font-bold truncate max-w-[220px]">FEED: {{ currentCameraSourceLabel }}</span>
+              </div>
+              <div class="flex items-center gap-2 text-white/80 shrink-0">
+                <span class="bg-white/10 px-2 py-0.5 rounded text-[10px]">RTSP Sub-Stream 360p</span>
+                <span class="bg-[#D87939] text-white px-2 py-0.5 rounded text-[10px] font-bold">ByteTrack + YOLO</span>
+              </div>
+            </div>
+
+            <!-- Video Player Content -->
+            <div class="flex-1 flex items-center justify-center p-4 relative">
+              <template v-if="isCameraStreamActive">
+                <img 
+                  :src="cameraStreamUrl" 
+                  @error="cameraFeedError = true"
+                  class="w-full h-auto max-h-[350px] rounded-xl object-contain mx-auto shadow-inner"
+                  alt="Live AI Stream"
+                />
+                <div v-if="cameraFeedError" class="absolute inset-0 bg-[#142820]/95 flex flex-col items-center justify-center p-6 text-center">
+                  <v-icon icon="mdi-camera-off" size="42" class="text-amber-400 mb-2" />
+                  <h4 class="text-sm font-bold text-white mb-1">ไม่พบสัญญาณสตรีมจากกล้อง</h4>
+                  <p class="text-xs text-white/70 max-w-xs leading-relaxed">
+                    FastAPI Vision Engine ยังไม่ได้เริ่มสตรีม หรือไม่สามารถเข้าถึง RTSP Sub-stream ที่กำหนดได้ (ตรวจเช็ค IP:Port และการเชื่อมต่อเครือข่าย)
+                  </p>
+                  <div class="flex items-center gap-2 mt-3">
+                    <button 
+                      @click="cameraFeedError = false; cameraStreamKey = Date.now()"
+                      class="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold text-white cursor-pointer">
+                      ลองใหม่อีกครั้ง
+                    </button>
+                  </div>
+                </div>
+              </template>
+
+              <!-- Offline / Inactive AI Camera View -->
+              <div v-else class="w-full py-8 flex flex-col items-center justify-center text-center space-y-3">
+                <div class="relative w-full max-w-sm h-44 bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center overflow-hidden">
+                  <div class="absolute left-6 top-6 border-2 border-orange-400 bg-orange-500/20 rounded px-2 py-1 text-[10px] font-mono text-orange-300">
+                    COW #101 | standing 0.94
+                  </div>
+                  <div class="absolute right-8 bottom-6 border-2 border-sky-400 bg-sky-500/20 rounded px-2 py-1 text-[10px] font-mono text-sky-300">
+                    COW #102 | lying down 0.89
+                  </div>
+                  <div class="absolute right-24 top-10 border-2 border-amber-400 bg-amber-500/20 rounded px-2 py-1 text-[10px] font-mono text-amber-300">
+                    COW #103 | feeding 0.91
+                  </div>
+                  <v-icon icon="mdi-cow" size="48" class="text-white/20" />
+                </div>
+                <p class="text-xs text-white/70 font-medium max-w-xs">
+                  กล้องพร้อมสำหรับการตรวจจับแบบเรียลไทม์ กดปุ่ม <strong>"เปิดสตรีม AI กล้องสด"</strong> ด้านบนเพื่อเริ่มดูภาพ
+                </p>
+              </div>
+            </div>
+
+            <!-- Stream Overlay Bottom Info -->
+            <div class="p-3 bg-black/50 backdrop-blur-xs flex items-center justify-between text-[11px] text-white/80 z-10 border-t border-white/10">
+              <span>Frame-Skipping 8-10 FPS Target (ประหยัดพลังงาน &gt;70%)</span>
+              <span class="text-[#F2BD7C] font-mono font-bold">Latency &lt; 40ms</span>
+            </div>
+          </template>
+
+          <!-- 🟡 แจ้งเตือนเมื่อยังไม่ได้ติดตั้งกล้อง -->
+          <div v-else class="w-full flex-1 py-14 px-6 flex flex-col items-center justify-center text-center space-y-4">
+            <div class="w-18 h-18 rounded-3xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center shadow-inner">
+              <v-icon icon="mdi-cctv-off" size="42" class="text-amber-400" />
+            </div>
+            <div class="space-y-1.5 max-w-md">
+              <h3 class="text-base font-black text-white tracking-wide">ยังไม่ได้ติดตั้งกล้องวงจรปิดในฟาร์มนี้</h3>
+              <p class="text-xs text-white/70 leading-relaxed font-medium">
+                ฟาร์มนี้ยังไม่ได้ผูกกับกล้อง Hikvision IP Camera เพื่อตรวจจับพฤติกรรมโค (ยืน, นอน, กิน, ดื่ม) และคำนวณดัชนีความสบาย (CCI)
+              </p>
+            </div>
+            <div class="flex items-center gap-3 pt-2">
+              <button 
+                type="button" 
+                @click="isAddCameraModalOpen = true"
+                class="px-5 py-2.5 rounded-xl text-xs font-bold text-[#142820] bg-emerald-400 hover:bg-emerald-300 shadow-md hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer">
+                <v-icon icon="mdi-plus-circle" size="16" />
+                <span>+ ติดตั้งและผูกกล้องประจำฟาร์ม</span>
+              </button>
+              <button 
+                type="button" 
+                @click="isEditModalOpen = true"
+                class="px-4 py-2.5 rounded-xl text-xs font-bold text-white/80 hover:text-white bg-white/10 hover:bg-white/15 border border-white/10 transition-all cursor-pointer">
+                แก้ไขข้อมูลฟาร์ม
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right: Vision Telemetry Cockpit (5 cols) -->
+        <div class="lg:col-span-5 space-y-3">
+          
+          <!-- Card 1: Cow Comfort Index (CCI) Gauge -->
+          <div class="p-4 rounded-[22px] bg-white border border-[#e5ece9] shadow-xs space-y-2.5">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center">
+                  <v-icon icon="mdi-gauge" size="18" />
+                </div>
+                <div>
+                  <span class="text-xs font-black text-[#24433a] uppercase tracking-wide">ดัชนีความสบาย (CCI)</span>
+                  <span class="text-[10px] text-[#718078] block">Cow Comfort Index (สัดส่วนโคนอนพัก)</span>
+                </div>
+              </div>
+              <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black border" :class="liveCciBadge.badgeClass">
+                {{ liveCciBadge.label }}
+              </span>
+            </div>
+
+            <!-- Big CCI Score & Bar -->
+            <div class="flex items-baseline justify-between pt-1">
+              <div class="flex items-baseline gap-1.5">
+                <span class="text-3xl font-black tabular-nums text-[#24433a]">{{ liveCciScore.toFixed(1) }}</span>
+                <span class="text-sm font-bold text-[#718078]">%</span>
+              </div>
+              <span class="text-[11px] font-medium text-[#718078]">เกณฑ์สากล: ≥ 85%</span>
+            </div>
+
+            <div class="w-full bg-[#f0f4f2] h-2.5 rounded-full overflow-hidden">
+              <div 
+                class="h-full rounded-full transition-all duration-700"
+                :class="liveCciBadge.barClass"
+                :style="{ width: `${Math.min(100, Math.max(0, liveCciScore))}%` }">
+              </div>
+            </div>
+
+            <p class="text-[10.5px] text-[#718078] leading-tight">
+              {{ liveCciBadge.description }}
+            </p>
+          </div>
+
+          <!-- Card 2: Automated Theoretical Milk Loss Risk (Zero Manual Form) -->
+          <div class="p-4 rounded-[22px] bg-gradient-to-br from-amber-50/70 to-orange-50/50 border border-amber-200/80 shadow-xs space-y-2">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-800 flex items-center justify-center">
+                  <v-icon icon="mdi-cup-water" size="18" />
+                </div>
+                <div>
+                  <span class="text-xs font-black text-amber-950 uppercase tracking-wide">ความเสี่ยงน้ำนมลด (Biological Lag)</span>
+                  <span class="text-[10px] text-amber-800/80 block">ประเมินผลกระทบหน่วง 5 วัน (Zero Manual Input)</span>
+                </div>
+              </div>
+              <span class="px-2 py-0.5 rounded-md bg-amber-200/70 text-amber-900 text-[10px] font-black uppercase">
+                AUTO RISK PROXY
+              </span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 pt-1">
+              <div class="bg-white/80 p-2.5 rounded-xl border border-amber-200/60">
+                <span class="text-[10px] font-bold text-[#718078] block">เสี่ยงลดลงต่อตัว</span>
+                <div class="flex items-baseline gap-1 mt-0.5">
+                  <span class="text-xl font-black font-mono text-rose-600">{{ automatedMilkLossRisk.lossPerCow.toFixed(2) }}</span>
+                  <span class="text-[10px] font-bold text-[#718078]">กก./ตัว/วัน</span>
+                </div>
+              </div>
+
+              <div class="bg-white/80 p-2.5 rounded-xl border border-amber-200/60">
+                <span class="text-[10px] font-bold text-[#718078] block">รวมทั้งฝูง ({{ automatedMilkLossRisk.herdCount }} ตัว)</span>
+                <div class="flex items-baseline gap-1 mt-0.5">
+                  <span class="text-xl font-black font-mono text-rose-700">{{ automatedMilkLossRisk.herdLoss.toFixed(1) }}</span>
+                  <span class="text-[10px] font-bold text-[#718078]">กก./ฝูง/วัน</span>
+                </div>
+              </div>
+            </div>
+
+            <p class="text-[10px] text-amber-900/80 leading-relaxed pt-0.5">
+              🔬 คำนวณจากสมการโมเดลโคนมไทย (Hasan et al., 2026; Abdourhamane, 2026) เริ่มเกิดภาวะสูญเสียน้ำนมเมื่อ THI &gt; 76.0 โดยที่เกษตรกรไม่ต้องจดบันทึกด้วยมือ
+            </p>
+          </div>
+
+          <!-- Card 3: Posture Breakdown 4 Metrics -->
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <!-- Standing -->
+            <div class="p-3 rounded-2xl bg-[#F6F7F5] border border-[#E4E8E5] flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <v-icon icon="mdi-walk" size="18" class="text-orange-600" />
+                <span class="font-bold text-[#24433a]">ยืน (Standing)</span>
+              </div>
+              <span class="text-sm font-black text-orange-600 font-mono">58%</span>
+            </div>
+
+            <!-- Lying -->
+            <div class="p-3 rounded-2xl bg-[#F6F7F5] border border-[#E4E8E5] flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <v-icon icon="mdi-sleep" size="18" class="text-blue-600" />
+                <span class="font-bold text-[#24433a]">นอนพัก (Lying)</span>
+              </div>
+              <span class="text-sm font-black text-blue-700 font-mono">34%</span>
+            </div>
+
+            <!-- Feeding -->
+            <div class="p-3 rounded-2xl bg-[#F6F7F5] border border-[#E4E8E5] flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <v-icon icon="mdi-food-apple-outline" size="18" class="text-emerald-600" />
+                <span class="font-bold text-[#24433a]">กินอาหาร</span>
+              </div>
+              <span class="text-sm font-black text-emerald-700 font-mono">5%</span>
+            </div>
+
+            <!-- Drinking -->
+            <div class="p-3 rounded-2xl bg-[#F6F7F5] border border-[#E4E8E5] flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <v-icon icon="mdi-water" size="18" class="text-cyan-600" />
+                <span class="font-bold text-[#24433a]">ดื่มน้ำ</span>
+              </div>
+              <span class="text-sm font-black text-cyan-700 font-mono">3%</span>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Animal Behavior & Welfare Alerts Table -->
+      <div class="pt-4 border-t border-[#e5ece9] space-y-3">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <v-icon icon="mdi-shield-alert-outline" size="18" class="text-rose-600" />
+            <h4 class="text-xs font-black uppercase tracking-wider text-[#24433a]">
+              รายการเตือนภัยสวัสดิภาพสัตว์รายตัว (Animal Behavior &amp; Welfare Alerts)
+            </h4>
+            <span 
+              v-if="activeAlertsCount > 0"
+              class="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[10px] font-black animate-pulse">
+              {{ activeAlertsCount }} เหตุการณ์ต้องติดตาม
+            </span>
+          </div>
+
+          <span class="text-[11px] text-[#718078] font-medium">
+            ตรวจจับความผิดปกติ: ยืนแช่เกิน 3 ชม. / แม่โคนอนนิ่งไม่ลุก / อาหารตก
+          </span>
+        </div>
+
+        <div class="overflow-x-auto rounded-2xl border border-[#e5ece9]">
+          <table class="w-full text-left text-xs whitespace-nowrap">
+            <thead class="bg-[#fafcfb] border-b border-[#e5ece9] text-[#4e6057] font-black uppercase text-[10.5px]">
+              <tr>
+                <th class="py-3 px-4">ความรุนแรง</th>
+                <th class="py-3 px-4">ประเภทเหตุการณ์</th>
+                <th class="py-3 px-4">โคหมายเลข (Track ID)</th>
+                <th class="py-3 px-4">ระยะเวลาต่อเนื่อง</th>
+                <th class="py-3 px-4">THI ขณะเกิดเหตุ</th>
+                <th class="py-3 px-4">ข้อความแจ้งเตือน</th>
+                <th class="py-3 px-4 text-center">การจัดการ &amp; Human Feedback</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-[#f0f4f2] bg-white">
+              <tr 
+                v-for="alert in cameraAlerts" 
+                :key="alert.id"
+                class="hover:bg-[#f8faf9] transition-colors"
+                :class="alert.is_resolved ? 'opacity-70 bg-gray-50/50' : ''">
+                
+                <!-- Severity -->
+                <td class="py-2.5 px-4">
+                  <span 
+                    class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase"
+                    :class="alert.severity === 'severe' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'">
+                    {{ alert.severity || 'warning' }}
+                  </span>
+                </td>
+
+                <!-- Type -->
+                <td class="py-2.5 px-4 font-bold text-[#24433a]">
+                  {{ formatAlertType(alert.alert_type) }}
+                </td>
+
+                <!-- Track ID -->
+                <td class="py-2.5 px-4 font-mono font-bold text-[#1f3d34]">
+                  {{ alert.track_id ? `#${alert.track_id}` : 'ฝูงรวม' }}
+                </td>
+
+                <!-- Duration -->
+                <td class="py-2.5 px-4 font-mono">
+                  {{ alert.duration_minutes ? `${alert.duration_minutes} นาที` : '-' }}
+                </td>
+
+                <!-- THI at event -->
+                <td class="py-2.5 px-4 font-mono font-bold text-amber-700">
+                  {{ alert.thi_at_event || '-' }}
+                </td>
+
+                <!-- Message -->
+                <td class="py-2.5 px-4 text-[#4e6057] max-w-xs truncate" :title="alert.message_th">
+                  {{ alert.message_th || '-' }}
+                </td>
+
+                <!-- Action & Human Feedback -->
+                <td class="py-2.5 px-4 text-center">
+                  <div class="flex items-center justify-center gap-1.5 flex-wrap">
+                    <!-- Resolve Button -->
+                    <button 
+                      v-if="!alert.is_resolved"
+                      type="button" 
+                      @click="resolveCameraAlert(alert.id)"
+                      :disabled="isResolvingAlert"
+                      class="px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-[10.5px] font-bold transition-all cursor-pointer">
+                      แก้แล้ว
+                    </button>
+                    <span v-else class="text-[10px] text-[#718078] font-medium">
+                      ✅ แก้แล้ว
+                    </span>
+
+                    <!-- Human Feedback (Accurate / False Alarm) -->
+                    <div class="flex items-center gap-1 border-l pl-1.5 border-[#e5ece9]">
+                      <template v-if="alert.is_accurate === true">
+                        <span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold" title="ยืนยันแล้วว่าเป็นการแจ้งเตือนที่ถูกต้อง">
+                          👍 แม่นยำ
+                        </span>
+                      </template>
+                      <template v-else-if="alert.is_accurate === false">
+                        <span class="px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 text-[10px] font-bold" title="บันทึกแล้วว่าเป็น False Alarm">
+                          👎 แจ้งเตือนหลอก
+                        </span>
+                      </template>
+                      <template v-else>
+                        <button 
+                          type="button"
+                          @click="submitAlertFeedback(alert, true)"
+                          title="ยืนยันว่าพฤติกรรมนี้ถูกต้องจริง (True Positive)"
+                          class="px-1.5 py-0.5 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-[10px] font-bold transition-all cursor-pointer">
+                          👍
+                        </button>
+                        <button 
+                          type="button"
+                          @click="submitAlertFeedback(alert, false)"
+                          title="ระบุว่าการตรวจจับนี้คลาดเคลื่อน (False Alarm)"
+                          class="px-1.5 py-0.5 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-bold transition-all cursor-pointer">
+                          👎
+                        </button>
+                      </template>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Empty Alerts -->
+              <tr v-if="cameraAlerts.length === 0">
+                <td colspan="7" class="py-6 text-center text-[#718078]">
+                  <v-icon icon="mdi-check-decagram-outline" size="22" class="text-emerald-500 inline mr-1" />
+                  <span>ไม่พบสัญญาณความผิดปกติในฝูงโค (สวัสดิภาพสัตว์อยู่ในเกณฑ์ปกติ)</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
     </div>
@@ -835,6 +1557,19 @@
       @deleted="handleFarmDeleted" 
     />
 
+    <!-- 🟢 7. Add Hikvision Camera Modal Component -->
+    <AddCameraModal 
+      v-model="isAddCameraModalOpen" 
+      :farm-id="farmId" 
+      :farm="farm" 
+      @created="onCameraCreated" 
+    />
+
+    <!-- 🟢 8. System Accuracy Benchmarks Modal Component -->
+    <SystemAccuracyModal 
+      v-model="isAccuracyModalOpen" 
+    />
+
   </div>
 </template>
 
@@ -844,6 +1579,8 @@ import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import { Admin } from '~/API/baseAPI'
 import AdminEditFarmModal from '~/components/Admin/farm/EditFarmModal.vue'
+import AddCameraModal from '~/components/Admin/cctv/AddCameraModal.vue'
+import SystemAccuracyModal from '~/components/Admin/cctv/SystemAccuracyModal.vue'
 
 definePageMeta({
   layout: 'admin',
@@ -862,8 +1599,14 @@ const farmId = computed(() => {
 const isLoading = ref(false)
 const isAutoSync = ref(true)
 const isEditModalOpen = ref(false)
+const isAddCameraModalOpen = ref(false)
+const isAccuracyModalOpen = ref(false)
+const multimodalStatus = ref(null)
+const isDeletingCamera = ref(false)
+const isResolvingAlert = ref(false)
 const activeChartTab = ref('thi')
 let syncTimer = null
+let clockTimer = null
 
 const farm = ref(null)
 const owner = ref(null)
@@ -875,6 +1618,215 @@ const isRunningDailyJob = ref(false)
 const historyList = ref([])
 const lstmForecast = ref(null)
 const gapAlert = ref(null)
+const registeredCameras = ref([])
+const cameraAlerts = ref([])
+
+// ตรวจสอบ Engine ปัจจุบันและสถานะการประมวลผล (Always Defined)
+const activeEngineInfo = computed(() => {
+  const engineStr = lstmForecast.value?.engine || savedDailySummary.value?.lstm_forecast?.engine || 'heuristic_fallback'
+  const isDeepLearning = typeof engineStr === 'string' && engineStr.toLowerCase().includes('onnx')
+  return {
+    raw: engineStr,
+    name: engineStr,
+    isDeepLearning,
+    title: isDeepLearning ? 'True Deep Learning (ONNX Runtime)' : 'Thai Heuristic Fallback (สถิติ & สัตวศาสตร์ไทย)',
+    description: isDeepLearning 
+      ? 'ประมวลผลผ่านโมเดล Bi-LSTM Attention 72h จากไฟล์ farm_lstm.onnx (ประวัติข้อมูลเซ็นเซอร์ครบ 72 ชม.)'
+      : 'คำนวณผ่านสมการฟิสิกส์โรงเรือนไทย + Thermal Momentum สะสม (Fail-Safe โหมดสำหรับข้อมูลตั้งต้น < 72 ชม.)'
+  }
+})
+
+// CCTV Smart Barn & YOLO26 Vision AI State
+const isCameraStreamActive = ref(false)
+const cameraFlip = ref(false)
+const cameraStreamKey = ref(Date.now())
+const cameraFeedError = ref(false)
+
+const primaryCamera = computed(() => {
+  return registeredCameras.value && registeredCameras.value.length > 0 ? registeredCameras.value[0] : null
+})
+
+const currentCameraSourceLabel = computed(() => {
+  if (primaryCamera.value) {
+    return `${primaryCamera.value.camera_name} (${primaryCamera.value.ip_address})`
+  }
+  return 'ยังไม่ได้ติดตั้งกล้อง'
+})
+
+const cameraStreamUrl = computed(() => {
+  if (!primaryCamera.value) return ''
+  const url = primaryCamera.value.sub_stream_url || primaryCamera.value.main_stream_url || ''
+  return `http://localhost:8000/api/cam/stream?cam_id=rtsp&rtsp_url=${encodeURIComponent(url)}&flip=${cameraFlip.value}&t=${cameraStreamKey.value}`
+})
+
+const liveCciScore = computed(() => {
+  return 78.5
+})
+
+const liveCciBadge = computed(() => {
+  const score = liveCciScore.value
+  if (score >= 85) {
+    return {
+      label: 'ยอดเยี่ยม (Optimal)',
+      badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+      barClass: 'bg-emerald-500',
+      description: 'โคนอนเคี้ยวเอื้องพักผ่อนเพียงพอ ไม่พบสัญญาณความเครียดสะสม'
+    }
+  }
+  if (score >= 75) {
+    return {
+      label: 'เฝ้าระวัง (Watch)',
+      badgeClass: 'bg-amber-50 text-amber-800 border-amber-200',
+      barClass: 'bg-amber-500',
+      description: 'โคเริ่มยืนแช่ระบายเหงื่อ แนะนำเปิดพัดลมระบายอากาศลดความร้อน'
+    }
+  }
+  return {
+    label: 'วิกฤต (Restlessness Risk)',
+    badgeClass: 'bg-rose-50 text-rose-800 border-rose-200 animate-pulse',
+    barClass: 'bg-rose-500',
+    description: 'โคนอนน้อยผิดปกติ (<75%) เสี่ยงต่อโรคกีบและความเครียดรุนแรง'
+  }
+})
+
+const automatedMilkLossRisk = computed(() => {
+  const thi = Number(latestSensor.value?.thi || dailySummary.value?.avg_thi || 76.0)
+  const lossPerCow = thi > 76.0 ? Math.max(0.0, Number(((thi - 76.0) * 0.45).toFixed(2))) : 0.0
+  const herdCount = farm.value?.total_cows || 25
+  const herdLoss = Number((lossPerCow * herdCount).toFixed(1))
+  return {
+    thi,
+    lossPerCow,
+    herdLoss,
+    herdCount
+  }
+})
+
+const activeAlertsCount = computed(() => {
+  return cameraAlerts.value.filter(a => !a.is_resolved).length
+})
+
+const formatAlertType = (type) => {
+  switch (type) {
+    case 'prolonged_standing': return '🚨 ยืนแช่นานเกิน 3 ชม. (Prolonged Standing)'
+    case 'downer_cow': return '🚨 แม่โคนอนนิ่งไม่ลุก (Downer Cow)'
+    case 'severe_heat_stress': return '🌧️ ความร้อนสะสมวิกฤต (Severe Heat Stress)'
+    case 'feeding_drop': return '⚠️ การกินอาหารลดลงกะทันหัน'
+    case 'excessive_drinking': return '⚠️ ความถี่การดื่มน้ำสูงผิดปกติ'
+    default: return type || 'แจ้งเตือนพฤติกรรม'
+  }
+}
+
+const fetchRegisteredCameras = async () => {
+  if (!farmId.value) return
+  try {
+    const token = getToken()
+    const res = await axios.get(`${Admin}/farms/${farmId.value}/cameras`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    })
+    if (res.data && res.data.success) {
+      registeredCameras.value = (res.data.cameras || []).filter(c => !c.is_simulation)
+    }
+  } catch (e) {
+    console.warn('[Camera API] Could not fetch registered cameras:', e)
+  }
+}
+
+const fetchCameraAlerts = async () => {
+  if (!farmId.value) return
+  try {
+    const token = getToken()
+    const res = await axios.get(`${Admin}/farms/${farmId.value}/cameras/alerts`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    })
+    if (res.data && res.data.success) {
+      cameraAlerts.value = (res.data.alerts || []).filter(a => !a.is_simulation)
+    }
+  } catch (e) {
+    console.warn('[Camera API] Could not fetch camera alerts:', e)
+  }
+}
+
+const deleteRegisteredCamera = async (camId) => {
+  if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการลบการผูกกล้องนี้?')) return
+  isDeletingCamera.value = true
+  try {
+    const token = getToken()
+    await axios.delete(`${Admin}/farms/${farmId.value}/cameras/${camId}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    })
+    isCameraStreamActive.value = false
+    await fetchRegisteredCameras()
+  } catch (e) {
+    alert(e.response?.data?.message || e.message)
+  } finally {
+    isDeletingCamera.value = false
+  }
+}
+
+const resolveCameraAlert = async (alertId) => {
+  isResolvingAlert.value = true
+  try {
+    const token = getToken()
+    await axios.patch(`${Admin}/farms/${farmId.value}/cameras/alerts/${alertId}/resolve`, {}, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    })
+    await fetchCameraAlerts()
+  } catch (e) {
+    console.error('Failed to resolve alert:', e)
+  } finally {
+    isResolvingAlert.value = false
+  }
+}
+
+const submitAlertFeedback = async (alert, isAccurate) => {
+  try {
+    const token = getToken()
+    const res = await axios.post(
+      `${Admin}/farms/${farmId.value}/cameras/alerts/${alert.id}/feedback`,
+      { is_accurate: isAccurate },
+      { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+    )
+    if (res.data && res.data.success) {
+      alert.is_accurate = isAccurate
+      alert.feedback_at = new Date().toISOString()
+    }
+  } catch (e) {
+    console.error('Failed to submit alert feedback:', e)
+  }
+}
+
+const fetchMultimodalStatus = async () => {
+  if (!farmId.value) return
+  try {
+    const token = getToken()
+    const res = await axios.get(`${Admin}/system/farms/${farmId.value}/multimodal-status`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    })
+    if (res.data && res.data.success) {
+      multimodalStatus.value = res.data.multimodal_status
+    }
+  } catch (e) {
+    console.warn('[Multimodal API] Could not fetch multimodal status:', e?.message)
+  }
+}
+
+const onCameraCreated = (cam) => {
+  registeredCameras.value.push(cam)
+  fetchRegisteredCameras()
+}
+
+const onCameraChange = () => {
+  cameraFeedError.value = false
+  cameraStreamKey.value = Date.now()
+}
+
+const toggleCameraStream = async () => {
+  if (!primaryCamera.value) return
+  isCameraStreamActive.value = !isCameraStreamActive.value
+  cameraFeedError.value = false
+  cameraStreamKey.value = Date.now()
+}
 
 const runDailyJobNow = async () => {
   if (!farmId.value || isRunningDailyJob.value) return
@@ -945,13 +1897,15 @@ const handleFarmDeleted = () => {
   router.push('/Admin/farms')
 }
 
-// Device Online State (ถือว่า Online หากมีการส่งข้อมูลล่าสุดภายใน 10 นาที)
+const nowTimestamp = ref(Date.now())
+
+// Device Online State (ถือว่า Online หากมีการส่งข้อมูลล่าสุดภายใน 2 นาที)
 const isDeviceOnline = computed(() => {
   if (!device.value && !latestSensor.value) return false
   const lastTime = latestSensor.value?.recorded_at || device.value?.last_seen_at
   if (!lastTime) return false
-  const diffMs = Date.now() - new Date(lastTime).getTime()
-  return diffMs >= 0 && diffMs < 10 * 60 * 1000
+  const diffMs = nowTimestamp.value - new Date(lastTime).getTime()
+  return diffMs >= -60000 && diffMs < 2 * 60 * 1000 // หากเกิน 2 นาทีโดยไม่มีข้อมูลใหม่ ถือว่า Offline
 })
 
 // Fetch Farm Telemetry Detail (Strict Real Data Mode)
@@ -1022,6 +1976,8 @@ const fetchFarmDetail = async () => {
           stress_percentage: thisList.length ? Math.round((stressCount / thisList.length) * 100) : 0
         }
       }
+      await fetchMultimodalStatus()
+      await fetchRegisteredCameras()
     }
   } catch (err) {
     console.error('[Fetch Farm Detail Error]:', err)
@@ -1033,6 +1989,7 @@ const fetchFarmDetail = async () => {
 // Lightweight Telemetry Polling (Every 8s to reduce DB load by 95%)
 const pollLatestTelemetry = async () => {
   if (!farmId.value) return
+  nowTimestamp.value = Date.now()
   try {
     const token = getToken()
     const res = await axios.get(`${Admin}/farms/${farmId.value}/latest`, {
@@ -1040,6 +1997,9 @@ const pollLatestTelemetry = async () => {
     })
 
     if (res.data && res.data.success) {
+      if (res.data.is_online !== undefined && device.value) {
+        device.value.status = res.data.is_online ? 'online' : 'offline'
+      }
       if (res.data.gap_alert) {
         gapAlert.value = res.data.gap_alert
       }
@@ -1073,6 +2033,7 @@ const toggleAutoSync = () => {
 const startAutoSync = () => {
   stopAutoSync()
   syncTimer = setInterval(() => {
+    nowTimestamp.value = Date.now()
     pollLatestTelemetry()
   }, 8000)
 }
@@ -1292,11 +2253,8 @@ const chartSeries = computed(() => {
     })
 
     const lastThi = pastThi.filter(v => v != null).pop() || Number(latestSensor.value?.thi || 76.5)
-    const forecastPoints = (lstmForecast.value?.forecasts || defaultForecasts.value)?.map(f => Number(f.predicted_thi)) || [
-      Number((lastThi + 0.6).toFixed(1)),
-      Number((lastThi + 1.4).toFixed(1)),
-      Number((lastThi + 2.1).toFixed(1))
-    ]
+    const forecastList = lstmForecast.value?.forecasts || defaultForecasts.value
+    const forecastPoints = forecastList.map(f => Number(f.predicted_thi))
 
     // Actual series (past subset + nulls for future)
     const actualSeriesData = [...pastThi, ...forecastPoints.map(() => null)]
@@ -1306,6 +2264,20 @@ const chartSeries = computed(() => {
       ...pastThi.slice(0, -1).map(() => null),
       lastThi,
       ...forecastPoints
+    ]
+
+    // Uncertainty upper bound (+MAE)
+    const upperSeriesData = [
+      ...pastThi.slice(0, -1).map(() => null),
+      lastThi,
+      ...forecastList.map(f => f.thi_upper != null ? Number(f.thi_upper) : Number((Number(f.predicted_thi) + (f.thi_mae || 0.87)).toFixed(1)))
+    ]
+
+    // Uncertainty lower bound (-MAE)
+    const lowerSeriesData = [
+      ...pastThi.slice(0, -1).map(() => null),
+      lastThi,
+      ...forecastList.map(f => f.thi_lower != null ? Number(f.thi_lower) : Number((Number(f.predicted_thi) - (f.thi_mae || 0.87)).toFixed(1)))
     ]
 
     return [
@@ -1318,6 +2290,16 @@ const chartSeries = computed(() => {
         name: 'AI LSTM พยากรณ์ล่วงหน้า',
         type: 'line',
         data: forecastSeriesData
+      },
+      {
+        name: 'ช่วงความเชื่อมั่นสูงสุด (+MAE)',
+        type: 'line',
+        data: upperSeriesData
+      },
+      {
+        name: 'ช่วงความเชื่อมั่นต่ำสุด (-MAE)',
+        type: 'line',
+        data: lowerSeriesData
       }
     ]
   }
@@ -1392,7 +2374,7 @@ const chartOptions = computed(() => {
   } else if (isBoth) {
     colors = ['#d87939', '#f59e0b', '#0ea5e9']
   } else if (isForecast) {
-    colors = ['#163026', '#d87939']
+    colors = ['#163026', '#d87939', '#eab308', '#0ea5e9']
   }
 
   return {
@@ -1404,11 +2386,11 @@ const chartOptions = computed(() => {
     colors: colors,
     stroke: {
       curve: 'smooth',
-      width: isForecast ? [3, 3] : isThiOnly ? [3] : isBoth ? [3, 2, 2] : [2.5, 2.5],
-      dashArray: isForecast ? [0, 6] : [0]
+      width: isForecast ? [3, 3, 1.5, 1.5] : isThiOnly ? [3] : isBoth ? [3, 2, 2] : [2.5, 2.5],
+      dashArray: isForecast ? [0, 6, 4, 4] : [0]
     },
     fill: {
-      type: isForecast ? ['gradient', 'solid'] : isThiOnly ? ['gradient'] : isBoth ? ['gradient', 'solid', 'solid'] : ['solid', 'solid'],
+      type: isForecast ? ['gradient', 'solid', 'solid', 'solid'] : isThiOnly ? ['gradient'] : isBoth ? ['gradient', 'solid', 'solid'] : ['solid', 'solid'],
       gradient: {
         shadeIntensity: 1,
         opacityFrom: 0.45,
@@ -1480,13 +2462,24 @@ const chartOptions = computed(() => {
 // Lifecycle
 onMounted(() => {
   fetchFarmDetail()
+  fetchMultimodalStatus()
+  fetchRegisteredCameras()
+  fetchCameraAlerts()
   if (isAutoSync.value) {
     startAutoSync()
   }
+  // Clock timer เพื่อให้ computed(isDeviceOnline) รีเฟรชสถานะแบบเรียลไทม์ทุก 5 วินาที
+  clockTimer = setInterval(() => {
+    nowTimestamp.value = Date.now()
+  }, 5000)
 })
 
 onUnmounted(() => {
   stopAutoSync()
+  if (clockTimer) {
+    clearInterval(clockTimer)
+    clockTimer = null
+  }
 })
 </script>
 

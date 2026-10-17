@@ -1,0 +1,87 @@
+{
+  "timestamp": "2026-10-16T00:11:47.501600+00:00",
+  "camera_id": "simulation",
+  "farm_id": null,
+  "thi": null,
+  "avg_conf": 0.317,
+  "num_cows": 7,
+  "detections": [
+    {
+      "track_id": null,
+      "posture": "standing",
+      "conf": 0.512,
+      "bbox": [
+        292,
+        103,
+        337,
+        222
+      ]
+    },
+    {
+      "track_id": null,
+      "posture": "lying down",
+      "conf": 0.435,
+      "bbox": [
+        27,
+        159,
+        78,
+        224
+      ]
+    },
+    {
+      "track_id": null,
+      "posture": "lying down",
+      "conf": 0.314,
+      "bbox": [
+        134,
+        145,
+        185,
+        211
+      ]
+    },
+    {
+      "track_id": null,
+      "posture": "lying down",
+      "conf": 0.285,
+      "bbox": [
+        99,
+        133,
+        189,
+        218
+      ]
+    },
+    {
+      "track_id": null,
+      "posture": "standing",
+      "conf": 0.24,
+      "bbox": [
+        28,
+        119,
+        75,
+        168
+      ]
+    },
+    {
+      "track_id": null,
+      "posture": "standing",
+      "conf": 0.227,
+      "bbox": [
+        428,
+        116,
+        633,
+        314
+      ]
+    },
+    {
+      "track_id": null,
+      "posture": "standing",
+      "conf": 0.21,
+      "bbox": [
+        520,
+        259,
+        612,
+        460
+      ]
+    }
+  ]
+}

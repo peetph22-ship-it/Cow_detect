@@ -1,0 +1,32 @@
+{
+  "timestamp": "2026-10-17T11:28:15.755395+00:00",
+  "camera_id": "simulation",
+  "farm_id": null,
+  "thi": null,
+  "avg_conf": 0.388,
+  "num_cows": 2,
+  "detections": [
+    {
+      "track_id": 612,
+      "posture": "feeding",
+      "conf": 0.218,
+      "bbox": [
+        38,
+        264,
+        130,
+        470
+      ]
+    },
+    {
+      "track_id": 557,
+      "posture": "standing",
+      "conf": 0.559,
+      "bbox": [
+        414,
+        157,
+        487,
+        281
+      ]
+    }
+  ]
+}

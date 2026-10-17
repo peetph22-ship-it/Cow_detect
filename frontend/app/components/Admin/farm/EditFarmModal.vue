@@ -179,6 +179,109 @@
           </div>
         </div>
 
+        <!-- 5. ผูกกล้องวงจรปิดประจำฟาร์ม (CCTV Camera Binding) -->
+        <div class="p-4 rounded-[22px] bg-white border border-[#e5ece9] space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-xl bg-[#D87939]/15 text-[#D87939] flex items-center justify-center">
+                <v-icon icon="mdi-cctv" size="18" />
+              </div>
+              <div>
+                <h4 class="text-xs font-black text-[#24433a] uppercase tracking-wide flex items-center gap-2">
+                  <span>กล้องวงจรปิด AI ประจำฟาร์ม (CCTV Camera)</span>
+                  <span v-if="isFetchingCameras" class="text-[10px] text-[#718078] font-normal lowercase">(กำลังโหลด...)</span>
+                </h4>
+                <p class="text-[10px] text-[#718078]">ผูกกล้อง IP เพื่อตรวจจับพฤติกรรมโค (Standing/Lying/CCI) ด้วย YOLO</p>
+              </div>
+            </div>
+            
+            <!-- Toggle Checkbox -->
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" v-model="form.has_camera" class="sr-only peer" />
+              <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#24433a]"></div>
+            </label>
+          </div>
+
+          <div v-if="form.has_camera" class="space-y-3 pt-2 border-t border-[#f0f4f2] animate-fade-in">
+            <!-- Camera Name -->
+            <div>
+              <label class="block text-[11px] font-bold text-[#4e6057] mb-1">
+                ชื่อกล้อง / ตำแหน่งติดตั้ง <span class="text-rose-500">*</span>
+              </label>
+              <input 
+                v-model="form.camera_name"
+                type="text"
+                :required="form.has_camera"
+                placeholder="เช่น กล้องโรงเรือน 1 - โซนคอกนอน"
+                class="w-full bg-[#fafcfb] border border-[#e5ece9] rounded-[14px] px-3.5 py-2.5 text-xs font-bold text-[#1f3d34] focus:outline-none focus:border-[#24433a] transition-all"
+              />
+            </div>
+
+            <!-- IP & RTSP Port -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[11px] font-bold text-[#4e6057] mb-1">
+                  IP Address ของกล้อง <span class="text-rose-500">*</span>
+                </label>
+                <input 
+                  v-model="form.camera_ip"
+                  type="text"
+                  :required="form.has_camera"
+                  placeholder="เช่น 192.168.1.108"
+                  class="w-full bg-[#fafcfb] border border-[#e5ece9] rounded-[14px] px-3.5 py-2.5 text-xs font-mono font-bold text-[#1f3d34] focus:outline-none focus:border-[#24433a] transition-all"
+                />
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-bold text-[#4e6057] mb-1">
+                  พอร์ต RTSP
+                </label>
+                <input 
+                  v-model.number="form.camera_rtsp_port"
+                  type="number"
+                  placeholder="554"
+                  class="w-full bg-[#fafcfb] border border-[#e5ece9] rounded-[14px] px-3.5 py-2.5 text-xs font-mono font-bold text-[#1f3d34] focus:outline-none focus:border-[#24433a] transition-all"
+                />
+              </div>
+            </div>
+
+            <!-- Username & Password -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[11px] font-bold text-[#4e6057] mb-1">
+                  ชื่อผู้ใช้ (Username) <span class="text-rose-500">*</span>
+                </label>
+                <input 
+                  v-model="form.camera_user"
+                  type="text"
+                  :required="form.has_camera"
+                  placeholder="admin"
+                  class="w-full bg-[#fafcfb] border border-[#e5ece9] rounded-[14px] px-3.5 py-2.5 text-xs font-bold text-[#1f3d34] focus:outline-none focus:border-[#24433a] transition-all"
+                />
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-bold text-[#4e6057] mb-1">
+                  รหัสผ่าน (Password)
+                  <span v-if="existingCameraId" class="text-[10px] text-[#718078] font-normal">(เว้นว่างหากไม่เปลี่ยน)</span>
+                  <span v-else class="text-rose-500">*</span>
+                </label>
+                <input 
+                  v-model="form.camera_pass"
+                  type="password"
+                  :required="form.has_camera && !existingCameraId"
+                  placeholder="รหัสผ่านกล้อง"
+                  class="w-full bg-[#fafcfb] border border-[#e5ece9] rounded-[14px] px-3.5 py-2.5 text-xs font-bold text-[#1f3d34] focus:outline-none focus:border-[#24433a] transition-all"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div v-else class="text-[11px] text-[#718078] italic">
+            (ยังไม่ผูกกล้องในฟาร์มนี้ สามารถติ๊กเปิดสวิตช์เพื่อติดตั้งกล้องได้)
+          </div>
+        </div>
+
         <!-- 🟢 Footer Action Buttons -->
         <div class="pt-5 border-t border-[#e5ece9] flex items-center justify-between gap-3">
           <!-- 🗑️ ปุ่มลบฟาร์ม (ด้านซ้าย) -->
@@ -285,10 +388,12 @@ const isLoading = ref(false)
 const isDeleting = ref(false)
 const isFetchingDevices = ref(false)
 const isFetchingUsers = ref(false)
+const isFetchingCameras = ref(false)
 const isConfirmDeleteOpen = ref(false)
 const errorMessage = ref('')
 const devicesList = ref([])
 const usersList = ref([])
+const existingCameraId = ref(null)
 
 // Form State
 const form = ref({
@@ -297,10 +402,50 @@ const form = ref({
   province: '',
   district: '',
   address: '',
-  id_devices: ''
+  id_devices: '',
+  has_camera: false,
+  camera_name: '',
+  camera_ip: '',
+  camera_rtsp_port: 554,
+  camera_user: 'admin',
+  camera_pass: ''
 })
 
 const token = process.client ? localStorage.getItem('token') : null
+
+// ดึงข้อมูลกล้องของฟาร์ม
+const fetchFarmCamera = async (farmId) => {
+  if (!farmId) return
+  isFetchingCameras.value = true
+  try {
+    const res = await axios.get(`${Admin}/farms/${farmId}/cameras`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    const cams = res.data?.cameras || []
+    const activeCam = cams.find(c => !c.is_simulation && c.is_active !== false) || cams.find(c => !c.is_simulation)
+    if (activeCam) {
+      existingCameraId.value = activeCam.id
+      form.value.has_camera = true
+      form.value.camera_name = activeCam.camera_name || `${form.value.name_farms || 'ฟาร์ม'} Camera 1`
+      form.value.camera_ip = activeCam.ip_address || ''
+      form.value.camera_rtsp_port = activeCam.rtsp_port || 554
+      form.value.camera_user = activeCam.username || 'admin'
+      form.value.camera_pass = ''
+    } else {
+      existingCameraId.value = null
+      form.value.has_camera = false
+      form.value.camera_name = `${form.value.name_farms || 'ฟาร์ม'} Camera 1`
+      form.value.camera_ip = ''
+      form.value.camera_rtsp_port = 554
+      form.value.camera_user = 'admin'
+      form.value.camera_pass = ''
+    }
+  } catch (err) {
+    console.warn("Could not fetch farm camera:", err.message)
+  } finally {
+    isFetchingCameras.value = false
+  }
+}
 
 // โหลดข้อมูลฟาร์มเข้าฟอร์ม
 const loadFarmData = () => {
@@ -311,8 +456,15 @@ const loadFarmData = () => {
       province: props.farm.province || '',
       district: props.farm.district || '',
       address: props.farm.address || '',
-      id_devices: props.farm.id_devices || ''
+      id_devices: props.farm.id_devices || '',
+      has_camera: false,
+      camera_name: `${props.farm.name_farms || 'ฟาร์ม'} Camera 1`,
+      camera_ip: '',
+      camera_rtsp_port: 554,
+      camera_user: 'admin',
+      camera_pass: ''
     }
+    fetchFarmCamera(props.farm.id_farms)
   }
 }
 
@@ -408,6 +560,17 @@ const submitEdit = async () => {
     return
   }
 
+  if (form.value.has_camera) {
+    if (!form.value.camera_ip || !form.value.camera_ip.trim()) {
+      errorMessage.value = 'กรุณาระบุ IP Address ของกล้องวงจรปิด'
+      return
+    }
+    if (!existingCameraId.value && (!form.value.camera_pass || !form.value.camera_pass.trim())) {
+      errorMessage.value = 'กรุณาระบุรหัสผ่านกล้องวงจรปิด'
+      return
+    }
+  }
+
   isLoading.value = true
   errorMessage.value = ''
 
@@ -421,6 +584,21 @@ const submitEdit = async () => {
       district: form.value.district ? form.value.district.trim() : null,
       address: form.value.address ? form.value.address.trim() : null,
       id_devices: form.value.id_devices
+    }
+
+    if (form.value.has_camera && form.value.camera_ip && form.value.camera_ip.trim()) {
+      payload.has_camera = true
+      payload.camera = {
+        camera_name: form.value.camera_name ? form.value.camera_name.trim() : `${form.value.name_farms} Camera 1`,
+        ip_address: form.value.camera_ip.trim(),
+        rtsp_port: Number(form.value.camera_rtsp_port) || 554,
+        username: form.value.camera_user ? form.value.camera_user.trim() : 'admin',
+        password: form.value.camera_pass ? form.value.camera_pass.trim() : '',
+        brand: 'Hikvision',
+        model: 'DS-2CD2143G2-I'
+      }
+    } else {
+      payload.has_camera = false
     }
 
     const res = await axios.put(`${Admin}/farms/${props.farm.id_farms}`, payload, {

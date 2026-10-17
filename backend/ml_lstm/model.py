@@ -23,7 +23,7 @@ class TemporalAttention(nn.Module):
 class FarmHeatStressLSTM(nn.Module):
     def __init__(
         self,
-        time_feature_dim: int = 10,
+        time_feature_dim: int = 11,
         static_feature_dim: int = 3,
         hidden_dim: int = 128,
         num_layers: int = 2,

@@ -216,7 +216,8 @@ const navGroups = [
     title: 'Monitoring',
     items: [
       { label: 'ภาพรวมระบบ (Dashboard)', to: '/Admin', icon: 'mdi-view-dashboard-outline' },
-      { label: 'ข้อมูลฟาร์ม (Farms)', to: '/Admin/farms', icon: 'mdi-barn' }
+      { label: 'ข้อมูลฟาร์ม (Farms)', to: '/Admin/farms', icon: 'mdi-barn' },
+      { label: 'สภาพแวดล้อมจำลอง', to: '/Admin/simulation', icon: 'mdi-flask-outline' }
     ]
   },
   {
@@ -224,7 +225,8 @@ const navGroups = [
     items: [
       { label: 'สมาชิกเกษตรกร (Users)', to: '/Admin/users', icon: 'mdi-account-group-outline' },
       { label: 'อุปกรณ์ IoT (Devices)', to: '/Admin/devices', icon: 'mdi-memory' },
-      { label: 'ประวัติแจ้งเตือน (Alerts)', to: '/Admin/alerts', icon: 'mdi-bell-outline' }
+      { label: 'ประวัติแจ้งเตือน (Alerts)', to: '/Admin/alerts', icon: 'mdi-bell-outline' },
+      { label: 'สมุดยื่นสหกรณ์ (ESG Report)', to: '/Admin/coop-report', icon: 'mdi-file-document-check-outline' }
     ]
   }
 ]
@@ -239,11 +241,13 @@ const isActiveRoute = (targetPath) => {
 const currentPageTitle = computed(() => {
   const path = route.path
   if (path === '/Admin' || path === '/Admin/') return 'ภาพรวมระบบ (Command Center)'
+  if (path === '/Admin/simulation' || path.startsWith('/Admin/simulation')) return 'สภาพแวดล้อมจำลอง (Simulation Sandbox)'
   if (path === '/Admin/farms' || path === '/Admin/farms/') return 'จัดการข้อมูลฟาร์ม (Farm Roster)'
   if (path.startsWith('/Admin/farms/') || path.includes('/Admin/farm_detail')) return 'ข้อมูลโทรมาตรรายฟาร์ม (Barn Cockpit)'
   if (path.includes('/Admin/users')) return 'จัดการสมาชิก (User Management)'
   if (path.includes('/Admin/devices')) return 'จัดการอุปกรณ์ IoT (Devices)'
   if (path.includes('/Admin/alerts')) return 'ประวัติการแจ้งเตือน (Thermal Alerts)'
+  if (path.includes('/Admin/coop-report')) return 'สมุดความเสี่ยงสหกรณ์ (Cooperative ESG Report)'
   return 'ระบบผู้ดูแล (Admin)'
 })
 

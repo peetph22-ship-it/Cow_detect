@@ -1,7 +1,7 @@
 # รายงานภาพรวมระบบฉบับสมบูรณ์: PH Detection System
 **Precision Herd Heat Stress & Cow Behavior Detection System for Dairy Farms**  
-**วันที่ปรับปรุงล่าสุด:** 15 ตุลาคม 2026  
-**เวอร์ชันระบบ:** 2.5.0 (Production-Ready Architecture)  
+**วันที่ปรับปรุงล่าสุด:** 16 ตุลาคม 2026  
+**เวอร์ชันระบบ:** 2.6.0 (Enterprise Multi-Module Suite)  
 
 ---
 
@@ -356,7 +356,12 @@ npm run dev
 | **Farms** | `POST` | `/api/Admin/farms` | เพิ่มฟาร์มใหม่พร้อมผูกอุปกรณ์ (ACID Transaction) |
 | **Farms** | `PUT` | `/api/Admin/farms/:id` | แก้ไขข้อมูลฟาร์มและสเปกโรงเรือน |
 | **Farms** | `DELETE` | `/api/Admin/farms/:id` | ลบฟาร์มอย่างปลอดภัย (ACID Transaction) |
+| **Farms** | `GET` | `/api/Admin/farms/dashboard-stats` | ข้อมูลสถิติภาพรวมเครือข่ายสำหรับ Dashboard |
 | **Daily Batch**| `POST` | `/api/Admin/farms/:id/run-daily-summary`| สั่งรันสรุปประจำวันเฉพาะฟาร์มนี้ |
 | **Daily Batch**| `POST` | `/api/Admin/farms/run-all-daily-summaries`| สั่งรันสรุปประจำวันทุกฟาร์มในระบบ |
 | **Daily Batch**| `GET` | `/api/Admin/farms/:id/daily-summaries` | ดึงประวัติ Daily Summaries ย้อนหลัง 14 วัน |
-| **YOLO AI** | `POST` | `/api/detect` | ส่งภาพเพื่อตรวจจับพฤติกรรมโคนมผ่าน YOLO |
+| **Devices** | `GET, POST, PUT, DELETE` | `/api/Admin/devices` | จัดการอุปกรณ์ IoT และกล้อง CCTV ในระบบ |
+| **Alerts & LINE**| `GET, POST` | `/api/Admin/alerts` | ประวัติการแจ้งเตือนและส่ง LINE Flex Message |
+| **Coop ESG** | `GET` | `/api/Admin/coop-report/:farmId` | ดึงสมุดความเสี่ยงสำหรับยื่นสหกรณ์และประเมินสินเชื่อ |
+| **Camera AI**| `GET` | `/api/cam/stream` (FastAPI) | สตรีมวิดีโอสดตรวจจับพฤติกรรมโค (YOLO26m) |
+| **YOLO AI** | `POST` | `/api/detect/image` | ส่งภาพเพื่อตรวจจับพฤติกรรมโคนมผ่าน YOLO |

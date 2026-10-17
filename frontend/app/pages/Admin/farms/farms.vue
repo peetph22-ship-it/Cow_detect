@@ -261,20 +261,23 @@
               <th class="px-6 py-5 text-[11px] font-black text-[#718078] uppercase tracking-[0.1em] border-b border-[#163026]/5">
                 อุปกรณ์ IoT ประจำฟาร์ม
               </th>
-              <th class="px-6 py-5 text-[11px] font-black text-[#718078] uppercase tracking-[0.1em] border-b border-[#163026]/5 text-right">
+              <th class="px-6 py-5 text-[11px] font-black text-[#718078] uppercase tracking-[0.1em] border-b border-[#163026]/5 text-center">
                 อุณหภูมิ (°C)
               </th>
-              <th class="px-6 py-5 text-[11px] font-black text-[#718078] uppercase tracking-[0.1em] border-b border-[#163026]/5 text-right">
+              <th class="px-6 py-5 text-[11px] font-black text-[#718078] uppercase tracking-[0.1em] border-b border-[#163026]/5 text-center">
                 ความชื้น (%RH)
               </th>
-              <th class="px-6 py-5 text-[11px] font-black text-[#718078] uppercase tracking-[0.1em] border-b border-[#163026]/5 text-right">
+              <th class="px-6 py-5 text-[11px] font-black text-[#718078] uppercase tracking-[0.1em] border-b border-[#163026]/5 text-center">
                 ค่า THI
               </th>
               <th class="px-6 py-5 text-[11px] font-black text-[#718078] uppercase tracking-[0.1em] border-b border-[#163026]/5 text-center">
                 สถานะสภาวะ
               </th>
-              <th class="px-6 py-5 text-[11px] font-black text-[#718078] uppercase tracking-[0.1em] border-b border-[#163026]/5 text-right">
+              <th class="px-6 py-5 text-[11px] font-black text-[#718078] uppercase tracking-[0.1em] border-b border-[#163026]/5 text-center">
                 การจัดการ
+              </th>
+              <th class="px-6 py-5 text-[11px] font-black text-[#718078] uppercase tracking-[0.1em] border-b border-[#163026]/5 text-center">
+                รายละเอียด
               </th>
             </tr>
           </thead>
@@ -346,7 +349,7 @@
               </td>
 
               <!-- Temperature -->
-              <td class="px-6 py-4 text-right">
+              <td class="px-6 py-4 text-center">
                 <span v-if="item.temperature_c" class="font-extrabold text-[#163026] text-[14px]">
                   {{ Number(item.temperature_c).toFixed(1) }}
                   <span class="text-[11px] font-bold text-[#718078]">°C</span>
@@ -355,7 +358,7 @@
               </td>
 
               <!-- Humidity -->
-              <td class="px-6 py-4 text-right">
+              <td class="px-6 py-4 text-center">
                 <span v-if="item.humidity_pct" class="font-extrabold text-sky-700 text-[14px]">
                   {{ Number(item.humidity_pct).toFixed(1) }}
                   <span class="text-[11px] font-bold text-[#718078]">%</span>
@@ -364,7 +367,7 @@
               </td>
 
               <!-- THI -->
-              <td class="px-6 py-4 text-right">
+              <td class="px-6 py-4 text-center">
                 <span v-if="item.thi" class="font-black text-[15px]" :class="getThiStatus(item.thi).textClass">
                   {{ Number(item.thi).toFixed(1) }}
                 </span>
@@ -390,15 +393,8 @@
               </td>
 
               <!-- Actions -->
-              <td class="px-6 py-4 text-right">
+              <td class="px-6 py-4 text-center">
                 <div class="flex items-center justify-end gap-1.5">
-                  <!-- View Details Button -->
-                  <NuxtLink
-                    :to="'/Admin/farm_detail-' + item.id_farms"
-                    class="px-3 py-1.5 rounded-[12px] bg-[#163026] hover:bg-[#0f221b] text-white text-xs font-bold inline-flex items-center gap-1.5 shadow-[0_4px_12px_rgba(22,48,38,0.15)] hover:shadow-[0_6px_16px_rgba(22,48,38,0.25)] hover:-translate-y-0.5 transition-all duration-200">
-                    <v-icon icon="mdi-chart-timeline-variant" size="15" />
-                    <span>รายละเอียด</span>
-                  </NuxtLink>
 
                   <!-- Edit Farm Button -->
                   <button
@@ -417,7 +413,17 @@
                     class="w-8 h-8 rounded-[10px] bg-white border border-[#e5ece9] hover:bg-rose-50 hover:border-rose-200 text-[#718078] hover:text-rose-700 inline-flex items-center justify-center shadow-sm transition-all duration-200 cursor-pointer">
                     <v-icon icon="mdi-trash-can-outline" size="15" />
                   </button>
+                  <!-- View Details Button -->
+                  
                 </div>
+              </td>
+              <td class="px-6 py-4 text-center">
+                <NuxtLink
+                    :to="'/Admin/farm_detail-' + item.id_farms"
+                    class="px-3 py-1.5 rounded-[12px] bg-[#163026] hover:bg-[#0f221b] text-white text-xs font-bold inline-flex items-center gap-1.5 shadow-[0_4px_12px_rgba(22,48,38,0.15)] hover:shadow-[0_6px_16px_rgba(22,48,38,0.25)] hover:-translate-y-0.5 transition-all duration-200">
+                    <v-icon icon="mdi-chart-timeline-variant" size="15" />
+                    <span>รายละเอียด</span>
+                  </NuxtLink>
               </td>
 
             </tr>

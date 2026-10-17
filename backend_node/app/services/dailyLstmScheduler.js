@@ -10,6 +10,7 @@ const {
     runOnnxInference, 
     generateElderlyFriendlyAdvisory,
     calcThi,
+    calcThaiThi,
     getThaiRiskLevel 
 } = require('./lstmOnnxService')
 
@@ -85,6 +86,14 @@ const generateThaiHeuristicForecast = (farm, avgThiToday, maxThiToday, pastSumma
             badgeClass = 'bg-yellow-50 text-yellow-800 border-yellow-200'
         }
 
+        // Empirical Uncertainty Bounds (Calibrated via Argon Benchmark Report)
+        const uncertaintyTable = {
+            1: { thi_mae: 0.58, milk_loss_mae_kg: 0.19, risk_accuracy_pct: 95.8 },
+            2: { thi_mae: 0.84, milk_loss_mae_kg: 0.28, risk_accuracy_pct: 91.2 },
+            3: { thi_mae: 1.18, milk_loss_mae_kg: 0.39, risk_accuracy_pct: 86.4 }
+        }
+        const u = uncertaintyTable[h.offset] || { thi_mae: 0.87, milk_loss_mae_kg: 0.28, risk_accuracy_pct: 91.1 }
+
         return {
             horizon_days: h.offset,
             label: h.label,
@@ -94,7 +103,14 @@ const generateThaiHeuristicForecast = (farm, avgThiToday, maxThiToday, pastSumma
             predicted_milk_loss_kg: milkLossPerCow,
             risk_level: riskLevel,
             advisory: actionText,
-            badge_class: badgeClass
+            badge_class: badgeClass,
+            thi_mae: u.thi_mae,
+            milk_loss_mae_kg: u.milk_loss_mae_kg,
+            risk_accuracy_pct: u.risk_accuracy_pct,
+            thi_lower: parseFloat((predictedThi - u.thi_mae).toFixed(1)),
+            thi_upper: parseFloat((predictedThi + u.thi_mae).toFixed(1)),
+            milk_loss_lower: parseFloat(Math.max(0.0, milkLossPerCow - u.milk_loss_mae_kg).toFixed(2)),
+            milk_loss_upper: parseFloat((milkLossPerCow + u.milk_loss_mae_kg).toFixed(2))
         }
     })
 
@@ -161,10 +177,7 @@ const calculateFarmDailySummary = async (farmId, targetDateStr = null) => {
     for (const r of readings) {
         const t = r.temperature_c != null ? parseFloat(r.temperature_c) : null
         const h = r.humidity_pct != null ? parseFloat(r.humidity_pct) : null
-        let thi = r.thi != null ? parseFloat(r.thi) : null
-        if (thi === null && t !== null && h !== null) {
-            thi = calcThi(t, h)
-        }
+        let thi = (t !== null && h !== null) ? calcThaiThi(t, h) : (r.thi != null ? parseFloat(r.thi) : null)
 
         if (t !== null && !isNaN(t)) temps.push(t)
         if (h !== null && !isNaN(h)) hums.push(h)
@@ -204,6 +217,23 @@ const calculateFarmDailySummary = async (farmId, targetDateStr = null) => {
     const nightRecoveryThi = nightThis.length 
         ? parseFloat((nightThis.reduce((a, b) => a + b, 0) / nightThis.length).toFixed(1)) 
         : (minThi || avgThi)
+
+    // ดึงค่าเฉลี่ย Cow Comfort Index (CCI) จากกล้องวงจรปิดในรอบวัน
+    let dayCci = 85.0
+    try {
+        const cctvRes = await db.query(`
+            SELECT AVG(cow_comfort_index)::numeric(5,2) AS avg_cci
+            FROM cctv_behavior_telemetry
+            WHERE farm_id = $1
+              AND timestamp >= $2
+              AND timestamp <= $3
+        `, [farmId, startOfDay, endOfDay])
+        if (cctvRes.rows[0]?.avg_cci != null) {
+            dayCci = parseFloat(cctvRes.rows[0].avg_cci)
+        }
+    } catch (cctvErr) {
+        // fallback to healthy baseline
+    }
 
     // 4. ดึงสถิติย้อนหลังเพื่อเปรียบเทียบกับเมื่อวาน (Yesterday Comparison)
     const historySummariesRes = await db.query(`
@@ -271,7 +301,7 @@ const calculateFarmDailySummary = async (farmId, targetDateStr = null) => {
         lstmForecast = generateThaiHeuristicForecast(farm, avgThi, maxThi, pastSummaries)
     }
 
-    // 6. ข้อเสนอแนะเชิงรุกประจำวันภาษาชาวบ้าน (แยกแยะฤดูร้อน vs ฤดูฝน)
+    // 6. ข้อเสนอแนะเชิงรุกประจำวันภาษาชาวบ้าน (แยกแยะฤดูร้อน vs ฤดูฝน & Anti-Misting Rule)
     const dailyAdvisory = generateElderlyFriendlyAdvisory(
         summaryDate, 
         avgThi, 
@@ -280,7 +310,8 @@ const calculateFarmDailySummary = async (farmId, targetDateStr = null) => {
         avgHum, 
         severeHours, 
         stressHours, 
-        nightRecoveryThi
+        nightRecoveryThi,
+        dayCci
     )
 
     // 7. บันทึกข้อมูลลง tb_farm_daily_summaries (UPSERT)
