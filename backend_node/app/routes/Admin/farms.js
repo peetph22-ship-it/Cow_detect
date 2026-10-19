@@ -7,6 +7,8 @@ const {
     runAllFarmsDailySummary, 
     getDailySummariesByFarm 
 } = require('../../services/dailyLstmScheduler')
+const { calcThi, getRiskLevel, getFarmProfile, getThresholds, toAlertLevel, PROFILES } = require('../../services/heatStress')
+const { generateBaselineForecast, isCurrentForecast } = require('../../services/forecastService')
 
 // Helper function to check if a string is a valid UUID
 const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str || '').trim())
@@ -166,8 +168,13 @@ router.post('/', verifyToken, requireRole('admin'), async (req, res) => {
             province, district, address, 
             barn_unit, id_users,
             barn_height_m, roof_type, cooling_system,
-            id_devices, device_serial, new_device_name 
+            id_devices, device_serial, new_device_name,
+            hf_profile
         } = req.body
+
+        if (hf_profile !== undefined && !PROFILES[hf_profile]) {
+            return res.status(400).json({ success: false, message: `hf_profile ต้องเป็น ${Object.keys(PROFILES).join(' หรือ ')}` })
+        }
 
         const farmName = (name_farms || name || '').trim()
         if (!farmName) {
@@ -193,8 +200,14 @@ router.post('/', verifyToken, requireRole('admin'), async (req, res) => {
                 cooling_system ? cooling_system.trim() : 'พัดลมระบายอากาศ'
             ]
         )
-        const newFarm = farmRes.rows[0]
+        let newFarm = farmRes.rows[0]
         const farmId = newFarm.id_farms
+
+        // ต้องรัน migrations/20261021_farm_hf_profile.sql ก่อน
+        if (hf_profile !== undefined) {
+            const profRes = await client.query(`UPDATE tb_farms SET hf_profile = $1 WHERE id_farms = $2 RETURNING *`, [hf_profile, farmId])
+            newFarm = profRes.rows[0]
+        }
 
         // 2. ถ้ามี id_users ให้บันทึกความสัมพันธ์ใน tb_farm_members
         if (newFarm.id_users) {
@@ -324,25 +337,14 @@ router.get('/:id/latest', verifyToken, requireRole('admin'), async (req, res) =>
         const diffMinutes = Math.floor(diffMs / 60000)
         const isOnline = diffMinutes < 2
 
-        const calcThi = (t, rh) => {
-            if (t == null || rh == null) return null
-            return parseFloat(((1.8 * Number(t) + 32) - (0.55 - 0.0055 * Number(rh)) * (1.8 * Number(t) - 26)).toFixed(1))
-        }
-
-        const calcStressLevel = (thi, tempVal = null) => {
-            if (thi == null) return 'normal'
-            const val = parseFloat(thi)
-            if (tempVal !== null && tempVal < 27.5 && val < 77.5) return 'normal'
-            if (val >= 84.0) return 'severe'
-            if (val >= 80.0) return 'moderate'
-            if (val >= 76.0) return 'mild'
-            return 'normal'
-        }
+        const farmRes = await db.query(`SELECT * FROM tb_farms WHERE id_farms::text = $1 LIMIT 1`, [id])
+        const profile = getFarmProfile(farmRes.rows[0])
 
         const temp = latest.temperature_c != null ? parseFloat(latest.temperature_c) : null
         const hum = latest.humidity_pct != null ? parseFloat(latest.humidity_pct) : null
-        let thi = latest.thi != null ? parseFloat(latest.thi) : calcThi(temp, hum)
-        const stress = latest.stress_level || calcStressLevel(thi)
+        // คำนวณจาก temp/hum ด้วยสูตรกลาง ไม่ใช้ค่า thi / stress_level ที่เก็บใน DB (สูตร/เกณฑ์เดิม)
+        const thi = calcThi(temp, hum) ?? (latest.thi != null ? parseFloat(latest.thi) : null)
+        const stress = getRiskLevel(thi, profile)
 
         const gapAlert = {
             is_gap_detected: !isOnline,
@@ -366,6 +368,7 @@ router.get('/:id/latest', verifyToken, requireRole('admin'), async (req, res) =>
                 humidity_pct: hum,
                 thi,
                 stress_level: stress,
+                hf_profile: profile,
                 recorded_at: latest.recorded_at
             },
             gap_alert: gapAlert
@@ -461,7 +464,9 @@ router.get('/:id/daily-summaries', verifyToken, requireRole('admin'), async (req
 router.get('/dashboard-stats', verifyToken, requireRole('admin'), async (req, res) => {
     try {
         // 1. ดึงข้อมูลฟาร์มทั้งหมด
-        const farmsRes = await db.query(`SELECT id_farms, name_farms, created_at FROM tb_farms`)
+        // to_jsonb(...)->>'hf_profile' ใช้ได้ทั้งก่อนและหลังรัน migration
+        const farmsRes = await db.query(`SELECT id_farms, name_farms, created_at, to_jsonb(tb_farms)->>'hf_profile' AS hf_profile FROM tb_farms`)
+        const profileByFarm = new Map(farmsRes.rows.map(f => [String(f.id_farms), getFarmProfile(f)]))
         const totalFarms = farmsRes.rows.length
 
         // คำนวณฟาร์มใหม่ในเดือนนี้
@@ -509,85 +514,71 @@ router.get('/dashboard-stats', verifyToken, requireRole('admin'), async (req, re
         latestReadings.forEach((r, idx) => {
             const t = r.temperature_c != null ? parseFloat(r.temperature_c) : null
             const rh = r.humidity_pct != null ? parseFloat(r.humidity_pct) : null
-            let thi = r.thi != null ? parseFloat(r.thi) : null
-            if (thi === null && t !== null && rh !== null) {
-                thi = parseFloat(((1.8 * t + 32) - (0.55 - 0.0055 * rh) * (1.8 * t - 26)).toFixed(1))
-            }
+            const thi = calcThi(t, rh) ?? (r.thi != null ? parseFloat(r.thi) : null)
+            const farmKey = String(r.id_farms || '')
+            const level = getRiskLevel(thi, profileByFarm.get(farmKey))
 
             if (t !== null) tempList.push(t)
             if (rh !== null) humList.push(rh)
-            if (thi !== null) {
-                thiList.push(thi)
-                if (thi < 76.0) countNormal++
-                else if (thi < 80.0) {
-                    countMild++
-                    alertItems.push({
-                        id: `alert-${r.id_farms || idx}`,
-                        farm_id: r.id_farms,
-                        farm_code: `F0${idx + 1}`,
-                        name_farms: r.name_farms || 'ฟาร์มไม่ระบุชื่อ',
-                        device_serial: r.serial_no || 'N/A',
-                        level: 'warning',
-                        thi,
-                        temperature_c: t,
-                        issue_description: `ดัชนี THI ${thi} (เริ่มเฝ้าระวังความร้อน)`,
-                        workflow_status: 'acknowledged',
-                        workflow_text: 'เปิดพัดลมระบายอากาศ',
-                        detected_at: r.recorded_at
-                    })
-                } else if (thi < 84.0) {
-                    countModerate++
-                    alertItems.push({
-                        id: `alert-${r.id_farms || idx}`,
-                        farm_id: r.id_farms,
-                        farm_code: `F0${idx + 1}`,
-                        name_farms: r.name_farms || 'ฟาร์มไม่ระบุชื่อ',
-                        device_serial: r.serial_no || 'N/A',
-                        level: 'moderate',
-                        thi,
-                        temperature_c: t,
-                        issue_description: `ดัชนี THI ${thi} (เริ่มกระทบผลผลิตน้ำนม)`,
-                        workflow_status: 'new',
-                        workflow_text: 'เปิดพัดลม + ระบบพ่นหมอก',
-                        detected_at: r.recorded_at
-                    })
-                } else {
-                    countSevere++
-                    alertItems.push({
-                        id: `alert-${r.id_farms || idx}`,
-                        farm_id: r.id_farms,
-                        farm_code: `F0${idx + 1}`,
-                        name_farms: r.name_farms || 'ฟาร์มไม่ระบุชื่อ',
-                        device_serial: r.serial_no || 'N/A',
-                        level: 'critical',
-                        thi,
-                        temperature_c: t,
-                        issue_description: `🚨 ดัชนี THI ${thi} (วิกฤตรุนแรง เสี่ยงแม่โคหอบ)`,
-                        workflow_status: 'new',
-                        workflow_text: 'ลดความร้อนฉุกเฉินทันที',
-                        detected_at: r.recorded_at
-                    })
-                }
+            if (thi === null) return
+            thiList.push(thi)
+            if (level === 'normal') {
+                countNormal++
+                return
             }
+            if (level === 'mild') countMild++
+            else if (level === 'moderate') countModerate++
+            else countSevere++
+
+            const ALERT_TEXT = {
+                mild: { issue: `ดัชนี THI ${thi} (เฝ้าระวังความร้อน)`, status: 'acknowledged', action: 'เปิดพัดลมระบายอากาศ' },
+                moderate: { issue: `ดัชนี THI ${thi} (เครียดจากความร้อน)`, status: 'new', action: 'เปิดพัดลม + ระบบพ่นหมอก (งดพ่นหมอกถ้าความชื้น ≥ 75%)' },
+                severe: { issue: `🚨 ดัชนี THI ${thi} (วิกฤต เสี่ยงแม่โคหอบ)`, status: 'new', action: 'ลดความร้อนฉุกเฉินทันที' }
+            }[level]
+            alertItems.push({
+                id: `alert-${r.id_farms || idx}`,
+                farm_id: r.id_farms,
+                farm_code: `F0${idx + 1}`,
+                name_farms: r.name_farms || 'ฟาร์มไม่ระบุชื่อ',
+                device_serial: r.serial_no || 'N/A',
+                level: toAlertLevel(level),
+                risk_level: level,
+                thi,
+                temperature_c: t,
+                issue_description: ALERT_TEXT.issue,
+                workflow_status: ALERT_TEXT.status,
+                workflow_text: ALERT_TEXT.action,
+                detected_at: r.recorded_at
+            })
         })
 
         // 4. สรุปค่าเฉลี่ยดัชนีความร้อนของเครือข่าย
-        const avgThi = thiList.length ? parseFloat((thiList.reduce((a, b) => a + b, 0) / thiList.length).toFixed(1)) : 76.5
-        const avgTemp = tempList.length ? parseFloat((tempList.reduce((a, b) => a + b, 0) / tempList.length).toFixed(1)) : 28.5
-        const avgHum = humList.length ? parseFloat((humList.reduce((a, b) => a + b, 0) / humList.length).toFixed(1)) : 65.0
+        // ไม่มีข้อมูล = null (ไม่เติมค่าสมมติ)
+        const avgThi = thiList.length ? parseFloat((thiList.reduce((a, b) => a + b, 0) / thiList.length).toFixed(1)) : null
+        const avgTemp = tempList.length ? parseFloat((tempList.reduce((a, b) => a + b, 0) / tempList.length).toFixed(1)) : null
+        const avgHum = humList.length ? parseFloat((humList.reduce((a, b) => a + b, 0) / humList.length).toFixed(1)) : null
 
-        let statusText = 'ปกติ (Comfort Zone)'
-        let statusLevel = 'normal'
-        if (avgThi >= 84.0) {
-            statusText = 'วิกฤตรุนแรง (Severe)'
-            statusLevel = 'severe'
-        } else if (avgThi >= 80.0) {
-            statusText = 'เริ่มกระทบผลผลิต (Moderate)'
-            statusLevel = 'moderate'
-        } else if (avgThi >= 76.0) {
-            statusText = 'เริ่มเฝ้าระวัง (Mild)'
-            statusLevel = 'mild'
+        // ภาพรวมเครือข่ายใช้เกณฑ์ค่าเริ่มต้น
+        const statusLevel = getRiskLevel(avgThi, 'default')
+        const STATUS_TEXT = {
+            normal: 'ปกติ (Comfort Zone)',
+            mild: 'เฝ้าระวัง (Mild)',
+            moderate: 'เครียดจากความร้อน (Moderate)',
+            severe: 'วิกฤต (Severe)'
         }
+        const statusText = statusLevel ? STATUS_TEXT[statusLevel] : 'ยังไม่มีข้อมูล'
+
+        // ความครบถ้วนของข้อมูล 24 ชม. (firmware ส่งทุก 15 วินาที = 5,760 รายการ/วัน/อุปกรณ์)
+        const EXPECTED_READINGS_PER_DEVICE_DAY = 86400 / 15
+        const completenessRes = await db.query(`
+            SELECT COUNT(*)::int AS readings, COUNT(DISTINCT id_devices)::int AS devices
+            FROM tb_sensor_readings
+            WHERE recorded_at > NOW() - INTERVAL '24 hours'
+        `)
+        const { readings: readings24h, devices: devices24h } = completenessRes.rows[0]
+        const completenessPct = devices24h > 0
+            ? parseFloat(Math.min(100, (readings24h / (devices24h * EXPECTED_READINGS_PER_DEVICE_DAY)) * 100).toFixed(1))
+            : null
 
         // 5. ดึงจำนวนประวัติการอ่านทั้งหมดใน tb_sensor_readings
         const totalReadingsRes = await db.query(`SELECT COUNT(*) FROM tb_sensor_readings`)
@@ -626,9 +617,10 @@ router.get('/dashboard-stats', verifyToken, requireRole('admin'), async (req, re
                 },
                 diagnostics: {
                     total_readings: totalReadings,
-                    completeness_pct: 98.4,
-                    missing_rate_pct: 1.6,
-                    ai_readiness_pct: 99.1
+                    readings_last_24h: readings24h,
+                    devices_reporting_24h: devices24h,
+                    completeness_pct: completenessPct,
+                    missing_rate_pct: completenessPct != null ? parseFloat((100 - completenessPct).toFixed(1)) : null
                 }
             }
         })
@@ -665,22 +657,8 @@ router.get('/:id', verifyToken, requireRole('admin'), async (req, res) => {
             })
         }
 
-        // ฟังก์ชันคำนวณ THI สำรองหากใน DB ไม่มีค่า
-        const calcThi = (t, rh) => {
-            if (t == null || rh == null) return null
-            return parseFloat(((1.8 * Number(t) + 32) - (0.55 - 0.0055 * Number(rh)) * (1.8 * Number(t) - 26)).toFixed(1))
-        }
-
-        // ฟังก์ชันประเมินระดับความเครียดความร้อนตามมาตรฐานโคนมลูกผสมไทย (Boonkum et al., 2024)
-        const calcStressLevel = (thi, tempVal = null) => {
-            if (thi == null) return 'normal'
-            const val = parseFloat(thi)
-            if (tempVal !== null && tempVal < 27.5 && val < 77.5) return 'normal'
-            if (val >= 84.0) return 'severe'
-            if (val >= 80.0) return 'moderate'
-            if (val >= 76.0) return 'mild'
-            return 'normal'
-        }
+        const profile = getFarmProfile(farm)
+        const thresholds = getThresholds(profile)
 
         // ดึงอุปกรณ์ที่ผูกกับฟาร์ม
         let device = null
@@ -730,10 +708,8 @@ router.get('/:id', verifyToken, requireRole('admin'), async (req, res) => {
 
             if (res.rows.length > 0) {
                 latestReading = res.rows[0]
-                if (!latestReading.thi && latestReading.temperature_c && latestReading.humidity_pct) {
-                    latestReading.thi = calcThi(latestReading.temperature_c, latestReading.humidity_pct)
-                }
-                latestReading.stress_level = latestReading.stress_level || calcStressLevel(latestReading.thi)
+                latestReading.thi = calcThi(latestReading.temperature_c, latestReading.humidity_pct) ?? (latestReading.thi != null ? parseFloat(latestReading.thi) : null)
+                latestReading.stress_level = getRiskLevel(latestReading.thi, profile)
                 latestReading.id = latestReading.id_sensor_readings || latestReading.id
             }
         } catch (err) {
@@ -786,11 +762,8 @@ router.get('/:id', verifyToken, requireRole('admin'), async (req, res) => {
             history = res.rows.map(r => {
                 const temp = r.temperature_c != null ? parseFloat(r.temperature_c) : null
                 const hum = r.humidity_pct != null ? parseFloat(r.humidity_pct) : null
-                let thi = r.thi != null ? parseFloat(r.thi) : null
-                if (thi === null && temp !== null && hum !== null) {
-                    thi = calcThi(temp, hum)
-                }
-                const stress = r.stress_level || calcStressLevel(thi)
+                const thi = calcThi(temp, hum) ?? (r.thi != null ? parseFloat(r.thi) : null)
+                const stress = getRiskLevel(thi, profile)
                 return {
                     ...r,
                     id: r.id_sensor_readings || r.id,
@@ -810,7 +783,7 @@ router.get('/:id', verifyToken, requireRole('admin'), async (req, res) => {
             const temps = history.map(h => h.temperature_c).filter(v => v !== null)
             const hums = history.map(h => h.humidity_pct).filter(v => v !== null)
             const thisList = history.map(h => h.thi).filter(v => v !== null)
-            const stressCount = thisList.filter(t => t >= 76.0).length
+            const stressCount = thisList.filter(t => t >= thresholds.moderate).length
 
             daily_summary = {
                 avg_thi: thisList.length ? (thisList.reduce((a, b) => a + b, 0) / thisList.length).toFixed(1) : null,
@@ -823,90 +796,13 @@ router.get('/:id', verifyToken, requireRole('admin'), async (req, res) => {
             }
         }
 
-        // คำนวณโมเดลพยากรณ์ Deep Learning (LSTM) ประจำฟาร์ม (Lookback 14 วัน, พยากรณ์ล่วงหน้า 3 วัน)
-        const generateFarmLstmForecast = (farmData, latest, hist) => {
-            const baseThi = latest?.thi ? parseFloat(latest.thi) : (hist.length ? hist[hist.length - 1].thi : 76.5)
-            
-            // 14-day lookback window: วิเคราะห์ความร้อนสะสม
-            const recentThis = hist.slice(-14).map(h => parseFloat(h.thi)).filter(v => !isNaN(v))
-            const avgRecentThi = recentThis.length ? (recentThis.reduce((a, b) => a + b, 0) / recentThis.length) : baseThi
-            const thermalMomentum = (baseThi - avgRecentThi) * 0.35
-
-            // สัมประสิทธิ์รูปแบบโรงเรือนเฉพาะฟาร์ม (Barn Structure Coefficients - Tikul & Prachum, 2019)
-            let barnCoeff = 0
-            if (farmData?.roof_type && (farmData.roof_type.includes('สังกะสี') || farmData.roof_type.toLowerCase().includes('zinc'))) {
-                barnCoeff += 0.8 // สังกะสีอมความร้อนสูง
-            }
-            if (farmData?.barn_height_m && parseFloat(farmData.barn_height_m) < 3.0) {
-                barnCoeff += 0.5 // โรงเรือนเตี้ยต่ำกว่า 3 เมตร การระบายความร้อนสะสมช้า
-            }
-
-            const now = new Date()
-            const horizons = [
-                { offset: 1, label: 'พรุ่งนี้ (+24 ชม.)', day_name: 'Day +1' },
-                { offset: 2, label: 'มะรืนนี้ (+48 ชม.)', day_name: 'Day +2' },
-                { offset: 3, label: '3 วันข้างหน้า (+72 ชม.)', day_name: 'Day +3' }
-            ]
-
-            const daily = horizons.map(h => {
-                const targetTime = new Date(now.getTime() + h.offset * 24 * 3600 * 1000)
-                
-                // พยากรณ์ค่า THI ด้วย Time-series projection
-                const trend = (h.offset * 0.6) + thermalMomentum + (barnCoeff * 0.35)
-                const predictedThi = parseFloat(Math.min(94.0, Math.max(68.0, baseThi + trend)).toFixed(1))
-                
-                // คำนวณผลกระทบน้ำนมลดลงจาก Biological Lag Effect 5 วัน (Abdourhamane 2026 / เกณฑ์ไทย: THI > 76.0)
-                const milkLossPerCow = predictedThi > 76.0 ? parseFloat(((predictedThi - 76.0) * 0.45).toFixed(2)) : 0.0
-
-                let riskLevel = 'normal'
-                let actionText = 'สภาวะอากาศปกติ แม่โคกินอาหารและเคี้ยวเอื้องได้ดี'
-                let badgeClass = 'bg-emerald-50 text-emerald-800 border-emerald-200'
-
-                if (predictedThi >= 84.0) {
-                    riskLevel = 'severe'
-                    actionText = '🚨 เตือนภัยวิกฤต: เสี่ยงน้ำนมดิ่งแรงในอีก 5 วันข้างหน้า! เปิดพัดลมพ่นหมอกต่อเนื่อง 10:00–16:00 และเตรียมน้ำเย็น'
-                    badgeClass = 'bg-rose-50 text-rose-800 border-rose-200'
-                } else if (predictedThi >= 80.0) {
-                    riskLevel = 'moderate'
-                    actionText = '⚠️ ความร้อนสะสมสูง: เริ่มกระทบการกินอาหาร แนะนำเปิดพัดลมระบายอากาศ 11:00–15:00 และเสริมเกลือแร่ในน้ำ'
-                    badgeClass = 'bg-amber-50 text-amber-800 border-amber-200'
-                } else if (predictedThi >= 76.0) {
-                    riskLevel = 'mild'
-                    actionText = 'เริ่มเฝ้าระวัง: อุณหภูมิโรงเรือนเริ่มสูง แนะนำเปิดพัดลมระบายอากาศเพื่อป้องกันความร้อนสะสม'
-                    badgeClass = 'bg-yellow-50 text-yellow-800 border-yellow-200'
-                }
-
-                return {
-                    horizon_days: h.offset,
-                    label: h.label,
-                    day_name: h.day_name,
-                    date: targetTime.toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' }),
-                    predicted_thi: predictedThi,
-                    predicted_milk_loss_kg: milkLossPerCow,
-                    risk_level: riskLevel,
-                    advisory: actionText,
-                    badge_class: badgeClass
-                }
-            })
-
-            return {
-                model_name: 'Multimodal Bi-LSTM (Attention v2.5 Thai Calibrated)',
-                version: 'lstm-v2.5-lookback72',
-                engine: 'heuristic_fallback',
-                accuracy_pct: '96.08%',
-                lookback_hours: 72,
-                lag_effect_days: 5,
-                peak_predicted_thi: Math.max(...daily.map(d => d.predicted_thi)),
-                estimated_herd_milk_loss_kg: parseFloat((daily.reduce((a, b) => a + b.predicted_milk_loss_kg, 0)).toFixed(1)),
-                forecasts: daily
-            }
+        // พยากรณ์ 3 วันแบบ baseline (ค่าเฉลี่ย THI 72 ชม.) ดู services/forecastService.js
+        let lstm_forecast = null
+        try {
+            lstm_forecast = await generateBaselineForecast(farm)
+        } catch (fcErr) {
+            console.warn('[Farm Detail API] Baseline forecast error:', fcErr.message)
         }
-
-        const lstm_forecast = generateFarmLstmForecast(
-            farm, 
-            latestReading, 
-            history
-        )
 
         // ตรวจสอบความต่อเนื่องของสัญญาณเซ็นเซอร์ (Data Continuity & Gap Alert)
         let gapAlert = null
@@ -960,9 +856,12 @@ router.get('/:id', verifyToken, requireRole('admin'), async (req, res) => {
             daily_summary,
             saved_daily_summary,
             history,
-            lstm_forecast: (saved_daily_summary && saved_daily_summary.lstm_forecast && saved_daily_summary.lstm_forecast.forecasts) 
-                ? saved_daily_summary.lstm_forecast 
+            // ผลพยากรณ์ที่บันทึกจากเวอร์ชันเก่า (มีตัวเลขความแม่นยำปลอม) จะไม่ถูกนำมาแสดง
+            lstm_forecast: isCurrentForecast(saved_daily_summary?.lstm_forecast)
+                ? saved_daily_summary.lstm_forecast
                 : lstm_forecast,
+            hf_profile: profile,
+            thresholds,
             gap_alert: gapAlert
         })
     } catch (err) {
@@ -984,9 +883,14 @@ router.put('/:id', verifyToken, requireRole('admin'), async (req, res) => {
             province, district, address, 
             barn_unit, id_users,
             barn_height_m, roof_type, cooling_system, 
-            id_devices 
+            id_devices,
+            hf_profile
         } = req.body
         const farmName = (name_farms || name || '').trim()
+
+        if (hf_profile !== undefined && !PROFILES[hf_profile]) {
+            return res.status(400).json({ success: false, message: `hf_profile ต้องเป็น ${Object.keys(PROFILES).join(' หรือ ')}` })
+        }
 
         if (!farmName) {
             return res.status(400).json({ success: false, message: 'กรุณากรอกชื่อฟาร์ม' })
@@ -1018,6 +922,12 @@ router.put('/:id', verifyToken, requireRole('admin'), async (req, res) => {
         if (rows.length === 0) {
             await client.query('ROLLBACK')
             return res.status(404).json({ success: false, message: 'ไม่พบฟาร์มที่ต้องการแก้ไข' })
+        }
+
+        // ต้องรัน migrations/20261021_farm_hf_profile.sql ก่อน
+        if (hf_profile !== undefined) {
+            const profRes = await client.query(`UPDATE tb_farms SET hf_profile = $1 WHERE id_farms = $2 RETURNING *`, [hf_profile, id])
+            rows[0] = profRes.rows[0]
         }
 
         if (id_devices) {

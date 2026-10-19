@@ -67,8 +67,9 @@ router.get('/', verifyToken, requireRole('admin'), async (req, res) => {
         const alerts = await getAlertLogs(limit, farmId)
 
         const totalAlerts = alerts.length
-        const criticalCount = alerts.filter(a => a.level === 'critical' || a.thi >= 84.0).length
-        const warningCount = alerts.filter(a => a.level === 'warning' || (a.thi >= 76.0 && a.thi < 84.0)).length
+        // level กำหนดตามเกณฑ์ของแต่ละฟาร์มใน lineAlertService แล้ว
+        const criticalCount = alerts.filter(a => a.level === 'critical').length
+        const warningCount = alerts.filter(a => a.level === 'warning' || a.level === 'moderate').length
 
         res.json({
             success: true,
@@ -131,9 +132,9 @@ router.get(['/farm/:farmId', '/:farmId'], verifyToken, requireRole('admin'), asy
         const alerts = await getAlertLogs(limit, farmId)
 
         const totalAlerts = alerts.length
-        const criticalCount = alerts.filter(a => a.level === 'critical' || a.thi >= 84.0).length
-        const moderateCount = alerts.filter(a => a.level === 'moderate' || (a.thi >= 80.0 && a.thi < 84.0)).length
-        const warningCount = alerts.filter(a => a.level === 'warning' || (a.thi >= 76.0 && a.thi < 80.0)).length
+        const criticalCount = alerts.filter(a => a.level === 'critical').length
+        const moderateCount = alerts.filter(a => a.level === 'moderate').length
+        const warningCount = alerts.filter(a => a.level === 'warning').length
 
         res.json({
             success: true,
@@ -163,7 +164,7 @@ router.post('/send-test', verifyToken, requireRole('admin'), async (req, res) =>
         const alertResult = await sendLineAlert({
             farmId: farm_id || 'test-farm-01',
             farmName: farm_name || 'ฟาร์มตัวอย่าง สหกรณ์โคนมมวกเหล็ก',
-            barnUnit: barnUnit || 'โรงเรือน 1',
+            barnUnit: barn_unit || 'โรงเรือน 1',
             thi: thi || 84.5,
             temp: temp || 33.2,
             hum: hum || 78.0,

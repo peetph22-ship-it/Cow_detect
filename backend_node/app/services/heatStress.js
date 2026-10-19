@@ -1,0 +1,94 @@
+/**
+ * CowCare AI - Heat Stress Single Source of Truth
+ * สูตร THI และเกณฑ์ความเครียดความร้อนทั้งระบบต้อง import จากไฟล์นี้เท่านั้น ห้ามเขียนตัวเลขเกณฑ์ซ้ำในไฟล์อื่น
+ *
+ * สูตร THI: NRC (1971) ตัวเดียวกับที่งานวิจัยโคนมไทยใช้ (Sae-tiao et al., 2019, LRRD 31(12))
+ * ไม่มีการปรับสูตรเฉพาะไทย: ความเป็นไทยอยู่ที่ "ค่าเกณฑ์" ไม่ใช่ตัวสูตร
+ *
+ * เกณฑ์อ้างอิงงานวิจัยโคนมลูกผสมไทย:
+ * - Boonkum et al. (2011) J Dairy Sci 94:487 - น้ำนมเริ่มลดที่ THI 74 ในแม่โคท้อง 3+ สายเลือด HF >= 87.5%,
+ *   ลดเร็วขึ้นเมื่อ THI > 82
+ * - Boonkum et al. (2024) Animals 14(20):3026 - threshold ระดับประชากรที่ THI 76
+ * - Duangjinda et al. (ICAR Technical Series 23) - moderate > 74, severe > 80
+ *
+ * หมายเหตุ: งานข้างต้นใช้ THI เฉลี่ยรายวันจากสถานีอุตุฯ (นอกโรงเรือน) การนำมาใช้กับค่ารายชั่วโมงในโรงเรือน
+ * ยังต้องยืนยันกับผู้เชี่ยวชาญ
+ */
+
+const RISK_LEVELS = ['normal', 'mild', 'moderate', 'severe']
+
+// ค่า = จุดเริ่มของแต่ละระดับ (THI >= ค่านี้)
+const PROFILES = {
+    // ค่าเริ่มต้นระดับประชากรโคนมลูกผสมไทย
+    default: { mild: 74, moderate: 76, severe: 82 },
+    // ฝูงสายเลือด HF สูง (>= 87.5%) หรือแม่โคหลายท้อง ทนร้อนได้น้อยกว่า
+    high_hf: { mild: 72, moderate: 74, severe: 80 }
+}
+
+const PROFILE_LABELS = {
+    default: 'ค่าเริ่มต้น (โคนมลูกผสมไทยทั่วไป)',
+    high_hf: 'สายเลือดโฮลสไตน์สูง (≥87.5%) / แม่โคหลายท้อง'
+}
+
+const RISK_LABELS_TH = {
+    normal: 'ปกติ',
+    mild: 'เฝ้าระวัง',
+    moderate: 'เครียดจากความร้อน',
+    severe: 'วิกฤต'
+}
+
+// ระดับที่ใช้ในระบบแจ้งเตือน (alerts / LINE)
+const ALERT_LEVEL = { normal: null, mild: 'warning', moderate: 'moderate', severe: 'critical' }
+
+const normalizeProfile = (profile) => (PROFILES[profile] ? profile : 'default')
+
+// รับได้ทั้ง row ของ tb_farms หรือชื่อ profile
+const getFarmProfile = (farmOrProfile) => {
+    if (farmOrProfile && typeof farmOrProfile === 'object') return normalizeProfile(farmOrProfile.hf_profile)
+    return normalizeProfile(farmOrProfile)
+}
+
+const getThresholds = (profile) => PROFILES[normalizeProfile(profile)]
+
+// สูตรเดียวทั้งระบบ: NRC (1971)
+const calcThi = (t, rh) => {
+    if (t == null || rh == null) return null
+    const temp = Number(t)
+    const hum = Number(rh)
+    if (!Number.isFinite(temp) || !Number.isFinite(hum)) return null
+    return parseFloat(((1.8 * temp + 32) - (0.55 - 0.0055 * hum) * (1.8 * temp - 26)).toFixed(1))
+}
+
+// นิพจน์ SQL ของสูตรเดียวกัน คำนวณจาก temperature_c / humidity_pct ไม่พึ่งคอลัมน์ thi ใน DB
+const thiSql = (alias = 'sr') =>
+    `((1.8 * ${alias}.temperature_c + 32) - (0.55 - 0.0055 * ${alias}.humidity_pct) * (1.8 * ${alias}.temperature_c - 26))`
+
+const getRiskLevel = (thi, profile = 'default') => {
+    if (thi == null || !Number.isFinite(Number(thi))) return null
+    const val = Number(thi)
+    const t = getThresholds(profile)
+    if (val >= t.severe) return 'severe'
+    if (val >= t.moderate) return 'moderate'
+    if (val >= t.mild) return 'mild'
+    return 'normal'
+}
+
+const toAlertLevel = (riskLevel) => ALERT_LEVEL[riskLevel] || null
+
+// จุดต่ำสุดของระดับเฝ้าระวังในทุก profile ใช้กรองข้อมูลใน SQL ก่อนจัดระดับรายฟาร์มใน JS
+const MIN_ALERT_THI = Math.min(...Object.values(PROFILES).map(p => p.mild))
+
+module.exports = {
+    RISK_LEVELS,
+    PROFILES,
+    PROFILE_LABELS,
+    RISK_LABELS_TH,
+    MIN_ALERT_THI,
+    normalizeProfile,
+    getFarmProfile,
+    getThresholds,
+    calcThi,
+    thiSql,
+    getRiskLevel,
+    toAlertLevel
+}

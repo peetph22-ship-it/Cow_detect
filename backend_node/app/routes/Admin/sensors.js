@@ -3,17 +3,10 @@ const router = express.Router()
 const db = require('../../config/db')
 const { verifyDeviceKey } = require('../../middleware/deviceAuthMiddleware')
 
-// ฟังก์ชันคำนวณ THI (สูตร NRC 1971 / NOAA 1976 อิงเกณฑ์โคนมไทย)
-const calculateTHI = (temp, hum) => {
-    return (1.8 * temp + 32) - (0.55 - 0.0055 * hum) * (1.8 * temp - 26)
-}
+const { calcThi, getRiskLevel } = require('../../services/heatStress')
 
-const getStressLevel = (thi) => {
-    if (thi < 76.0) return 'normal'
-    if (thi < 80.0) return 'mild'
-    if (thi < 84.0) return 'moderate'
-    return 'severe'
-}
+// endpoint ส่วนนี้ไม่ผูกฟาร์ม ใช้เกณฑ์ค่าเริ่มต้น (ระดับรายฟาร์มดูที่ /api/Admin/farms/:id)
+const getStressLevel = (thi) => getRiskLevel(thi, 'default')
 
 // -----------------------------------------------------------------
 // 1. POST: /api/Admin/sensors/data (หรือ /api/Admin/sensors)
@@ -43,7 +36,7 @@ router.post(['/data', '/'], verifyDeviceKey, async (req, res) => {
         }
         const serial = serial_no ? String(serial_no).trim() : 'ESP32-S3-01'
 
-        const thi = parseFloat(calculateTHI(temp, hum).toFixed(2))
+        const thi = calcThi(temp, hum)
         const stress_level = getStressLevel(thi)
 
         let readingId = null
@@ -171,16 +164,13 @@ router.get('/history', async (req, res) => {
         const mapped = rows.map(r => {
             const temp = r.temperature_c != null ? parseFloat(r.temperature_c) : null
             const hum = r.humidity_pct != null ? parseFloat(r.humidity_pct) : null
-            let thi = r.thi != null ? parseFloat(r.thi) : null
-            if (thi === null && temp !== null && hum !== null) {
-                thi = parseFloat(calculateTHI(temp, hum).toFixed(2))
-            }
+            const thi = calcThi(temp, hum) ?? (r.thi != null ? parseFloat(r.thi) : null)
             return {
                 ...r,
                 temperature_c: temp,
                 humidity_pct: hum,
                 thi,
-                stress_level: r.stress_level || (thi != null ? getStressLevel(thi) : 'normal')
+                stress_level: getStressLevel(thi)
             }
         })
 

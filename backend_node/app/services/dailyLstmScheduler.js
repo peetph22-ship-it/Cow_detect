@@ -8,11 +8,13 @@ const db = require('../config/db')
 const { 
     fetch72HourMultimodalWindow, 
     runOnnxInference, 
-    generateElderlyFriendlyAdvisory,
-    calcThi,
-    calcThaiThi,
-    getThaiRiskLevel 
+    generateElderlyFriendlyAdvisory
 } = require('./lstmOnnxService')
+const { calcThi, getFarmProfile, getThresholds } = require('./heatStress')
+const { generateBaselineForecast } = require('./forecastService')
+
+// Bi-LSTM ปิดไว้จนกว่าจะเทรนใหม่ด้วยข้อมูลจริง (ดูหมายเหตุใน lstmOnnxService.js)
+const isLstmEnabled = () => String(process.env.ENABLE_LSTM || '').toLowerCase() === 'true'
 
 /**
  * แปลงวันที่เป็น YYYY-MM-DD ตามโซนเวลา Asia/Bangkok
@@ -24,106 +26,6 @@ const getBangkokDateStr = (date = new Date()) => {
         month: '2-digit',
         day: '2-digit'
     }).format(date)
-}
-
-/**
- * คำนวณโมเดลพยากรณ์สำรองแบบวิจัยไทย (Thai Heuristic Fallback - เมื่อมีข้อมูล < 24 ชม.)
- * อิงผลงานวิจัย:
- * - Boonkum et al. (2024): เกณฑ์โคนมไทย (Normal <76, Mild 76-79.9, Moderate 80-83.9, Severe >=84)
- * - Hasan et al. (2026): Biological Lag Effect 5 วัน
- * - Abdourhamane (2026): สูตรความเสี่ยงน้ำนมลดสำหรับโคนมลูกผสมไทย เริ่มคิดที่ THI > 76.0
- * - Tikul & Prachum (2019): สัมประสิทธิ์ความร้อนโรงเรือนเฉพาะตอนพยากรณ์ล่วงหน้า
- */
-const generateThaiHeuristicForecast = (farm, avgThiToday, maxThiToday, pastSummaries = []) => {
-    const baseThi = avgThiToday || 76.0
-
-    // 72-hour lookback window: วิเคราะห์แนวโน้มความร้อนสะสม
-    const recentThis = pastSummaries.map(s => parseFloat(s.avg_thi)).filter(v => !isNaN(v))
-    const avgRecentThi = recentThis.length ? (recentThis.reduce((a, b) => a + b, 0) / recentThis.length) : baseThi
-    const thermalMomentum = (baseThi - avgRecentThi) * 0.30
-
-    // สัมประสิทธิ์โครงสร้างโรงเรือนเฉพาะฟาร์ม (ใช้เฉพาะพยากรณ์ล่วงหน้า ห้ามบวกทับ Real-time)
-    let barnCoeff = 0
-    if (farm?.roof_type && (farm.roof_type.includes('สังกะสี') || farm.roof_type.toLowerCase().includes('zinc'))) {
-        barnCoeff += 0.8
-    }
-    if (farm?.barn_height_m && parseFloat(farm.barn_height_m) < 3.0) {
-        barnCoeff += 0.5
-    }
-
-    const horizons = [
-        { offset: 1, label: 'พรุ่งนี้ (+24 ชม.)', day_name: 'Day +1' },
-        { offset: 2, label: 'มะรืนนี้ (+48 ชม.)', day_name: 'Day +2' },
-        { offset: 3, label: '3 วันข้างหน้า (+72 ชม.)', day_name: 'Day +3' }
-    ]
-
-    const now = new Date()
-    const forecasts = horizons.map(h => {
-        const targetTime = new Date(now.getTime() + h.offset * 24 * 3600 * 1000)
-        
-        // Time-series projection
-        const trend = (h.offset * 0.5) + thermalMomentum + (barnCoeff * 0.25)
-        const predictedThi = parseFloat(Math.min(94.0, Math.max(68.0, baseThi + trend)).toFixed(1))
-        
-        // Biological Lag Effect 5 days: เริ่มคิดการสูญเสียน้ำนมที่เกณฑ์ไทย THI > 76.0
-        const milkLossPerCow = predictedThi > 76.0 ? parseFloat(((predictedThi - 76.0) * 0.45).toFixed(2)) : 0.0
-
-        let riskLevel = 'normal'
-        let actionText = 'สภาวะอากาศปกติ แม่โคกินอาหารและเคี้ยวเอื้องได้ดี'
-        let badgeClass = 'bg-emerald-50 text-emerald-800 border-emerald-200'
-
-        if (predictedThi >= 84.0) {
-            riskLevel = 'severe'
-            actionText = '🚨 เตือนภัยวิกฤต: เสี่ยงน้ำนมดิ่งแรงในอีก 5 วัน! เปิดพัดลมพ่นหมอกเต็มกำลัง 10:00–16:00 น. เสริมเกลือแร่ในน้ำ และเลื่อนเวลาให้อาหาร'
-            badgeClass = 'bg-rose-50 text-rose-800 border-rose-200'
-        } else if (predictedThi >= 80.0) {
-            riskLevel = 'moderate'
-            actionText = '⚠️ ความร้อนสะสมสูง: เริ่มกระทบการกินอาหาร แนะนำเปิดพัดลมระบายอากาศ 11:00–15:00 น. จัดน้ำเย็นให้กินตลอดเวลา'
-            badgeClass = 'bg-amber-50 text-amber-800 border-amber-200'
-        } else if (predictedThi >= 76.0) {
-            riskLevel = 'mild'
-            actionText = 'เริ่มเฝ้าระวัง: อากาศอบอ้าว แนะนำเปิดพัดลมระบายอากาศในคอกเพื่อป้องกันความร้อนสะสม'
-            badgeClass = 'bg-yellow-50 text-yellow-800 border-yellow-200'
-        }
-
-        // Empirical Uncertainty Bounds (Calibrated via Argon Benchmark Report)
-        const uncertaintyTable = {
-            1: { thi_mae: 0.58, milk_loss_mae_kg: 0.19, risk_accuracy_pct: 95.8 },
-            2: { thi_mae: 0.84, milk_loss_mae_kg: 0.28, risk_accuracy_pct: 91.2 },
-            3: { thi_mae: 1.18, milk_loss_mae_kg: 0.39, risk_accuracy_pct: 86.4 }
-        }
-        const u = uncertaintyTable[h.offset] || { thi_mae: 0.87, milk_loss_mae_kg: 0.28, risk_accuracy_pct: 91.1 }
-
-        return {
-            horizon_days: h.offset,
-            label: h.label,
-            day_name: h.day_name,
-            date: targetTime.toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' }),
-            predicted_thi: predictedThi,
-            predicted_milk_loss_kg: milkLossPerCow,
-            risk_level: riskLevel,
-            advisory: actionText,
-            badge_class: badgeClass,
-            thi_mae: u.thi_mae,
-            milk_loss_mae_kg: u.milk_loss_mae_kg,
-            risk_accuracy_pct: u.risk_accuracy_pct,
-            thi_lower: parseFloat((predictedThi - u.thi_mae).toFixed(1)),
-            thi_upper: parseFloat((predictedThi + u.thi_mae).toFixed(1)),
-            milk_loss_lower: parseFloat(Math.max(0.0, milkLossPerCow - u.milk_loss_mae_kg).toFixed(2)),
-            milk_loss_upper: parseFloat((milkLossPerCow + u.milk_loss_mae_kg).toFixed(2))
-        }
-    })
-
-    return {
-        model_name: 'Thai Heuristic Fallback (v2.5 Thai Calibrated)',
-        version: 'heuristic-lookback72',
-        engine: 'heuristic_fallback',
-        accuracy_pct: '93.50%',
-        lookback_hours: 72,
-        peak_predicted_thi: Math.max(...forecasts.map(d => d.predicted_thi)),
-        estimated_herd_milk_loss_kg: parseFloat((forecasts.reduce((a, b) => a + b.predicted_milk_loss_kg, 0)).toFixed(1)),
-        forecasts
-    }
 }
 
 /**
@@ -140,6 +42,8 @@ const calculateFarmDailySummary = async (farmId, targetDateStr = null) => {
         throw new Error(`Farm with ID ${farmId} not found`)
     }
     const farm = farmRes.rows[0]
+    const profile = getFarmProfile(farm)
+    const thresholds = getThresholds(profile)
 
     // 2. ดึงข้อมูลเซ็นเซอร์ของวันนั้น (00:00:00 ถึง 23:59:59 เวลาไทย)
     const startOfDay = `${summaryDate} 00:00:00+07`
@@ -177,15 +81,15 @@ const calculateFarmDailySummary = async (farmId, targetDateStr = null) => {
     for (const r of readings) {
         const t = r.temperature_c != null ? parseFloat(r.temperature_c) : null
         const h = r.humidity_pct != null ? parseFloat(r.humidity_pct) : null
-        let thi = (t !== null && h !== null) ? calcThaiThi(t, h) : (r.thi != null ? parseFloat(r.thi) : null)
+        let thi = (t !== null && h !== null) ? calcThi(t, h) : (r.thi != null ? parseFloat(r.thi) : null)
 
         if (t !== null && !isNaN(t)) temps.push(t)
         if (h !== null && !isNaN(h)) hums.push(h)
         if (thi !== null && !isNaN(thi)) {
             thisList.push(thi)
-            // เกณฑ์ไทย: เริ่มเฝ้าระวังที่ 76.0, วิกฤตที่ 84.0
-            if (thi >= 76.0) stressCount++
-            if (thi >= 84.0) severeCount++
+            // ชั่วโมงเครียด = ระดับ moderate ขึ้นไป ตามเกณฑ์ของฟาร์ม (heatStress.js)
+            if (thi >= thresholds.moderate) stressCount++
+            if (thi >= thresholds.severe) severeCount++
 
             // ตรวจสอบช่วงกลางคืน (00:00 - 06:00 เวลาไทย) เพื่อประเมิน Night Recovery
             if (r.recorded_at) {
@@ -219,7 +123,7 @@ const calculateFarmDailySummary = async (farmId, targetDateStr = null) => {
         : (minThi || avgThi)
 
     // ดึงค่าเฉลี่ย Cow Comfort Index (CCI) จากกล้องวงจรปิดในรอบวัน
-    let dayCci = 85.0
+    let dayCci = null
     try {
         const cctvRes = await db.query(`
             SELECT AVG(cow_comfort_index)::numeric(5,2) AS avg_cci
@@ -232,7 +136,7 @@ const calculateFarmDailySummary = async (farmId, targetDateStr = null) => {
             dayCci = parseFloat(cctvRes.rows[0].avg_cci)
         }
     } catch (cctvErr) {
-        // fallback to healthy baseline
+        // ไม่มีข้อมูลกล้อง: ปล่อยเป็น null ไม่เติมค่าสมมติ
     }
 
     // 4. ดึงสถิติย้อนหลังเพื่อเปรียบเทียบกับเมื่อวาน (Yesterday Comparison)
@@ -284,21 +188,22 @@ const calculateFarmDailySummary = async (farmId, targetDateStr = null) => {
         }
     }
 
-    // 5. พยากรณ์ล่วงหน้า 3 วันด้วย True Deep Learning (ONNX Runtime 72h Lookback)
-    // หรือสลับไปใช้ Thai Heuristic Fallback อัตโนมัติหากข้อมูลไม่พอ
+    // 5. พยากรณ์ล่วงหน้า 3 วัน: baseline ค่าเฉลี่ย 72 ชม. (Bi-LSTM ใช้เฉพาะเมื่อเปิด ENABLE_LSTM=true)
+    const endOfSummaryDay = new Date(`${summaryDate}T23:59:59+07:00`)
+    const forecastEnd = endOfSummaryDay < new Date() ? endOfSummaryDay : new Date()
     let lstmForecast = null
-    try {
-        const windowData = await fetch72HourMultimodalWindow(farmId, summaryDate)
-        if (!windowData.is_fallback) {
-            lstmForecast = await runOnnxInference(farm, windowData)
+    if (isLstmEnabled()) {
+        try {
+            const windowData = await fetch72HourMultimodalWindow(farmId, summaryDate)
+            if (!windowData.is_fallback) {
+                lstmForecast = await runOnnxInference(farm, windowData)
+            }
+        } catch (onnxErr) {
+            console.warn(`[Daily Summary Job] ⚠️ ONNX inference error for farm ${farm.name_farms}:`, onnxErr.message)
         }
-    } catch (onnxErr) {
-        console.warn(`[Daily LSTM Job] ⚠️ ONNX inference error for farm ${farm.name_farms}:`, onnxErr.message)
     }
-
     if (!lstmForecast) {
-        // Fallback ไปใช้โมเดลวิจัยที่ปรับเกณฑ์ไทยแล้ว
-        lstmForecast = generateThaiHeuristicForecast(farm, avgThi, maxThi, pastSummaries)
+        lstmForecast = await generateBaselineForecast(farm, forecastEnd)
     }
 
     // 6. ข้อเสนอแนะเชิงรุกประจำวันภาษาชาวบ้าน (แยกแยะฤดูร้อน vs ฤดูฝน & Anti-Misting Rule)
@@ -311,7 +216,8 @@ const calculateFarmDailySummary = async (farmId, targetDateStr = null) => {
         severeHours, 
         stressHours, 
         nightRecoveryThi,
-        dayCci
+        dayCci,
+        profile
     )
 
     // 7. บันทึกข้อมูลลง tb_farm_daily_summaries (UPSERT)
@@ -451,9 +357,7 @@ const startDailyLstmCron = () => {
 
 module.exports = {
     calcThi,
-    getThaiRiskLevel,
     getBangkokDateStr,
-    generateThaiHeuristicForecast,
     calculateFarmDailySummary,
     runAllFarmsDailySummary,
     getDailySummariesByFarm,

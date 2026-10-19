@@ -6,6 +6,13 @@ try {
     console.warn('[LSTM ONNX Service] Notice: onnxruntime-node could not be loaded in this runtime:', err.message)
 }
 const db = require('../config/db')
+const { calcThi, getRiskLevel, getFarmProfile } = require('./heatStress')
+const { getRiskAdvisory, getBadgeClass } = require('./forecastService')
+
+// ⚠️ EXPERIMENTAL - ปิดใช้งานใน production (ดู ENABLE_LSTM ใน dailyLstmScheduler.js)
+// farm_lstm.onnx เทรนจากข้อมูลสังเคราะห์ (backend/ml_lstm/synthetic_pretrain.py) ด้วยสูตร THI ที่ปรับเองแบบไม่มีที่มา
+// วัดผลแล้วแพ้ baseline ค่าเฉลี่ย 72 ชม. และทายต่ำกว่าจริง ~9 THI เมื่อไม่มีข้อมูลกล้อง
+// ต้องเทรนใหม่ด้วยข้อมูลจริงก่อนเปิดใช้
 
 let onnxSession = null
 
@@ -41,50 +48,6 @@ const getOnnxSession = async () => {
     }
 
     return onnxSession
-}
-
-/**
- * คำนวณค่า THI ตามสูตรมาตรฐาน NRC (1971) เพียวๆ (ห้ามบวก Offset โรงเรือนซ้ำใน Real-time)
- */
-const calcThi = (t, rh) => {
-    if (t == null || rh == null) return null
-    return parseFloat(((1.8 * Number(t) + 32) - (0.55 - 0.0055 * Number(rh)) * (1.8 * Number(t) - 26)).toFixed(1))
-}
-
-/**
- * คำนวณค่า Thai-Calibrated THI พร้อมตัวคูณบรรเทาความร้อน (Thai Crossbred Comfort Relief Factor)
- * เมื่ออุณหภูมิต่ำกว่า 27.5°C โคนมลูกผสมไทยระบายความร้อนทางพาความร้อนได้ดี แม้ความชื้นจะสูงในฤดูฝน
- */
-const calcThaiThi = (t, rh) => {
-    if (t == null || rh == null) return null
-    const raw = calcThi(t, rh)
-    const temp = Number(t)
-    if (temp < 27.5) {
-        return parseFloat((raw - 0.6 * (27.5 - temp)).toFixed(1))
-    }
-    return raw
-}
-
-/**
- * จำแนกระดับความเครียดความร้อนตามเกณฑ์โคนมลูกผสมไทย (Boonkum et al., 2024 & Sungkhapreecha et al., 2022)
- * normal: < 76.0 (Green)
- * mild: 76.0 <= thi < 80.0 (Yellow)
- * moderate: 80.0 <= thi < 84.0 (Orange)
- * severe: thi >= 84.0 (Red)
- */
-const getThaiRiskLevel = (thi, temp = null, pantingRate = 0) => {
-    if (thi == null) return 'normal'
-    const val = parseFloat(thi)
-    
-    // Multimodal verification: ถ้าอุณหภูมิต่ำกว่า 27.5°C และ THI < 77.5 โดยวัวไม่หอบ ให้เป็น normal
-    if (temp !== null && temp < 27.5 && val < 77.5 && pantingRate === 0) {
-        return 'normal'
-    }
-
-    if (val >= 84.0) return 'severe'
-    if (val >= 80.0) return 'moderate'
-    if (val >= 76.0) return 'mild'
-    return 'normal'
 }
 
 /**
@@ -132,10 +95,11 @@ const fetch72HourMultimodalWindow = async (farmId, targetDateStr = null) => {
         const { rows: cctvRows } = await db.query(cctvQuery, [farmId, past72hDate.toISOString(), targetDate.toISOString()])
         for (const c of cctvRows) {
             const k = new Date(c.hour_bucket).toISOString()
+            if (c.avg_standing_pct == null || c.avg_lying_pct == null || c.avg_cci == null) continue
             telemetryMap.set(k, {
-                standing_pct: c.avg_standing_pct != null ? parseFloat(c.avg_standing_pct) : 45.0,
-                lying_pct: c.avg_lying_pct != null ? parseFloat(c.avg_lying_pct) : 55.0,
-                cow_comfort_index: c.avg_cci != null ? parseFloat(c.avg_cci) : 85.0
+                standing_pct: parseFloat(c.avg_standing_pct),
+                lying_pct: parseFloat(c.avg_lying_pct),
+                cow_comfort_index: parseFloat(c.avg_cci)
             })
         }
     } catch (cctvErr) {
@@ -189,6 +153,7 @@ const fetch72HourMultimodalWindow = async (farmId, targetDateStr = null) => {
     // สร้าง Bucket ต่อเนื่อง 72 ช่อง
     const hourlyData = []
     let prevThi = null
+    let missingBehaviorHours = 0
 
     // หากมีข้อมูลระหว่าง 24 - 71 ชม. ให้ทำ Diurnal Padding ย้อนหลังจาก 24 ชม. แรก
     const fillSource = sensorRows.length > 0 ? sensorRows : []
@@ -212,14 +177,13 @@ const fetch72HourMultimodalWindow = async (farmId, targetDateStr = null) => {
         const temp = match?.avg_temp != null ? parseFloat(match.avg_temp) : 28.5
         const hum = match?.avg_hum != null ? parseFloat(match.avg_hum) : 70.0
         
-        // คำนวณ Thai-calibrated THI (พร้อม convective relief factor)
-        const thaiThi = calcThaiThi(temp, hum)
-        const rawThi = calcThi(temp, hum)
+        const thaiThi = calcThi(temp, hum)
+        const rawThi = thaiThi
 
         const dThi = prevThi !== null ? parseFloat((thaiThi - prevThi).toFixed(2)) : 0.0
         prevThi = thaiThi
 
-        // Accumulated heat hours in rolling 24h (เกณฑ์ไทยเริ่มคิดที่ >= 76.0)
+        // Accumulated heat hours in rolling 24h: ค่า 76.0 ต้องตรงกับตอนเทรน (synthetic_pretrain.py) ห้ามเปลี่ยนตามเกณฑ์ใหม่
         const startW = Math.max(0, i - 23)
         const accHeat = hourlyData.slice(startW, i).filter(h => h.thai_thi >= 76.0).length + (thaiThi >= 76.0 ? 1 : 0)
 
@@ -233,12 +197,9 @@ const fetch72HourMultimodalWindow = async (farmId, targetDateStr = null) => {
         const hSin = parseFloat(Math.sin(bangkokHour * 2 * Math.PI / 24).toFixed(3))
         const hCos = parseFloat(Math.cos(bangkokHour * 2 * Math.PI / 24).toFixed(3))
 
-        // รวมข้อมูลพฤติกรรม: กล้อง CCTV -> behavior_logs -> ค่ามาตรฐานสุขภาพดี
-        const cctvBeh = telemetryMap.get(hourStr) || behaviorMap.get(hourStr) || {
-            standing_pct: 45.0,
-            lying_pct: 55.0,
-            cow_comfort_index: 85.0
-        }
+        // รวมข้อมูลพฤติกรรม: กล้อง CCTV -> behavior_logs (ไม่เติมค่า "วัวสบายดี" แทนข้อมูลที่ขาด)
+        const cctvBeh = telemetryMap.get(hourStr) || behaviorMap.get(hourStr) || null
+        if (!cctvBeh) missingBehaviorHours++
 
         hourlyData.push({
             hour_index: i,
@@ -254,14 +215,16 @@ const fetch72HourMultimodalWindow = async (farmId, targetDateStr = null) => {
             night_recovery_thi: nightRec,
             hour_sin: hSin,
             hour_cos: hCos,
-            standing_pct: cctvBeh.standing_pct,
-            lying_pct: cctvBeh.lying_pct,
-            cow_comfort_index: cctvBeh.cow_comfort_index
+            standing_pct: cctvBeh ? cctvBeh.standing_pct : null,
+            lying_pct: cctvBeh ? cctvBeh.lying_pct : null,
+            cow_comfort_index: cctvBeh ? cctvBeh.cow_comfort_index : null
         })
     }
 
     return {
         is_fallback: false,
+        has_behavior: missingBehaviorHours === 0,
+        missing_behavior_hours: missingBehaviorHours,
         engine: totalFoundHours < 72 ? 'onnx_bilstm_attention_v2.5 (padded_warmup)' : 'onnx_bilstm_attention_v2.5',
         found_hours: totalFoundHours,
         hourly_data: hourlyData
@@ -279,6 +242,9 @@ const runOnnxInference = async (farm, windowData) => {
 
     const { hourly_data } = windowData
     if (hourly_data.length !== 72) return null
+    // โมเดลพึ่งข้อมูลพฤติกรรมจากกล้อง ถ้าขาดจะทายต่ำกว่าจริงมาก ห้ามรัน
+    if (!windowData.has_behavior) return null
+    const profile = getFarmProfile(farm)
 
     // 1. สร้าง Float32Array สำหรับ x_temporal: [1, 72, 11]
     const temporalArr = new Float32Array(1 * 72 * 11)
@@ -325,7 +291,6 @@ const runOnnxInference = async (farm, windowData) => {
     const inferenceLatencyMs = Date.now() - startMs
 
     const predThiArr = Array.from(results.predicted_thi.data)
-    const predMilkArr = Array.from(results.predicted_milk_loss.data)
     const riskLogitsData = Array.from(results.risk_logits.data) // [3, 4]
     const attnWeights = Array.from(results.attention_weights.data) // [72]
 
@@ -339,7 +304,7 @@ const runOnnxInference = async (farm, windowData) => {
     const avgRecentHum = recent24h.length 
         ? recent24h.reduce((a, b) => a + b.humidity_pct, 0) / recent24h.length 
         : 70.0
-    const latestCci = recent24h.length ? recent24h[recent24h.length - 1].cow_comfort_index : 85.0
+    const latestCci = recent24h.length ? recent24h[recent24h.length - 1].cow_comfort_index : null
 
     // สร้างข้อมูลพยากรณ์ 3 วัน
     const horizons = [
@@ -353,91 +318,37 @@ const runOnnxInference = async (farm, windowData) => {
         const targetTime = new Date(now.getTime() + h.offset * 24 * 3600 * 1000)
         const predThi = parseFloat(predThiArr[dIdx].toFixed(1))
 
-        // คำนวณความเสี่ยงน้ำนมลดตามโมเดลทางทฤษฎีชีวภาพโคนมไทย (Hasan et al., 2026; Abdourhamane, 2026)
-        // เริ่มคำนวณเมื่อ THI > 76.0 (Zero Manual Milk Yield Input)
-        const theoreticalLoss = predThi > 76.0 ? parseFloat(((predThi - 76.0) * 0.45).toFixed(2)) : 0.0
-        let milkLoss = theoreticalLoss
-        if (predMilkArr[dIdx] != null && !isNaN(predMilkArr[dIdx])) {
-            milkLoss = parseFloat(Math.max(theoreticalLoss, predMilkArr[dIdx]).toFixed(2))
-        }
-
-        // คลาสความเสี่ยงตามเกณฑ์โคนมลูกผสมไทย
-        const logitSlice = riskLogitsData.slice(dIdx * 4, (dIdx + 1) * 4)
-        const maxLogitIdx = logitSlice.indexOf(Math.max(...logitSlice))
-        let riskLevel = 'normal'
-        if (maxLogitIdx === 3 || predThi >= 84.0) riskLevel = 'severe'
-        else if (maxLogitIdx === 2 || predThi >= 80.0) riskLevel = 'moderate'
-        else if (maxLogitIdx === 1 || predThi >= 76.0) riskLevel = 'mild'
-
-        // Multimodal Escalation: ถ้า CCI ต่ำ (<50%) และเริ่มมีความร้อน ให้ยกระดับความเสี่ยง
+        // ใช้เกณฑ์กลางตาม profile ของฟาร์ม (ไม่ใช้ risk head ของโมเดลซึ่งเทรนกับเกณฑ์เก่า)
+        let riskLevel = getRiskLevel(predThi, profile)
         let cciWarning = ''
-        if (latestCci < 50.0 && riskLevel !== 'severe') {
+        if (latestCci != null && latestCci < 50.0 && riskLevel !== 'severe') {
             if (riskLevel === 'moderate') riskLevel = 'severe'
             else if (riskLevel === 'mild') riskLevel = 'moderate'
             cciWarning = ' [CCI วัวไม่ยอมนอน <50%]'
         }
 
-        // คำแนะนำสำหรับเกษตรกรภาษาไทย (บังคับใช้ Anti-Misting Rule เมื่อความชื้น >= 75%)
-        let actionText = 'สภาวะอากาศปกติ แม่โคเคี้ยวเอื้องและนอนพักผ่อนได้ดี'
-        let badgeClass = 'bg-emerald-50 text-emerald-800 border-emerald-200'
-
-        if (riskLevel === 'severe') {
-            if (avgRecentHum >= 75.0) {
-                actionText = `🚨 เตือนภัยวิกฤต: เสี่ยงน้ำนมดิ่งแรงใน 5 วัน! เปิดพัดลมระบายอากาศเต็มกำลัง 10:00–16:00 น. (ห้ามพ่นหมอกเด็ดขาด! ความชื้นสูง ${avgRecentHum.toFixed(0)}% เสี่ยงเต้านมอักเสบ) เสริมเกลือแร่ในน้ำ เลื่อนเวลาให้อาหาร${cciWarning}`
-            } else {
-                actionText = `🚨 เตือนภัยวิกฤต: เสี่ยงน้ำนมดิ่งแรงใน 5 วัน! เปิดพัดลมพ่นหมอกเต็มกำลัง 10:00–16:00 น. เสริมเกลือแร่ในน้ำ และเลื่อนเวลาให้อาหาร${cciWarning}`
-            }
-            badgeClass = 'bg-rose-50 text-rose-800 border-rose-200'
-        } else if (riskLevel === 'moderate') {
-            if (avgRecentHum >= 75.0) {
-                actionText = `⚠️ ความร้อนสะสมสูง: เริ่มกระทบการกินอาหาร แนะนำเปิดพัดลมระบายอากาศ 11:00–15:00 น. (ห้ามพ่นหมอก คอกชื้น) จัดน้ำเย็นสะอาดให้กินตลอดเวลา${cciWarning}`
-            } else {
-                actionText = `⚠️ ความร้อนสะสมสูง: เริ่มกระทบการกินอาหาร แนะนำเปิดพัดลมระบายอากาศ 11:00–15:00 น. จัดน้ำเย็นให้กินตลอดเวลา${cciWarning}`
-            }
-            badgeClass = 'bg-amber-50 text-amber-800 border-amber-200'
-        } else if (riskLevel === 'mild') {
-            actionText = `เริ่มเฝ้าระวัง: อากาศอบอ้าว แนะนำเปิดพัดลมระบายอากาศในคอกเพื่อป้องกันความร้อนสะสม${cciWarning}`
-            badgeClass = 'bg-yellow-50 text-yellow-800 border-yellow-200'
-        }
-
-        // Empirical Uncertainty Bounds (Calibrated via Argon Benchmark Report)
-        const uncertaintyTable = {
-            1: { thi_mae: 0.58, milk_loss_mae_kg: 0.19, risk_accuracy_pct: 95.8 },
-            2: { thi_mae: 0.84, milk_loss_mae_kg: 0.28, risk_accuracy_pct: 91.2 },
-            3: { thi_mae: 1.18, milk_loss_mae_kg: 0.39, risk_accuracy_pct: 86.4 }
-        }
-        const u = uncertaintyTable[h.offset] || { thi_mae: 0.87, milk_loss_mae_kg: 0.28, risk_accuracy_pct: 91.1 }
-
         return {
             horizon_days: h.offset,
             label: h.label,
             day_name: h.day_name,
-            date: targetTime.toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' }),
+            date: targetTime.toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', weekday: 'short', day: 'numeric', month: 'short' }),
             predicted_thi: predThi,
-            predicted_milk_loss_kg: milkLoss,
             risk_level: riskLevel,
-            advisory: actionText,
-            badge_class: badgeClass,
-            thi_mae: u.thi_mae,
-            milk_loss_mae_kg: u.milk_loss_mae_kg,
-            risk_accuracy_pct: u.risk_accuracy_pct,
-            thi_lower: parseFloat((predThi - u.thi_mae).toFixed(1)),
-            thi_upper: parseFloat((predThi + u.thi_mae).toFixed(1)),
-            milk_loss_lower: parseFloat(Math.max(0.0, milkLoss - u.milk_loss_mae_kg).toFixed(2)),
-            milk_loss_upper: parseFloat((milkLoss + u.milk_loss_mae_kg).toFixed(2))
+            advisory: getRiskAdvisory(riskLevel, avgRecentHum) + cciWarning,
+            badge_class: getBadgeClass(riskLevel)
         }
     })
 
     return {
-        model_name: 'Multimodal Bi-LSTM (72h Multimodal Vision & IoT ONNX v2.5)',
-        version: 'onnx-bilstm-lookback72-v2.5',
+        model_name: 'Bi-LSTM (EXPERIMENTAL, synthetic-trained)',
+        version: 'onnx-bilstm-experimental',
         engine: windowData.engine,
-        accuracy_pct: '96.08%',
+        evaluation_note: 'เทรนจากข้อมูลสังเคราะห์ ยังไม่ผ่านการทดสอบภาคสนาม',
+        hf_profile: profile,
         inference_latency_ms: inferenceLatencyMs,
         lookback_hours: 72,
         critical_attention_hours: topAttentionHours,
         peak_predicted_thi: Math.max(...forecasts.map(d => d.predicted_thi)),
-        estimated_herd_milk_loss_kg: parseFloat((forecasts.reduce((a, b) => a + b.predicted_milk_loss_kg, 0)).toFixed(1)),
         latest_cow_comfort_index: latestCci,
         forecasts
     }
@@ -446,7 +357,7 @@ const runOnnxInference = async (farm, windowData) => {
 /**
  * สร้างคำแนะนำสรุปประจำวันภาษาชาวบ้าน (แยกแยะบริบทฤดูร้อน vs ฤดูฝน & Anti-Misting Rule)
  */
-const generateElderlyFriendlyAdvisory = (summaryDate, avgThi, maxThi, avgTemp, avgHum, severeHours, stressHours, nightRecoveryThi, cci = 85.0) => {
+const generateElderlyFriendlyAdvisory = (summaryDate, avgThi, maxThi, avgTemp, avgHum, severeHours, stressHours, nightRecoveryThi, cci = null, profile = 'default') => {
     let advisory = `สรุปสภาวะอากาศวันที่ ${summaryDate}: ค่า THI เฉลี่ย ${avgThi} (สูงสุด ${maxThi}) อุณหภูมิเฉลี่ย ${avgTemp}°C ความชื้นเฉลี่ย ${avgHum}%`
 
     // บริบทพิเศษ: ฤดูฝน (ความชื้นสูงจัด >75% - Maejo context)
@@ -464,28 +375,29 @@ const generateElderlyFriendlyAdvisory = (summaryDate, avgThi, maxThi, avgTemp, a
         } else if (stressHours >= 4.0) {
             advisory += ` ⚠️ มีความร้อนสะสมนาน ${stressHours} ชม. แนะนำเปิดพัดลมระบายอากาศช่วง 11:00-15:00 น.`
         } else {
-            advisory += ` ✅ สภาวะอากาศปกติ แม่โคพักผ่อนและเคี้ยวเอื้องได้ดี`
+            advisory += ` ✅ สภาวะอากาศปกติ`
         }
     }
 
-    if (cci < 50.0) {
+    if (cci != null && cci < 50.0) {
         advisory += ` (⚠️ ดัชนีความสบาย CCI ต่ำ ${cci}%: โคยืนแช่ไม่ยอมนอนพักผ่อน ควรตรวจสอบความร้อนใต้หลังคาหรือพื้นคอก)`
     }
 
-    if (nightRecoveryThi >= 74.0) {
+    // กลางคืนควรลดลงต่ำกว่าระดับเฝ้าระวังของฟาร์ม
+    if (nightRecoveryThi != null && nightRecoveryThi >= getRiskThresholdMild(profile)) {
         advisory += ` (⚠️ กลางคืนระบายความร้อนไม่ทัน: Night THI ${nightRecoveryThi})`
-    } else {
+    } else if (nightRecoveryThi != null) {
         advisory += ` (🌙 กลางคืนอากาศเย็นสบาย ฟื้นตัวได้ดี: Night THI ${nightRecoveryThi})`
     }
 
     return advisory
 }
 
+const getRiskThresholdMild = (profile) => require('./heatStress').getThresholds(profile).mild
+
 module.exports = {
     getOnnxSession,
     calcThi,
-    calcThaiThi,
-    getThaiRiskLevel,
     fetch72HourMultimodalWindow,
     runOnnxInference,
     generateElderlyFriendlyAdvisory
