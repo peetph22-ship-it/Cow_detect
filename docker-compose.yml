@@ -77,11 +77,21 @@ services:
       - /app/node_modules
       - /app/.nuxt
     command: sh -c "npm install && npm run dev"
+    env_file:
+      - ./frontend/.env
     depends_on:
       - backend
     networks:
       - app-network
     restart: always
+  
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cow_detect_tunnel
+    restart: always
+    command: tunnel --no-autoupdate run --token eyJhIjoiZGYxMTEzZDY4ZGI4ZjA1NDQ4OWI3NDIwZjkyOGI2NzQiLCJ0IjoiNTM2MzdjYmYtM2ExMC00ODZiLWJmZTEtMGUzMDYwYTMwZmQ0IiwicyI6Ik1URmlaR1ptT0RZdFpEZG1NQzAwTTJaakxXSm1aVFl0WlRCbVlXWTBNbVExWldWbCJ9
+    networks:
+      - app-network
 
 networks:
   app-network:

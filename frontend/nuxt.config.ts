@@ -76,9 +76,9 @@ export default defineNuxtConfig({
       // โซนนี้ Client/Browser มองเห็นได้
       appName: 'Cow-detect-Project',
 
-      // 👉 แนะนำให้เพิ่ม 2 บรรทัดนี้ เพื่อให้ฝั่ง Vue ใช้เรียก API ได้ง่ายๆ
-      apiBase: '', // ทะลุไปหา FastAPI
-      nodeApiBase: '', // ทะลุไปหา Node.js 
+      // API Endpoints จาก Environment Variables หรือ fallback localhost
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8000', // ทะลุไปหา FastAPI Python
+      nodeApiBase: process.env.NUXT_PUBLIC_NODE_API_BASE || 'http://localhost:4001/api', // ทะลุไปหา Node.js Express
     },
   },
 })

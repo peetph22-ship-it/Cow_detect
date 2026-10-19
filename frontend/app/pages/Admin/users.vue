@@ -219,7 +219,7 @@
             </tr>
           </thead>
           <tbody class="text-[#4e6057]">
-            <tr v-for="user in filteredUsers" :key="user.id"
+            <tr v-for="user in filteredUsers" :key="user.id_users || user.id"
               class="hover:bg-white transition-colors group border-b border-[#24433a]/5 last:border-0">
 
               <!-- Name & Avatar -->
@@ -228,10 +228,10 @@
                   <div
                     class="w-10 h-10 rounded-full bg-gradient-to-br flex items-center justify-center font-black text-sm text-white shadow-sm flex-shrink-0"
                     :class="getAvatarColor(user.role)">
-                    {{ getInitials(user.full_name || user.name) }}
+                    {{ getInitials(user.name_users || user.full_name || user.name) }}
                   </div>
                   <div>
-                    <p class="font-black text-[#24433a] text-[14px]">{{ user.full_name || user.name }}</p>
+                    <p class="font-black text-[#24433a] text-[14px]">{{ user.name_users || user.full_name || user.name }}</p>
                     <p class="text-[12px] font-medium text-[#718078] mt-0.5">{{ user.organization || user.org || '-' }}</p>
                   </div>
                 </div>
@@ -408,9 +408,9 @@ const isModalOpen = ref(false)
 
 const handleAddUser = (data) => {
   users.value.unshift({
-    id: data.id || Date.now(),
-    name: data.name,
-    full_name: data.name,
+    id: data.id_users || Date.now(),
+    name: data.name_users,
+    full_name: data.name_users,
     role: data.role,
     org: data.org || "-",
     organization: data.org || "-",
@@ -431,7 +431,8 @@ const openEditModal = (user) => {
 }
 
 const handleUserUpdated = (updatedUser) => {
-  const idx = users.value.findIndex(u => u.id === updatedUser.id)
+  const targetId = updatedUser.id_users || updatedUser.id
+  const idx = users.value.findIndex(u => (u.id_users || u.id) === targetId)
   if (idx !== -1) {
     users.value[idx] = { ...users.value[idx], ...updatedUser }
   } else {
@@ -455,7 +456,7 @@ const confirmDeleteUser = async () => {
   try {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
     const headers = token ? { Authorization: `Bearer ${token}` } : {}
-    const id = userToDelete.value.id
+    const id = userToDelete.value.id_users || userToDelete.value.id
 
     // ยิง DELETE API: รองรับทั้ง /api/Admin/users/:id และ fallback /api/Admin/users/users/:id
     try {
@@ -468,7 +469,7 @@ const confirmDeleteUser = async () => {
       }
     }
 
-    users.value = users.value.filter(u => u.id !== id)
+    users.value = users.value.filter(u => (u.id_users || u.id) !== id)
     isDeleteDialogOpen.value = false
     userToDelete.value = null
   } catch (err) {
@@ -535,7 +536,7 @@ const filteredUsers = computed(() => {
   return users.value.filter(u => {
     const matchesRole = currentFilter.value === 'all' || u.role === currentFilter.value
     const query = searchQuery.value.trim().toLowerCase()
-    const name = (u.full_name || u.name || '').toLowerCase()
+    const name = (u.name_users || u.full_name || u.name || '').toLowerCase()
     const email = (u.email || '').toLowerCase()
     const org = (u.organization || u.org || '').toLowerCase()
     const phone = (u.phone || '').toLowerCase()

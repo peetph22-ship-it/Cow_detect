@@ -6,10 +6,14 @@ const SECRET_KEY = process.env.SECRET_KEY
 const db = require('../../config/db')
 const {verifyToken,requireRole} = require('../../middleware/authMiddleware')
 
-// GET: All Users
+// GET: All Users (Exclude password for security)
 router.get(['/users', '/'], verifyToken, requireRole('admin') ,async (req,res) => {
     try{
-        const {rows} = await db.query(`select * from tb_users order by id_users desc`)
+        const {rows} = await db.query(`
+            SELECT id_users, email, phone, name_users, role, status, organization, avatar_url, line_user_id, last_login_at, created_at, updated_at 
+            FROM tb_users 
+            ORDER BY id_users DESC
+        `)
         return res.json({rows,message:'Get all users success!'})
     }catch(err){
         console.error("Error get all users!",err.message)
@@ -21,11 +25,15 @@ router.get(['/users', '/'], verifyToken, requireRole('admin') ,async (req,res) =
     }
 })
 
-// Get: users by id (1 data)
+// Get: users by id (1 data, Exclude password)
 router.get(['/users/:id', '/:id'], verifyToken, requireRole('admin'), async (req,res) => {
     try{
         const {id} = req.params
-        const {rows} = await db.query(`select * from tb_users where id_users=$1`,[id])
+        const {rows} = await db.query(`
+            SELECT id_users, email, phone, name_users, role, status, organization, avatar_url, line_user_id, last_login_at, created_at, updated_at 
+            FROM tb_users 
+            WHERE id_users=$1
+        `, [id])
         res.json({rows,message:'Get Users Success!',status:200,success:true})
     }catch(err){
         console.error('Error, Get Users by id False!',err.message)

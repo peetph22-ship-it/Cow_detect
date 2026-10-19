@@ -13,8 +13,19 @@ process.on('unhandledRejection', (reason) => {
 const app = express()
 const PORT = process.env.PORT || 4001
 
+const rawOrigins = process.env.FRONTEND_URL 
+    ? process.env.FRONTEND_URL.split(',').map(s => s.trim()).filter(Boolean)
+    : []
+const frontendOrigins = Array.from(new Set([...rawOrigins, 'http://localhost:3000', 'http://127.0.0.1:3000']))
+
 app.use(cors({
-    origin: 'http://localhost:3000',
+    origin: (origin, callback) => {
+        // อนุญาตคำขอที่ไม่มี origin (เช่น ESP32-S3, Postman, Server-to-Server) หรือตรงกับ Origin ที่อนุญาต
+        if (!origin || frontendOrigins.includes(origin) || frontendOrigins.includes('*')) {
+            return callback(null, true)
+        }
+        return callback(new Error(`Origin ${origin} not allowed by CORS`))
+    },
     credentials: true
 }))
 

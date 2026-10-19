@@ -1577,7 +1577,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
-import { Admin } from '~/API/baseAPI'
+import { Admin, getFastApiBase } from '~/API/baseAPI'
 import AdminEditFarmModal from '~/components/Admin/farm/EditFarmModal.vue'
 import AddCameraModal from '~/components/Admin/cctv/AddCameraModal.vue'
 import SystemAccuracyModal from '~/components/Admin/cctv/SystemAccuracyModal.vue'
@@ -1655,8 +1655,9 @@ const currentCameraSourceLabel = computed(() => {
 
 const cameraStreamUrl = computed(() => {
   if (!primaryCamera.value) return ''
+  const fastApi = getFastApiBase()
   const url = primaryCamera.value.sub_stream_url || primaryCamera.value.main_stream_url || ''
-  return `http://localhost:8000/api/cam/stream?cam_id=rtsp&rtsp_url=${encodeURIComponent(url)}&flip=${cameraFlip.value}&t=${cameraStreamKey.value}`
+  return `${fastApi}/api/cam/stream?cam_id=rtsp&rtsp_url=${encodeURIComponent(url)}&flip=${cameraFlip.value}&t=${cameraStreamKey.value}`
 })
 
 const liveCciScore = computed(() => {
@@ -1725,7 +1726,7 @@ const fetchRegisteredCameras = async () => {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     })
     if (res.data && res.data.success) {
-      registeredCameras.value = (res.data.cameras || []).filter(c => !c.is_simulation)
+      registeredCameras.value = res.data.cameras || []
     }
   } catch (e) {
     console.warn('[Camera API] Could not fetch registered cameras:', e)

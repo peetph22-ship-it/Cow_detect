@@ -17,7 +17,7 @@ const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-
 // -----------------------------------------------------------------
 router.get('/', verifyToken, requireRole('admin'), async (req, res) => {
     try {
-        const query = `
+        const queryDevices = `
             SELECT 
                 d.id_devices,
                 d.name_devices,
@@ -47,13 +47,44 @@ router.get('/', verifyToken, requireRole('admin'), async (req, res) => {
             ) sr ON true
             ORDER BY d.created_at DESC
         `
-        const { rows } = await db.query(query)
+
+        const queryCameras = `
+            SELECT 
+                c.id,
+                c.farm_id,
+                c.camera_name,
+                c.barn_unit,
+                c.brand,
+                c.model,
+                c.ip_address,
+                c.rtsp_port,
+                c.channel_no,
+                c.is_active,
+                c.is_simulation,
+                c.created_at,
+                c.updated_at,
+                f.name_farms,
+                f.province,
+                u.name_users AS farmer_name
+            FROM cctv_cameras c
+            LEFT JOIN tb_farms f ON f.id_farms = c.farm_id
+            LEFT JOIN tb_users u ON u.id_users = f.id_users
+            ORDER BY c.created_at DESC
+        `
+
+        const [devRes, camRes] = await Promise.all([
+            db.query(queryDevices),
+            db.query(queryCameras).catch(err => {
+                console.warn('[Admin Devices] cctv_cameras query error:', err.message)
+                return { rows: [] }
+            })
+        ])
 
         const now = Date.now()
-        const devices = rows.map(dev => {
+        const devices = devRes.rows.map(dev => {
             const lastSeen = dev.last_seen_at ? new Date(dev.last_seen_at).getTime() : 0
             const diffMin = lastSeen > 0 ? (now - lastSeen) / (1000 * 60) : 9999
-            const isOnline = diffMin < 10
+            const isOnline = diffMin < 2
 
             return {
                 ...dev,
@@ -65,8 +96,38 @@ router.get('/', verifyToken, requireRole('admin'), async (req, res) => {
             }
         })
 
-        const total = devices.length
-        const onlineCount = devices.filter(d => d.computed_status === 'online').length
+        const cameras = camRes.rows.map(cam => {
+            const isOnline = cam.is_active !== false
+            return {
+                id_devices: cam.id,
+                name_devices: cam.camera_name,
+                serial_no: `${cam.brand || 'Hikvision'} (${cam.ip_address})`,
+                type: 'camera',
+                status: isOnline ? 'active' : 'inactive',
+                last_seen_at: cam.updated_at || cam.created_at,
+                created_at: cam.created_at,
+                id_farms: cam.farm_id,
+                name_farms: cam.name_farms || 'ฟาร์มไม่ระบุ',
+                province: cam.province || '-',
+                barn_unit: cam.barn_unit || 'โรงเรือนหลัก',
+                farmer_name: cam.farmer_name || '-',
+                temperature_c: null,
+                humidity_pct: null,
+                thi: null,
+                last_reading_time: null,
+                computed_status: isOnline ? 'online' : 'offline',
+                minutes_since_seen: 0,
+                battery_pct: 100, // กล้องวงจรปิดใช้ไฟตรง PoE
+                signal_rssi: isOnline ? -55 : -99,
+                signal_quality: isOnline ? 'เชื่อมต่อ LAN/PoE ปกติ' : 'ออฟไลน์ (RTSP ขาด)',
+                is_simulation: cam.is_simulation,
+                is_camera: true
+            }
+        })
+
+        const allDevices = [...devices, ...cameras]
+        const total = allDevices.length
+        const onlineCount = allDevices.filter(d => d.computed_status === 'online').length
         const offlineCount = total - onlineCount
 
         res.json({
@@ -74,7 +135,7 @@ router.get('/', verifyToken, requireRole('admin'), async (req, res) => {
             total,
             online_count: onlineCount,
             offline_count: offlineCount,
-            devices
+            devices: allDevices
         })
     } catch (err) {
         console.error('[Admin Devices List Error]:', err.message)
@@ -181,9 +242,16 @@ router.delete('/:id', verifyToken, requireRole('admin'), async (req, res) => {
     try {
         const { id } = req.params
 
-        const delRes = await db.query(`DELETE FROM tb_devices WHERE id_devices = $1 RETURNING id_devices, name_devices`, [id])
+        let delRes = await db.query(`DELETE FROM tb_devices WHERE id_devices = $1 RETURNING id_devices, name_devices`, [id])
         if (delRes.rows.length === 0) {
-            return res.status(404).json({ success: false, message: 'ไม่พบอุปกรณ์' })
+            const delCam = await db.query(`DELETE FROM cctv_cameras WHERE id = $1 RETURNING id, camera_name`, [id])
+            if (delCam.rows.length === 0) {
+                return res.status(404).json({ success: false, message: 'ไม่พบอุปกรณ์' })
+            }
+            return res.json({
+                success: true,
+                message: `ลบกล้อง ${delCam.rows[0].camera_name} สำเร็จ`
+            })
         }
 
         res.json({

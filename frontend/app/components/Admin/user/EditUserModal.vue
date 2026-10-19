@@ -95,7 +95,7 @@
               <v-icon icon="mdi-account-outline" size="19" class="text-[#718078]" />
             </div>
             <input 
-              v-model="form.name" 
+              v-model="form.name_users" 
               type="text" 
               required
               placeholder="เช่น สมชาย มั่งมี"
@@ -245,7 +245,7 @@ const form = reactive({
   id: '',
   role: 'farmer',
   status: 'active',
-  name: '',
+  name_users: '',
   org: '',
   phone: '',
   email: '',
@@ -254,10 +254,10 @@ const form = reactive({
 
 watch(() => props.user, (u) => {
   if (u) {
-    form.id = u.id || ''
+    form.id = u.id_users || u.id || ''
     form.role = u.role || 'farmer'
     form.status = u.status || 'active'
-    form.name = u.full_name || u.name || ''
+    form.name_users = u.name_users || u.full_name || u.name || ''
     form.org = u.organization || u.org || ''
     form.phone = u.phone || ''
     form.email = (u.email && u.email !== '-') ? u.email : ''
@@ -282,7 +282,7 @@ const closeModal = () => {
 }
 
 const submitForm = async () => {
-  if (!form.name.trim() || !form.phone.trim()) {
+  if (!form.name_users.trim() || !form.phone.trim()) {
     alert('กรุณากรอกชื่อ-นามสกุล และเบอร์โทรศัพท์ให้ครบถ้วน')
     return
   }
@@ -294,7 +294,7 @@ const submitForm = async () => {
     const headers = token ? { Authorization: `Bearer ${token}` } : {}
 
     const payload = {
-      full_name: form.name.trim(),
+      full_name: form.name_users.trim(),
       phone: form.phone.trim(),
       role: form.role,
       status: form.status,
@@ -320,8 +320,10 @@ const submitForm = async () => {
     
     emit('updated', {
       id: form.id,
-      full_name: form.name,
-      name: form.name,
+      id_users: form.id,
+      name: form.name_users,
+      full_name: form.name_users,
+      name_users: form.name_users,
       phone: form.phone,
       role: form.role,
       status: form.status,

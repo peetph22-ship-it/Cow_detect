@@ -99,7 +99,7 @@
           </div>
 
           <div v-show="isSidebarOpen || isMobile" class="min-w-0 flex-1">
-            <div class="text-xs font-extrabold text-[#142820] truncate">{{ user?.name || 'Administrator' }}</div>
+            <div class="text-xs font-extrabold text-[#142820] truncate">{{ user?.name_users || user?.full_name || user?.name || 'Administrator' }}</div>
             <div class="text-[10px] text-[#718078] truncate">{{ user?.email || 'admin@cowcare.ai' }}</div>
           </div>
 
@@ -151,7 +151,7 @@
 
           <!-- Back to Front Website -->
           <NuxtLink 
-            to="/Admin"
+            to="/"
             class="px-3.5 py-1.5 rounded-xl border border-[#E4E8E5] bg-white hover:bg-[#F2F4F2] text-[#142820] font-bold text-xs flex items-center gap-1.5 transition-colors text-decoration-none">
             <v-icon icon="mdi-web" size="15" class="text-[#D87939]" />
             <span class="hidden sm:inline">หน้าเว็บหลัก</span>
@@ -252,7 +252,7 @@ const currentPageTitle = computed(() => {
 })
 
 const userInitials = computed(() => {
-  const name = user.value?.name || 'AD'
+  const name = user.value?.name_users || user.value?.full_name || user.value?.name || 'AD'
   return name.slice(0, 2).toUpperCase()
 })
 

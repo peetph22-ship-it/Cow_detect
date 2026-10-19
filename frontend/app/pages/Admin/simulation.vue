@@ -758,7 +758,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
-import { Admin } from '~/API/baseAPI'
+import { Admin, getFastApiBase } from '~/API/baseAPI'
 
 definePageMeta({
   layout: 'admin',
@@ -876,17 +876,18 @@ const currentCameraSourceLabel = computed(() => {
 })
 
 const cameraStreamUrl = computed(() => {
+  const fastApi = getFastApiBase()
   if (selectedCameraSource.value === 'simulation') {
-    return `http://localhost:8000/api/cam/stream?cam_id=simulation&sample_video=sample_barn.mp4&flip=${cameraFlip.value}&t=${cameraStreamKey.value}`
+    return `${fastApi}/api/cam/stream?cam_id=simulation&sample_video=sample_barn.mp4&flip=${cameraFlip.value}&t=${cameraStreamKey.value}`
   }
   if (selectedCameraSource.value.startsWith('rtsp-')) {
     const camId = selectedCameraSource.value.replace('rtsp-', '')
     const cam = registeredCameras.value.find(c => String(c.id) === String(camId))
     const url = cam ? (cam.sub_stream_url || cam.main_stream_url) : ''
-    return `http://localhost:8000/api/cam/stream?cam_id=rtsp&rtsp_url=${encodeURIComponent(url)}&flip=${cameraFlip.value}&t=${cameraStreamKey.value}`
+    return `${fastApi}/api/cam/stream?cam_id=rtsp&rtsp_url=${encodeURIComponent(url)}&flip=${cameraFlip.value}&t=${cameraStreamKey.value}`
   }
   const idx = parseInt(selectedCameraSource.value.replace('usb-', '') || '0', 10)
-  return `http://localhost:8000/api/cam/stream?cam_id=${idx}&flip=${cameraFlip.value}&t=${cameraStreamKey.value}`
+  return `${fastApi}/api/cam/stream?cam_id=${idx}&flip=${cameraFlip.value}&t=${cameraStreamKey.value}`
 })
 
 // Multimodal Gate Status Badge
@@ -1007,7 +1008,8 @@ const onFarmSelected = async () => {
 
 const fetchCameraDevices = async () => {
   try {
-    const res = await axios.get('http://localhost:8000/api/cam/devices', { timeout: 3000 })
+    const fastApi = getFastApiBase()
+    const res = await axios.get(`${fastApi}/api/cam/devices`, { timeout: 3000 })
     if (res.data && res.data.devices && res.data.devices.length > 0) {
       detectedCameras.value = res.data.devices
     }

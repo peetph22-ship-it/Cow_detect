@@ -140,6 +140,24 @@
           </div>
         </div>
 
+        <!-- 5. Email Input (Optional) -->
+        <div>
+          <label class="block text-xs font-black text-[#4e6057] uppercase tracking-wider mb-1.5 flex items-center justify-between">
+            <span>อีเมล (Email)</span>
+            <span class="text-[11px] text-[#718078] font-normal">(ไม่บังคับ / Optional)</span>
+          </label>
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#718078]">
+              <v-icon icon="mdi-email-outline" size="18" class="text-[#718078]" />
+            </div>
+            <input 
+              v-model="form.email" 
+              type="email" 
+              placeholder="name@example.com (ถ้ามี)"
+              class="w-full bg-white border border-[#e5ece9] rounded-[16px] pl-10 pr-4 py-3 text-sm font-medium text-[#1f3d34] placeholder-[#a6b5aa] focus:outline-none focus:border-[#24433a] focus:ring-4 focus:ring-[#24433a]/8 transition-all" />
+          </div>
+        </div>
+
         <!-- 🟢 Footer Action Buttons -->
         <div class="pt-3 flex items-center justify-end gap-3 border-t border-[#eef2f0]">
           <button 
@@ -193,7 +211,8 @@ const form = reactive({
   status: 'active',
   name: '',
   org: '',
-  phone: ''
+  phone: '',
+  email: ''
 })
 
 const orgLabel = computed(() => {
@@ -214,6 +233,7 @@ watch(() => props.modelValue, (isOpen) => {
     form.name = ''
     form.org = ''
     form.phone = ''
+    form.email = ''
     form.role = 'farmer'
     form.status = 'active'
   }
@@ -244,20 +264,25 @@ const submitForm = async () => {
       status: form.status,
       organization: form.org.trim(),
       password: form.phone.trim(), // Default password = phone number
-      email: null
+      email: form.email && form.email.trim() ? form.email.trim() : null
     }
     
     // Call Node.js Backend API
     const response = await axios.post(`${base || api}/auth/register`, payload)
+    const returnedUser = response.data.user || {}
+    const newUserId = returnedUser.id_users || returnedUser.id || Date.now()
     
     emit('submit', { 
-      id: response.data.user?.id || Date.now(), 
+      id: newUserId, 
+      id_users: newUserId,
       name: form.name.trim(),
+      name_users: form.name.trim(),
       full_name: form.name.trim(),
       role: form.role, 
       status: form.status,
       org: form.org.trim(),
       organization: form.org.trim(),
+      email: payload.email || '-',
       phone: form.phone.trim() 
     })
     

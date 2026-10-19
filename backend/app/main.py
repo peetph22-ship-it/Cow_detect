@@ -1,4 +1,5 @@
 # import zone
+import os
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,12 +17,18 @@ from app.api.detect import router as detect_router
 from app.api.test_cam import router as test_cam_router
 
 # main instance
-app = FastAPI(title="Test FastAPI")
+app = FastAPI(title="CowCare AI - FastAPI Vision & Forecasting Backend")
 
 # cors setting
+cors_origins_env = os.getenv("FRONTEND_URL", os.getenv("ALLOWED_ORIGINS", "http://localhost:3000"))
+allowed_origins = [orig.strip() for orig in cors_origins_env.split(",") if orig.strip()]
+for fallback in ["http://localhost:3000", "http://localhost:3001", "http://127.0.0.1:3000"]:
+    if fallback not in allowed_origins:
+        allowed_origins.append(fallback)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://127.0.0.1:3000"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]

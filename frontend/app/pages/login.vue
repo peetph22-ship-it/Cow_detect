@@ -48,7 +48,7 @@
                 เข้าสู่ระบบ
               </h1>
               <p class="text-xs sm:text-sm text-[#5A6B63] mt-1.5">
-                กรอกอีเมลและรหัสผ่านเพื่อเข้าใช้งานระบบเฝ้าระวังความเครียดความร้อนโคนม
+                กรอกอีเมลหรือเบอร์โทรศัพท์ และรหัสผ่านเพื่อเข้าใช้งานระบบเฝ้าระวังความเครียดความร้อนโคนม
               </p>
             </div>
 
@@ -73,22 +73,22 @@
             <!-- Login Form -->
             <form @submit.prevent="Login" class="space-y-4">
               
-              <!-- Email Input -->
+              <!-- Identifier Input (Email or Phone) -->
               <div>
                 <label for="email-input" class="block text-xs font-bold text-[#24433a] mb-1.5">
-                  Email:
+                  อีเมล หรือ เบอร์โทรศัพท์ (Email / Phone):
                 </label>
                 <div class="relative">
                   <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-[#64766d] pointer-events-none">
-                    <v-icon icon="mdi-email-outline" size="18" />
+                    <v-icon icon="mdi-account-outline" size="18" />
                   </span>
                   <input
                     id="email-input"
                     v-model.trim="email"
-                    type="email"
+                    type="text"
                     required
-                    autocomplete="email"
-                    placeholder="name@example.com"
+                    autocomplete="username"
+                    placeholder="เช่น 08XXXXXXXX หรือ name@example.com"
                     class="w-full pl-10 pr-4 py-3 rounded-2xl bg-white/90 border border-[#24433a]/15 text-sm text-[#24433a] placeholder-[#8C9B93] focus:bg-white focus:outline-none focus:border-[#24433a] focus:ring-3 focus:ring-[#24433a]/10 transition-all"
                   />
                 </div>
@@ -235,7 +235,7 @@ const errorMessage = ref('')
 
 const Login = async () => {
   if (!email.value || !password.value) {
-    errorMessage.value = 'กรุณากรอกอีเมลและรหัสผ่าน'
+    errorMessage.value = 'กรุณากรอกอีเมลหรือเบอร์โทรศัพท์ และรหัสผ่าน'
     return
   }
 

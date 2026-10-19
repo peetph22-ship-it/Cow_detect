@@ -1,9 +1,10 @@
+import os
 import time
 import requests
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
-NODE_API_BASE = "http://localhost:4001"
+NODE_API_BASE = os.getenv("NODE_BACKEND_URL", "http://localhost:4001")
 
 def point_in_polygon(x: float, y: float, polygon: List[dict]) -> bool:
     """Ray-casting algorithm to test if (x,y) normalized [0..1] is in polygon."""

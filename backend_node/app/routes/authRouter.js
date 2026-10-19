@@ -8,26 +8,30 @@ const SECRET_KEY = process.env.SECRET_KEY
 // POST: Login API
 router.post('/login',async (req, res) => {
     try {
-        const { email, password } = req.body
-        if (!email || !password) {
+        const identifier = (req.body.email || req.body.phone || req.body.username || '').trim()
+        const password = req.body.password
+        if (!identifier || !password) {
             return res.status(400).json({ 
                 success: false, 
-                message: 'Please enter email and password!' 
+                message: 'กรุณากรอกอีเมลหรือเบอร์โทรศัพท์ และรหัสผ่าน' 
             })
         }
-        const {rows} = await db.query('SELECT * FROM tb_users WHERE email = $1 LIMIT 1', [email])
+        const {rows} = await db.query(
+            'SELECT * FROM tb_users WHERE email = $1 OR phone = $1 LIMIT 1', 
+            [identifier]
+        )
         const user = rows[0]
         if (!user) {
             return res.status(401).json({ 
                 success: false, 
-                message: 'Invalid email or password!' 
+                message: 'อีเมล/เบอร์โทรศัพท์ หรือรหัสผ่านไม่ถูกต้อง' 
             })
         }
         const isMatch = await bcrypt.compare(password, user.password)
         if (!isMatch) {
             return res.status(401).json({
                 success: false,
-                message: 'Invalid email or password!'
+                message: 'อีเมล/เบอร์โทรศัพท์ หรือรหัสผ่านไม่ถูกต้อง'
             })
         }
 
@@ -66,8 +70,11 @@ router.post('/login',async (req, res) => {
             message: 'Login Success!',
             token,
             user: {
+                id: user.id_users,
                 id_users: user.id_users,
                 email: user.email,
+                name: user.name_users,
+                full_name: user.name_users,
                 name_users: user.name_users,
                 role: user.role,
                 status: user.status
