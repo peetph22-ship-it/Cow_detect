@@ -7,6 +7,7 @@ const express = require('express')
 const router = express.Router()
 const db = require('../../config/db')
 const { verifyToken, requireRole } = require('../../middleware/authMiddleware')
+const { generateDeviceKey, hashDeviceKey } = require('../../middleware/deviceAuthMiddleware')
 
 // Helper function to check valid UUID
 const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str || '').trim())
@@ -208,7 +209,7 @@ router.put('/:id', verifyToken, requireRole('admin'), async (req, res) => {
                  id_farms = $4,
                  status = COALESCE($5, status)
              WHERE id_devices = $6
-             RETURNING *`,
+             RETURNING id_devices, name_devices, serial_no, type, id_farms, status, last_seen_at, created_at`,
             [
                 name_devices ? name_devices.trim() : null,
                 serial_no ? String(serial_no).trim().toUpperCase() : null,
@@ -231,6 +232,44 @@ router.put('/:id', verifyToken, requireRole('admin'), async (req, res) => {
     } catch (err) {
         console.error('[Admin Update Device Error]:', err.message)
         res.status(500).json({ success: false, message: 'ไม่สามารถอัปเดตอุปกรณ์ได้: ' + err.message })
+    }
+})
+
+// -----------------------------------------------------------------
+// 3.1 POST: /api/Admin/devices/:id/rotate-key
+// สร้าง / เปลี่ยน Device API Key (key เดิมใช้ไม่ได้ทันที)
+// key จริงแสดงครั้งเดียวใน response นี้ ในฐานข้อมูลเก็บเฉพาะ SHA-256 hash
+// -----------------------------------------------------------------
+router.post('/:id/rotate-key', verifyToken, requireRole('admin'), async (req, res) => {
+    try {
+        const { id } = req.params
+        if (!isUUID(id)) {
+            return res.status(400).json({ success: false, message: 'รหัสอุปกรณ์ไม่ถูกต้อง' })
+        }
+
+        const apiKey = generateDeviceKey()
+        const updateRes = await db.query(
+            `UPDATE tb_devices
+             SET api_key_hash = $1, api_key_created_at = NOW()
+             WHERE id_devices = $2
+             RETURNING id_devices, name_devices, serial_no, api_key_created_at`,
+            [hashDeviceKey(apiKey), id]
+        )
+
+        if (updateRes.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'ไม่พบอุปกรณ์' })
+        }
+
+        res.set('Cache-Control', 'no-store')
+        res.json({
+            success: true,
+            message: 'สร้าง Device API Key สำเร็จ กรุณาคัดลอกเก็บไว้ ระบบจะไม่แสดง key นี้อีก',
+            device: updateRes.rows[0],
+            api_key: apiKey
+        })
+    } catch (err) {
+        console.error('[Admin Rotate Device Key Error]:', err.message)
+        res.status(500).json({ success: false, message: 'ไม่สามารถสร้าง API Key ได้: ' + err.message })
     }
 })
 

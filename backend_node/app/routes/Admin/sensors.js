@@ -1,6 +1,7 @@
 const express = require('express')
 const router = express.Router()
 const db = require('../../config/db')
+const { verifyDeviceKey } = require('../../middleware/deviceAuthMiddleware')
 
 // ฟังก์ชันคำนวณ THI (สูตร NRC 1971 / NOAA 1976 อิงเกณฑ์โคนมไทย)
 const calculateTHI = (temp, hum) => {
@@ -18,9 +19,9 @@ const getStressLevel = (thi) => {
 // 1. POST: /api/Admin/sensors/data (หรือ /api/Admin/sensors)
 // รับข้อมูลจาก ESP32-S3 ผ่าน HTTP POST JSON
 // -----------------------------------------------------------------
-router.post(['/data', '/'], async (req, res) => {
+router.post(['/data', '/'], verifyDeviceKey, async (req, res) => {
     try {
-        const { serial_no, temperature_c, humidity_pct, pressure_hpa } = req.body
+        const { serial_no, temperature_c, humidity_pct, pressure_hpa } = req.body ?? {}
 
         if (temperature_c === undefined || humidity_pct === undefined) {
             return res.status(400).json({
@@ -32,6 +33,14 @@ router.post(['/data', '/'], async (req, res) => {
         const temp = parseFloat(temperature_c)
         const hum = parseFloat(humidity_pct)
         const pressure = pressure_hpa ? parseFloat(pressure_hpa) : null
+
+        // ช่วงเดียวกับที่ firmware กรองไว้ (-10..65 °C, 0..100 %RH)
+        if (!Number.isFinite(temp) || !Number.isFinite(hum) || temp < -10 || temp > 65 || hum < 0 || hum > 100) {
+            return res.status(400).json({
+                success: false,
+                message: 'ค่าเซ็นเซอร์อยู่นอกช่วงที่รับได้ (temperature_c -10..65, humidity_pct 0..100)'
+            })
+        }
         const serial = serial_no ? String(serial_no).trim() : 'ESP32-S3-01'
 
         const thi = parseFloat(calculateTHI(temp, hum).toFixed(2))
@@ -42,8 +51,12 @@ router.post(['/data', '/'], async (req, res) => {
         let farmId = null
 
         try {
-            // 1. ค้นหา Device ตาม serial_no
-            let devRes = await db.query(`SELECT id_devices, id_farms FROM tb_devices WHERE serial_no = $1 LIMIT 1`, [serial])
+            // 1. ค้นหา Device: ถ้าผ่าน verifyDeviceKey แล้วใช้ device ที่ยืนยันตัวตนแล้วเลย
+            //    ถ้าไม่ผ่าน (เกิดได้เฉพาะ DEVICE_AUTH_MODE=warn) ใช้ logic เดิม รวมถึงการสร้าง device อัตโนมัติ
+            //    -> เมื่อสลับเป็น enforce เส้นทางสร้าง device อัตโนมัติจะไม่ถูกเรียกอีก
+            let devRes = req.device
+                ? { rows: [{ id_devices: req.device.id, id_farms: req.device.farmId }] }
+                : await db.query(`SELECT id_devices, id_farms FROM tb_devices WHERE serial_no = $1 LIMIT 1`, [serial])
             
             if (devRes.rows && devRes.rows.length > 0) {
                 deviceId = devRes.rows[0].id_devices
