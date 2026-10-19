@@ -10,7 +10,7 @@ const resolveEnvNodeApi = () => {
   if (typeof process !== 'undefined' && process.env?.NUXT_PUBLIC_NODE_API_BASE) {
     return String(process.env.NUXT_PUBLIC_NODE_API_BASE).replace(/\/+$/, '')
   }
-  return 'http://localhost:4001/api'
+  return 'https://cow-detect-zea6.onrender.com/api'
 }
 
 const resolveEnvFastApi = () => {
