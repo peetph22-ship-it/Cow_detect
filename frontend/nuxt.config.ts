@@ -1,6 +1,8 @@
 import tailwindcss from '@tailwindcss/vite'
 
 export default defineNuxtConfig({
+  ssr: false,
+
   alias: {
     cookie: 'cookie-es',
   },
