@@ -10,10 +10,10 @@
               <span class="w-8 h-8 rounded-[10px] bg-[#163026] text-white flex items-center justify-center text-xs shadow-sm">
                 <v-icon icon="mdi-chart-bell-curve-cumulative" size="18" />
               </span>
-              <span>THI Actual vs AI LSTM Forecast (พยากรณ์ล่วงหน้า 3 วัน)</span>
+              <span>THI ล่าสุดรายฟาร์ม</span>
             </h3>
             <p class="text-[13px] text-[#718078] mt-1 font-medium">
-              เปรียบเทียบแนวโน้มดัชนีความร้อนจริงจากเซ็นเซอร์ IoT กับโมเดล Deep Learning (LSTM) คาดการณ์ล่วงหน้า 72 ชม.
+              ค่าจริงจากเซ็นเซอร์ล่าสุดของแต่ละฟาร์ม (แนวโน้ม 3 วันดูได้ที่หน้ารายละเอียดฟาร์ม)
             </p>
           </div>
 
@@ -21,7 +21,7 @@
           <div class="flex items-center gap-2 self-start sm:self-auto">
             <span class="px-3 py-1 rounded-[10px] bg-[#163026]/5 text-[#163026] text-xs font-black border border-[#163026]/10 flex items-center gap-1.5">
               <v-icon icon="mdi-brain" size="14" class="text-[#D97736]" />
-              <span>LSTM Model v2.4</span>
+              <span>ข้อมูลจริง</span>
             </span>
           </div>
         </div>
@@ -30,15 +30,11 @@
         <div class="flex flex-wrap items-center gap-4 text-xs font-bold text-[#4e6057] my-4 pt-2 border-t border-[#f0f4f2]">
           <span class="flex items-center gap-2">
             <span class="w-4 h-1 bg-[#163026] rounded-full"></span>
-            <span>เส้นทึบ: THI ข้อมูลจริง (Actual)</span>
-          </span>
-          <span class="flex items-center gap-2">
-            <span class="w-4 h-1 border-t-2 border-dashed border-[#D97736]"></span>
-            <span>เส้นประ: พยากรณ์ล่วงหน้า 3 วัน (LSTM Forecast)</span>
+            <span>แท่ง: THI ล่าสุด (NRC)</span>
           </span>
           <span class="flex items-center gap-1.5 text-[#718078] text-[11px] ml-auto">
             <span class="w-2 h-2 rounded-full bg-amber-400"></span>
-            <span>เส้นเตือน 76 / 80 / 84 THI</span>
+            <span>เส้นเตือน {{ T.mild }} / {{ T.moderate }} / {{ T.severe }} THI (ค่าเริ่มต้น)</span>
           </span>
         </div>
       </div>
@@ -47,7 +43,8 @@
       <div class="h-[290px] w-full mt-2">
         <ClientOnly>
           <ApexChart 
-            type="line" 
+            v-if="farmBars.length"
+            type="bar" 
             height="100%" 
             :options="lineChartOptions" 
             :series="lineSeries" 
@@ -55,10 +52,11 @@
           <template #fallback>
             <div class="w-full h-full flex items-center justify-center text-[#718078] bg-[#f8faf9] rounded-2xl animate-pulse text-sm">
               <v-icon icon="mdi-loading" size="24" class="animate-spin mr-2" />
-              กำลังโหลดข้อมูลกราฟพยากรณ์ LSTM...
+              กำลังโหลดข้อมูล...
             </div>
           </template>
         </ClientOnly>
+        <div v-if="!farmBars.length" class="w-full h-full flex items-center justify-center text-[#718078] bg-[#f8faf9] rounded-2xl text-sm">ยังไม่มีข้อมูลเซ็นเซอร์</div>
       </div>
     </div>
 
@@ -109,7 +107,7 @@
         </div>
         <div class="flex items-center gap-1.5 p-2 rounded-xl bg-orange-50/70 text-orange-800 border border-orange-100">
           <span class="w-2 h-2 rounded-full bg-orange-500"></span>
-          <span>กระทบ: {{ distModerate }} ฟาร์ม</span>
+          <span>เครียด: {{ distModerate }} ฟาร์ม</span>
         </div>
         <div class="flex items-center gap-1.5 p-2 rounded-xl bg-rose-50/70 text-rose-800 border border-rose-100">
           <span class="w-2 h-2 rounded-full bg-rose-500"></span>
@@ -122,7 +120,25 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, onMounted } from 'vue'
+import axios from 'axios'
+import { Admin } from '~/API/baseAPI'
+import { calcThi, getThresholds, getRiskLevel, RISK_COLORS } from '~/utils/heatStress'
+
+const T = getThresholds('default')
+// ข้อมูลจริง: THI ล่าสุดของแต่ละฟาร์มจาก /farms/all
+const farmBars = ref([])
+onMounted(async () => {
+  try {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+    const res = await axios.get(`${Admin}/farms/all`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+    farmBars.value = (res.data?.rows || [])
+      .map(r => ({ name: r.name_farms || 'ฟาร์ม', thi: calcThi(r.temperature_c, r.humidity_pct), profile: r.hf_profile }))
+      .filter(r => r.thi != null)
+  } catch (err) {
+    console.warn('[DashboardCharts] farms/all unavailable:', err.message)
+  }
+})
 
 const props = defineProps({
   stats: {
@@ -138,49 +154,7 @@ const props = defineProps({
 // -------------------------------------------------------------
 // 1. Line/Area Chart Series: Actual (#163026) vs LSTM (#D97736)
 // -------------------------------------------------------------
-const currentThi = computed(() => {
-  return Number(props.stats?.thi?.average ?? 79.5)
-})
-
-const lineSeries = computed(() => {
-  const c = currentThi.value
-  // Past historical trend up to current
-  const actualHistory = [
-    Number((c - 3.8).toFixed(1)),
-    Number((c - 2.5).toFixed(1)),
-    Number((c - 3.0).toFixed(1)),
-    Number((c - 1.8).toFixed(1)),
-    Number(c.toFixed(1)),
-    null,
-    null,
-    null
-  ]
-
-  // LSTM Forecast bridging from current point into 3 days forward
-  const forecastFuture = [
-    null,
-    null,
-    null,
-    null,
-    Number(c.toFixed(1)),
-    Number((c + 1.4).toFixed(1)),
-    Number((c + 2.6).toFixed(1)),
-    Number((c + 0.8).toFixed(1))
-  ]
-
-  return [
-    {
-      name: 'THI เฉลี่ย (ข้อมูลจริง)',
-      type: 'area',
-      data: actualHistory
-    },
-    {
-      name: 'LSTM พยากรณ์ล่วงหน้า (AI)',
-      type: 'line',
-      data: forecastFuture
-    }
-  ]
-})
+const lineSeries = computed(() => [{ name: 'THI ล่าสุด', data: farmBars.value.map(f => f.thi) }])
 
 const lineChartOptions = computed(() => {
   return {
@@ -191,58 +165,45 @@ const lineChartOptions = computed(() => {
       zoom: { enabled: false }
     },
     // เส้นทึบสี #163026 สำหรับค่าจริง และ เส้นประสีส้ม #D97736 สำหรับพยากรณ์
-    colors: ['#163026', '#D97736'],
-    stroke: {
-      curve: 'smooth',
-      width: [3, 3],
-      dashArray: [0, 6] // 0 = เส้นทึบ, 6 = เส้นประ
-    },
-    fill: {
-      type: ['gradient', 'solid'],
-      gradient: {
-        shadeIntensity: 1,
-        opacityFrom: 0.25,
-        opacityTo: 0.02,
-        stops: [0, 100]
-      }
-    },
+    colors: [({ dataPointIndex }) => RISK_COLORS[getRiskLevel(farmBars.value[dataPointIndex]?.thi, farmBars.value[dataPointIndex]?.profile) || 'normal']],
+    plotOptions: { bar: { borderRadius: 6, columnWidth: '45%' } },
     dataLabels: { enabled: false },
     annotations: {
       yaxis: [
         {
-          y: 76,
+          y: T.mild,
           borderColor: '#f59e0b',
           strokeDashArray: 4,
           label: {
             borderColor: '#f59e0b',
             style: { color: '#fff', background: '#f59e0b', fontSize: '10px', fontWeight: 700 },
-            text: 'THI 76 (เริ่มเฝ้าระวัง)'
+            text: `THI ${T.mild} (เฝ้าระวัง)`
           }
         },
         {
-          y: 80,
+          y: T.moderate,
           borderColor: '#ea580c',
           strokeDashArray: 4,
           label: {
             borderColor: '#ea580c',
             style: { color: '#fff', background: '#ea580c', fontSize: '10px', fontWeight: 700 },
-            text: 'THI 80 (เริ่มกระทบน้ำนม)'
+            text: `THI ${T.moderate} (เครียด)`
           }
         },
         {
-          y: 84,
+          y: T.severe,
           borderColor: '#e11d48',
           strokeDashArray: 4,
           label: {
             borderColor: '#e11d48',
             style: { color: '#fff', background: '#e11d48', fontSize: '10px', fontWeight: 700 },
-            text: 'THI 84 (วิกฤตรุนแรง)'
+            text: `THI ${T.severe} (วิกฤต)`
           }
         }
       ]
     },
     xaxis: {
-      categories: ['-4 วัน', '-3 วัน', '-2 วัน', 'เมื่อวาน', 'วันนี้ (จริง)', '+1 วัน (AI)', '+2 วัน (AI)', '+3 วัน (AI)'],
+      categories: farmBars.value.map(f => f.name),
       axisBorder: { show: false },
       axisTicks: { show: false },
       labels: {
@@ -278,8 +239,8 @@ const lineChartOptions = computed(() => {
 // 2. Donut Chart Series: Proportions of Farm Stress States
 // -------------------------------------------------------------
 const distNormal = computed(() => props.stats?.distribution?.normal ?? 0)
-const distMild = computed(() => props.stats?.distribution?.mild ?? 1)
-const distModerate = computed(() => props.stats?.distribution?.moderate ?? 1)
+const distMild = computed(() => props.stats?.distribution?.mild ?? 0)
+const distModerate = computed(() => props.stats?.distribution?.moderate ?? 0)
 const distSevere = computed(() => props.stats?.distribution?.severe ?? 0)
 
 const donutSeries = computed(() => {
@@ -288,13 +249,13 @@ const donutSeries = computed(() => {
   const mod = distModerate.value
   const s = distSevere.value
   if (n === 0 && m === 0 && mod === 0 && s === 0) {
-    return [1, 1, 1, 0] // fallback representative slice
+    return [0, 0, 0, 0]
   }
   return [n, m, mod, s]
 })
 
 const totalFarmsInDonut = computed(() => {
-  return distNormal.value + distMild.value + distModerate.value + distSevere.value || (props.stats?.farms?.total ?? 4)
+  return distNormal.value + distMild.value + distModerate.value + distSevere.value || (props.stats?.farms?.total ?? 0)
 })
 
 const donutChartOptions = computed(() => {
@@ -303,7 +264,7 @@ const donutChartOptions = computed(() => {
       type: 'donut',
       fontFamily: 'inherit'
     },
-    labels: ['ปกติ (Comfort)', 'เฝ้าระวัง (Mild)', 'เริ่มกระทบ (Moderate)', 'วิกฤต (Severe)'],
+    labels: ['ปกติ (Comfort)', 'เฝ้าระวัง (Mild)', 'เครียด (Moderate)', 'วิกฤต (Severe)'],
     colors: ['#10b981', '#f59e0b', '#ea580c', '#e11d48'],
     plotOptions: {
       pie: {

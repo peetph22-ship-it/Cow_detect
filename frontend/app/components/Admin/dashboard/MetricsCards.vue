@@ -73,7 +73,7 @@
       <div>
         <div class="flex items-baseline gap-1.5 mb-2">
           <span class="text-[40px] font-black text-[#24433a] leading-none">
-            {{ avgThi.toFixed(1) }}
+            {{ avgThi != null ? avgThi.toFixed(1) : '—' }}
           </span>
           <span class="text-[14px] font-black text-[#718078]">THI</span>
         </div>
@@ -159,15 +159,15 @@ const onlineRate = computed(() => {
 })
 
 const avgThi = computed(() => {
-  return Number(props.stats?.thi?.average ?? 78.5)
+  return props.stats?.thi?.average != null ? Number(props.stats.thi.average) : null
 })
 
 const avgTemp = computed(() => {
-  return Number(props.stats?.thi?.temp_average ?? 28.5).toFixed(1)
+  return props.stats?.thi?.temp_average != null ? Number(props.stats.thi.temp_average).toFixed(1) : '—'
 })
 
 const avgHum = computed(() => {
-  return Number(props.stats?.thi?.hum_average ?? 65.0).toFixed(0)
+  return props.stats?.thi?.hum_average != null ? Number(props.stats.thi.hum_average).toFixed(0) : '—'
 })
 
 const thiBadgeClass = computed(() => {

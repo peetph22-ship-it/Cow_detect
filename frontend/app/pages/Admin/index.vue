@@ -44,6 +44,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 import { Admin } from '../../API/baseAPI'
+import { calcThi, getRiskLevel, RISK_LABELS_TH } from '~/utils/heatStress'
 
 import AdminHeaderArea from '../../components/Admin/dashboard/HeaderArea.vue'
 import AdminProvisioningNotice from '../../components/Admin/dashboard/ProvisioningNotice.vue'
@@ -95,27 +96,32 @@ const fetchStats = async (showLoading = false) => {
       })
       if (fallbackRes.data && fallbackRes.data.rows) {
         const rows = fallbackRes.data.rows
-        const this_ = rows.map(r => parseFloat(r.thi)).filter(v => !isNaN(v))
-        const avgT = this_.length ? +(this_.reduce((a, b) => a + b, 0) / this_.length).toFixed(1) : 78.5
+        // คำนวณจากข้อมูลจริงเท่านั้น ค่าที่ไม่รู้ให้เป็น null (ไม่เติมค่าสมมติ)
+        const withThi = rows.map(r => ({ ...r, _thi: calcThi(r.temperature_c, r.humidity_pct) ?? (r.thi != null ? parseFloat(r.thi) : null) }))
+        const levels = withThi.map(r => getRiskLevel(r._thi, r.hf_profile)).filter(Boolean)
+        const thiVals = withThi.map(r => r._thi).filter(v => v != null)
+        const avgT = thiVals.length ? +(thiVals.reduce((a, b) => a + b, 0) / thiVals.length).toFixed(1) : null
+        const avgLevel = getRiskLevel(avgT, 'default')
+        const count = (lvl) => levels.filter(l => l === lvl).length
 
         dashboardStats.value = {
-          farms: { total: rows.length, growth: '+1 เดือนนี้' },
-          devices: { total: rows.length, online: rows.length, offline: 0, online_rate: 100 },
+          farms: { total: rows.length, growth: '' },
+          devices: { total: null, online: null, offline: null, online_rate: null },
           thi: {
             average: avgT,
-            temp_average: 28.5,
-            hum_average: 65.0,
-            status: avgT < 76 ? 'ปกติ (Comfort)' : avgT < 80 ? 'เฝ้าระวัง (Mild)' : avgT < 84 ? 'เริ่มมีผลกระทบ (Moderate)' : 'วิกฤต (Severe)',
-            status_level: avgT < 76 ? 'normal' : avgT < 80 ? 'mild' : avgT < 84 ? 'moderate' : 'severe'
+            temp_average: null,
+            hum_average: null,
+            status: avgLevel ? RISK_LABELS_TH[avgLevel] : 'ยังไม่มีข้อมูล',
+            status_level: avgLevel
           },
-          alerts: { active_count: rows.filter(r => parseFloat(r.thi) >= 76).length, pending_ack: 1, items: [] },
+          alerts: { active_count: levels.filter(l => l !== 'normal').length, pending_ack: null, items: [] },
           distribution: {
-            normal: rows.filter(r => parseFloat(r.thi) < 76).length,
-            mild: rows.filter(r => parseFloat(r.thi) >= 76 && parseFloat(r.thi) < 80).length,
-            moderate: rows.filter(r => parseFloat(r.thi) >= 80 && parseFloat(r.thi) < 84).length,
-            severe: rows.filter(r => parseFloat(r.thi) >= 84).length
+            normal: count('normal'),
+            mild: count('mild'),
+            moderate: count('moderate'),
+            severe: count('severe')
           },
-          diagnostics: { total_readings: 1675, completeness_pct: 98.4, missing_rate_pct: 1.6, ai_readiness_pct: 99.1 }
+          diagnostics: { total_readings: null, completeness_pct: null, missing_rate_pct: null }
         }
         updateTimestamp()
       }

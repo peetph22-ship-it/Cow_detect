@@ -254,7 +254,7 @@
                     <div class="text-[9px] text-[#718078] font-bold uppercase">THI</div>
                     <div 
                       class="font-extrabold text-xs"
-                      :class="device.thi >= 84 ? 'text-rose-600' : device.thi >= 80 ? 'text-amber-600' : 'text-emerald-700'">
+                      :class="{ severe: 'text-rose-600', moderate: 'text-orange-600', mild: 'text-amber-600', normal: 'text-emerald-700' }[getRiskLevel(device.thi)] || 'text-[#718078]'">
                       {{ device.thi }}
                     </div>
                   </div>
@@ -396,6 +396,7 @@
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import { Admin } from '../../API/baseAPI'
+import { getRiskLevel } from '~/utils/heatStress'
 
 definePageMeta({
   layout: 'admin'

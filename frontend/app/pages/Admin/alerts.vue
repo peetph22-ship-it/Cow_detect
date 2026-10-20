@@ -183,8 +183,8 @@
                 <td class="py-4 px-6 text-right">
                   <span 
                     class="font-black text-base"
-                    :class="farm.current_thi >= 84 ? 'text-rose-600' : farm.current_thi >= 80 ? 'text-amber-600' : farm.current_thi >= 76 ? 'text-orange-500' : 'text-emerald-700'">
-                    {{ farm.current_thi || '-' }}
+                    :class="getRiskLevel(farm.current_thi, farm.hf_profile) === 'severe' ? 'text-rose-600' : getRiskLevel(farm.current_thi, farm.hf_profile) === 'moderate' ? 'text-amber-600' : getRiskLevel(farm.current_thi, farm.hf_profile) === 'mild' ? 'text-orange-500' : 'text-emerald-700'">
+                    {{ farm.current_thi ?? '-' }}
                   </span>
                 </td>
 
@@ -220,7 +220,7 @@
                       ? 'bg-orange-50 text-orange-700 border-orange-200' 
                       : 'bg-emerald-50 text-emerald-700 border-emerald-200'">
                     <v-icon :icon="farm.alert_status === 'critical' ? 'mdi-alert-octagon' : farm.alert_status === 'moderate' ? 'mdi-alert' : 'mdi-check-circle'" size="13" />
-                    {{ farm.alert_status === 'critical' ? 'วิกฤตรุนแรง' : farm.alert_status === 'moderate' ? 'เริ่มกระทบผลผลิต' : farm.alert_status === 'mild' ? 'เฝ้าระวัง' : 'ปกติ' }}
+                    {{ farm.alert_status === 'critical' ? 'วิกฤต (Severe)' : farm.alert_status === 'moderate' ? 'เครียดความร้อน' : farm.alert_status === 'mild' ? 'เฝ้าระวัง' : 'ปกติ' }}
                   </span>
                 </td>
 
@@ -282,7 +282,7 @@
                   ? 'bg-orange-50 text-orange-700 border-orange-200' 
                   : 'bg-emerald-50 text-emerald-700 border-emerald-200'">
                 <v-icon :icon="farm.alert_status === 'critical' ? 'mdi-alert-octagon' : farm.alert_status === 'moderate' ? 'mdi-alert' : 'mdi-check-circle'" size="13" />
-                {{ farm.alert_status === 'critical' ? 'วิกฤตรุนแรง' : farm.alert_status === 'moderate' ? 'เริ่มกระทบผลผลิต' : farm.alert_status === 'mild' ? 'เฝ้าระวัง' : 'ปกติ' }}
+                {{ farm.alert_status === 'critical' ? 'วิกฤต (Severe)' : farm.alert_status === 'moderate' ? 'เครียดความร้อน' : farm.alert_status === 'mild' ? 'เฝ้าระวัง' : 'ปกติ' }}
               </span>
             </div>
 
@@ -306,8 +306,8 @@
                 <div class="text-[9px] text-[#718078] font-bold uppercase">THI ตอนนี้</div>
                 <div 
                   class="text-base font-black mt-0.5"
-                  :class="farm.current_thi >= 84 ? 'text-rose-600' : farm.current_thi >= 80 ? 'text-amber-600' : 'text-emerald-700'">
-                  {{ farm.current_thi || '-' }}
+                  :class="getRiskLevel(farm.current_thi, farm.hf_profile) === 'severe' ? 'text-rose-600' : getRiskLevel(farm.current_thi, farm.hf_profile) === 'moderate' ? 'text-amber-600' : 'text-emerald-700'">
+                  {{ farm.current_thi ?? '-' }}
                 </div>
               </div>
               <div>
@@ -333,21 +333,21 @@
               <div class="flex justify-between items-center text-[11px]">
                 <span class="text-amber-600 font-bold flex items-center gap-1">
                   <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                  กระทบผลผลิต (80-83):
+                  เครียดความร้อน (76–81.9):
                 </span>
                 <span class="font-black text-amber-700">{{ farm.moderate_alerts || 0 }} ครั้ง</span>
               </div>
               <div class="flex justify-between items-center text-[11px]">
                 <span class="text-orange-600 font-bold flex items-center gap-1">
                   <span class="w-1.5 h-1.5 rounded-full bg-orange-400"></span>
-                  เริ่มเฝ้าระวัง (76-79):
+                  เฝ้าระวัง (74–75.9):
                 </span>
                 <span class="font-black text-orange-700">{{ farm.mild_alerts || 0 }} ครั้ง</span>
               </div>
               <div v-if="farm.critical_alerts > 0" class="flex justify-between items-center text-[11px]">
                 <span class="text-rose-600 font-bold flex items-center gap-1">
                   <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
-                  วิกฤต (≥ 84):
+                  วิกฤต (≥ 82):
                 </span>
                 <span class="font-black text-rose-600">{{ farm.critical_alerts }} ครั้ง</span>
               </div>
@@ -383,6 +383,7 @@
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import { Admin } from '../../API/baseAPI'
+import { calcThi, getRiskLevel } from '~/utils/heatStress'
 
 definePageMeta({
   layout: 'admin'
@@ -428,26 +429,28 @@ const fetchFarmsSummary = async () => {
       const fallbackRes = await axios.get(`${Admin}/farms/all`, { headers })
       if (fallbackRes.data && fallbackRes.data.rows) {
         farms.value = fallbackRes.data.rows.map(f => {
-          const thi = f.thi ? parseFloat(f.thi) : null
-          const alertStatus = thi >= 84 ? 'critical' : thi >= 80 ? 'moderate' : thi >= 76 ? 'mild' : 'normal'
+          const thi = calcThi(f.temperature_c, f.humidity_pct) ?? (f.thi != null ? parseFloat(f.thi) : null)
+          const risk = getRiskLevel(thi, f.hf_profile)
+          const alertStatus = risk === 'severe' ? 'critical' : (risk || 'normal')
           return {
             id_farms: f.id_farms,
             name_farms: f.name_farms,
             barn_unit: f.barn_unit || 'โรงเรือน 1',
-            province: f.province || 'สระบุรี',
-            district: f.district || 'มวกเหล็ก',
-            farmer_name: f.owner_name || 'เกษตรกรสมาชิก',
+            province: f.province || null,
+            district: f.district || null,
+            farmer_name: f.owner_name || null,
             farmer_phone: f.owner_phone,
+            hf_profile: f.hf_profile,
             is_online: f.device_status === 'online',
             current_thi: thi,
-            current_temp: f.temperature_c ? parseFloat(f.temperature_c) : null,
-            current_hum: f.humidity_pct ? parseFloat(f.humidity_pct) : null,
+            current_temp: f.temperature_c != null ? parseFloat(f.temperature_c) : null,
+            current_hum: f.humidity_pct != null ? parseFloat(f.humidity_pct) : null,
             alert_status: alertStatus,
-            total_alerts: 12,
-            critical_alerts: thi >= 84 ? 2 : 0,
-            moderate_alerts: (thi >= 80 && thi < 84) ? 5 : 0,
-            mild_alerts: (thi >= 76 && thi < 80) ? 7 : 0,
-            last_alert_at: f.recorded_at
+            total_alerts: 0,
+            critical_alerts: 0,
+            moderate_alerts: 0,
+            mild_alerts: 0,
+            last_alert_at: null
           }
         })
       }

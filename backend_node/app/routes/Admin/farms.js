@@ -30,6 +30,7 @@ router.get('/all', verifyToken, requireRole('admin'), async (req, res) => {
                 f.barn_height_m,
                 f.roof_type,
                 f.cooling_system,
+                to_jsonb(f)->>'hf_profile' AS hf_profile,
                 f.id_users,
                 u.name_users AS owner_name,
                 u.organization AS owner_org,
@@ -82,8 +83,13 @@ router.get('/all', verifyToken, requireRole('admin'), async (req, res) => {
         const formattedRows = rows.map(r => {
             const lastTime = r.recorded_at ? new Date(r.recorded_at).getTime() : (r.device_last_seen ? new Date(r.device_last_seen).getTime() : 0);
             const isOnline = lastTime > 0 && (Date.now() - lastTime) < 2 * 60 * 1000;
+            const thi = calcThi(r.temperature_c, r.humidity_pct) ?? (r.thi != null ? parseFloat(r.thi) : null);
+            const profile = getFarmProfile(r);
             return {
                 ...r,
+                thi,
+                hf_profile: profile,
+                stress_level: getRiskLevel(thi, profile),
                 device_status: isOnline ? 'online' : 'offline'
             };
         });

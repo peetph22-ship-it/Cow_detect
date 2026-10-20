@@ -11,7 +11,7 @@
           </span>
         </h1>
         <p class="text-[#718078] text-[15px] font-medium max-w-2xl">
-          ระบบรายงานสถิติดัชนีความร้อนสะสม สวัสดิภาพโคนม (Animal Welfare) และการประเมินคาร์บอนฟุตพริ้นท์ สำหรับยื่นสหกรณ์โคนมและสถาบันการเงิน
+          ระบบรายงานสถิติดัชนีความร้อนสะสมรายชั่วโมงและสวัสดิภาพโคนม (Animal Welfare) จากข้อมูลเซ็นเซอร์จริงย้อนหลัง 30 วัน สำหรับยื่นสหกรณ์โคนมและสถาบันการเงิน
         </p>
       </div>
 
@@ -113,7 +113,7 @@
                 <th class="py-4 px-6 text-center">เกรดสวัสดิภาพ (Welfare)</th>
                 <th class="py-4 px-6 text-right">ค่าเฉลี่ย THI สะสม</th>
                 <th class="py-4 px-6 text-center">Night Recovery</th>
-                <th class="py-4 px-6 text-right">ผลกระทบน้ำนมสูญเสีย</th>
+                <th class="py-4 px-6 text-right">ชั่วโมงความร้อนสะสม (30 วัน)</th>
                 <th class="py-4 px-6 text-right">การจัดการ</th>
               </tr>
             </thead>
@@ -140,11 +140,11 @@
                         <span class="text-[10px] text-[#718078] font-normal">({{ farm.barn_unit || 'โรงเรือน 1' }})</span>
                       </div>
                       <div class="text-[11px] text-[#718078] mt-0.5 flex items-center gap-1.5">
-                        <span>{{ farm.farmer_name }}</span>
-                        <span>•</span>
-                        <span class="text-emerald-700 font-medium">{{ farm.cooperative }}</span>
-                        <span>•</span>
-                        <span>{{ farm.province }}</span>
+                        <span>{{ farm.farmer_name || 'ไม่ระบุชื่อเจ้าของ' }}</span>
+                        <span v-if="farm.cooperative">•</span>
+                        <span v-if="farm.cooperative" class="text-emerald-700 font-medium">{{ farm.cooperative }}</span>
+                        <span v-if="farm.province">•</span>
+                        <span v-if="farm.province">{{ farm.province }}</span>
                       </div>
                     </div>
                   </div>
@@ -154,17 +154,17 @@
                 <td class="py-4 px-6">
                   <div class="space-y-1">
                     <div class="font-bold text-[#142820]">
-                      สูง {{ farm.barn_height_m }} ม. · {{ farm.roof_type }}
+                      สูง {{ farm.barn_height_m ?? '—' }} ม. · {{ farm.roof_type || 'ไม่ระบุ' }}
                     </div>
                     <div class="text-[11px] text-[#718078] truncate max-w-[200px]">
-                      {{ farm.cooling_system }}
+                      {{ farm.cooling_system || 'ไม่ระบุระบบระบายความร้อน' }}
                     </div>
                   </div>
                 </td>
 
                 <!-- Welfare Grade Badge -->
                 <td class="py-4 px-6 text-center">
-                  <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black border"
+                  <div v-if="farm.welfare_grade" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black border"
                     :class="farm.welfare_grade === 'A' 
                       ? 'bg-emerald-50 text-emerald-800 border-emerald-300 ring-1 ring-emerald-500/20' 
                       : farm.welfare_grade === 'B' 
@@ -174,33 +174,36 @@
                     <span>เกรด {{ farm.welfare_grade }}</span>
                     <span class="text-[10px] font-medium opacity-80">({{ farm.welfare_grade === 'A' ? 'ดีเยี่ยม' : farm.welfare_grade === 'B' ? 'ระดับดี' : 'ปรับปรุง' }})</span>
                   </div>
+                  <span v-else class="text-xs font-bold text-[#718078]">ไม่มีข้อมูล</span>
                 </td>
 
                 <!-- 30-Day Average THI -->
                 <td class="py-4 px-6 text-right">
                   <div class="font-black text-sm text-[#142820]">
-                    {{ farm.avg_thi }} THI
+                    {{ farm.avg_thi != null ? `${farm.avg_thi} THI` : '—' }}
                   </div>
                   <div class="text-[10px] text-[#718078] mt-0.5">
-                    สูงสุด {{ farm.max_thi }} THI
+                    สูงสุด {{ farm.max_thi != null ? `${farm.max_thi} THI` : '—' }}
                   </div>
                 </td>
 
                 <!-- Night Recovery Rate -->
                 <td class="py-4 px-6 text-center">
-                  <span class="font-black text-xs px-2.5 py-0.5 rounded-md bg-[#F6F7F5] border border-[#E4E8E5]"
+                  <span v-if="farm.night_recovery_rate_pct != null" class="font-black text-xs px-2.5 py-0.5 rounded-md bg-[#F6F7F5] border border-[#E4E8E5]"
                     :class="farm.night_recovery_rate_pct >= 80 ? 'text-emerald-700' : 'text-amber-700'">
                     {{ farm.night_recovery_rate_pct }}%
                   </span>
+                  <span v-else class="text-xs font-bold text-[#718078]">—</span>
                 </td>
 
-                <!-- Monthly Loss Impact -->
+                <!-- Stressed Hours & Hours Sampled -->
                 <td class="py-4 px-6 text-right">
-                  <div class="font-extrabold text-xs text-rose-700">
-                    -{{ farm.monthly_loss_thb.toLocaleString() }} ฿/ด.
+                  <div class="font-extrabold text-xs"
+                    :class="(farm.stress_breakdown?.severe_hours || 0) > 0 ? 'text-rose-700' : ((farm.stress_breakdown?.moderate_hours || 0) > 0 ? 'text-amber-700' : 'text-emerald-700')">
+                    เครียด {{ (farm.stress_breakdown?.mild_hours || 0) + (farm.stress_breakdown?.moderate_hours || 0) + (farm.stress_breakdown?.severe_hours || 0) }} ชม.
                   </div>
-                  <div class="text-[10px] text-emerald-700 font-bold mt-0.5">
-                    -{{ farm.methane_reduction_pct }}% CH₄
+                  <div class="text-[10px] text-[#718078] font-medium mt-0.5">
+                    จากข้อมูลจริง {{ farm.hours_sampled || 0 }} ชม.
                   </div>
                 </td>
 
@@ -241,13 +244,13 @@
                     {{ farm.name_farms }}
                   </h4>
                   <p class="text-xs text-[#718078] font-medium mt-0.5">
-                    {{ farm.farmer_name }} • {{ farm.province }}
+                    {{ farm.farmer_name || 'ไม่ระบุเจ้าของ' }} • {{ farm.province || '—' }}
                   </p>
                 </div>
               </div>
 
               <!-- Welfare Grade Pill -->
-              <span 
+              <span v-if="farm.welfare_grade"
                 class="px-3 py-1 rounded-full text-xs font-black border shadow-2xs shrink-0"
                 :class="farm.welfare_grade === 'A' 
                   ? 'bg-emerald-50 text-emerald-800 border-emerald-300' 
@@ -256,15 +259,18 @@
                   : 'bg-rose-50 text-rose-800 border-rose-300'">
                 เกรด {{ farm.welfare_grade }}
               </span>
+              <span v-else class="px-3 py-1 rounded-full text-xs font-bold border border-[#E4E8E5] bg-[#F6F7F5] text-[#718078] shrink-0">
+                ไม่มีข้อมูล
+              </span>
             </div>
 
             <!-- Coop & Barn Tag -->
             <div class="mb-4 flex flex-wrap gap-1.5 text-[11px]">
-              <span class="px-2.5 py-1 rounded-lg bg-[#F6F7F5] text-[#142820] font-bold border border-[#E4E8E5]">
+              <span v-if="farm.cooperative" class="px-2.5 py-1 rounded-lg bg-[#F6F7F5] text-[#142820] font-bold border border-[#E4E8E5]">
                 🏢 {{ farm.cooperative }}
               </span>
               <span class="px-2.5 py-1 rounded-lg bg-[#F6F7F5] text-[#718078] font-medium border border-[#E4E8E5]">
-                สูง {{ farm.barn_height_m }} ม. ({{ farm.roof_type }})
+                สูง {{ farm.barn_height_m ?? '—' }} ม. ({{ farm.roof_type || 'ไม่ระบุ' }})
               </span>
             </div>
 
@@ -272,19 +278,21 @@
             <div class="grid grid-cols-2 gap-2 p-3.5 bg-[#F6F7F5] rounded-2xl border border-[#E4E8E5] text-xs mb-4">
               <div>
                 <div class="text-[10px] text-[#718078] font-bold">ค่า THI เฉลี่ยสะสม</div>
-                <div class="text-sm font-black text-[#142820] mt-0.5">{{ farm.avg_thi }} THI</div>
+                <div class="text-sm font-black text-[#142820] mt-0.5">{{ farm.avg_thi != null ? `${farm.avg_thi} THI` : '—' }}</div>
               </div>
               <div>
                 <div class="text-[10px] text-[#718078] font-bold">อัตราฟื้นตัวกลางคืน</div>
-                <div class="text-sm font-black text-emerald-700 mt-0.5">{{ farm.night_recovery_rate_pct }}%</div>
+                <div class="text-sm font-black text-emerald-700 mt-0.5">{{ farm.night_recovery_rate_pct != null ? `${farm.night_recovery_rate_pct}%` : '—' }}</div>
               </div>
               <div class="pt-2 border-t border-[#E4E8E5]/70">
-                <div class="text-[10px] text-[#718078] font-bold">สูญเสียน้ำนมดิบ</div>
-                <div class="text-xs font-black text-rose-700 mt-0.5">-{{ farm.monthly_loss_thb.toLocaleString() }} ฿/ด.</div>
+                <div class="text-[10px] text-[#718078] font-bold">ชั่วโมงเครียดสะสม</div>
+                <div class="text-xs font-black text-amber-700 mt-0.5">
+                  {{ (farm.stress_breakdown?.mild_hours || 0) + (farm.stress_breakdown?.moderate_hours || 0) + (farm.stress_breakdown?.severe_hours || 0) }} ชม.
+                </div>
               </div>
               <div class="pt-2 border-t border-[#E4E8E5]/70">
-                <div class="text-[10px] text-[#718078] font-bold">ลดก๊าซมีเทน</div>
-                <div class="text-xs font-black text-emerald-700 mt-0.5">-{{ farm.methane_reduction_pct }}% CH₄</div>
+                <div class="text-[10px] text-[#718078] font-bold">ข้อมูลที่ตรวจวัดจริง</div>
+                <div class="text-xs font-black text-[#142820] mt-0.5">{{ farm.hours_sampled || 0 }} ชม.</div>
               </div>
             </div>
           </div>

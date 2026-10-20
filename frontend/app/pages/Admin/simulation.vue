@@ -133,10 +133,10 @@
         </div>
       </div>
 
-      <!-- Card 3: Thai-Relief THI -->
+      <!-- Card 3: THI (NRC) -->
       <div class="bg-white/80 backdrop-blur-xl rounded-[24px] p-5 border border-white/90 shadow-[0_8px_30px_rgba(36,67,58,0.04)] flex items-center justify-between">
         <div class="space-y-1">
-          <span class="text-[11px] font-bold uppercase tracking-wider text-[#718078] block">ค่า THI ปรับปรุงไทย</span>
+          <span class="text-[11px] font-bold uppercase tracking-wider text-[#718078] block">ค่า THI (NRC 1971)</span>
           <div class="flex items-baseline gap-1.5">
             <span class="text-2xl md:text-3xl font-black font-mono text-amber-900">
               {{ thaiThi.toFixed(1) }}
@@ -162,9 +162,6 @@
             </span>
             <span class="text-xs font-bold text-[#718078]">%</span>
           </div>
-          <span class="text-[10px] text-rose-600 font-bold block">
-            เสี่ยงลด {{ simMilkLoss.toFixed(2) }} กก./ตัว/วัน
-          </span>
         </div>
         <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-700 flex items-center justify-center shrink-0">
           <v-icon icon="mdi-gauge" size="24" />
@@ -461,7 +458,7 @@
               <span class="text-base font-black font-mono text-[#24433a]">{{ rawThi.toFixed(1) }}</span>
             </div>
             <div class="p-2.5 rounded-xl bg-[#fafcfb] border border-[#e5ece9]">
-              <span class="text-[10px] text-[#718078] block font-bold">Thai-Relief THI</span>
+              <span class="text-[10px] text-[#718078] block font-bold">THI (NRC)</span>
               <span class="text-base font-black font-mono text-amber-700">{{ thaiThi.toFixed(1) }}</span>
             </div>
           </div>
@@ -683,7 +680,7 @@
               </td>
 
               <!-- THI -->
-              <td class="py-3 px-4 text-center font-mono font-bold" :class="Number(alert.thi_at_event) >= 80 ? 'text-rose-600' : 'text-amber-700'">
+              <td class="py-3 px-4 text-center font-mono font-bold" :class="['moderate', 'severe'].includes(getRiskLevel(alert.thi_at_event, currentFarm?.hf_profile)) ? 'text-rose-600' : 'text-amber-700'">
                 {{ alert.thi_at_event ? Number(alert.thi_at_event).toFixed(1) : '-' }}
               </td>
 
@@ -759,6 +756,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import { Admin, getFastApiBase } from '~/API/baseAPI'
+import { calcThi, getRiskLevel, RISK_LABELS_TH } from '~/utils/heatStress'
 
 definePageMeta({
   layout: 'admin',
@@ -807,7 +805,7 @@ const isPublishing = ref(false)
 const simulationAlerts = ref([])
 
 // -------------------------------------------------------------
-// Computations (Thai Tropical Calibration: Boonkum et al. 2024)
+// Computations: สูตรและเกณฑ์จาก utils/heatStress.ts (ไม่มีการปรับสูตรเฉพาะไทย)
 // -------------------------------------------------------------
 const rawThi = computed(() => {
   const t = simTemp.value
@@ -815,34 +813,18 @@ const rawThi = computed(() => {
   return (1.8 * t + 32) - (0.55 - 0.0055 * rh) * (1.8 * t - 26)
 })
 
-const thaiThi = computed(() => {
-  const raw = rawThi.value
-  if (simTemp.value < 27.5) {
-    return raw - 0.6 * (27.5 - simTemp.value)
-  }
-  return raw
-})
+// ชื่อตัวแปรคงไว้เพื่อไม่ให้ template เปลี่ยนมาก แต่ใช้สูตร NRC ตัวเดียวกับทั้งระบบ
+const thaiThi = computed(() => calcThi(simTemp.value, simHum.value) ?? rawThi.value)
+const simLevel = computed(() => getRiskLevel(thaiThi.value, currentFarm.value?.hf_profile) || 'normal')
 
-const riskLabel = computed(() => {
-  const val = thaiThi.value
-  if (val >= 84.0) return 'วิกฤต (Severe)'
-  if (val >= 80.0) return 'กระทบปานกลาง (Moderate)'
-  if (val >= 76.0) return 'เริ่มเฝ้าระวัง (Mild)'
-  return 'ปกติ (Normal)'
-})
+const riskLabel = computed(() => RISK_LABELS_TH[simLevel.value])
 
-const riskBadgeClass = computed(() => {
-  const val = thaiThi.value
-  if (val >= 84.0) return 'bg-rose-100 text-rose-800 border border-rose-300'
-  if (val >= 80.0) return 'bg-orange-100 text-orange-800 border border-orange-300'
-  if (val >= 76.0) return 'bg-amber-100 text-amber-800 border border-amber-300'
-  return 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-})
-
-const simMilkLoss = computed(() => {
-  const thi = thaiThi.value
-  return thi > 76.0 ? Math.max(0.0, (thi - 76.0) * 0.45) : 0.0
-})
+const riskBadgeClass = computed(() => ({
+  severe: 'bg-rose-100 text-rose-800 border border-rose-300',
+  moderate: 'bg-orange-100 text-orange-800 border border-orange-300',
+  mild: 'bg-amber-100 text-amber-800 border border-amber-300',
+  normal: 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+}[simLevel.value]))
 
 const totalCows = computed(() => {
   return currentFarm.value?.total_cows || 25
@@ -909,7 +891,7 @@ const multimodalGateBadge = computed(() => {
   return {
     status: 'FAILSAFE_THAI_HEURISTIC',
     badgeClass: 'bg-amber-100 text-amber-900 border-amber-300',
-    description: 'Case C (Camera False-Negative Fail-Safe): กล้องออฟไลน์หรือเลนส์มัวฝุ่น แต่เซ็นเซอร์รายงาน THI ≥ 80.0 ระบบสลับเข้าโหมด Fail-Safe ส่งการแจ้งเตือนสัตวศาสตร์ไทยต่อไปอย่างต่อเนื่อง 100% Uptime'
+    description: 'Case C (Camera False-Negative Fail-Safe): กล้องออฟไลน์หรือเลนส์มัวฝุ่น แต่เซ็นเซอร์รายงาน THI ≥ 80.0 ระบบประเมินจากเซ็นเซอร์อย่างเดียวและยังส่งการแจ้งเตือนตามเกณฑ์ THI ของฟาร์มต่อไป'
   }
 })
 

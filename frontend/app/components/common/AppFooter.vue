@@ -18,7 +18,7 @@
         <span class="hidden md:inline text-white/20">|</span>
         <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] text-[#F2BD7C] font-semibold">
           <span class="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse"></span>
-          THI 76 Standard
+          NRC 1971 · THI 74–76
         </span>
       </div>
 

@@ -32,13 +32,13 @@
         <!-- Metric 1: Data Completeness -->
         <div>
           <div class="flex justify-between text-xs font-bold mb-1.5">
-            <span class="text-white/80">ความสมบูรณ์ข้อมูล (Data Completeness)</span>
-            <span class="text-emerald-400 font-mono">{{ completenessPct }}%</span>
+            <span class="text-white/80">ความสมบูรณ์ข้อมูล 24 ชม. (Data Completeness)</span>
+            <span class="text-emerald-400 font-mono">{{ completenessPct != null ? `${completenessPct}%` : '—' }}</span>
           </div>
           <div class="w-full bg-white/10 rounded-full h-2 overflow-hidden backdrop-blur-sm">
             <div 
               class="bg-gradient-to-r from-emerald-500 to-emerald-300 h-full rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)] transition-all duration-700"
-              :style="{ width: `${completenessPct}%` }">
+              :style="{ width: `${completenessPct ?? 0}%` }">
             </div>
           </div>
         </div>
@@ -46,29 +46,23 @@
         <!-- Metric 2: Missing Rate -->
         <div>
           <div class="flex justify-between text-xs font-bold mb-1.5">
-            <span class="text-white/80">อัตราข้อมูลขาดหาย (Missing Rate)</span>
-            <span class="text-amber-400 font-mono">{{ missingRatePct }}%</span>
+            <span class="text-white/80">อัตราข้อมูลขาดหาย 24 ชม. (Missing Rate)</span>
+            <span class="text-amber-400 font-mono">{{ missingRatePct != null ? `${missingRatePct}%` : '—' }}</span>
           </div>
           <div class="w-full bg-white/10 rounded-full h-2 overflow-hidden backdrop-blur-sm">
             <div 
               class="bg-gradient-to-r from-amber-500 to-amber-300 h-full rounded-full shadow-[0_0_10px_rgba(245,158,11,0.5)] transition-all duration-700"
-              :style="{ width: `${missingRatePct * 5}%` }">
+              :style="{ width: `${Math.min(100, missingRatePct ?? 0)}%` }">
             </div>
           </div>
         </div>
 
-        <!-- Metric 3: AI LSTM Readiness -->
-        <div>
-          <div class="flex justify-between text-xs font-bold mb-1.5">
-            <span class="text-white/80">AI LSTM Model Readiness</span>
-            <span class="text-[#D97736] font-mono">{{ aiReadinessPct }}%</span>
-          </div>
-          <div class="w-full bg-white/10 rounded-full h-2 overflow-hidden backdrop-blur-sm">
-            <div 
-              class="bg-gradient-to-r from-[#D97736] to-orange-300 h-full rounded-full shadow-[0_0_10px_rgba(216,121,57,0.5)] transition-all duration-700"
-              :style="{ width: `${aiReadinessPct}%` }">
-            </div>
-          </div>
+        <!-- Metric 3: Forecast Engine -->
+        <div class="pt-2 border-t border-white/10 flex items-center justify-between text-xs">
+          <span class="text-white/75">โมเดลแนวโน้มความร้อนสะสม</span>
+          <span class="font-mono font-bold text-[#F2BD7C] bg-white/10 px-2.5 py-0.5 rounded-[8px]">
+            Baseline 72h Mean
+          </span>
         </div>
 
         <!-- Database Telemetry Record Counter -->
@@ -78,7 +72,7 @@
             <span>ชุดข้อมูลเซ็นเซอร์ทั้งหมดในระบบ</span>
           </span>
           <span class="font-mono font-black text-white text-sm bg-white/10 px-2.5 py-0.5 rounded-[8px]">
-            {{ totalReadings.toLocaleString() }} ค่า
+            {{ totalReadings != null ? `${totalReadings.toLocaleString()} ค่า` : '—' }}
           </span>
         </div>
 
@@ -113,18 +107,14 @@ const props = defineProps({
 })
 
 const completenessPct = computed(() => {
-  return props.diagnostics?.completeness_pct ?? 98.4
+  return props.diagnostics?.completeness_pct != null ? Number(props.diagnostics.completeness_pct) : null
 })
 
 const missingRatePct = computed(() => {
-  return props.diagnostics?.missing_rate_pct ?? 1.6
-})
-
-const aiReadinessPct = computed(() => {
-  return props.diagnostics?.ai_readiness_pct ?? 99.1
+  return props.diagnostics?.missing_rate_pct != null ? Number(props.diagnostics.missing_rate_pct) : null
 })
 
 const totalReadings = computed(() => {
-  return props.diagnostics?.total_readings ?? 1675
+  return props.diagnostics?.total_readings != null ? Number(props.diagnostics.total_readings) : null
 })
 </script>

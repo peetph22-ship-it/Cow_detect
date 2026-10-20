@@ -144,17 +144,17 @@
         <div class="p-6 rounded-3xl bg-gradient-to-br from-[#142820] to-[#1C362B] text-white flex flex-col justify-between shadow-md">
           <div>
             <div class="text-[10px] font-bold text-[#F2BD7C] uppercase tracking-widest">
-              THAILAND DAIRY WELFARE SCORE
+              COWCARE INTERNAL WELFARE GRADE
             </div>
-            <div class="text-base font-black mt-1">เกรดสวัสดิภาพโคนม</div>
-            <div class="text-xs text-white/70 mt-0.5">ประเมินตามเกณฑ์กรมปศุสัตว์ไทย</div>
+            <div class="text-base font-black mt-1">เกรดสวัสดิภาพโคนมเบื้องต้น</div>
+            <div class="text-xs text-white/70 mt-0.5">ประเมินจากชั่วโมงวิกฤตและการฟื้นตัวกลางคืน</div>
           </div>
           <div class="my-4 text-center">
-            <div class="text-6xl font-black text-[#F2BD7C] leading-none">{{ reportData.economic_esg_impact.welfare_grade }}</div>
-            <div class="text-xs font-bold text-white/90 mt-2">{{ reportData.economic_esg_impact.welfare_status }}</div>
+            <div class="text-6xl font-black text-[#F2BD7C] leading-none">{{ reportData.welfare_assessment?.welfare_grade || '—' }}</div>
+            <div class="text-xs font-bold text-white/90 mt-2">{{ reportData.welfare_assessment?.welfare_status || 'ยังไม่มีข้อมูล' }}</div>
           </div>
           <div class="text-[10px] text-white/60 text-center border-t border-white/10 pt-2">
-            ผ่านเกณฑ์มาตรฐานฟาร์มโคนมสีเขียว (Green Dairy Farm)
+            {{ reportData.welfare_assessment?.grading_basis || 'เกณฑ์ภายในของ CowCare จากข้อมูลเซ็นเซอร์จริง' }}
           </div>
         </div>
 
@@ -169,70 +169,72 @@
             <div class="flex justify-between items-center">
               <span class="text-[#718078] flex items-center gap-1.5">
                 <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                ปกติ Comfort (THI &lt; 76):
+                ปกติ (THI &lt; {{ reportData.farm_profile?.thresholds?.mild ?? 74 }}):
               </span>
-              <span class="font-extrabold text-[#142820]">{{ reportData.risk_metrics.stress_breakdown.comfort_hours }} ชม.</span>
+              <span class="font-extrabold text-[#142820]">{{ reportData.risk_metrics?.stress_breakdown?.comfort_hours ?? 0 }} ชม.</span>
             </div>
             <div class="flex justify-between items-center">
               <span class="text-[#718078] flex items-center gap-1.5">
                 <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-                เฝ้าระวัง Mild (THI 76-79):
+                เฝ้าระวัง (THI {{ reportData.farm_profile?.thresholds?.mild ?? 74 }}–{{ (reportData.farm_profile?.thresholds?.moderate ?? 76) - 0.1 }}):
               </span>
-              <span class="font-extrabold text-amber-700">{{ reportData.risk_metrics.stress_breakdown.mild_hours }} ชม.</span>
+              <span class="font-extrabold text-amber-700">{{ reportData.risk_metrics?.stress_breakdown?.mild_hours ?? 0 }} ชม.</span>
             </div>
             <div class="flex justify-between items-center">
               <span class="text-[#718078] flex items-center gap-1.5">
                 <span class="w-2 h-2 rounded-full bg-orange-500"></span>
-                เตือนภัย Moderate (THI 80-83):
+                เครียดความร้อน (THI {{ reportData.farm_profile?.thresholds?.moderate ?? 76 }}–{{ (reportData.farm_profile?.thresholds?.severe ?? 82) - 0.1 }}):
               </span>
-              <span class="font-extrabold text-orange-700">{{ reportData.risk_metrics.stress_breakdown.moderate_hours }} ชม.</span>
+              <span class="font-extrabold text-orange-700">{{ reportData.risk_metrics?.stress_breakdown?.moderate_hours ?? 0 }} ชม.</span>
             </div>
             <div class="flex justify-between items-center">
               <span class="text-[#718078] flex items-center gap-1.5">
                 <span class="w-2 h-2 rounded-full bg-rose-500"></span>
-                วิกฤต Severe (THI &ge; 84):
+                วิกฤต (THI &ge; {{ reportData.farm_profile?.thresholds?.severe ?? 82 }}):
               </span>
-              <span class="font-extrabold text-rose-700">{{ reportData.risk_metrics.stress_breakdown.severe_hours }} ชม.</span>
+              <span class="font-extrabold text-rose-700">{{ reportData.risk_metrics?.stress_breakdown?.severe_hours ?? 0 }} ชม.</span>
             </div>
           </div>
 
           <div class="text-[10px] text-[#718078] border-t border-[#E4E8E5] pt-2 flex justify-between">
-            <span>อัตราฟื้นตัวกลางคืน:</span>
-            <span class="font-black text-emerald-700">{{ reportData.risk_metrics.night_recovery_rate_pct }}% ผ่านเกณฑ์</span>
+            <span>อัตราฟื้นตัวกลางคืน (22:00–05:00 น.):</span>
+            <span class="font-black text-emerald-700">
+              {{ reportData.risk_metrics?.night_recovery_rate_pct != null ? `${reportData.risk_metrics.night_recovery_rate_pct}%` : 'ไม่มีข้อมูล' }}
+            </span>
           </div>
         </div>
 
-        <!-- Economic Loss & ESG Impact -->
+        <!-- Data Basis & Threshold Profile Summary -->
         <div class="p-6 rounded-3xl bg-[#F6F7F5] border border-[#E4E8E5] flex flex-col justify-between">
           <div>
-            <div class="text-[10px] font-bold text-[#718078] uppercase tracking-widest">ESG &amp; FINANCIAL LOSS</div>
-            <div class="text-base font-black text-[#142820] mt-1">ประเมินผลกระทบทางเศรษฐกิจ</div>
+            <div class="text-[10px] font-bold text-[#718078] uppercase tracking-widest">DATA BASIS &amp; PROFILE</div>
+            <div class="text-base font-black text-[#142820] mt-1">เกณฑ์อ้างอิงและความครบถ้วนข้อมูล</div>
           </div>
 
           <div class="space-y-3 my-3 text-xs">
             <div>
-              <div class="text-[11px] text-[#718078]">ประมาณการน้ำนมดิบสูญเสียสะสม:</div>
-              <div class="text-xl font-black text-rose-700 mt-0.5">
-                -{{ reportData.economic_esg_impact.monthly_herd_loss_kg.toLocaleString() }} กก./เดือน
+              <div class="text-[11px] text-[#718078]">ชั่วโมงที่มีความเครียดความร้อนรวม:</div>
+              <div class="text-xl font-black text-amber-700 mt-0.5">
+                {{ reportData.risk_metrics?.stressed_hours ?? 0 }} ชม. / {{ reportData.risk_metrics?.hours_sampled ?? 0 }} ชม.
               </div>
               <div class="text-[10px] text-[#718078]">
-                มูลค่าเทียบเท่า -{{ reportData.economic_esg_impact.monthly_loss_thb.toLocaleString() }} บาท (ฐานฝูง 25 ตัว)
+                คำนวณจากชั่วโมงที่มีข้อมูลเซ็นเซอร์จริงในรอบ {{ reportData.report_days || 30 }} วัน
               </div>
             </div>
 
             <div class="border-t border-[#E4E8E5] pt-2">
-              <div class="text-[11px] text-[#718078]">การลดก๊าซมีเทนจากการระบายความร้อน:</div>
-              <div class="text-lg font-black text-emerald-700 mt-0.5">
-                -{{ reportData.economic_esg_impact.methane_intensity_reduction_pct }}% Enteric CH₄
+              <div class="text-[11px] text-[#718078]">ชุดเกณฑ์สายพันธุ์โคนม (Profile):</div>
+              <div class="text-sm font-black text-[#142820] mt-0.5">
+                {{ reportData.farm_profile?.hf_profile === 'high_hf' ? 'สายเลือดโฮลสไตน์สูง (≥87.5%)' : 'โคนมลูกผสมไทยทั่วไป (Default)' }}
               </div>
               <div class="text-[10px] text-emerald-800 font-medium">
-                (ตามเกณฑ์ Onan-Martinez et al. 2026 JDS)
+                (อ้างอิง Boonkum et al., 2011 / 2024; สูตร NRC 1971)
               </div>
             </div>
           </div>
 
           <div class="text-[10px] text-[#718078] border-t border-[#E4E8E5] pt-2">
-            ราคาประกันน้ำนมดิบอ้างอิง: {{ reportData.economic_esg_impact.raw_milk_price_thb }} บาท/กก.
+            หมายเหตุ: รายงานนี้แสดงเฉพาะค่าที่วัดได้จริงจากเซ็นเซอร์ ไม่ประมาณการมูลค่าน้ำนมสูญเสีย
           </div>
         </div>
 
@@ -247,19 +249,19 @@
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
           <div class="p-3 bg-white rounded-2xl border border-[#E4E8E5]">
             <div class="text-[10px] font-bold text-[#718078]">ค่า THI เฉลี่ยสะสม</div>
-            <div class="text-xl font-black text-[#142820] mt-1">{{ reportData.risk_metrics.average_thi }}</div>
+            <div class="text-xl font-black text-[#142820] mt-1">{{ reportData.risk_metrics?.average_thi ?? '—' }}</div>
           </div>
           <div class="p-3 bg-white rounded-2xl border border-[#E4E8E5]">
             <div class="text-[10px] font-bold text-[#718078]">THI สูงสุดที่ตรวจพบ</div>
-            <div class="text-xl font-black text-rose-700 mt-1">{{ reportData.risk_metrics.max_thi }}</div>
+            <div class="text-xl font-black text-rose-700 mt-1">{{ reportData.risk_metrics?.max_thi ?? '—' }}</div>
           </div>
           <div class="p-3 bg-white rounded-2xl border border-[#E4E8E5]">
             <div class="text-[10px] font-bold text-[#718078]">THI ต่ำสุดที่ตรวจพบ</div>
-            <div class="text-xl font-black text-emerald-700 mt-1">{{ reportData.risk_metrics.min_thi }}</div>
+            <div class="text-xl font-black text-emerald-700 mt-1">{{ reportData.risk_metrics?.min_thi ?? '—' }}</div>
           </div>
           <div class="p-3 bg-white rounded-2xl border border-[#E4E8E5]">
-            <div class="text-[10px] font-bold text-[#718078]">จำนวนจุดตรวจวัดสะสม</div>
-            <div class="text-xl font-black text-[#142820] mt-1">{{ reportData.risk_metrics.total_readings }} บันทึก</div>
+            <div class="text-[10px] font-bold text-[#718078]">ชั่วโมงที่ตรวจวัดสะสม</div>
+            <div class="text-xl font-black text-[#142820] mt-1">{{ reportData.risk_metrics?.hours_sampled ?? 0 }} ชม.</div>
           </div>
         </div>
       </div>
@@ -274,10 +276,13 @@
           <div 
             v-for="(chk, i) in reportData.action_checklist" 
             :key="i"
-            class="p-3.5 rounded-xl bg-[#F6F7F5] border border-[#E4E8E5] flex items-center justify-between text-xs">
+            class="p-3.5 rounded-xl bg-[#F6F7F5] border border-[#E4E8E5] flex items-center justify-between gap-2 text-xs">
             <span class="font-medium text-[#142820]">{{ chk.item }}</span>
-            <span class="font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md text-[11px]">
-              {{ chk.compliance }}
+            <span v-if="chk.compliance_pct != null" class="font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md text-[11px] shrink-0">
+              {{ chk.compliance_pct }}% (วัดจากเซ็นเซอร์)
+            </span>
+            <span v-else class="font-bold text-[#718078] bg-white border border-[#E4E8E5] px-2 py-0.5 rounded-md text-[10px] shrink-0">
+              ไม่มีการบันทึกในระบบ
             </span>
           </div>
         </div>
@@ -290,7 +295,7 @@
           <div class="h-16 flex items-end justify-center pb-2">
             <div class="w-36 border-b border-dashed border-[#142820]"></div>
           </div>
-          <div class="font-bold text-[#142820]">{{ reportData.farm_profile.farmer_name }}</div>
+          <div class="font-bold text-[#142820]">{{ reportData.farm_profile?.farmer_name || 'เกษตรกรเจ้าของฟาร์ม' }}</div>
           <div class="text-[10px] text-[#718078] mt-0.5">เกษตรกรเจ้าของฟาร์ม</div>
         </div>
 

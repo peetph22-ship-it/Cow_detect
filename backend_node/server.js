@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 4001
 const rawOrigins = process.env.FRONTEND_URL 
     ? process.env.FRONTEND_URL.split(',').map(s => s.trim()).filter(Boolean)
     : []
-const frontendOrigins = Array.from(new Set([...rawOrigins, 'http://localhost:3000', 'http://127.0.0.1:3000']))
+const frontendOrigins = Array.from(new Set([...rawOrigins, 'http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001']))
 
 app.use(cors({
     origin: (origin, callback) => {

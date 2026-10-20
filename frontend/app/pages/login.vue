@@ -174,7 +174,7 @@
                 ดูแลโคนมเชิงรุกด้วย Multimodal AI
               </h2>
               <p class="text-xs text-white/75 leading-relaxed">
-                เชื่อมโยงเซนเซอร์ SHT40 (RS485), กล้องตรวจจับพฤติกรรม YOLO26m และโมเดลพยากรณ์ LSTM แจ้งเตือนล่วงหน้า 3–7 วัน
+                เชื่อมโยงเซนเซอร์ SHT40 (RS485), กล้องตรวจจับพฤติกรรม YOLO26m และการติดตามความร้อนสะสม 72 ชั่วโมง (ต้นแบบ อยู่ระหว่างทดสอบภาคสนาม)
               </p>
             </div>
 
@@ -182,23 +182,23 @@
             <div class="relative z-10 space-y-3 my-6">
               <div class="p-4 rounded-2xl bg-white/8 border border-white/10 backdrop-blur-xs">
                 <div class="flex items-center justify-between text-[11px] text-white/60 mb-1">
-                  <span>เกณฑ์วิกฤตโคนมลูกผสมไทย</span>
+                  <span>จุดเริ่มเครียดโคนมลูกผสมไทย</span>
                   <span class="text-[#10B981] font-mono font-bold">NRC 1971</span>
                 </div>
                 <div class="flex items-baseline justify-between">
-                  <span class="text-2xl font-black text-white tabular-nums">THI 76.0</span>
+                  <span class="text-2xl font-black text-white tabular-nums">THI 74–76</span>
                   <span class="text-xs text-[#F2BD7C] font-bold">ป้องกัน 5-Day Lag Effect</span>
                 </div>
               </div>
 
               <div class="grid grid-cols-2 gap-3">
                 <div class="p-3.5 rounded-2xl bg-white/8 border border-white/10">
-                  <span class="text-[10px] text-white/60 block">ความแม่นยำ LSTM</span>
-                  <span class="text-lg font-extrabold text-[#10B981] tabular-nums mt-0.5 block">96.08%</span>
+                  <span class="text-[10px] text-white/60 block">สถานะระบบ</span>
+                  <span class="text-lg font-extrabold text-[#10B981] mt-0.5 block">ต้นแบบ</span>
                 </div>
                 <div class="p-3.5 rounded-2xl bg-white/8 border border-white/10">
-                  <span class="text-[10px] text-white/60 block">ลดมีเทนสะสม</span>
-                  <span class="text-lg font-extrabold text-[#F2BD7C] tabular-nums mt-0.5 block">-17.5%</span>
+                  <span class="text-[10px] text-white/60 block">ส่งข้อมูลเซ็นเซอร์</span>
+                  <span class="text-lg font-extrabold text-[#F2BD7C] tabular-nums mt-0.5 block">ทุก 15 วิ</span>
                 </div>
               </div>
             </div>

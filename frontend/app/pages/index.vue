@@ -30,22 +30,22 @@
 
           <!-- Easy-to-read Subtitle -->
           <p class="text-base sm:text-lg text-[#5A6B63] leading-relaxed max-w-xl font-normal">
-            ผสานเซนเซอร์ <span class="text-[#142820] font-semibold">IoT (SHT40)</span>, กล้องตรวจจับพฤติกรรม <span class="text-[#142820] font-semibold">YOLO26m</span> และโมเดล <span class="text-[#142820] font-semibold">LSTM</span> เพื่อแจ้งเตือนล่วงหน้า 3–7 วัน ป้องกันน้ำนมตกจากภาวะความหน่วง 5 วัน (Lag Effect)
+            ผสานเซนเซอร์ <span class="text-[#142820] font-semibold">IoT (SHT40)</span>, กล้องตรวจจับพฤติกรรม <span class="text-[#142820] font-semibold">YOLO26m</span> และระบบติดตามความร้อนสะสม เพื่อเตือนให้ลดความร้อนก่อนผลกระทบที่มักตามมาหลายวัน (Lag Effect) <span class="text-[#142820] font-semibold">· ต้นแบบ อยู่ระหว่างทดสอบภาคสนาม</span>
           </p>
 
           <!-- Clean Inline Highlights instead of Heavy Boxes -->
           <div class="grid grid-cols-3 gap-4 pt-1 max-w-lg">
             <div class="border-l-2 border-[#D87939] pl-3">
-              <div class="text-xl font-extrabold text-[#142820] tabular-nums">THI 76</div>
-              <div class="text-xs text-[#6E7E76]">เกณฑ์วิกฤตโคนมไทย</div>
+              <div class="text-xl font-extrabold text-[#142820] tabular-nums">THI 74–76</div>
+              <div class="text-xs text-[#6E7E76]">จุดเริ่มเครียดโคนมลูกผสมไทย</div>
             </div>
             <div class="border-l-2 border-[#142820]/20 pl-3">
-              <div class="text-xl font-extrabold text-[#142820] tabular-nums">3–7 วัน</div>
-              <div class="text-xs text-[#6E7E76]">เตือนล่วงหน้าผ่าน LINE</div>
+              <div class="text-xl font-extrabold text-[#142820] tabular-nums">3 วัน</div>
+              <div class="text-xs text-[#6E7E76]">แนวโน้มความร้อนล่วงหน้า</div>
             </div>
             <div class="border-l-2 border-[#10B981] pl-3">
-              <div class="text-xl font-extrabold text-[#142820] tabular-nums">-17.5%</div>
-              <div class="text-xs text-[#6E7E76]">ลดมีเทนต่อ กก.น้ำนม</div>
+              <div class="text-xl font-extrabold text-[#142820] tabular-nums">ไม่แตะตัววัว</div>
+              <div class="text-xs text-[#6E7E76]">เซ็นเซอร์ + กล้องในโรงเรือน</div>
             </div>
           </div>
 
@@ -112,7 +112,7 @@
                   </div>
                 </div>
                 <div class="text-right">
-                  <span class="text-[11px] text-[#6E7E76] block">ผลกระทบน้ำนม</span>
+                  <span class="text-[11px] text-[#6E7E76] block">ผลต่อแม่โค</span>
                   <span class="text-sm font-extrabold" :style="{ color: riskState.color }">
                     {{ riskState.milkImpact }}
                   </span>
@@ -128,10 +128,7 @@
                   </div>
                 </div>
                 <div class="flex justify-between text-[10px] text-[#6E7E76] font-semibold mt-1.5">
-                  <span>ปกติ (&lt;76)</span>
-                  <span>เริ่มเครียด (76)</span>
-                  <span>ปานกลาง (80)</span>
-                  <span>วิกฤต (84+)</span>
+                  <span v-for="lbl in gaugeLabels" :key="lbl">{{ lbl }}</span>
                 </div>
               </div>
             </div>
@@ -298,12 +295,12 @@
               </div>
 
               <div class="p-4 rounded-2xl bg-white border border-[#142820]/6 text-xs text-[#142820] leading-relaxed shadow-sm space-y-2">
-                <div class="font-bold text-[#D87939]">⚠️ พยากรณ์อากาศร้อนสะสม (17–19 ต.ค.)</div>
+                <div class="font-bold text-[#D87939]">⚠️ ตัวอย่างข้อความแจ้งเตือน: ความร้อนสะสมสูง</div>
                 <p class="text-[#4A5A52]">
-                  ระบบคาดการณ์ว่าค่า THI ในโรงเรือนจะแตะระดับ <strong>82.4 (เครียดปานกลาง)</strong> ในอีก 3 วันข้างหน้า
+                  ค่า THI เฉลี่ยในโรงเรือน 3 วันที่ผ่านมาอยู่ที่ <strong>78.5 (เครียดจากความร้อน)</strong> แนวโน้มยังร้อนต่อเนื่อง
                 </p>
                 <div class="p-2.5 rounded-xl bg-[#FAF9F5] text-[11.5px] font-medium text-[#142820]">
-                  ✅ <strong>สิ่งที่ควรทำดักล่วงหน้า:</strong> เปิดพัดลมระบายอากาศและสเปรย์พ่นหมอกช่วง 11:30–15:30 น. เพื่อป้องกันน้ำนมตกในสัปดาห์หน้า
+                  ✅ <strong>สิ่งที่ควรทำดักล่วงหน้า:</strong> เปิดพัดลมระบายอากาศช่วง 11:00–15:00 น. (งดพ่นหมอกถ้าความชื้นเกิน 75%) เพื่อลดความร้อนสะสม
                 </div>
               </div>
             </div>
@@ -316,7 +313,7 @@
                   <div class="text-xs text-[#6E7E76]">รายงานความยั่งยืนและสุขภาพโคนมรายสัปดาห์</div>
                 </div>
                 <span class="px-3 py-1 rounded-full text-xs font-bold bg-[#ECFDF5] text-[#047857]">
-                  ESG Ready
+                  ตัวอย่างหน้าจอ
                 </span>
               </div>
 
@@ -326,8 +323,8 @@
                   <span class="text-lg font-extrabold text-[#142820] tabular-nums">74.8</span>
                 </div>
                 <div class="p-3 bg-white rounded-2xl border border-[#142820]/6">
-                  <span class="text-[10px] text-[#6E7E76] block">ลดมีเทนสะสม</span>
-                  <span class="text-lg font-extrabold text-[#10B981] tabular-nums">-17.5%</span>
+                  <span class="text-[10px] text-[#6E7E76] block">ชั่วโมงวิกฤต</span>
+                  <span class="text-lg font-extrabold text-[#10B981] tabular-nums">0 ชม.</span>
                 </div>
                 <div class="p-3 bg-white rounded-2xl border border-[#142820]/6">
                   <span class="text-[10px] text-[#6E7E76] block">ความครบถ้วน</span>
@@ -381,7 +378,7 @@
               ทำไมการรอดูอาการวัวหอบ ถึงสายเกินไปเสมอ?
             </h2>
             <p class="text-sm sm:text-base text-white/75 leading-relaxed">
-              งานวิจัยพบว่าหลังโคนมเผชิญความร้อนสะสม น้ำนมจะดิ่งลงต่ำสุดในอีก <strong>5 วันถัดมา</strong> โมเดล <strong>LSTM (ความแม่นยำ 96.08%)</strong> ของเราจึงจดจำข้อมูลย้อนหลัง 14 วัน เพื่อเตือนให้คุณเปิดพัดลมและพ่นหมอกดักล่วงหน้า
+              งานวิจัย (Hasan et al., 2026) พบว่าน้ำนมโคนมลดลงชัดเจนหลังเผชิญความร้อนประมาณ <strong>5 วัน</strong> ระบบจึงติดตามความร้อนสะสม 72 ชั่วโมงในโรงเรือน เพื่อเตือนให้คุณเปิดพัดลมดักไว้ก่อน <span class="text-white/50">(ภาพจำลองสถานการณ์)</span>
             </p>
 
             <!-- Toggle Switch: Reactive vs Proactive -->
@@ -417,13 +414,13 @@
                     {{ comparisonMode === 'proactive' ? 'PROACTIVE FARMING' : 'REACTIVE MANAGEMENT' }}
                   </span>
                   <h3 class="text-xl font-extrabold text-white mt-0.5">
-                    {{ comparisonMode === 'proactive' ? 'ป้องกันน้ำนมตกได้ก่อนเกิดวิกฤต' : 'สูญเสียน้ำนมสะสมต่อเนื่อง 5 วัน' }}
+                    {{ comparisonMode === 'proactive' ? 'ลดความร้อนก่อนเกิดวิกฤต' : 'ความร้อนสะสมโดยไม่รู้ตัว' }}
                   </h3>
                 </div>
                 <div 
                   class="px-3.5 py-1.5 rounded-full text-xs font-extrabold"
                   :class="comparisonMode === 'proactive' ? 'bg-[#10B981]/20 text-[#10B981]' : 'bg-rose-500/20 text-rose-300'">
-                  {{ comparisonMode === 'proactive' ? 'น้ำนมคงที่ 100%' : 'น้ำนมลด -15 ถึง -25%' }}
+                  {{ comparisonMode === 'proactive' ? 'ลดความเสี่ยงล่วงหน้า' : 'เสี่ยงน้ำนมลดหลายวัน' }}
                 </div>
               </div>
 
@@ -528,11 +525,12 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { calcThi, getRiskLevel, thresholdLabels } from '~/utils/heatStress'
 
 useHead({
   title: 'CowCare AI — ระบบพยากรณ์และป้องกันความเครียดความร้อนในโคนม',
   meta: [
-    { name: 'description', content: 'ยกระดับการจัดการฟาร์มโคนมไทยด้วย IoT + Computer Vision YOLO26m + LSTM AI Forecast' }
+    { name: 'description', content: 'ต้นแบบระบบเฝ้าระวังความเครียดจากความร้อนในโคนมไทยด้วย IoT + Computer Vision (อยู่ระหว่างทดสอบภาคสนาม)' }
   ]
 })
 
@@ -554,54 +552,46 @@ const applyPreset = (preset, idx) => {
   activePresetIdx.value = idx
 }
 
-const thi = computed(() => {
-  return (1.8 * t.value + 32) - (0.55 - 0.0055 * rh.value) * (1.8 * t.value - 26)
-})
-
-const roundedThi = computed(() => Number(thi.value.toFixed(1)))
+const roundedThi = computed(() => calcThi(t.value, rh.value))
+const gaugeLabels = thresholdLabels('default')
 
 const gaugePos = computed(() => {
   const clamped = Math.min(92, Math.max(62, roundedThi.value))
   return ((clamped - 62) / (92 - 62)) * 100
 })
 
-const riskState = computed(() => {
-  const val = roundedThi.value
-  if (val < 76.0) {
-    return {
-      name: 'สภาวะปกติ (Comfort Zone)',
-      color: '#059669',
-      bgColor: '#ECFDF5',
-      milkImpact: 'ปกติ (ไม่สูญเสียน้ำนม)',
-      action: 'โคนมกินอาหารและพักผ่อนได้ตามปกติ ดูแลน้ำดื่มสะอาดตามรอบเวลา'
-    }
-  }
-  if (val < 80.0) {
-    return {
-      name: 'เริ่มเครียด (Mild Stress)',
-      color: '#D97706',
-      bgColor: '#FFFBEB',
-      milkImpact: 'ลดลง -0.28 กก./THI',
-      action: 'เปิดพัดลมระบายอากาศเพื่อเร่งการไหลเวียนลมในโรงเรือนทันที'
-    }
-  }
-  if (val < 84.0) {
-    return {
-      name: 'เครียดปานกลาง (Moderate)',
-      color: '#EA580C',
-      bgColor: '#FFF7ED',
-      milkImpact: 'ลดลง 2 เท่า (-0.56 กก./วัน)',
-      action: 'เปิดพัดลมคู่กับระบบสเปรย์พ่นหมอก และหลีกเลี่ยงการผสมเทียมช่วงบ่าย'
-    }
-  }
-  return {
-    name: 'วิกฤตรุนแรง (Severe Stress)',
+// ระดับตามเกณฑ์ค่าเริ่มต้นของโคนมลูกผสมไทย (utils/heatStress.ts) ไม่แสดงตัวเลข กก. น้ำนม เพราะยังไม่มีค่าที่วัดจากโคไทย
+const RISK_STATES = {
+  normal: {
+    name: 'สภาวะปกติ (Comfort Zone)',
+    color: '#059669',
+    bgColor: '#ECFDF5',
+    milkImpact: 'ปกติ',
+    action: 'โคนมกินอาหารและพักผ่อนได้ตามปกติ ดูแลน้ำดื่มสะอาดตามรอบเวลา'
+  },
+  mild: {
+    name: 'เฝ้าระวัง (Mild)',
+    color: '#D97706',
+    bgColor: '#FFFBEB',
+    milkImpact: 'เริ่มอบอ้าว',
+    action: 'เปิดพัดลมระบายอากาศเพื่อเร่งการไหลเวียนลมในโรงเรือน'
+  },
+  moderate: {
+    name: 'เครียดจากความร้อน (Moderate)',
+    color: '#EA580C',
+    bgColor: '#FFF7ED',
+    milkImpact: 'เริ่มกระทบการกินและน้ำนม',
+    action: 'เปิดพัดลมเต็มที่ (พ่นหมอกได้เมื่อความชื้นต่ำกว่า 75%) และหลีกเลี่ยงการผสมเทียมช่วงบ่าย'
+  },
+  severe: {
+    name: 'วิกฤต (Severe)',
     color: '#E11D48',
     bgColor: '#FFF1F2',
-    milkImpact: 'ดิ่งลงหนัก (-0.42 กก./THI)',
-    action: 'พ่นหมอกระบายความร้อนเต็มกำลัง และเสริมสารบัฟเฟอร์ Sodium Bicarbonate ในอาหาร'
+    milkImpact: 'เสี่ยงหอบ น้ำนมลดชัดเจน',
+    action: 'ลดความร้อนฉุกเฉิน เปิดพัดลมเต็มกำลัง จัดน้ำเย็นให้กิน และปรึกษาสัตวแพทย์เรื่องการเสริมสารบัฟเฟอร์'
   }
-})
+}
+const riskState = computed(() => RISK_STATES[getRiskLevel(roundedThi.value, 'default') || 'normal'])
 
 // 2. Interactive 3-Layer Tabs Data
 const activeLayer = ref(0)
@@ -612,11 +602,11 @@ const archLayers = [
     badge: 'LAYER 01 • EDGE & IOT SENSING',
     icon: 'mdi-access-point',
     title: 'เก็บข้อมูลแม่นยำโดยไม่ต้องติดอุปกรณ์บนตัววัว',
-    desc: 'ลดต้นทุนให้เกษตรกรรายย่อยด้วยการใช้กล้องวงจรปิดร่วมกับโมเดล YOLO26m ตรวจจับพฤติกรรมโคนม และใช้เซนเซอร์ SHT40 เกรดอุตสาหกรรมวัดอุณหภูมิ-ความชื้นผ่านสาย RS485',
+    desc: 'ลดต้นทุนให้เกษตรกรรายย่อยด้วยการใช้กล้องวงจรปิดร่วมกับโมเดล YOLO26m ตรวจจับพฤติกรรมโคนม (อยู่ระหว่างทดสอบกับกล้องจริง) และใช้เซนเซอร์ SHT40 วัดอุณหภูมิ-ความชื้นผ่านสาย RS485',
     points: [
       'ตรวจจับ 4 พฤติกรรมหลัก: ยืน, นอนพัก, กินน้ำ, กินอาหาร แบบเรียลไทม์',
       'ไม่ต้องซื้อปลอกคออัจฉริยะราคาแพง ไม่ทำให้วัวเครียด',
-      'ส่งข้อมูลเสถียร ทนทานต่อความชื้นและก๊าซแอมโมเนียในโรงเรือน'
+      'ออกแบบให้ทนความชื้นในโรงเรือน (อยู่ระหว่างทดสอบภาคสนาม)'
     ]
   },
   {
@@ -625,10 +615,10 @@ const archLayers = [
     badge: 'LAYER 02 • PREDICTIVE AI & LINE BOT',
     icon: 'mdi-brain',
     title: 'แปลงข้อมูลซับซ้อนเป็นคำแนะนำภาษาไทยส่งตรงถึง LINE',
-    desc: 'โมเดล Deep Learning (LSTM) วิเคราะห์ความร้อนสะสมย้อนหลัง 14 วัน เพื่อพยากรณ์ล่วงหน้า 3–7 วัน พร้อมใช้ Gemini AI สรุปวิธีจัดการโรงเรือนที่เข้าใจง่าย',
+    desc: 'วิเคราะห์ความร้อนสะสมย้อนหลัง 72 ชั่วโมงเพื่อบอกแนวโน้มล่วงหน้า 3 วัน ตามเกณฑ์งานวิจัยโคนมลูกผสมไทย (โมเดลพยากรณ์ด้วยข้อมูลจริงอยู่ระหว่างพัฒนา และมีแผนใช้ Gemini AI สรุปคำแนะนำ)',
     points: [
-      'แจ้งเตือนก่อนเกิดผลกระทบน้ำนมตก 5 วัน (5-Day Lag Effect)',
-      'ปรับคำแนะนำตามโครงสร้างโรงเรือนจริงของแต่ละฟาร์ม',
+      'เตือนก่อนผลกระทบที่มักตามมาหลายวัน (Lag Effect)',
+      'ปรับเกณฑ์ตามสายเลือดโฮลสไตน์ของแต่ละฝูง',
       'ใช้งานง่ายผ่าน LINE เหมาะสำหรับเกษตรกรทุกวัย'
     ]
   },
@@ -638,10 +628,10 @@ const archLayers = [
     badge: 'LAYER 03 • DIGITAL LOGBOOK & ESG',
     icon: 'mdi-leaf-circle-outline',
     title: 'สร้างสมุดบันทึกดิจิทัลเพื่อสินเชื่อสีเขียวและความยั่งยืน',
-    desc: 'ข้อมูลทุกจุดถูกจัดเก็บลงฐานข้อมูลคลาวด์อย่างเป็นระบบ ช่วยให้ฟาร์มมีหลักฐานยืนยันการจัดการสวัสดิภาพสัตว์และการลดก๊าซเรือนกระจก',
+    desc: 'ข้อมูลทุกจุดถูกจัดเก็บลงฐานข้อมูลคลาวด์อย่างเป็นระบบ เป็นบันทึกสภาพแวดล้อมในโรงเรือนที่ตรวจสอบย้อนหลังได้',
     points: [
-      'ลดการปล่อยก๊าซมีเทนต่อกิโลกรัมนม (Methane Intensity) ลงได้ถึง 17.5%',
-      'ใช้เป็นหลักฐานประกอบการขอสินเชื่อฟาร์มยั่งยืน (ESG Finance)',
+      'บันทึกชั่วโมงความเครียดจากความร้อนจากข้อมูลเซ็นเซอร์จริง',
+      'เตรียมข้อมูลสำหรับต่อยอดสินเชื่อฟาร์มยั่งยืน (ESG Finance) ในอนาคต',
       'รองรับการเคลมประกันภัยโคนมอิงดัชนีสภาพอากาศในอนาคต'
     ]
   }
@@ -659,43 +649,43 @@ const comparisonMode = ref('proactive')
 const activeComparisonSteps = computed(() => {
   if (comparisonMode.value === 'proactive') {
     return [
-      { day: 'ล่วงหน้า 3 วัน', event: 'LSTM แจ้งเตือนผ่าน LINE ว่าค่า THI จะพุ่งแตะ 82', outcome: 'เตรียมพร้อมทันที', statusClass: 'text-[#10B981]' },
-      { day: 'วันที่อากาศร้อน', event: 'เปิดพัดลมและพ่นหมอกดักล่วงหน้าตามคำแนะนำ AI', outcome: 'วัวไม่เครียดสะสม', statusClass: 'text-[#10B981]' },
-      { day: '5 วันถัดมา', event: 'โคนมกินอาหารปกติ อัตราการให้น้ำนมเสถียรต่อเนื่อง', outcome: 'น้ำนมไม่ตก 100%', statusClass: 'text-[#F2BD7C]' }
+      { day: 'ล่วงหน้า', event: 'ระบบแจ้งเตือนผ่าน LINE ว่าความร้อนสะสมในโรงเรือนสูงขึ้น', outcome: 'เตรียมพร้อมทันที', statusClass: 'text-[#10B981]' },
+      { day: 'วันที่อากาศร้อน', event: 'เปิดพัดลมดักไว้ก่อนตามคำแนะนำ', outcome: 'ลดความเครียดสะสม', statusClass: 'text-[#10B981]' },
+      { day: 'หลายวันถัดมา', event: 'โคนมมีโอกาสกินอาหารและให้น้ำนมได้ใกล้เคียงปกติ', outcome: 'ลดความเสี่ยงน้ำนมลด', statusClass: 'text-[#F2BD7C]' }
     ]
   }
   return [
-    { day: 'ล่วงหน้า 3 วัน', event: 'ไม่มีระบบพยากรณ์ เกษตรกรไม่ทราบล่วงหน้า', outcome: 'ไม่ได้เตรียมการ', statusClass: 'text-white/50' },
+    { day: 'ล่วงหน้า', event: 'ไม่มีข้อมูลความร้อนสะสม เกษตรกรไม่ทราบล่วงหน้า', outcome: 'ไม่ได้เตรียมการ', statusClass: 'text-white/50' },
     { day: 'วันที่อากาศร้อน', event: 'รอจนวัวยืนหอบและไม่กินอาหารจึงเพิ่งเปิดพัดลม', outcome: 'เกิดความเครียดสะสม', statusClass: 'text-rose-400' },
-    { day: '5 วันถัดมา', event: 'เกิด Lag Effect น้ำนมดิ่งลงและเสี่ยงภาวะกระเพาะเป็นกรด', outcome: 'สูญเสียรายได้หนัก', statusClass: 'text-rose-400' }
+    { day: 'หลายวันถัดมา', event: 'เกิด Lag Effect น้ำนมลดลงตามมา', outcome: 'เสี่ยงสูญเสียรายได้', statusClass: 'text-rose-400' }
   ]
 })
 
 // 4. Citations
 const citations = [
   {
+    journal: 'J. of Dairy Science (2011)',
+    metric: 'เริ่มเครียดที่ THI 74',
+    summary: 'ข้อมูลโคนมลูกผสมไทยกว่า 400,000 รายการ: แม่โคท้องที่ 3 ขึ้นไปที่มีสายเลือดโฮลสไตน์ ≥87.5% น้ำนมเริ่มลดที่ THI 74 และลดเร็วขึ้นเมื่อเกิน 82',
+    authors: 'Boonkum et al. (2011)'
+  },
+  {
     journal: 'Animals (MDPI, 2024)',
-    metric: 'เกณฑ์วิกฤต THI 76',
-    summary: 'พิสูจน์ว่าโคนมลูกผสมไทยเริ่มสูญเสียน้ำนม (-0.28 กก./THI) และอัตราผสมติดลดลงเมื่อค่า THI แตะระดับ 76',
+    metric: 'เกณฑ์ THI 76',
+    summary: 'โคนมลูกผสมไทย 168,124 รายการ พบจุดเริ่มเครียดระดับประชากรที่ THI 76 ซึ่งน้ำนม สัดส่วนไขมันต่อโปรตีน และอัตราผสมติดเริ่มลดลง',
     authors: 'Boonkum et al. (2024)'
   },
   {
     journal: 'Comp. & Elec. in Agr. (2026)',
-    metric: '5-Day Lag Effect',
-    summary: 'ศึกษาโคนมกว่า 82,000 ตัว พบว่าผลผลิตน้ำนมจะดิ่งลงต่ำสุดใน 5 วันหลังจากสัมผัสความร้อนสะสม',
+    metric: 'Lag Effect 5 วัน',
+    summary: 'ข้อมูล 7 ปี (โคเนื้อ 82,026 ตัว และโคนมราว 300 ตัว) พบว่าน้ำนมโคนมลดลงชัดเจนที่ lag 5 วันหลังเผชิญความร้อน',
     authors: 'Hasan et al. (2026)'
   },
   {
-    journal: 'J. of Dairy Science (2026)',
-    metric: 'Methane +17.5%',
-    summary: 'ความเครียดจากความร้อนทำให้โคนมปล่อยก๊าซมีเทนต่อกิโลกรัมนมสูงขึ้นถึง 17.5% การลดความร้อนจึงช่วยโลกได้จริง',
-    authors: 'Onan-Martinez et al. (2026)'
-  },
-  {
-    journal: 'J. Anim. Environ. (2026)',
-    metric: 'LSTM แม่นยำ 96.08%',
-    summary: 'ยืนยันการใช้โมเดล LSTM จดจำข้อมูลย้อนหลัง 14 วัน ร่วมกับ Edge AI ช่วยเตือนภัยความร้อนล่วงหน้าได้แม่นยำสูง',
-    authors: 'Mulajkar & Abdourhamane (2026)'
+    journal: 'Acta Veterinaria-Beograd (2026)',
+    metric: 'LSTM (งานจำลอง)',
+    summary: 'LSTM บนข้อมูลจำลองโคโฮลสไตน์ 500 ตัว ทำนายน้ำนมได้ RMSE 1.48 กก./วัน (R² 0.81) ผู้วิจัยระบุว่ายังต้องทดสอบกับฟาร์มจริง',
+    authors: 'Abdourhamane (2026)'
   }
 ]
 

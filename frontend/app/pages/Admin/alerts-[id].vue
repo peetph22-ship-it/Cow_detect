@@ -93,13 +93,13 @@
         </div>
       </div>
 
-      <!-- Critical Severe (THI >= 84) -->
+      <!-- Critical Severe (THI >= 82) -->
       <div 
         @click="activeFilter = 'critical'"
         class="bg-white/80 backdrop-blur-xl rounded-[28px] p-6 border border-rose-100 shadow-xs hover:-translate-y-1 transition-all cursor-pointer"
         :class="{ 'ring-2 ring-rose-600 bg-white': activeFilter === 'critical' }">
         <div class="flex items-center justify-between mb-4">
-          <span class="text-[11px] font-bold text-rose-600 uppercase tracking-[0.1em]">วิกฤตรุนแรง (THI ≥ 84)</span>
+          <span class="text-[11px] font-bold text-rose-600 uppercase tracking-[0.1em]">วิกฤต (THI ≥ 82)</span>
           <div class="w-11 h-11 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center">
             <v-icon icon="mdi-alert-octagon-outline" size="22" />
           </div>
@@ -111,13 +111,13 @@
         </div>
       </div>
 
-      <!-- Moderate (THI 80-83.9) -->
+      <!-- Moderate (THI 76-81.9) -->
       <div 
         @click="activeFilter = 'moderate'"
         class="bg-white/80 backdrop-blur-xl rounded-[28px] p-6 border border-amber-100 shadow-xs hover:-translate-y-1 transition-all cursor-pointer"
         :class="{ 'ring-2 ring-amber-600 bg-white': activeFilter === 'moderate' }">
         <div class="flex items-center justify-between mb-4">
-          <span class="text-[11px] font-bold text-amber-600 uppercase tracking-[0.1em]">เริ่มกระทบผลผลิต (80-83)</span>
+          <span class="text-[11px] font-bold text-amber-600 uppercase tracking-[0.1em]">เครียดความร้อน (76–81.9)</span>
           <div class="w-11 h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
             <v-icon icon="mdi-alert-outline" size="22" />
           </div>
@@ -129,13 +129,13 @@
         </div>
       </div>
 
-      <!-- Mild Warning (THI 76-79.9) -->
+      <!-- Mild Warning (THI 74-75.9) -->
       <div 
         @click="activeFilter = 'warning'"
         class="bg-white/80 backdrop-blur-xl rounded-[28px] p-6 border border-orange-100 shadow-xs hover:-translate-y-1 transition-all cursor-pointer"
         :class="{ 'ring-2 ring-orange-500 bg-white': activeFilter === 'warning' }">
         <div class="flex items-center justify-between mb-4">
-          <span class="text-[11px] font-bold text-orange-600 uppercase tracking-[0.1em]">เริ่มเฝ้าระวัง (76-79)</span>
+          <span class="text-[11px] font-bold text-orange-600 uppercase tracking-[0.1em]">เฝ้าระวัง (74–75.9)</span>
           <div class="w-11 h-11 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center">
             <v-icon icon="mdi-weather-partly-cloudy" size="22" />
           </div>
@@ -228,13 +228,13 @@
           <v-icon :icon="activeFilter === 'critical' ? 'mdi-alert-octagon-outline' : activeFilter === 'moderate' ? 'mdi-alert-outline' : 'mdi-shield-check-outline'" size="32" />
         </div>
         <h3 class="text-base font-bold text-[#142820] mb-1">
-          {{ activeFilter === 'critical' ? 'ไม่พบเหตุการณ์วิกฤตรุนแรง (THI ≥ 84)' : activeFilter === 'moderate' ? 'ไม่พบเหตุการณ์เริ่มกระทบผลผลิต (THI 80-83)' : activeFilter === 'warning' ? 'ไม่พบเหตุการณ์เริ่มเฝ้าระวัง (THI 76-79)' : 'สภาวะโรงเรือนปกติ' }}
+          {{ activeFilter === 'critical' ? 'ไม่พบเหตุการณ์วิกฤต (THI ≥ 82)' : activeFilter === 'moderate' ? 'ไม่พบเหตุการณ์เครียดความร้อน (THI 76–81.9)' : activeFilter === 'warning' ? 'ไม่พบเหตุการณ์เฝ้าระวัง (THI 74–75.9)' : 'สภาวะโรงเรือนปกติ' }}
         </h3>
         <p class="text-xs text-[#718078] max-w-sm mx-auto mb-4">
           {{ activeFilter === 'critical' 
-            ? 'ฟาร์มนี้ไม่เคยพบดัชนี THI สูงถึงระดับวิกฤต (≥ 84) อยู่ในเกณฑ์ความปลอดภัย' 
+            ? 'ฟาร์มนี้ไม่เคยพบดัชนี THI สูงถึงระดับวิกฤต อยู่ในเกณฑ์ความปลอดภัย' 
             : activeFilter === 'all' 
-            ? 'ฟาร์มนี้ยังไม่มีการตรวจพบความร้อนเกินเกณฑ์ หรืออยู่ในโซน Comfort Zone (THI < 76.0)' 
+            ? 'ฟาร์มนี้ยังไม่มีการตรวจพบความร้อนเกินเกณฑ์ หรืออยู่ในโซนปกติ (THI < 74.0)' 
             : 'ไม่พบเหตุการณ์ที่ตรงตามตัวกรองระดับนี้ในประวัติของฟาร์ม' }}
         </p>
         <button 
@@ -280,20 +280,20 @@
                   <td class="py-4 px-6">
                     <span 
                       class="px-2.5 py-1 rounded-full text-[11px] font-bold inline-flex items-center gap-1 border"
-                      :class="alert.level === 'critical' || alert.thi >= 84 
+                      :class="alert.level === 'critical' || alert.thi >= 82 
                         ? 'bg-rose-50 text-rose-700 border-rose-200' 
-                        : alert.level === 'moderate' || alert.thi >= 80 
+                        : alert.level === 'moderate' || alert.thi >= 76 
                         ? 'bg-amber-50 text-amber-700 border-amber-200' 
                         : 'bg-orange-50 text-orange-700 border-orange-200'">
-                      <v-icon :icon="alert.level === 'critical' || alert.thi >= 84 ? 'mdi-alert-octagon' : 'mdi-alert'" size="13" />
-                      {{ alert.level === 'critical' || alert.thi >= 84 ? 'วิกฤตรุนแรง (Severe)' : alert.level === 'moderate' || alert.thi >= 80 ? 'เริ่มกระทบผลผลิต (Moderate)' : 'เริ่มเฝ้าระวัง (Mild)' }}
+                      <v-icon :icon="alert.level === 'critical' || alert.thi >= 82 ? 'mdi-alert-octagon' : 'mdi-alert'" size="13" />
+                      {{ alert.level === 'critical' || alert.thi >= 82 ? 'วิกฤต (Severe)' : alert.level === 'moderate' || alert.thi >= 76 ? 'เครียดความร้อน (Moderate)' : 'เฝ้าระวัง (Mild)' }}
                     </span>
                   </td>
 
                   <!-- Telemetry -->
                   <td class="py-4 px-6">
                     <div class="flex items-center gap-2">
-                      <span class="font-extrabold text-sm" :class="alert.thi >= 84 ? 'text-rose-600' : 'text-amber-600'">
+                      <span class="font-extrabold text-sm" :class="alert.level === 'critical' || alert.thi >= 82 ? 'text-rose-600' : 'text-amber-600'">
                         THI {{ alert.thi }}
                       </span>
                       <span class="text-[#718078]">•</span>
@@ -338,7 +338,7 @@
             <!-- Top Color Accent Bar based on Severity -->
             <div 
               class="h-2 w-full"
-              :class="alert.level === 'critical' || alert.thi >= 84 ? 'bg-rose-500' : alert.level === 'moderate' || alert.thi >= 80 ? 'bg-amber-500' : 'bg-orange-400'">
+              :class="alert.level === 'critical' || alert.thi >= 82 ? 'bg-rose-500' : alert.level === 'moderate' || alert.thi >= 76 ? 'bg-amber-500' : 'bg-orange-400'">
             </div>
 
             <div class="p-5 space-y-3.5 flex-1">
@@ -352,13 +352,13 @@
 
                 <span 
                   class="px-2.5 py-1 rounded-full text-[10px] font-bold shrink-0 inline-flex items-center gap-1 border"
-                  :class="alert.level === 'critical' || alert.thi >= 84 
+                  :class="alert.level === 'critical' || alert.thi >= 82 
                     ? 'bg-rose-50 text-rose-700 border-rose-200' 
-                    : alert.level === 'moderate' || alert.thi >= 80 
+                    : alert.level === 'moderate' || alert.thi >= 76 
                     ? 'bg-amber-50 text-amber-700 border-amber-200' 
                     : 'bg-orange-50 text-orange-700 border-orange-200'">
-                  <v-icon :icon="alert.level === 'critical' || alert.thi >= 84 ? 'mdi-alert-octagon' : 'mdi-alert'" size="12" />
-                  {{ alert.level === 'critical' || alert.thi >= 84 ? 'วิกฤตรุนแรง' : alert.level === 'moderate' || alert.thi >= 80 ? 'เริ่มกระทบผลผลิต' : 'เฝ้าระวัง' }}
+                  <v-icon :icon="alert.level === 'critical' || alert.thi >= 82 ? 'mdi-alert-octagon' : 'mdi-alert'" size="12" />
+                  {{ alert.level === 'critical' || alert.thi >= 82 ? 'วิกฤต' : alert.level === 'moderate' || alert.thi >= 76 ? 'เครียดความร้อน' : 'เฝ้าระวัง' }}
                 </span>
               </div>
 
@@ -368,7 +368,7 @@
                   <div class="text-[9px] text-[#718078] font-bold uppercase">ดัชนี THI</div>
                   <div 
                     class="text-lg font-black mt-0.5"
-                    :class="alert.thi >= 84 ? 'text-rose-600' : alert.thi >= 80 ? 'text-amber-600' : 'text-emerald-700'">
+                    :class="alert.level === 'critical' || alert.thi >= 82 ? 'text-rose-600' : alert.level === 'moderate' || alert.thi >= 76 ? 'text-amber-600' : 'text-emerald-700'">
                     {{ alert.thi }}
                   </div>
                 </div>
@@ -511,9 +511,9 @@ const totalAlerts = computed(() => alerts.value.length)
 
 const filteredAlerts = computed(() => {
   if (activeFilter.value === 'all') return alerts.value
-  if (activeFilter.value === 'critical') return alerts.value.filter(a => a.level === 'critical' || a.thi >= 84.0)
-  if (activeFilter.value === 'moderate') return alerts.value.filter(a => a.level === 'moderate' || (a.thi >= 80.0 && a.thi < 84.0))
-  if (activeFilter.value === 'warning') return alerts.value.filter(a => a.level === 'warning' || (a.thi >= 76.0 && a.thi < 80.0))
+  if (activeFilter.value === 'critical') return alerts.value.filter(a => a.level === 'critical' || a.thi >= 82.0)
+  if (activeFilter.value === 'moderate') return alerts.value.filter(a => a.level === 'moderate' || (a.thi >= 76.0 && a.thi < 82.0))
+  if (activeFilter.value === 'warning') return alerts.value.filter(a => a.level === 'warning' || (a.thi >= 74.0 && a.thi < 76.0))
   return alerts.value
 })
 

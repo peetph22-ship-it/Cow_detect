@@ -27,13 +27,13 @@
       <!-- 🟢 1. Big Status Hero Card (Large High-Contrast for Elderly Farmers) -->
       <div 
         class="rounded-[32px] p-6 sm:p-8 text-white shadow-xl relative overflow-hidden transition-all"
-        :class="currentThi >= 84 ? 'bg-gradient-to-br from-rose-700 to-rose-900' : currentThi >= 80 ? 'bg-gradient-to-br from-amber-600 to-orange-700' : 'bg-gradient-to-br from-emerald-700 to-[#142820]'">
+        :class="heroClass">
         
         <div class="flex items-center justify-between mb-4">
           <span class="px-3 py-1 rounded-full bg-white/20 text-xs font-extrabold uppercase tracking-wider backdrop-blur-xs">
             สภาวะในโรงเรือนตอนนี้
           </span>
-          <span class="text-xs text-white/80 font-bold flex items-center gap-1">
+          <span v-if="hasData" class="text-xs text-white/80 font-bold flex items-center gap-1">
             <span class="w-2 h-2 rounded-full bg-white animate-ping"></span>
             อัปเดตสด
           </span>
@@ -52,7 +52,7 @@
           <!-- Big THI Display -->
           <div class="bg-white/15 backdrop-blur-md px-6 py-4 rounded-3xl border border-white/20 text-center shrink-0">
             <div class="text-[11px] font-bold text-white/80 uppercase">ดัชนี THI</div>
-            <div class="text-4xl sm:text-5xl font-black text-white leading-none mt-1">{{ currentThi }}</div>
+            <div class="text-4xl sm:text-5xl font-black text-white leading-none mt-1">{{ currentThi ?? '—' }}</div>
           </div>
         </div>
 
@@ -60,11 +60,11 @@
         <div class="grid grid-cols-2 gap-3 mt-6 pt-5 border-t border-white/20 text-center text-xs">
           <div class="bg-black/10 rounded-2xl p-2.5">
             <div class="text-white/70 text-[11px]">อุณหภูมิโรงเรือน</div>
-            <div class="text-xl font-black text-white mt-0.5">{{ currentTemp }} °C</div>
+            <div class="text-xl font-black text-white mt-0.5">{{ currentTemp ?? '—' }} °C</div>
           </div>
           <div class="bg-black/10 rounded-2xl p-2.5">
             <div class="text-white/70 text-[11px]">ความชื้นสัมพัทธ์</div>
-            <div class="text-xl font-black text-white mt-0.5">{{ currentHum }}% RH</div>
+            <div class="text-xl font-black text-white mt-0.5">{{ currentHum ?? '—' }}% RH</div>
           </div>
         </div>
 
@@ -86,7 +86,7 @@
             <div class="flex-1">
               <div class="text-xs font-bold text-[#718078]">พัดลมระบายอากาศ</div>
               <div class="font-extrabold text-sm text-[#142820] mt-0.5">
-                {{ currentThi >= 76 ? 'เปิดพัดลมเต็มกำลังทุกตัวทันที' : 'เปิดพัดลมระบายอากาศตามปกติ' }}
+                {{ fanAdvice }}
               </div>
               <p class="text-[11px] text-[#718078] mt-0.5">
                 ช่วยเป่าลมไล่ความร้อนและความชื้นออกจากตัวแม่โค
@@ -106,10 +106,10 @@
               <div 
                 class="font-extrabold text-sm mt-0.5"
                 :class="currentHum >= 75 ? 'text-amber-700' : 'text-[#142820]'">
-                {{ currentHum >= 75 ? '⚠️ แนะนำให้ "ปิดระบบพ่นหมอก" ชั่วคราว' : 'เปิดพ่นหมอกสลับเป่าพัดลมได้' }}
+                {{ currentHum == null ? 'รอข้อมูลความชื้นจากเซ็นเซอร์' : currentHum >= 75 ? '⚠️ แนะนำให้ "ปิดระบบพ่นหมอก" ชั่วคราว' : 'เปิดพ่นหมอกสลับเป่าพัดลมได้' }}
               </div>
               <p class="text-[11px] text-[#718078] mt-0.5">
-                {{ currentHum >= 75 ? 'ความชื้นในอากาศสูงเกิน 75% หากพ่นหมอกเพิ่มจะทำให้อับชื้นและที่นอนเปียก' : 'ความชื้นเหมาะสม สามารถพ่นละอองน้ำช่วยลดอุณหภูมิได้' }}
+                {{ currentHum == null ? 'ถ้าความชื้นเกิน 75% ไม่ควรพ่นหมอก' : currentHum >= 75 ? 'ความชื้นในอากาศสูงเกิน 75% หากพ่นหมอกเพิ่มจะทำให้อับชื้นและที่นอนเปียก' : 'ความชื้นเหมาะสม สามารถพ่นละอองน้ำช่วยลดอุณหภูมิได้' }}
               </p>
             </div>
           </div>
@@ -132,20 +132,15 @@
         </div>
       </div>
 
-      <!-- 🟢 3. Milk Yield Risk Card -->
+      <!-- 🟢 3. Heat Stress Level Card (ไม่แสดงตัวเลข กก. น้ำนม เพราะยังไม่มีค่าที่วัดจากโคนมไทย) -->
       <div class="bg-gradient-to-r from-amber-50 to-orange-50 rounded-[28px] p-6 border border-amber-200 shadow-sm flex items-center justify-between gap-4">
         <div>
-          <span class="text-[10px] font-black text-amber-800 uppercase tracking-widest">การประเมินปริมาณน้ำนม</span>
-          <h3 class="text-base font-black text-[#142820] mt-0.5">ความเสี่ยงน้ำนมลดลง</h3>
+          <span class="text-[10px] font-black text-amber-800 uppercase tracking-widest">ระดับความเครียดจากความร้อน</span>
+          <h3 class="text-base font-black text-[#142820] mt-0.5">{{ riskLevel ? RISK_LABELS_TH[riskLevel] : 'ยังไม่มีข้อมูล' }}</h3>
           <p class="text-xs text-amber-900/80 mt-1">
-            {{ currentThi >= 76 ? `คาดว่าน้ำนมอาจลดลงประมาณ ${estimatedMilkLoss} กก./ตัว/วัน หากไม่เปิดพัดลม` : 'ไม่มีความเสี่ยงน้ำนมลด ผลผลิตอยู่ในเกณฑ์ปกติ' }}
+            เกณฑ์ฟาร์มนี้: เฝ้าระวัง ≥ {{ thresholds.mild }} · เครียด ≥ {{ thresholds.moderate }} · วิกฤต ≥ {{ thresholds.severe }}
           </p>
-        </div>
-        <div class="text-right shrink-0">
-          <div class="text-2xl font-black text-amber-700">
-            {{ currentThi >= 76 ? `-${estimatedMilkLoss}` : '0' }}
-          </div>
-          <div class="text-[10px] font-bold text-amber-800">กก./ตัว/วัน</div>
+          <p class="text-[11px] text-amber-900/60 mt-0.5">{{ PROFILE_LABELS[profile] }}</p>
         </div>
       </div>
 
@@ -153,12 +148,15 @@
       <div class="bg-white rounded-[28px] p-6 border border-[#E4E8E5] text-center space-y-3">
         <h3 class="text-sm font-bold text-[#142820]">พบแม่โคหอบ หรือมีอาการผิดปกติ?</h3>
         <p class="text-xs text-[#718078]">สามารถกดโทรด่วนเพื่อปรึกษาสัตวแพทย์ประจำสหกรณ์โคนมได้ทันที</p>
+        <!-- แสดงปุ่มโทรเฉพาะเมื่อมีเบอร์จริงของสหกรณ์ (ห้ามใส่เบอร์ตัวอย่าง) -->
         <a 
-          href="tel:036341234" 
+          v-if="vetPhone"
+          :href="`tel:${vetPhone.replace(/[^0-9+]/g, '')}`" 
           class="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-sm shadow-md transition-all text-decoration-none">
           <v-icon icon="mdi-phone" size="18" />
-          <span>โทรหาสัตวแพทย์สหกรณ์ (036-341-234)</span>
+          <span>โทรหาสัตวแพทย์สหกรณ์ ({{ vetPhone }})</span>
         </a>
+        <p v-else class="text-xs font-bold text-[#142820]">ติดต่อสัตวแพทย์ประจำสหกรณ์ของท่าน (ยังไม่ได้บันทึกเบอร์ในระบบ)</p>
       </div>
 
     </main>
@@ -170,32 +168,47 @@
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import { Admin } from '../../API/baseAPI'
+import { calcThi, getRiskLevel, getThresholds, normalizeProfile, RISK_LABELS_TH, PROFILE_LABELS } from '~/utils/heatStress'
 
 useHead({ title: 'หน้าเกษตรกร | CowCare AI' })
 
-const farmName = ref('ฟาร์มสาธิตมวกเหล็ก')
-const barnUnit = ref('โรงเรือนหลัก')
-const currentThi = ref(78.5)
-const currentTemp = ref(29.8)
-const currentHum = ref(76.0)
+// ไม่มีค่าเริ่มต้นสมมติ: ถ้าดึงข้อมูลไม่ได้ให้แสดงว่า "ยังไม่มีข้อมูล"
+const farmName = ref('ฟาร์มของฉัน')
+const barnUnit = ref('โรงเรือน')
+const currentTemp = ref(null)
+const currentHum = ref(null)
+const profile = ref('default')
+const vetPhone = ref(null)
 
-const statusTitle = computed(() => {
-  if (currentThi.value >= 84.0) return '🚨 วัวร้อนมาก (วิกฤต)'
-  if (currentThi.value >= 80.0) return '⚠️ อากาศเริ่มร้อนอบอ้าว'
-  if (currentThi.value >= 76.0) return '🌤️ เริ่มเฝ้าระวังความร้อน'
-  return 'สบายดี อากาศเหมาะสม'
-})
+const currentThi = computed(() => calcThi(currentTemp.value, currentHum.value))
+const hasData = computed(() => currentThi.value != null)
+const riskLevel = computed(() => getRiskLevel(currentThi.value, profile.value))
+const thresholds = computed(() => getThresholds(profile.value))
 
-const statusSubtext = computed(() => {
-  if (currentThi.value >= 84.0) return 'แม่โคเสี่ยงหอบและหยุดกินอาหาร รีบระบายอากาศทันที'
-  if (currentThi.value >= 80.0) return 'น้ำนมอาจเริ่มลดลง ควรเปิดพัดลมช่วยระบายความร้อน'
-  if (currentThi.value >= 76.0) return 'เปิดพัดลมให้อากาศถ่ายเทสะดวก'
-  return 'สภาพอากาศอยู่ในโซนที่แม่โคสบายที่สุด (Comfort Zone)'
-})
+const heroClass = computed(() => ({
+  severe: 'bg-gradient-to-br from-rose-700 to-rose-900',
+  moderate: 'bg-gradient-to-br from-amber-600 to-orange-700',
+  mild: 'bg-gradient-to-br from-amber-500 to-amber-700'
+}[riskLevel.value] || 'bg-gradient-to-br from-emerald-700 to-[#142820]'))
 
-const estimatedMilkLoss = computed(() => {
-  if (currentThi.value < 76.0) return '0'
-  return ((currentThi.value - 76.0) * 0.35).toFixed(1)
+const statusTitle = computed(() => ({
+  severe: '🚨 วัวร้อนมาก (วิกฤต)',
+  moderate: '⚠️ วัวเครียดจากความร้อน',
+  mild: '🌤️ เริ่มเฝ้าระวังความร้อน',
+  normal: 'สบายดี อากาศเหมาะสม'
+}[riskLevel.value] || 'ยังไม่มีข้อมูลจากเซ็นเซอร์'))
+
+const statusSubtext = computed(() => ({
+  severe: 'แม่โคเสี่ยงหอบและหยุดกินอาหาร รีบระบายอากาศทันที',
+  moderate: 'น้ำนมอาจเริ่มลดลง ควรเปิดพัดลมช่วยระบายความร้อน',
+  mild: 'เปิดพัดลมให้อากาศถ่ายเทสะดวก',
+  normal: 'สภาพอากาศอยู่ในโซนที่แม่โคสบาย (Comfort Zone)'
+}[riskLevel.value] || 'ตรวจสอบว่ากล่องเซ็นเซอร์เปิดอยู่และต่ออินเทอร์เน็ตได้'))
+
+const fanAdvice = computed(() => {
+  if (riskLevel.value === 'severe' || riskLevel.value === 'moderate') return 'เปิดพัดลมเต็มกำลังทุกตัวทันที'
+  if (riskLevel.value === 'mild') return 'เปิดพัดลมระบายอากาศ'
+  return 'เปิดพัดลมระบายอากาศตามปกติ'
 })
 
 const fetchFarmerTelemetry = async () => {
@@ -205,12 +218,12 @@ const fetchFarmerTelemetry = async () => {
       const f = res.data.rows[0]
       farmName.value = f.name_farms || 'ฟาร์มสมาชิก'
       barnUnit.value = f.barn_unit || 'โรงเรือน 1'
-      if (f.thi) currentThi.value = parseFloat(f.thi)
-      if (f.temperature_c) currentTemp.value = parseFloat(f.temperature_c)
-      if (f.humidity_pct) currentHum.value = parseFloat(f.humidity_pct)
+      if (f.temperature_c != null) currentTemp.value = parseFloat(f.temperature_c)
+      if (f.humidity_pct != null) currentHum.value = parseFloat(f.humidity_pct)
+      profile.value = normalizeProfile(f.hf_profile)
     }
   } catch (err) {
-    console.warn('Fallback to demo values for farmer:', err.message)
+    console.warn('Farmer telemetry unavailable:', err.message)
   }
 }
 

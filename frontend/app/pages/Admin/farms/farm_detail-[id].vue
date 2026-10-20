@@ -59,10 +59,10 @@
         <button 
           type="button" 
           @click="isAccuracyModalOpen = true"
-          title="ดูผลการสอบเทียบโมเดลและเกณฑ์ความแม่นยำระบบ (Argon Benchmark)"
+          title="ดูวิธีคำนวณ เกณฑ์ และสถานะการทดสอบของระบบ"
           class="px-4 py-2.5 rounded-[18px] bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-300 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95">
           <v-icon icon="mdi-chart-bell-curve-cumulative" size="16" class="text-blue-700" />
-          <span>เกณฑ์ความแม่นยำ (Argon)</span>
+          <span>วิธีคำนวณและเกณฑ์</span>
         </button>
 
         <!-- Live Polling Toggle (8s) -->
@@ -202,10 +202,13 @@
 
           <!-- Color-coded THI Risk Thresholds Bar -->
           <div class="w-full bg-white/60 h-2.5 rounded-full overflow-hidden flex shadow-inner mb-6">
-            <div class="bg-emerald-500 h-full" style="width: 45%;" title="ปกติ (<76)"></div>
-            <div class="bg-amber-400 h-full" style="width: 15%;" title="เฝ้าระวัง (76-79.9)"></div>
-            <div class="bg-orange-500 h-full" style="width: 15%;" title="เริ่มกระทบ (80-83.9)"></div>
-            <div class="bg-rose-500 h-full" style="width: 25%;" title="วิกฤต (≥84)"></div>
+            <div
+              v-for="seg in gaugeSegments"
+              :key="seg.key"
+              class="h-full"
+              :class="seg.cls"
+              :style="{ width: seg.width + '%' }"
+              :title="seg.title"></div>
           </div>
         </div>
 
@@ -471,7 +474,7 @@
 
     </div>
 
-    <!-- 🟢 4. HERO SECTION: Per-Farm Deep Learning LSTM Predictive Cockpit -->
+    <!-- 🟢 4. HERO SECTION: Baseline 3-day heat stress outlook -->
     <div class="bg-gradient-to-br from-[#142820] to-[#1e3a30] text-white rounded-[32px] p-6 md:p-8 border border-[#2d5244] shadow-[0_15px_45px_rgba(20,40,32,0.3)] space-y-6 relative overflow-hidden animate-fade-up delay-200">
       
       <!-- Ambient Glow Decor -->
@@ -487,14 +490,14 @@
           <div>
             <div class="flex flex-wrap items-center gap-2">
               <h3 class="text-xl md:text-2xl font-black text-white tracking-tight flex items-center gap-2">
-                <span>AI LSTM Predictive Brain</span>
+                <span>พยากรณ์ความร้อนสะสม 3 วัน</span>
                 <span class="text-xs font-mono font-bold bg-[#d87939] text-white px-2.5 py-0.5 rounded-full shadow-sm">
-                  PER-FARM MODEL
+                  BASELINE
                 </span>
               </h3>
             </div>
             <p class="text-xs text-white/70 mt-1 font-medium">
-              โมเดล Deep Learning พยากรณ์ความเครียดความร้อนล่วงหน้า 72 ชม. วิเคราะห์สภาวะสะสมย้อนหลัง 72 ชม. (3 วัน) ดักจับภาวะน้ำนมดิ่งหน่วง 5 วัน (Biological Lag Effect)
+              {{ lstmForecast?.method_th || 'ใช้ค่าเฉลี่ยดัชนี THI ของ 72 ชั่วโมงที่ผ่านมาเป็นแนวโน้มความร้อนสะสม' }} · {{ lstmForecast?.evaluation_note || 'ยังไม่มีผลทดสอบกับข้อมูลภาคสนาม' }}
             </p>
           </div>
         </div>
@@ -503,8 +506,8 @@
         <div class="flex flex-wrap items-center gap-2.5">
           <div class="flex flex-wrap items-center gap-2 text-[11px] font-mono">
             <span class="bg-white/10 text-emerald-300 px-3 py-1.5 rounded-xl border border-emerald-500/30 flex items-center gap-1.5">
-              <v-icon icon="mdi-check-decagram" size="14" class="text-emerald-400" />
-              <span>Acc 96.08% (Mulajkar 2026)</span>
+              <v-icon icon="mdi-tune-variant" size="14" class="text-emerald-400" />
+              <span>เกณฑ์: {{ PROFILE_LABELS[farmProfile] }}</span>
             </span>
             <span class="bg-white/10 text-amber-300 px-3 py-1.5 rounded-xl border border-amber-500/30 flex items-center gap-1.5">
               <v-icon icon="mdi-history" size="14" class="text-amber-400" />
@@ -558,7 +561,7 @@
               </span>
             </div>
             <p class="text-white/70 text-xs mt-0.5">
-              {{ savedDailySummary.advisory || 'สภาวะอากาศและโมเดล LSTM ถูกประมวลผลและบันทึกอัตโนมัติเรียบร้อย' }}
+              {{ savedDailySummary.advisory || 'สรุปสภาวะอากาศประจำวันถูกบันทึกเรียบร้อย' }}
             </p>
           </div>
         </div>
@@ -576,15 +579,20 @@
           <!-- Night Recovery THI Badge -->
           <span class="bg-sky-500/15 border border-sky-500/30 text-sky-300 px-2.5 py-1 rounded-lg flex items-center gap-1">
             <v-icon icon="mdi-weather-night" size="14" />
-            <span>Night Recovery: {{ savedDailySummary.night_recovery_thi }} THI</span>
+            <span>Night Recovery: {{ savedDailySummary.night_recovery_thi ?? '—' }} THI</span>
           </span>
         </div>
       </div>
 
       <!-- 3-Day Proactive Prediction Bento Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 relative z-10">
+      <div
+        v-if="!forecastList.length"
+        class="relative z-10 p-5 rounded-2xl bg-white/5 border border-white/10 text-sm text-white/80">
+        ยังพยากรณ์ไม่ได้: {{ lstmForecast?.reason || 'ต้องมีข้อมูลเซ็นเซอร์อย่างน้อย 24 ชั่วโมงในรอบ 72 ชั่วโมงที่ผ่านมา' }}
+      </div>
+      <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-4 relative z-10">
         <div 
-          v-for="(fc, idx) in (lstmForecast?.forecasts || defaultForecasts)" 
+          v-for="(fc, idx) in forecastList" 
           :key="fc.horizon_days || idx"
           class="bg-white/5 hover:bg-white/10 transition-all duration-300 rounded-2xl p-5 border border-white/10 flex flex-col justify-between space-y-4 group">
           
@@ -609,13 +617,6 @@
                     {{ fc.predicted_thi }}
                   </span>
                   <span class="text-xs font-bold text-white/60">THI</span>
-                  <!-- Uncertainty MAE Bound -->
-                  <span 
-                    v-if="fc.thi_mae" 
-                    class="text-[11px] font-mono font-bold text-emerald-300 ml-1.5 bg-emerald-500/20 border border-emerald-400/30 px-2 py-0.5 rounded-lg"
-                    :title="`ช่วงความเชื่อมั่น (Confidence Interval): ${fc.thi_lower} - ${fc.thi_upper} THI`">
-                    ±{{ fc.thi_mae }}
-                  </span>
                 </div>
               </div>
 
@@ -623,25 +624,10 @@
               <span 
                 class="px-2.5 py-1 rounded-xl text-[11px] font-bold border"
                 :class="fc.risk_level === 'severe' ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' : fc.risk_level === 'moderate' ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : fc.risk_level === 'mild' ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'">
-                {{ fc.risk_level === 'severe' ? 'วิกฤตรุนแรง' : fc.risk_level === 'moderate' ? 'เริ่มกระทบ' : fc.risk_level === 'mild' ? 'เฝ้าระวัง' : 'ปกติ' }}
+                {{ RISK_LABELS_TH[fc.risk_level] || '—' }}
               </span>
             </div>
 
-            <!-- Predicted Milk Loss Metric with MAE Bound -->
-            <div class="p-2.5 bg-black/20 rounded-xl border border-white/5 flex items-center justify-between text-xs">
-              <span class="text-white/70 flex items-center gap-1.5">
-                <v-icon icon="mdi-cup-water" size="14" class="text-sky-300" />
-                <span>ความเสี่ยงน้ำนมลดคาดการณ์:</span>
-              </span>
-              <div class="text-right">
-                <span class="font-mono font-bold block" :class="fc.predicted_milk_loss_kg > 0 ? 'text-rose-400' : 'text-emerald-400'">
-                  {{ fc.predicted_milk_loss_kg > 0 ? `-${fc.predicted_milk_loss_kg} กก./ตัว/วัน` : 'ไม่ลดลง (ปกติ)' }}
-                </span>
-                <span v-if="fc.milk_loss_mae_kg" class="text-[10px] text-white/50 font-mono block">
-                  (MAE ±{{ fc.milk_loss_mae_kg }} kg · แม่นยำ {{ fc.risk_accuracy_pct }}%)
-                </span>
-              </div>
-            </div>
           </div>
 
           <!-- Bottom: Actionable Proactive Strategy -->
@@ -661,7 +647,7 @@
       <div class="p-3.5 bg-white/5 rounded-2xl border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs relative z-10">
         <div class="flex items-center gap-2.5 text-white/90">
           <v-icon icon="mdi-shield-sun" size="20" class="text-[#d87939]" />
-          <span><strong>สรุปกลยุทธ์ป้องกันความร้อนสะสม:</strong> ปัจจัยโรงเรือน (หลังคา{{ farm?.roof_type || 'สังกะสี' }} สูง {{ farm?.barn_height_m || '2.7' }} ม.) ถูกรวมในการคำนวณถ่วงน้ำหนักโมเดล LSTM เฉพาะฟาร์มนี้แล้ว</span>
+          <span><strong>หมายเหตุ:</strong> เซ็นเซอร์วัดในโรงเรือน{{ farm?.roof_type ? ` (หลังคา${farm.roof_type})` : '' }} ค่าที่ได้จึงรวมผลของหลังคาและความสูงโรงเรือนไว้แล้ว ไม่ต้องบวกเพิ่ม</span>
         </div>
         <button 
           type="button"
@@ -674,147 +660,22 @@
 
     </div>
 
-    <!-- 🟢 4.1 แถบนอกการ์ด: แสดงคำอธิบายเงื่อนไขการทำงานของ Engine พยากรณ์ (Dual-Engine Architecture Protocol) -->
-    <div class="bg-white/80 backdrop-blur-xl rounded-[28px] p-6 md:p-7 border border-[#E4E8E5] shadow-xs space-y-5 animate-fade-up">
-      
-      <!-- Top Title & Active Status Pill -->
-      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[#E4E8E5]">
-        <div class="flex items-start sm:items-center gap-3">
-          <div class="w-11 h-11 rounded-2xl bg-[#142820]/5 text-[#142820] flex items-center justify-center shrink-0 border border-[#E4E8E5]">
-            <v-icon icon="mdi-cpu-64-bit" size="24" />
-          </div>
-          <div>
-            <div class="flex items-center gap-2 flex-wrap">
-              <h4 class="text-base md:text-lg font-black text-[#142820]">
-                เงื่อนไขการทำงานของ Engine พยากรณ์ (Predictive Engine Protocol)
-              </h4>
-              <span class="text-[11px] font-bold text-[#718078] bg-[#F6F7F5] px-2.5 py-0.5 rounded-full border border-[#E4E8E5]">
-                Dual-Engine High Availability
-              </span>
-            </div>
-            <p class="text-xs text-[#718078] mt-0.5 font-medium">
-              สถาปัตยกรรมทำงานแบบไฮบริด (AI + Heuristic Fallback) เพื่อรับประกันความพร้อมใช้งาน 100% ไม่สะดุด แม้อยู่ในภาวะ Cold-Start
-            </p>
-          </div>
+    <!-- 🟢 4.1 วิธีพยากรณ์ที่ใช้อยู่ (อธิบายตามจริง) -->
+    <div class="bg-white/80 backdrop-blur-xl rounded-[28px] p-6 md:p-7 border border-[#E4E8E5] shadow-xs space-y-4 animate-fade-up">
+      <div class="flex items-start sm:items-center gap-3">
+        <div class="w-11 h-11 rounded-2xl bg-[#142820]/5 text-[#142820] flex items-center justify-center shrink-0 border border-[#E4E8E5]">
+          <v-icon icon="mdi-cpu-64-bit" size="24" />
         </div>
-
-        <!-- Current Active Status Pill -->
-        <div 
-          class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold border shrink-0 transition-all shadow-2xs"
-          :class="activeEngineInfo.isDeepLearning 
-            ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
-            : 'bg-amber-50 text-amber-800 border-amber-200'">
-          <span 
-            class="w-2 h-2 rounded-full" 
-            :class="activeEngineInfo.isDeepLearning ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'">
-          </span>
-          <span>โหมดปัจจุบัน: <strong>{{ activeEngineInfo.raw }}</strong></span>
+        <div>
+          <h4 class="text-base md:text-lg font-black text-[#142820]">วิธีพยากรณ์ที่ใช้อยู่: <span class="font-mono">{{ activeEngineInfo.raw }}</span></h4>
+          <p class="text-xs text-[#718078] mt-0.5 font-medium">{{ activeEngineInfo.description }}</p>
         </div>
       </div>
-
-      <!-- Dual Cards: Conditions for Engine 1 vs Engine 2 -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        
-        <!-- Engine 1: True Deep Learning (ONNX Runtime) -->
-        <div 
-          class="rounded-2xl p-5 border transition-all space-y-3 relative overflow-hidden"
-          :class="activeEngineInfo.isDeepLearning 
-            ? 'bg-emerald-50/50 border-emerald-300 ring-2 ring-emerald-500/20' 
-            : 'bg-[#F6F7F5]/60 border-[#E4E8E5]'">
-          
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2.5">
-              <div class="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                <v-icon icon="mdi-brain" size="18" />
-              </div>
-              <div>
-                <div class="text-xs font-black text-[#142820]">1. onnx_bilstm_attention_v1</div>
-                <div class="text-[11px] text-emerald-700 font-bold">True Deep Learning Bi-LSTM (ONNX)</div>
-              </div>
-            </div>
-            <span v-if="activeEngineInfo.isDeepLearning" class="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-600 text-white shadow-2xs">
-              กำลังทำงาน (Active)
-            </span>
-            <span v-else class="text-[10px] font-bold text-[#718078] bg-white px-2 py-0.5 rounded-md border border-[#E4E8E5]">
-              สแตนด์บาย (Standby)
-            </span>
-          </div>
-
-          <div class="space-y-2 text-xs">
-            <div>
-              <div class="font-bold text-[#142820] flex items-center gap-1.5 mb-1 text-[11.5px]">
-                <v-icon icon="mdi-check-circle" size="14" class="text-emerald-600" />
-                <span>เงื่อนไขที่จะเปิดใช้โหมดนี้ (Trigger Conditions):</span>
-              </div>
-              <ul class="list-disc pl-5 space-y-1 text-[11px] text-[#51635B] leading-relaxed">
-                <li><strong>ประวัติเซ็นเซอร์สะสม &ge; 72 ชั่วโมง (3 วันเต็ม):</strong> มีข้อมูล Time-series ต่อเนื่องเพียงพอในการป้อนเข้า Tensor Matrix ขนาด <code class="bg-white px-1.5 py-0.5 rounded border border-[#E4E8E5] font-mono">[1, 72, 10]</code></li>
-                <li><strong>Runtime โหลด ONNX สำเร็จ:</strong> ไลบรารี <code class="bg-white px-1.5 py-0.5 rounded border border-[#E4E8E5] font-mono">onnxruntime-node</code> และไฟล์โมเดล <code class="bg-white px-1.5 py-0.5 rounded border border-[#E4E8E5] font-mono">farm_lstm.onnx</code> พร้อมทำงานในหน่วยความจำ</li>
-              </ul>
-            </div>
-
-            <div class="pt-1 border-t border-[#E4E8E5]/60">
-              <div class="font-bold text-[#142820] flex items-center gap-1.5 mb-1 text-[11.5px]">
-                <v-icon icon="mdi-cogs" size="14" class="text-emerald-600" />
-                <span>กลไกการคำนวณ (Calculation Mechanism):</span>
-              </div>
-              <p class="text-[11px] text-[#51635B] leading-relaxed">
-                รัน 2-Layer Bi-LSTM ดึงแนวโน้มอุณหภูมิ/ความชื้น + Temporal Attention ถ่วงน้ำหนักชั่วโมงวิกฤต + ฟิวชันข้อมูลโครงสร้างหลังคาและความสูงโรงเรือนเพื่อพยากรณ์ THI และ Milk Loss 3 วันล่วงหน้า
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Engine 2: Thai Heuristic Fallback -->
-        <div 
-          class="rounded-2xl p-5 border transition-all space-y-3 relative overflow-hidden"
-          :class="!activeEngineInfo.isDeepLearning 
-            ? 'bg-amber-50/50 border-amber-300 ring-2 ring-amber-500/20' 
-            : 'bg-[#F6F7F5]/60 border-[#E4E8E5]'">
-          
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2.5">
-              <div class="w-8 h-8 rounded-xl bg-amber-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                <v-icon icon="mdi-calculator-variant-outline" size="18" />
-              </div>
-              <div>
-                <div class="text-xs font-black text-[#142820]">2. heuristic_fallback</div>
-                <div class="text-[11px] text-amber-700 font-bold">Thai Heuristic Engine (Fail-Safe)</div>
-              </div>
-            </div>
-            <span v-if="!activeEngineInfo.isDeepLearning" class="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-amber-600 text-white shadow-2xs">
-              กำลังทำงาน (Active)
-            </span>
-            <span v-else class="text-[10px] font-bold text-[#718078] bg-white px-2 py-0.5 rounded-md border border-[#E4E8E5]">
-              สแตนด์บาย (Standby)
-            </span>
-          </div>
-
-          <div class="space-y-2 text-xs">
-            <div>
-              <div class="font-bold text-[#142820] flex items-center gap-1.5 mb-1 text-[11.5px]">
-                <v-icon icon="mdi-check-circle" size="14" class="text-amber-600" />
-                <span>เงื่อนไขที่จะเปิดใช้โหมดนี้ (Trigger Conditions):</span>
-              </div>
-              <ul class="list-disc pl-5 space-y-1 text-[11px] text-[#51635B] leading-relaxed">
-                <li><strong>ฟาร์มใหม่หรือข้อมูลสะสม &lt; 72 ชั่วโมง (Cold-Start):</strong> สลับมาโหมดนี้ทันทีเพื่อป้องกันโมเดลค้างหรือ Error</li>
-                <li><strong>สภาพแวดล้อม Server ไม่รองรับไบนารี ONNX:</strong> เช่น Docker ARM64 เพื่อให้ระบบยังมีผลพยากรณ์และแจ้งเตือน LINE ได้ต่อเนื่อง <em>Zero Downtime</em></li>
-              </ul>
-            </div>
-
-            <div class="pt-1 border-t border-[#E4E8E5]/60">
-              <div class="font-bold text-[#142820] flex items-center gap-1.5 mb-1 text-[11.5px]">
-                <v-icon icon="mdi-cogs" size="14" class="text-amber-600" />
-                <span>กลไกการคำนวณ (Calculation Mechanism):</span>
-              </div>
-              <p class="text-[11px] text-[#51635B] leading-relaxed">
-                คำนวณจากสูตร NRC 1971 ร่วมกับสัมประสิทธิ์ความร้อนสะสมย้อนหลัง (Thermal Momentum) + สัมประสิทธิ์ชนิดหลังคา/ความสูงโรงเรือน (Tikul & Prachum, 2019) พร้อมหน่วงการดิ่งของน้ำนม 5 วัน (Hasan 2026)
-              </p>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
+      <ul class="list-disc pl-5 space-y-1 text-[11.5px] text-[#51635B] leading-relaxed">
+        <li><strong>Baseline (ใช้งานอยู่):</strong> ค่าเฉลี่ย THI รายชั่วโมงของ 72 ชั่วโมงล่าสุด ใช้เป็นแนวโน้มความร้อนสะสมของ 3 วันข้างหน้า ต้องมีข้อมูลอย่างน้อย 24 ชั่วโมง</li>
+        <li><strong>Bi-LSTM (ปิดไว้):</strong> เทรนจากข้อมูลสังเคราะห์ วัดผลแล้วยังแพ้ baseline จึงปิดไว้จนกว่าจะเทรนใหม่ด้วยข้อมูลจริงจากฟาร์ม</li>
+        <li><strong>ยังไม่ได้ใช้พยากรณ์อากาศ:</strong> ค่าพยากรณ์ทั้ง 3 วันจึงเท่ากัน ใช้บอกแนวโน้ม ไม่ใช่พยากรณ์อากาศรายวัน</li>
+      </ul>
     </div>
 
     <!-- 🟢 5. Interactive Time-Series Chart Card (ApexCharts) -->
@@ -880,7 +741,7 @@
                 : 'text-[#718078] hover:text-[#24433a]'
             ]">
             <v-icon icon="mdi-creation" size="14" class="text-amber-400" />
-            <span>AI LSTM Forecast</span>
+            <span>แนวโน้ม 3 วัน</span>
           </button>
         </div>
       </div>
@@ -922,23 +783,19 @@
         </span>
         <span class="flex items-center gap-1.5 font-bold text-amber-700" v-if="activeChartTab === 'lstm_forecast'">
           <span class="w-3 h-0.5 bg-[#d87939] border-t-2 border-dashed border-[#d87939]"></span>
-          <span>เส้นประสีส้ม: AI LSTM พยากรณ์ล่วงหน้า 3 วัน</span>
-        </span>
-        <span class="flex items-center gap-1.5 font-bold text-yellow-600" v-if="activeChartTab === 'lstm_forecast'">
-          <span class="w-3 h-0.5 bg-yellow-500 border-t border-dashed border-yellow-500"></span>
-          <span>เส้นประบาง: ช่วงความเชื่อมั่น (±MAE Bounds)</span>
+          <span>เส้นประสีส้ม: แนวโน้ม 3 วัน (baseline)</span>
         </span>
         <span class="flex items-center gap-1.5">
           <span class="w-3 h-0.5 bg-amber-400"></span>
-          <span>เกณฑ์ 76 (เริ่มเฝ้าระวัง)</span>
+          <span>เกณฑ์ {{ farmThresholds.mild }} (เฝ้าระวัง)</span>
         </span>
         <span class="flex items-center gap-1.5">
           <span class="w-3 h-0.5 bg-orange-500"></span>
-          <span>เกณฑ์ 80 (เริ่มกระทบผลผลิต)</span>
+          <span>เกณฑ์ {{ farmThresholds.moderate }} (เครียดจากความร้อน)</span>
         </span>
         <span class="flex items-center gap-1.5">
           <span class="w-3 h-0.5 bg-rose-500"></span>
-          <span>เกณฑ์ 84 (วิกฤตรุนแรง)</span>
+          <span>เกณฑ์ {{ farmThresholds.severe }} (วิกฤต)</span>
         </span>
       </div>
 
@@ -1210,7 +1067,7 @@
             <!-- Big CCI Score & Bar -->
             <div class="flex items-baseline justify-between pt-1">
               <div class="flex items-baseline gap-1.5">
-                <span class="text-3xl font-black tabular-nums text-[#24433a]">{{ liveCciScore.toFixed(1) }}</span>
+                <span class="text-3xl font-black tabular-nums text-[#24433a]">{{ liveCciScore != null ? liveCciScore.toFixed(1) : '—' }}</span>
                 <span class="text-sm font-bold text-[#718078]">%</span>
               </div>
               <span class="text-[11px] font-medium text-[#718078]">เกณฑ์สากล: ≥ 85%</span>
@@ -1220,52 +1077,12 @@
               <div 
                 class="h-full rounded-full transition-all duration-700"
                 :class="liveCciBadge.barClass"
-                :style="{ width: `${Math.min(100, Math.max(0, liveCciScore))}%` }">
+                :style="{ width: `${Math.min(100, Math.max(0, liveCciScore ?? 0))}%` }">
               </div>
             </div>
 
             <p class="text-[10.5px] text-[#718078] leading-tight">
               {{ liveCciBadge.description }}
-            </p>
-          </div>
-
-          <!-- Card 2: Automated Theoretical Milk Loss Risk (Zero Manual Form) -->
-          <div class="p-4 rounded-[22px] bg-gradient-to-br from-amber-50/70 to-orange-50/50 border border-amber-200/80 shadow-xs space-y-2">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <div class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-800 flex items-center justify-center">
-                  <v-icon icon="mdi-cup-water" size="18" />
-                </div>
-                <div>
-                  <span class="text-xs font-black text-amber-950 uppercase tracking-wide">ความเสี่ยงน้ำนมลด (Biological Lag)</span>
-                  <span class="text-[10px] text-amber-800/80 block">ประเมินผลกระทบหน่วง 5 วัน (Zero Manual Input)</span>
-                </div>
-              </div>
-              <span class="px-2 py-0.5 rounded-md bg-amber-200/70 text-amber-900 text-[10px] font-black uppercase">
-                AUTO RISK PROXY
-              </span>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2 pt-1">
-              <div class="bg-white/80 p-2.5 rounded-xl border border-amber-200/60">
-                <span class="text-[10px] font-bold text-[#718078] block">เสี่ยงลดลงต่อตัว</span>
-                <div class="flex items-baseline gap-1 mt-0.5">
-                  <span class="text-xl font-black font-mono text-rose-600">{{ automatedMilkLossRisk.lossPerCow.toFixed(2) }}</span>
-                  <span class="text-[10px] font-bold text-[#718078]">กก./ตัว/วัน</span>
-                </div>
-              </div>
-
-              <div class="bg-white/80 p-2.5 rounded-xl border border-amber-200/60">
-                <span class="text-[10px] font-bold text-[#718078] block">รวมทั้งฝูง ({{ automatedMilkLossRisk.herdCount }} ตัว)</span>
-                <div class="flex items-baseline gap-1 mt-0.5">
-                  <span class="text-xl font-black font-mono text-rose-700">{{ automatedMilkLossRisk.herdLoss.toFixed(1) }}</span>
-                  <span class="text-[10px] font-bold text-[#718078]">กก./ฝูง/วัน</span>
-                </div>
-              </div>
-            </div>
-
-            <p class="text-[10px] text-amber-900/80 leading-relaxed pt-0.5">
-              🔬 คำนวณจากสมการโมเดลโคนมไทย (Hasan et al., 2026; Abdourhamane, 2026) เริ่มเกิดภาวะสูญเสียน้ำนมเมื่อ THI &gt; 76.0 โดยที่เกษตรกรไม่ต้องจดบันทึกด้วยมือ
             </p>
           </div>
 
@@ -1581,6 +1398,7 @@ import { Admin, getFastApiBase } from '~/API/baseAPI'
 import AdminEditFarmModal from '~/components/Admin/farm/EditFarmModal.vue'
 import AddCameraModal from '~/components/Admin/cctv/AddCameraModal.vue'
 import SystemAccuracyModal from '~/components/Admin/cctv/SystemAccuracyModal.vue'
+import { calcThi, getRiskLevel, getThresholds, normalizeProfile, RISK_LABELS_TH, PROFILE_LABELS } from '~/utils/heatStress'
 
 definePageMeta({
   layout: 'admin',
@@ -1617,22 +1435,41 @@ const savedDailySummary = ref(null)
 const isRunningDailyJob = ref(false)
 const historyList = ref([])
 const lstmForecast = ref(null)
+const farmProfile = ref('default')
+const farmThresholds = computed(() => getThresholds(farmProfile.value))
+const levelOf = (thi) => getRiskLevel(thi, farmProfile.value)
+
+// ไม่มีการสร้างผลพยากรณ์สมมติฝั่งหน้าเว็บ
+const forecastList = computed(() => lstmForecast.value?.forecasts || [])
+
+// แถบเกจ 62–92 แบ่งตามเกณฑ์ของฟาร์ม
+const gaugeSegments = computed(() => {
+  const t = farmThresholds.value
+  const lo = 62
+  const hi = 92
+  const pct = (a, b) => ((Math.min(hi, b) - Math.max(lo, a)) / (hi - lo)) * 100
+  return [
+    { key: 'normal', cls: 'bg-emerald-500', width: pct(lo, t.mild), title: `ปกติ (<${t.mild})` },
+    { key: 'mild', cls: 'bg-amber-400', width: pct(t.mild, t.moderate), title: `เฝ้าระวัง (${t.mild}–${t.moderate})` },
+    { key: 'moderate', cls: 'bg-orange-500', width: pct(t.moderate, t.severe), title: `เครียดจากความร้อน (${t.moderate}–${t.severe})` },
+    { key: 'severe', cls: 'bg-rose-500', width: pct(t.severe, hi), title: `วิกฤต (≥${t.severe})` }
+  ]
+})
 const gapAlert = ref(null)
 const registeredCameras = ref([])
 const cameraAlerts = ref([])
 
-// ตรวจสอบ Engine ปัจจุบันและสถานะการประมวลผล (Always Defined)
+// วิธีพยากรณ์ที่ backend ใช้จริง
 const activeEngineInfo = computed(() => {
-  const engineStr = lstmForecast.value?.engine || savedDailySummary.value?.lstm_forecast?.engine || 'heuristic_fallback'
+  const engineStr = lstmForecast.value?.engine || 'ยังไม่มีผลพยากรณ์'
   const isDeepLearning = typeof engineStr === 'string' && engineStr.toLowerCase().includes('onnx')
   return {
     raw: engineStr,
     name: engineStr,
     isDeepLearning,
-    title: isDeepLearning ? 'True Deep Learning (ONNX Runtime)' : 'Thai Heuristic Fallback (สถิติ & สัตวศาสตร์ไทย)',
-    description: isDeepLearning 
-      ? 'ประมวลผลผ่านโมเดล Bi-LSTM Attention 72h จากไฟล์ farm_lstm.onnx (ประวัติข้อมูลเซ็นเซอร์ครบ 72 ชม.)'
-      : 'คำนวณผ่านสมการฟิสิกส์โรงเรือนไทย + Thermal Momentum สะสม (Fail-Safe โหมดสำหรับข้อมูลตั้งต้น < 72 ชม.)'
+    description: isDeepLearning
+      ? 'Bi-LSTM (EXPERIMENTAL) เทรนจากข้อมูลสังเคราะห์ ยังไม่ผ่านการทดสอบภาคสนาม'
+      : (lstmForecast.value?.method_th || 'ใช้ค่าเฉลี่ยดัชนี THI ของ 72 ชั่วโมงที่ผ่านมา')
   }
 })
 
@@ -1660,12 +1497,22 @@ const cameraStreamUrl = computed(() => {
   return `${fastApi}/api/cam/stream?cam_id=rtsp&rtsp_url=${encodeURIComponent(url)}&flip=${cameraFlip.value}&t=${cameraStreamKey.value}`
 })
 
+// ยังไม่มีข้อมูลกล้อง: ไม่แสดงค่าสมมติ
 const liveCciScore = computed(() => {
-  return 78.5
+  const v = latestSensor.value?.cow_comfort_index
+  return v != null && Number.isFinite(Number(v)) ? Number(v) : null
 })
 
 const liveCciBadge = computed(() => {
   const score = liveCciScore.value
+  if (score == null) {
+    return {
+      label: 'ไม่มีข้อมูลกล้อง',
+      badgeClass: 'bg-gray-100 text-gray-700 border-gray-200',
+      barClass: 'bg-gray-300',
+      description: 'ยังไม่ได้เชื่อมต่อกล้อง จึงยังคำนวณดัชนีความสบายไม่ได้'
+    }
+  }
   if (score >= 85) {
     return {
       label: 'ยอดเยี่ยม (Optimal)',
@@ -1687,19 +1534,6 @@ const liveCciBadge = computed(() => {
     badgeClass: 'bg-rose-50 text-rose-800 border-rose-200 animate-pulse',
     barClass: 'bg-rose-500',
     description: 'โคนอนน้อยผิดปกติ (<75%) เสี่ยงต่อโรคกีบและความเครียดรุนแรง'
-  }
-})
-
-const automatedMilkLossRisk = computed(() => {
-  const thi = Number(latestSensor.value?.thi || dailySummary.value?.avg_thi || 76.0)
-  const lossPerCow = thi > 76.0 ? Math.max(0.0, Number(((thi - 76.0) * 0.45).toFixed(2))) : 0.0
-  const herdCount = farm.value?.total_cows || 25
-  const herdLoss = Number((lossPerCow * herdCount).toFixed(1))
-  return {
-    thi,
-    lossPerCow,
-    herdLoss,
-    herdCount
   }
 })
 
@@ -1847,42 +1681,6 @@ const runDailyJobNow = async () => {
   }
 }
 
-const defaultForecasts = computed(() => {
-  const base = Number(latestSensor.value?.thi || 76.5)
-  return [
-    {
-      horizon_days: 1,
-      label: 'พรุ่งนี้ (+24 ชม.)',
-      day_name: 'Day +1',
-      date: 'พรุ่งนี้',
-      predicted_thi: Number((base + 0.6).toFixed(1)),
-      predicted_milk_loss_kg: base + 0.6 > 76.0 ? Number(((base + 0.6 - 76.0) * 0.45).toFixed(2)) : 0,
-      risk_level: base + 0.6 >= 84 ? 'severe' : base + 0.6 >= 80 ? 'moderate' : base + 0.6 >= 76 ? 'mild' : 'normal',
-      advisory: 'แนะนำเปิดพัดลมระบายอากาศช่วง 11:00-15:00 น. เพื่อระบายความร้อนสะสม'
-    },
-    {
-      horizon_days: 2,
-      label: 'มะรืนนี้ (+48 ชม.)',
-      day_name: 'Day +2',
-      date: 'มะรืนนี้',
-      predicted_thi: Number((base + 1.4).toFixed(1)),
-      predicted_milk_loss_kg: base + 1.4 > 76.0 ? Number(((base + 1.4 - 76.0) * 0.45).toFixed(2)) : 0,
-      risk_level: base + 1.4 >= 84 ? 'severe' : base + 1.4 >= 80 ? 'moderate' : 'mild',
-      advisory: 'เตรียมระบบพ่นละอองน้ำหมอกดักล่วงหน้า และเพิ่มรอบการตรวจดูน้ำดื่ม'
-    },
-    {
-      horizon_days: 3,
-      label: '3 วันข้างหน้า (+72 ชม.)',
-      day_name: 'Day +3',
-      date: '3 วันข้างหน้า',
-      predicted_thi: Number((base + 2.1).toFixed(1)),
-      predicted_milk_loss_kg: base + 2.1 > 76.0 ? Number(((base + 2.1 - 76.0) * 0.45).toFixed(2)) : 0,
-      risk_level: base + 2.1 >= 84 ? 'severe' : 'moderate',
-      advisory: 'สภาวะความร้อนสะสมอาจแตะเกณฑ์วิกฤต เสริมอิเล็กโทรไลต์ในอาหาร TMR'
-    }
-  ]
-})
-
 // Helper to get token dynamically at runtime on client
 const getToken = () => {
   return typeof window !== 'undefined' ? localStorage.getItem('token') : null
@@ -1926,6 +1724,7 @@ const fetchFarmDetail = async () => {
       latestSensor.value = res.data.latest_sensor || null
       dailySummary.value = res.data.daily_summary || null
       lstmForecast.value = res.data.lstm_forecast || null
+      farmProfile.value = normalizeProfile(res.data.hf_profile || res.data.farm?.hf_profile)
       savedDailySummary.value = res.data.saved_daily_summary || null
       gapAlert.value = res.data.gap_alert || null
 
@@ -1935,10 +1734,7 @@ const fetchFarmDetail = async () => {
       historyList.value = rawHistory.map((item, index) => {
         const t = item.temperature_c !== null && item.temperature_c !== undefined ? Number(item.temperature_c) : null
         const rh = item.humidity_pct !== null && item.humidity_pct !== undefined ? Number(item.humidity_pct) : null
-        let thiVal = item.thi !== null && item.thi !== undefined ? Number(item.thi) : null
-        if (thiVal === null && t !== null && rh !== null) {
-          thiVal = Number(((1.8 * t + 32) - (0.55 - 0.0055 * rh) * (1.8 * t - 26)).toFixed(1))
-        }
+        const thiVal = calcThi(t, rh) ?? (item.thi != null ? Number(item.thi) : null)
         return {
           ...item,
           id: item.id || `hist-${index}`,
@@ -1952,9 +1748,7 @@ const fetchFarmDetail = async () => {
       if (latestSensor.value) {
         const t = latestSensor.value.temperature_c != null ? Number(latestSensor.value.temperature_c) : null
         const rh = latestSensor.value.humidity_pct != null ? Number(latestSensor.value.humidity_pct) : null
-        if (!latestSensor.value.thi && t != null && rh != null) {
-          latestSensor.value.thi = Number(((1.8 * t + 32) - (0.55 - 0.0055 * rh) * (1.8 * t - 26)).toFixed(1))
-        }
+        latestSensor.value.thi = calcThi(t, rh) ?? (latestSensor.value.thi != null ? Number(latestSensor.value.thi) : null)
       } else if (historyList.value.length > 0) {
         // ใช้ตัวล่าสุดจาก historyList หาก latestSensor ยังไม่ได้ระบุ
         latestSensor.value = historyList.value[historyList.value.length - 1]
@@ -1965,7 +1759,7 @@ const fetchFarmDetail = async () => {
         const temps = historyList.value.map(h => h.temperature_c).filter(v => v !== null)
         const hums = historyList.value.map(h => h.humidity_pct).filter(v => v !== null)
         const thisList = historyList.value.map(h => h.thi).filter(v => v !== null)
-        const stressCount = thisList.filter(t => t >= 76.0).length
+        const stressCount = thisList.filter(t => t >= farmThresholds.value.moderate).length
 
         dailySummary.value = {
           avg_thi: thisList.length ? (thisList.reduce((a, b) => a + b, 0) / thisList.length).toFixed(1) : null,
@@ -2080,7 +1874,6 @@ const cockpitThiTheme = computed(() => {
   const thi = parseFloat(latestSensor.value?.thi)
   const tempVal = parseFloat(latestSensor.value?.temperature_c)
   const rhVal = parseFloat(latestSensor.value?.humidity_pct)
-  const pantingVal = parseFloat(latestSensor.value?.panting_rate || 0)
 
   if (isNaN(thi)) {
     return {
@@ -2096,8 +1889,9 @@ const cockpitThiTheme = computed(() => {
       advisoryText: 'ยังไม่พบข้อมูลจากเซ็นเซอร์ IoT ประจำฟาร์ม ระบบจะประเมินความเสี่ยงและคำแนะนำเมื่อมีข้อมูลส่งเข้ามา'
     }
   }
-  // สภาวะปกติ: THI < 76.0 หรือ อุณหภูมิต่ำกว่า 27.5°C และ THI < 77.5 โดยไม่มีอาการหอบ (Boonkum et al. 2024)
-  if (thi < 76.0 || (!isNaN(tempVal) && tempVal < 27.5 && thi < 77.5 && (isNaN(pantingVal) || pantingVal <= 0.05))) {
+  // ระดับตามเกณฑ์ของฟาร์ม (utils/heatStress.ts)
+  const level = levelOf(thi)
+  if (level === 'normal') {
     return {
       bg: 'bg-emerald-500/10',
       border: 'border-emerald-500/30',
@@ -2108,10 +1902,10 @@ const cockpitThiTheme = computed(() => {
       watermark: 'bg-emerald-400',
       label: 'สภาวะปกติ (Comfort Zone)',
       advisoryTitle: 'สภาวะอากาศปกติ แม่โคไม่เครียด',
-      advisoryText: 'สภาพอากาศในโรงเรือนอยู่ในเกณฑ์ปลอดภัย แม่โคกินอาหารและเคี้ยวเอื้องได้ตามปกติ ดูแลรักษาการระบายอากาศตามรอบปกติ'
+      advisoryText: 'สภาพอากาศในโรงเรือนอยู่ในเกณฑ์ปลอดภัย ดูแลรักษาการระบายอากาศตามรอบปกติ'
     }
   }
-  if (thi < 80.0) {
+  if (level === 'mild') {
     return {
       bg: 'bg-amber-500/10',
       border: 'border-amber-500/30',
@@ -2120,12 +1914,12 @@ const cockpitThiTheme = computed(() => {
       advisoryBg: 'bg-amber-500/15 border-amber-500/30 text-amber-950',
       iconColor: 'text-amber-600',
       watermark: 'bg-amber-400',
-      label: 'เริ่มเฝ้าระวัง (Mild Stress)',
+      label: 'เฝ้าระวัง (Mild)',
       advisoryTitle: 'ความร้อนเริ่มสะสม แนะนำเปิดพัดลม',
       advisoryText: 'อุณหภูมิและความชื้นสัมพัทธ์เริ่มสูงขึ้น แนะนำให้เปิดพัดลมระบายอากาศในโรงเรือนเพื่อเร่งการระบายความร้อนออกจากตัวโค'
     }
   }
-  if (thi < 84.0) {
+  if (level === 'moderate') {
     const isRainyHumid = (!isNaN(rhVal) && rhVal >= 75.0) && (!isNaN(tempVal) && tempVal <= 29.5)
     return {
       bg: 'bg-orange-500/10',
@@ -2135,11 +1929,11 @@ const cockpitThiTheme = computed(() => {
       advisoryBg: 'bg-orange-500/15 border-orange-500/30 text-orange-950',
       iconColor: 'text-orange-600',
       watermark: 'bg-orange-400',
-      label: 'เริ่มกระทบผลผลิต (Moderate Stress)',
+      label: 'เครียดจากความร้อน (Moderate)',
       advisoryTitle: isRainyHumid ? 'เปิดพัดลมเต็มกำลัง (งดระบบพ่นหมอก)' : 'เปิดพัดลมเต็มกำลัง + เปิดระบบพ่นหมอก',
       advisoryText: isRainyHumid
         ? 'ความชื้นสัมพัทธ์ในอากาศสูง (>75%) แนะนำเปิดพัดลมระบายอากาศแรงสุด แต่งดเปิดระบบพ่นหมอก เพื่อป้องกันพื้นคอกแฉะและเสี่ยงโรคเต้านมอักเสบ (Maejo Research)'
-        : 'แม่โคเริ่มหายใจเร็วและกินอาหารลดลง เสี่ยงผลผลิตน้ำนมลด 10-20% ต้องเปิดพัดลมแรงสุดและเปิดระบบพ่นละอองน้ำ (Misting) เหนือทางเดิน'
+        : 'แม่โคเริ่มหายใจเร็วและกินอาหารลดลง เสี่ยงน้ำนมลด ต้องเปิดพัดลมแรงสุดและเปิดระบบพ่นละอองน้ำ (Misting) เหนือทางเดิน'
     }
   }
   return {
@@ -2150,7 +1944,7 @@ const cockpitThiTheme = computed(() => {
     advisoryBg: 'bg-rose-500/20 border-rose-500/40 text-rose-950',
     iconColor: 'text-rose-600',
     watermark: 'bg-rose-500',
-    label: 'ภาวะวิกฤตรุนแรง (Severe Heat Stress)',
+    label: 'วิกฤต (Severe)',
     advisoryTitle: '🚨 ฉุกเฉิน: เสี่ยงผสมไม่ติดและแม่โคหอบรุนแรง!',
     advisoryText: 'แม่โคตกอยู่ในภาวะความเครียดความร้อนวิกฤต ต้องเปิดพัดลมพ่นน้ำต่อเนื่อง เตรียมน้ำดื่มเย็นไม่อั้น และเลื่อนการผสมเทียมออกไป'
   }
@@ -2189,43 +1983,26 @@ const humStatusBadge = computed(() => {
 
 // Audit Table Helpers
 const getHistoryStatusText = (thi) => {
-  const t = parseFloat(thi)
-  if (isNaN(t)) return '-'
-  if (t < 76) return 'ปกติ'
-  if (t < 80) return 'เฝ้าระวัง'
-  if (t < 84) return 'กระทบ'
-  return 'วิกฤต'
+  const level = levelOf(thi)
+  return level ? RISK_LABELS_TH[level] : '-'
 }
 
-const getHistoryStatusClass = (thi) => {
-  const t = parseFloat(thi)
-  if (isNaN(t)) return 'bg-gray-50 text-gray-600 border-gray-200'
-  if (t < 76) return 'bg-emerald-50 text-emerald-700 border-emerald-200'
-  if (t < 80) return 'bg-amber-50 text-amber-700 border-amber-200'
-  if (t < 84) return 'bg-orange-50 text-orange-700 border-orange-200'
-  return 'bg-rose-50 text-rose-700 border-rose-200'
+const HISTORY_STATUS_CLASS = {
+  normal: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  mild: 'bg-amber-50 text-amber-700 border-amber-200',
+  moderate: 'bg-orange-50 text-orange-700 border-orange-200',
+  severe: 'bg-rose-50 text-rose-700 border-rose-200'
 }
+const getHistoryStatusClass = (thi) => HISTORY_STATUS_CLASS[levelOf(thi)] || 'bg-gray-50 text-gray-600 border-gray-200'
 
-const getHistoryDotClass = (thi) => {
-  const t = parseFloat(thi)
-  if (isNaN(t)) return 'bg-gray-400'
-  if (t < 76) return 'bg-emerald-500'
-  if (t < 80) return 'bg-amber-500'
-  if (t < 84) return 'bg-orange-500'
-  return 'bg-rose-500'
-}
+const HISTORY_DOT_CLASS = { normal: 'bg-emerald-500', mild: 'bg-amber-500', moderate: 'bg-orange-500', severe: 'bg-rose-500' }
+const getHistoryDotClass = (thi) => HISTORY_DOT_CLASS[levelOf(thi)] || 'bg-gray-400'
 
-const getRowAccentBarClass = (thi) => {
-  const t = parseFloat(thi)
-  if (isNaN(t)) return 'bg-gray-300'
-  if (t < 76) return 'bg-emerald-500'
-  if (t < 80) return 'bg-amber-400'
-  if (t < 84) return 'bg-orange-500'
-  return 'bg-rose-500'
-}
+const ROW_ACCENT_CLASS = { normal: 'bg-emerald-500', mild: 'bg-amber-400', moderate: 'bg-orange-500', severe: 'bg-rose-500' }
+const getRowAccentBarClass = (thi) => ROW_ACCENT_CLASS[levelOf(thi)] || 'bg-gray-300'
 
 // -------------------------------------------------------------
-// 📊 ApexCharts Configuration (รวม AI LSTM Forecast 72 ชม.)
+// 📊 ApexCharts Configuration (รวมแนวโน้ม baseline 3 วัน)
 // -------------------------------------------------------------
 const chartCategories = computed(() => {
   if (activeChartTab.value === 'lstm_forecast') {
@@ -2234,7 +2011,7 @@ const chartCategories = computed(() => {
       const d = new Date(h.recorded_at)
       return isNaN(d.getTime()) ? `${i + 1}:00` : d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
     })
-    const futureCats = (lstmForecast.value?.forecasts || defaultForecasts.value)?.map(f => `${f.day_name} (${f.date})`) || ['Day +1', 'Day +2', 'Day +3']
+    const futureCats = forecastList.value.map(f => `${f.day_name} (${f.date})`)
     return [...pastCats, ...futureCats]
   }
 
@@ -2253,9 +2030,8 @@ const chartSeries = computed(() => {
       return null
     })
 
-    const lastThi = pastThi.filter(v => v != null).pop() || Number(latestSensor.value?.thi || 76.5)
-    const forecastList = lstmForecast.value?.forecasts || defaultForecasts.value
-    const forecastPoints = forecastList.map(f => Number(f.predicted_thi))
+    const lastThi = pastThi.filter(v => v != null).pop() ?? (latestSensor.value?.thi != null ? Number(latestSensor.value.thi) : null)
+    const forecastPoints = forecastList.value.map(f => Number(f.predicted_thi))
 
     // Actual series (past subset + nulls for future)
     const actualSeriesData = [...pastThi, ...forecastPoints.map(() => null)]
@@ -2267,20 +2043,6 @@ const chartSeries = computed(() => {
       ...forecastPoints
     ]
 
-    // Uncertainty upper bound (+MAE)
-    const upperSeriesData = [
-      ...pastThi.slice(0, -1).map(() => null),
-      lastThi,
-      ...forecastList.map(f => f.thi_upper != null ? Number(f.thi_upper) : Number((Number(f.predicted_thi) + (f.thi_mae || 0.87)).toFixed(1)))
-    ]
-
-    // Uncertainty lower bound (-MAE)
-    const lowerSeriesData = [
-      ...pastThi.slice(0, -1).map(() => null),
-      lastThi,
-      ...forecastList.map(f => f.thi_lower != null ? Number(f.thi_lower) : Number((Number(f.predicted_thi) - (f.thi_mae || 0.87)).toFixed(1)))
-    ]
-
     return [
       {
         name: 'THI ตรวจวัดจริง (IoT)',
@@ -2288,19 +2050,9 @@ const chartSeries = computed(() => {
         data: actualSeriesData
       },
       {
-        name: 'AI LSTM พยากรณ์ล่วงหน้า',
+        name: 'แนวโน้ม 3 วัน (baseline)',
         type: 'line',
         data: forecastSeriesData
-      },
-      {
-        name: 'ช่วงความเชื่อมั่นสูงสุด (+MAE)',
-        type: 'line',
-        data: upperSeriesData
-      },
-      {
-        name: 'ช่วงความเชื่อมั่นต่ำสุด (-MAE)',
-        type: 'line',
-        data: lowerSeriesData
       }
     ]
   }
@@ -2418,33 +2170,33 @@ const chartOptions = computed(() => {
     annotations: isThiOnly || isBoth || isForecast ? {
       yaxis: [
         {
-          y: 76,
+          y: farmThresholds.value.mild,
           borderColor: '#f59e0b',
           strokeDashArray: 4,
           label: {
             borderColor: '#f59e0b',
             style: { color: '#fff', background: '#f59e0b', fontSize: '10px', fontWeight: 700 },
-            text: 'THI 76 (เฝ้าระวัง)'
+            text: `THI ${farmThresholds.value.mild} (เฝ้าระวัง)`
           }
         },
         {
-          y: 80,
+          y: farmThresholds.value.moderate,
           borderColor: '#ea580c',
           strokeDashArray: 4,
           label: {
             borderColor: '#ea580c',
             style: { color: '#fff', background: '#ea580c', fontSize: '10px', fontWeight: 700 },
-            text: 'THI 80 (เริ่มกระทบน้ำนม)'
+            text: `THI ${farmThresholds.value.moderate} (เครียดจากความร้อน)`
           }
         },
         {
-          y: 84,
+          y: farmThresholds.value.severe,
           borderColor: '#e11d48',
           strokeDashArray: 4,
           label: {
             borderColor: '#e11d48',
             style: { color: '#fff', background: '#e11d48', fontSize: '10px', fontWeight: 700 },
-            text: 'THI 84 (วิกฤตรุนแรง)'
+            text: `THI ${farmThresholds.value.severe} (วิกฤต)`
           }
         }
       ]

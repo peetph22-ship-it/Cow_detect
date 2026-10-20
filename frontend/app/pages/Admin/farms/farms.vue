@@ -89,7 +89,7 @@
         </div>
       </div>
 
-      <!-- Card 2: Comfort Zone (THI < 76.0) -->
+      <!-- Card 2: Comfort Zone (THI < 74.0) -->
       <div 
         @click="currentFilter = 'comfort'"
         class="bg-white/80 backdrop-blur-xl rounded-[24px] p-5 border shadow-[0_8px_30px_rgba(36,67,58,0.04)] hover:-translate-y-1 hover:shadow-[0_14px_35px_rgba(36,67,58,0.08)] transition-all duration-300 group cursor-pointer relative overflow-hidden"
@@ -105,18 +105,18 @@
             {{ countComfort }}
           </div>
           <div class="flex items-center text-[11.5px] font-bold text-emerald-700 bg-emerald-50 w-fit px-2.5 py-0.5 rounded-[8px] border border-emerald-100">
-            THI &lt; 76.0 (สภาวะเหมาะสม)
+            THI &lt; 74.0 (สภาวะปกติ)
           </div>
         </div>
       </div>
 
-      <!-- Card 3: Vigilance & Moderate Stress (THI 76.0 - 83.9) -->
+      <!-- Card 3: Vigilance & Moderate Stress (THI 74.0 - 81.9) -->
       <div 
         @click="currentFilter = 'warning'"
         class="bg-white/80 backdrop-blur-xl rounded-[24px] p-5 border shadow-[0_8px_30px_rgba(36,67,58,0.04)] hover:-translate-y-1 hover:shadow-[0_14px_35px_rgba(36,67,58,0.08)] transition-all duration-300 group cursor-pointer relative overflow-hidden"
         :class="currentFilter === 'warning' ? 'ring-2 ring-amber-500 border-amber-500 bg-white' : 'border-white/90'">
         <div class="flex items-center justify-between mb-4">
-          <span class="text-[11px] font-black text-[#718078] uppercase tracking-[0.1em]">เฝ้าระวัง (Vigilance)</span>
+          <span class="text-[11px] font-black text-[#718078] uppercase tracking-[0.1em]">เฝ้าระวัง / เครียดความร้อน</span>
           <div class="w-11 h-11 rounded-[14px] bg-gradient-to-br from-amber-50 to-orange-100/60 text-amber-600 flex items-center justify-center group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-300 shadow-sm">
             <v-icon icon="mdi-alert-outline" size="22" />
           </div>
@@ -126,12 +126,12 @@
             {{ countWarning }}
           </div>
           <div class="flex items-center text-[11.5px] font-bold text-amber-800 bg-amber-50 w-fit px-2.5 py-0.5 rounded-[8px] border border-amber-200">
-            THI 76.0 - 83.9 (เริ่มมีผลกระทบ)
+            THI 74.0 - 81.9 (เฝ้าระวัง–เครียด)
           </div>
         </div>
       </div>
 
-      <!-- Card 4: Severe Stress (THI >= 84.0) -->
+      <!-- Card 4: Severe Stress (THI >= 82.0) -->
       <div 
         @click="currentFilter = 'severe'"
         class="bg-white/80 backdrop-blur-xl rounded-[24px] p-5 border shadow-[0_8px_30px_rgba(36,67,58,0.04)] hover:-translate-y-1 hover:shadow-[0_14px_35px_rgba(36,67,58,0.08)] transition-all duration-300 group cursor-pointer relative overflow-hidden"
@@ -147,7 +147,7 @@
             {{ countSevere }}
           </div>
           <div class="flex items-center text-[11.5px] font-bold text-rose-700 bg-rose-50 w-fit px-2.5 py-0.5 rounded-[8px] border border-rose-200">
-            THI &ge; 84.0 (ความร้อนวิกฤต)
+            THI &ge; 82.0 (ความร้อนวิกฤต)
           </div>
         </div>
       </div>
@@ -720,6 +720,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 import { Admin } from '~/API/baseAPI'
+import { getRiskLevel } from '~/utils/heatStress'
 import AdminAddFarmModal from '~/components/Admin/farm/AddFarmModal.vue'
 import AdminEditFarmModal from '~/components/Admin/farm/EditFarmModal.vue'
 
@@ -778,9 +779,9 @@ const getThiNumber = (val) => {
   return isNaN(num) ? null : num
 }
 
-const getThiStatus = (val) => {
-  const thi = getThiNumber(val)
-  if (thi === null) {
+const getThiStatus = (val, profile = 'default') => {
+  const level = getRiskLevel(val, profile)
+  if (!level) {
     return {
       label: 'ไม่มีข้อมูล',
       level: 'none',
@@ -790,7 +791,7 @@ const getThiStatus = (val) => {
       barClass: 'bg-gray-300'
     }
   }
-  if (thi < 76.0) {
+  if (level === 'normal') {
     return {
       label: 'ปกติ (Comfort)',
       level: 'comfort',
@@ -800,7 +801,7 @@ const getThiStatus = (val) => {
       barClass: 'bg-emerald-500'
     }
   }
-  if (thi < 80.0) {
+  if (level === 'mild') {
     return {
       label: 'เฝ้าระวัง (Mild)',
       level: 'mild',
@@ -810,9 +811,9 @@ const getThiStatus = (val) => {
       barClass: 'bg-amber-500'
     }
   }
-  if (thi < 84.0) {
+  if (level === 'moderate') {
     return {
-      label: 'เริ่มกระทบ (Moderate)',
+      label: 'เครียดความร้อน (Moderate)',
       level: 'moderate',
       badgeClass: 'bg-orange-50 text-orange-700 border-orange-200',
       dotClass: 'bg-orange-500',
@@ -844,24 +845,18 @@ const pendingFarmsCount = computed(() => {
 })
 
 const countComfort = computed(() => {
-  return farmData.value.filter(f => {
-    const t = getThiNumber(f.thi)
-    return t !== null && t < 76.0
-  }).length
+  return farmData.value.filter(f => getRiskLevel(f.thi, f.hf_profile) === 'normal').length
 })
 
 const countWarning = computed(() => {
   return farmData.value.filter(f => {
-    const t = getThiNumber(f.thi)
-    return t !== null && t >= 76.0 && t < 84.0
+    const lvl = getRiskLevel(f.thi, f.hf_profile)
+    return lvl === 'mild' || lvl === 'moderate'
   }).length
 })
 
 const countSevere = computed(() => {
-  return farmData.value.filter(f => {
-    const t = getThiNumber(f.thi)
-    return t !== null && t >= 84.0
-  }).length
+  return farmData.value.filter(f => getRiskLevel(f.thi, f.hf_profile) === 'severe').length
 })
 
 // Filtered Farms Computed
@@ -875,15 +870,13 @@ const filteredFarms = computed(() => {
     }
 
     // 1. Filter Strip Matching
+    const lvl = getRiskLevel(item.thi, item.hf_profile)
     if (currentFilter.value === 'comfort') {
-      const t = getThiNumber(item.thi)
-      if (t === null || t >= 76.0) return false
+      if (lvl !== 'normal') return false
     } else if (currentFilter.value === 'warning') {
-      const t = getThiNumber(item.thi)
-      if (t === null || t < 76.0 || t >= 84.0) return false
+      if (lvl !== 'mild' && lvl !== 'moderate') return false
     } else if (currentFilter.value === 'severe') {
-      const t = getThiNumber(item.thi)
-      if (t === null || t < 84.0) return false
+      if (lvl !== 'severe') return false
     }
 
     // 2. Search Query Matching

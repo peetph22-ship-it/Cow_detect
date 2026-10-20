@@ -110,7 +110,7 @@
               <span class="text-base font-black font-mono text-[#24433a]">{{ rawThi.toFixed(1) }}</span>
             </div>
             <div class="p-2.5 rounded-xl bg-[#fafcfb] border border-[#e5ece9] text-center">
-              <span class="text-[10px] text-[#718078] block font-bold">Thai-Relief THI</span>
+              <span class="text-[10px] text-[#718078] block font-bold">THI (NRC)</span>
               <span class="text-base font-black font-mono text-amber-700">{{ thaiThi.toFixed(1) }}</span>
             </div>
             <div class="p-2.5 rounded-xl bg-[#fafcfb] border border-[#e5ece9] text-center">
@@ -120,8 +120,8 @@
               </span>
             </div>
             <div class="p-2.5 rounded-xl bg-[#fafcfb] border border-[#e5ece9] text-center">
-              <span class="text-[10px] text-[#718078] block font-bold">สูญเสียน้ำนม (กิโล)</span>
-              <span class="text-base font-black font-mono text-rose-600">{{ simMilkLoss.toFixed(2) }}</span>
+              <span class="text-[10px] text-[#718078] block font-bold">ระดับความเสี่ยง</span>
+              <span class="text-base font-black text-rose-600">{{ riskLabel }}</span>
             </div>
           </div>
 
@@ -261,6 +261,7 @@
 import { ref, computed } from 'vue'
 import axios from 'axios'
 import { Admin } from '~/API/baseAPI'
+import { calcThi, getRiskLevel, RISK_LABELS_TH } from '~/utils/heatStress'
 
 const props = defineProps({
   modelValue: {
@@ -297,34 +298,16 @@ const rawThi = computed(() => {
   return (1.8 * t + 32) - (0.55 - 0.0055 * rh) * (1.8 * t - 26)
 })
 
-const thaiThi = computed(() => {
-  const raw = rawThi.value
-  if (simTemp.value < 27.5) {
-    return raw - 0.6 * (27.5 - simTemp.value)
-  }
-  return raw
-})
-
-const riskLabel = computed(() => {
-  const val = thaiThi.value
-  if (val >= 84.0) return 'วิกฤต (Severe)'
-  if (val >= 80.0) return 'กระทบปานกลาง'
-  if (val >= 76.0) return 'เริ่มเฝ้าระวัง'
-  return 'ปกติ (Normal)'
-})
-
-const riskBadgeClass = computed(() => {
-  const val = thaiThi.value
-  if (val >= 84.0) return 'bg-rose-100 text-rose-800'
-  if (val >= 80.0) return 'bg-orange-100 text-orange-800'
-  if (val >= 76.0) return 'bg-amber-100 text-amber-800'
-  return 'bg-emerald-100 text-emerald-800'
-})
-
-const simMilkLoss = computed(() => {
-  const thi = thaiThi.value
-  return thi > 76.0 ? Math.max(0.0, (thi - 76.0) * 0.45) : 0.0
-})
+// ชื่อตัวแปรคงไว้ แต่ใช้สูตร NRC และเกณฑ์ค่าเริ่มต้นจาก utils/heatStress.ts
+const thaiThi = computed(() => calcThi(simTemp.value, simHum.value) ?? rawThi.value)
+const simLevel = computed(() => getRiskLevel(thaiThi.value, 'default') || 'normal')
+const riskLabel = computed(() => RISK_LABELS_TH[simLevel.value])
+const riskBadgeClass = computed(() => ({
+  severe: 'bg-rose-100 text-rose-800',
+  moderate: 'bg-orange-100 text-orange-800',
+  mild: 'bg-amber-100 text-amber-800',
+  normal: 'bg-emerald-100 text-emerald-800'
+}[simLevel.value]))
 
 const simCci = computed(() => {
   const total = simLyingPct.value + simStandingPct.value

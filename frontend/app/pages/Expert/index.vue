@@ -31,40 +31,40 @@
       <!-- Network Average THI -->
       <div class="bg-white rounded-3xl p-6 border border-[#E4E8E5] shadow-sm">
         <div class="text-[11px] font-bold text-[#718078] uppercase tracking-wider mb-2">ค่าเฉลี่ย THI ทั้งเครือข่าย</div>
-        <div class="text-3xl font-black text-[#142820]">{{ avgNetworkThi }}</div>
+        <div class="text-3xl font-black text-[#142820]">{{ avgNetworkThi ?? '—' }}</div>
         <div class="text-xs font-bold text-amber-600 mt-2 flex items-center gap-1">
           <v-icon icon="mdi-alert-circle-outline" size="14" />
-          <span>เริ่มมีผลกระทบต่ออัตราการกินได้ (DMI)</span>
+          <span>{{ avgNetworkLevel ? RISK_LABELS_TH[avgNetworkLevel] + ' (เกณฑ์ค่าเริ่มต้น)' : 'ยังไม่มีข้อมูล' }}</span>
         </div>
       </div>
 
       <!-- Panting Risk Index -->
       <div class="bg-white rounded-3xl p-6 border border-[#E4E8E5] shadow-sm">
-        <div class="text-[11px] font-bold text-[#718078] uppercase tracking-wider mb-2">ดัชนีความเสี่ยงการหอบ (Panting Risk)</div>
-        <div class="text-3xl font-black text-rose-600">{{ pantingRiskPct }}%</div>
+        <div class="text-[11px] font-bold text-[#718078] uppercase tracking-wider mb-2">ฟาร์มระดับเครียดขึ้นไป</div>
+        <div class="text-3xl font-black text-rose-600">{{ stressedFarmsPct != null ? `${stressedFarmsPct}%` : '—' }}</div>
         <div class="text-xs font-bold text-rose-600 mt-2 flex items-center gap-1">
-          <v-icon icon="mdi-lungs" size="14" />
-          <span>คาดการณ์อัตราการหายใจ > 80 ครั้ง/นาที</span>
+          <v-icon icon="mdi-thermometer-alert" size="14" />
+          <span>จาก THI ล่าสุด ตามเกณฑ์ของแต่ละฟาร์ม</span>
         </div>
       </div>
 
       <!-- Night Recovery Failures -->
       <div class="bg-white rounded-3xl p-6 border border-[#E4E8E5] shadow-sm">
         <div class="text-[11px] font-bold text-[#718078] uppercase tracking-wider mb-2">ฟาร์มที่ไม่มีการฟื้นตัวกลางคืน</div>
-        <div class="text-3xl font-black text-amber-600">{{ nightRecoveryFailures }} ฟาร์ม</div>
+        <div class="text-3xl font-black text-amber-600">—</div>
         <div class="text-xs font-bold text-[#718078] mt-2 flex items-center gap-1">
           <v-icon icon="mdi-weather-night" size="14" />
-          <span>THI กลางคืนคงค้าง ≥ 74 ตลอดทั้งคืน</span>
+          <span>ดูรายฟาร์มได้ที่รายงานสหกรณ์ (Night Recovery)</span>
         </div>
       </div>
 
       <!-- Rumination Drop Proxy -->
       <div class="bg-white rounded-3xl p-6 border border-[#E4E8E5] shadow-sm">
         <div class="text-[11px] font-bold text-[#718078] uppercase tracking-wider mb-2">การเคี้ยวเอื้องลดลง (Rumination Drop)</div>
-        <div class="text-3xl font-black text-blue-700">-12.8%</div>
+        <div class="text-3xl font-black text-blue-700">—</div>
         <div class="text-xs font-bold text-blue-700 mt-2 flex items-center gap-1">
-          <v-icon icon="mdi-bacteria-outline" size="14" />
-          <span>เสี่ยงภาวะกระเพาะหมักเป็นกรด (SARA)</span>
+          <v-icon icon="mdi-information-outline" size="14" />
+          <span>ยังไม่มีเซ็นเซอร์วัดการเคี้ยวเอื้อง</span>
         </div>
       </div>
 
@@ -101,24 +101,24 @@
                 <div class="text-[11px] text-[#718078]">{{ farm.owner_name || 'เกษตรกรสมาชิก' }} • {{ farm.district }}, {{ farm.province }}</div>
               </td>
               <td class="py-4 px-6">
-                <div class="font-extrabold text-sm" :class="farm.thi >= 84 ? 'text-rose-600' : farm.thi >= 80 ? 'text-amber-600' : 'text-emerald-700'">
-                  THI {{ farm.thi || 77.5 }}
+                <div class="font-extrabold text-sm" :class="LEVEL_TEXT[levelOfFarm(farm)] || 'text-[#718078]'">
+                  THI {{ farm.thi ?? '—' }}
                 </div>
                 <div class="text-[10px] text-[#718078]">{{ farm.temperature_c }}°C / {{ farm.humidity_pct }}% RH</div>
               </td>
               <td class="py-4 px-6">
                 <span 
                   class="px-2.5 py-1 rounded-full text-[11px] font-bold inline-flex items-center gap-1"
-                  :class="farm.thi >= 84 ? 'bg-rose-50 text-rose-700 border border-rose-200' : farm.thi >= 80 ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'">
-                  {{ farm.thi >= 84 ? '🚨 วิกฤต เสี่ยงหอบรุนแรง' : farm.thi >= 80 ? '⚠️ เสี่ยงกินอาหารลดลง' : 'ปกติ สุขภาพฝูงดี' }}
+                  :class="LEVEL_BADGE[levelOfFarm(farm)] || 'bg-gray-50 text-gray-600 border border-gray-200'">
+                  {{ levelOfFarm(farm) ? RISK_LABELS_TH[levelOfFarm(farm)] : 'ยังไม่มีข้อมูล' }}
                 </span>
               </td>
               <td class="py-4 px-6 text-[#718078]">
-                <div>สูง {{ farm.barn_height_m || 3.2 }} ม. ({{ farm.roof_type || 'เมทัลชีท' }})</div>
-                <div class="text-[10px]">{{ farm.cooling_system || 'พัดลม' }}</div>
+                <div>สูง {{ farm.barn_height_m ?? '—' }} ม. ({{ farm.roof_type || 'ไม่ระบุหลังคา' }})</div>
+                <div class="text-[10px]">{{ farm.cooling_system || 'ไม่ระบุระบบระบายความร้อน' }}</div>
               </td>
               <td class="py-4 px-6 font-medium text-[#142820]">
-                {{ farm.thi >= 84 ? 'ตรวจเช็กรางน้ำ เพิ่มพัดลมเป่าตรงคอกนอน เสริมบัฟเฟอร์ใน TMR' : 'เปิดพัดลมระบายอากาศต่อเนื่อง' }}
+                {{ levelOfFarm(farm) === 'severe' ? 'ตรวจเช็กรางน้ำ เพิ่มพัดลมเป่าตรงคอกนอน พิจารณาเสริมบัฟเฟอร์ใน TMR' : 'เปิดพัดลมระบายอากาศต่อเนื่อง' }}
               </td>
               <td class="py-4 px-6 text-right">
                 <NuxtLink
@@ -140,23 +140,34 @@
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import { Admin } from '../../API/baseAPI'
+import { calcThi, getRiskLevel, RISK_LABELS_TH } from '~/utils/heatStress'
 
 useHead({ title: 'สัตวแพทย์และผู้เชี่ยวชาญ | CowCare AI' })
 
 const farmList = ref([])
-const avgNetworkThi = ref(78.2)
-const pantingRiskPct = ref(24.5)
-const nightRecoveryFailures = ref(1)
+// ไม่มีค่าเริ่มต้นสมมติ
+const avgNetworkThi = ref(null)
+const stressedFarmsPct = ref(null)
+const avgNetworkLevel = computed(() => getRiskLevel(avgNetworkThi.value, 'default'))
+const levelOfFarm = (f) => f.stress_level || getRiskLevel(f.thi, f.hf_profile)
+const LEVEL_TEXT = { normal: 'text-emerald-700', mild: 'text-amber-600', moderate: 'text-orange-600', severe: 'text-rose-600' }
+const LEVEL_BADGE = {
+  normal: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+  mild: 'bg-amber-50 text-amber-700 border border-amber-200',
+  moderate: 'bg-orange-50 text-orange-700 border border-orange-200',
+  severe: 'bg-rose-50 text-rose-700 border border-rose-200'
+}
 
 const fetchExpertData = async () => {
   try {
     const res = await axios.get(`${Admin}/farms/all`)
     if (res.data && res.data.rows) {
-      farmList.value = res.data.rows
-      const thiArr = farmList.value.map(f => parseFloat(f.thi)).filter(v => !isNaN(v))
-      if (thiArr.length) {
-        avgNetworkThi.value = +(thiArr.reduce((a, b) => a + b, 0) / thiArr.length).toFixed(1)
-        pantingRiskPct.value = Math.round((farmList.value.filter(f => parseFloat(f.thi) >= 80).length / farmList.value.length) * 100)
+      farmList.value = res.data.rows.map(f => ({ ...f, thi: calcThi(f.temperature_c, f.humidity_pct) ?? (f.thi != null ? parseFloat(f.thi) : null) }))
+      const withData = farmList.value.filter(f => f.thi != null)
+      if (withData.length) {
+        avgNetworkThi.value = +(withData.reduce((a, b) => a + b.thi, 0) / withData.length).toFixed(1)
+        const stressed = withData.filter(f => ['moderate', 'severe'].includes(levelOfFarm(f))).length
+        stressedFarmsPct.value = Math.round((stressed / withData.length) * 100)
       }
     }
   } catch (err) {
