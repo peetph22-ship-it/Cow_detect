@@ -4,110 +4,99 @@ const db = require('../../config/db')
 const { verifyDeviceKey } = require('../../middleware/deviceAuthMiddleware')
 
 const { calcThi, getRiskLevel } = require('../../services/heatStress')
+const { MAX_BATCH, parseReading, resolveDevice, insertReadings } = require('../../services/sensorIngest')
 
 // endpoint ส่วนนี้ไม่ผูกฟาร์ม ใช้เกณฑ์ค่าเริ่มต้น (ระดับรายฟาร์มดูที่ /api/Admin/farms/:id)
 const getStressLevel = (thi) => getRiskLevel(thi, 'default')
 
 // -----------------------------------------------------------------
-// 1. POST: /api/Admin/sensors/data (หรือ /api/Admin/sensors)
-// รับข้อมูลจาก ESP32-S3 ผ่าน HTTP POST JSON
+// 1. POST: /api/sensors/data (หรือ /api/Admin/sensors/data, /api/sensors)
+// รับข้อมูล 1 ค่าจาก ESP32-S3 (recorded_at ไม่บังคับ: ไม่ส่ง = ใช้เวลา server)
 // -----------------------------------------------------------------
 router.post(['/data', '/'], verifyDeviceKey, async (req, res) => {
+    const body = req.body ?? {}
+    const serial = body.serial_no ? String(body.serial_no).trim() : 'ESP32-S3-01'
+
+    if (body.temperature_c === undefined || body.humidity_pct === undefined) {
+        return res.status(400).json({ success: false, message: 'กรุณาส่งค่า temperature_c และ humidity_pct ให้ครบถ้วน' })
+    }
+    const parsed = parseReading(body)
+    if (parsed.error) {
+        return res.status(400).json({ success: false, error: parsed.error, message: 'ค่าเซ็นเซอร์หรือเวลาไม่ถูกต้อง (temperature_c -10..65, humidity_pct 0..100, recorded_at ไม่เกิน 5 นาทีในอนาคต และไม่เก่ากว่า 30 วัน)' })
+    }
+    const r = parsed.reading
+
     try {
-        const { serial_no, temperature_c, humidity_pct, pressure_hpa } = req.body ?? {}
-
-        if (temperature_c === undefined || humidity_pct === undefined) {
-            return res.status(400).json({
-                success: false,
-                message: 'กรุณาส่งค่า temperature_c และ humidity_pct ให้ครบถ้วน'
-            })
-        }
-
-        const temp = parseFloat(temperature_c)
-        const hum = parseFloat(humidity_pct)
-        const pressure = pressure_hpa ? parseFloat(pressure_hpa) : null
-
-        // ช่วงเดียวกับที่ firmware กรองไว้ (-10..65 °C, 0..100 %RH)
-        if (!Number.isFinite(temp) || !Number.isFinite(hum) || temp < -10 || temp > 65 || hum < 0 || hum > 100) {
-            return res.status(400).json({
-                success: false,
-                message: 'ค่าเซ็นเซอร์อยู่นอกช่วงที่รับได้ (temperature_c -10..65, humidity_pct 0..100)'
-            })
-        }
-        const serial = serial_no ? String(serial_no).trim() : 'ESP32-S3-01'
-
-        const thi = calcThi(temp, hum)
-        const stress_level = getStressLevel(thi)
-
-        let readingId = null
-        let deviceId = null
-        let farmId = null
-
-        try {
-            // 1. ค้นหา Device: ถ้าผ่าน verifyDeviceKey แล้วใช้ device ที่ยืนยันตัวตนแล้วเลย
-            //    ถ้าไม่ผ่าน (เกิดได้เฉพาะ DEVICE_AUTH_MODE=warn) ใช้ logic เดิม รวมถึงการสร้าง device อัตโนมัติ
-            //    -> เมื่อสลับเป็น enforce เส้นทางสร้าง device อัตโนมัติจะไม่ถูกเรียกอีก
-            let devRes = req.device
-                ? { rows: [{ id_devices: req.device.id, id_farms: req.device.farmId }] }
-                : await db.query(`SELECT id_devices, id_farms FROM tb_devices WHERE serial_no = $1 LIMIT 1`, [serial])
-            
-            if (devRes.rows && devRes.rows.length > 0) {
-                deviceId = devRes.rows[0].id_devices
-                farmId = devRes.rows[0].id_farms
-                // อัปเดตสถานะเป็น online และเวลาล่าสุด
-                await db.query(`UPDATE tb_devices SET status = 'online', last_seen_at = NOW() WHERE id_devices = $1`, [deviceId])
-            } else {
-                // ถ้ายังไม่มี Device ให้หา Farm แรก หรือสร้าง Farm เริ่มต้น
-                let farmRes = await db.query(`SELECT id_farms FROM tb_farms LIMIT 1`)
-                if (farmRes.rows && farmRes.rows.length > 0) {
-                    farmId = farmRes.rows[0].id_farms
-                } else {
-                    const newFarm = await db.query(`INSERT INTO tb_farms (name_farms, province) VALUES ($1, $2) RETURNING id_farms`, ['CowCare AI Demo Farm', 'สระบุรี'])
-                    farmId = newFarm.rows[0].id_farms
-                }
-
-                // สร้าง Device ใหม่ในระบบ
-                const newDev = await db.query(
-                    `INSERT INTO tb_devices (id_farms, type, name_devices, serial_no, status, last_seen_at) 
-                     VALUES ($1, 'env_sensor', $2, $3, 'online', NOW()) RETURNING id_devices`,
-                    [farmId, `ESP32 SHT40 (${serial})`, serial]
-                )
-                deviceId = newDev.rows[0].id_devices
-            }
-
-            // 2. บันทึกข้อมูลลง sensor_readings
-            const insertRes = await db.query(
-                `INSERT INTO tb_sensor_readings (id_devices, id_farms, temperature_c, humidity_pct, pressure_hpa, recorded_at)
-                 VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING id_sensor_readings, recorded_at`,
-                [deviceId, farmId, temp, hum, pressure]
-            )
-            readingId = insertRes.rows[0].id_sensor_readings
-
-        } catch (dbErr) {
-            console.error('[Admin IoT DB Warning] ไม่สามารถบันทึกลงตาราง devices/sensor_readings:', dbErr.message)
-        }
-
+        const { deviceId, farmId } = await resolveDevice(req, serial)
+        const { inserted, duplicates } = await insertReadings(deviceId, farmId, [r])
+        const thi = calcThi(r.temperature_c, r.humidity_pct)
         return res.status(200).json({
             success: true,
-            message: 'Sensor data recorded in Admin system successfully!',
+            message: duplicates ? 'Duplicate reading ignored' : 'Sensor data recorded',
+            duplicate: duplicates > 0,
             data: {
-                id: readingId,
+                id: inserted[0]?.id_sensor_readings ?? null,
                 serial_no: serial,
-                temperature_c: temp,
-                humidity_pct: hum,
-                pressure_hpa: pressure,
+                temperature_c: r.temperature_c,
+                humidity_pct: r.humidity_pct,
+                pressure_hpa: r.pressure_hpa,
                 thi,
-                stress_level,
-                timestamp: new Date().toISOString()
+                stress_level: getStressLevel(thi),
+                recorded_at: inserted[0]?.recorded_at ?? r.recorded_at ?? null
             }
         })
-
     } catch (err) {
-        console.error('[Admin IoT Sensor Error]:', err.message)
-        return res.status(500).json({
-            success: false,
-            message: 'Server error processing sensor data: ' + err.message
+        // ห้ามตอบ 200 เมื่อบันทึกไม่สำเร็จ ไม่งั้นบอร์ดจะลบข้อมูลออกจากคิวทั้งที่ยังไม่ได้บันทึก
+        console.error('[Sensor Ingest Error]:', err.message)
+        return res.status(503).json({ success: false, message: 'บันทึกข้อมูลไม่สำเร็จ กรุณาส่งใหม่' })
+    }
+})
+
+// -----------------------------------------------------------------
+// 1.1 POST: /api/sensors/batch
+// Store-and-forward: บอร์ดส่งค่าที่ค้างในคิว (เก่าสุดก่อน) ครั้งละไม่เกิน MAX_BATCH
+// body: { serial_no, readings: [{ recorded_at (epoch วินาที UTC), temperature_c, humidity_pct, pressure_hpa? }] }
+// ตอบ processed = จำนวนค่าแรกของ readings ที่บอร์ดลบออกจากคิวได้ (บันทึกแล้ว ซ้ำ หรือผิดถาวร)
+// -----------------------------------------------------------------
+router.post('/batch', verifyDeviceKey, async (req, res) => {
+    const body = req.body ?? {}
+    const serial = body.serial_no ? String(body.serial_no).trim() : 'ESP32-S3-01'
+    const items = body.readings
+
+    if (!Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ success: false, message: 'readings ต้องเป็น array ที่มีอย่างน้อย 1 ค่า' })
+    }
+    if (items.length > MAX_BATCH) {
+        return res.status(413).json({ success: false, message: `ส่งได้ครั้งละไม่เกิน ${MAX_BATCH} ค่า` })
+    }
+
+    const now = Date.now()
+    const valid = []
+    const rejected = []
+    items.forEach((raw, index) => {
+        const parsed = parseReading(raw, now)
+        // ค่าที่ไม่มีเวลาใน batch ไม่มีความหมาย (ส่งย้อนหลัง) ถือว่าผิดถาวร
+        if (!parsed.error && !parsed.reading.recorded_at) parsed.error = 'missing_time'
+        if (parsed.error) rejected.push({ index, reason: parsed.error })
+        else valid.push(parsed.reading)
+    })
+
+    try {
+        const { deviceId, farmId } = await resolveDevice(req, serial)
+        const { inserted, duplicates } = await insertReadings(deviceId, farmId, valid)
+        const lastMs = valid.reduce((m, r) => Math.max(m, r.recorded_at.getTime()), 0)
+        if (rejected.length) console.warn(`[Sensor Batch] ${serial}: rejected ${rejected.length}/${items.length}`, rejected.slice(0, 5))
+        return res.status(200).json({
+            success: true,
+            processed: items.length,
+            accepted: inserted.length,
+            duplicates,
+            rejected,
+            last_recorded_at: lastMs ? Math.floor(lastMs / 1000) : null
         })
+    } catch (err) {
+        console.error('[Sensor Batch Error]:', err.message)
+        return res.status(503).json({ success: false, processed: 0, message: 'บันทึกข้อมูลไม่สำเร็จ กรุณาส่งใหม่' })
     }
 })
 

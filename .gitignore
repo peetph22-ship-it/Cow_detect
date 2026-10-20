@@ -34,3 +34,6 @@ runs/
 
 # Docker
 .dockerignore
+
+# Firmware secrets (Wi-Fi password, device key)
+firmware/**/secrets.h
