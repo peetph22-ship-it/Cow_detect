@@ -10,7 +10,7 @@ const {verifyToken,requireRole} = require('../../middleware/authMiddleware')
 router.get(['/users', '/'], verifyToken, requireRole('admin') ,async (req,res) => {
     try{
         const {rows} = await db.query(`
-            SELECT id_users, email, phone, name_users, role, status, organization, avatar_url, line_user_id, last_login_at, created_at, updated_at 
+            SELECT id_users, email, phone, name_users, role, status, organization, line_user_id, last_login_at, created_at, updated_at 
             FROM tb_users 
             ORDER BY id_users DESC
         `)
@@ -30,7 +30,7 @@ router.get(['/users/:id', '/:id'], verifyToken, requireRole('admin'), async (req
     try{
         const {id} = req.params
         const {rows} = await db.query(`
-            SELECT id_users, email, phone, name_users, role, status, organization, avatar_url, line_user_id, last_login_at, created_at, updated_at 
+            SELECT id_users, email, phone, name_users, role, status, organization, line_user_id, last_login_at, created_at, updated_at 
             FROM tb_users 
             WHERE id_users=$1
         `, [id])
