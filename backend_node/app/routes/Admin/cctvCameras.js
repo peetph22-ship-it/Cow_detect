@@ -5,17 +5,7 @@ const { verifyToken, requireRole } = require('../../middleware/authMiddleware')
 
 const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str || '').trim())
 
-// Helper to build Hikvision dual-stream RTSP URLs
-const buildHikvisionUrls = (username, password, ip, rtspPort = 554, channelNo = 1) => {
-    const encUser = encodeURIComponent(username)
-    const encPass = encodeURIComponent(password)
-    const port = rtspPort || 554
-    const ch = channelNo || 1
-    return {
-        mainStreamUrl: `rtsp://${encUser}:${encPass}@${ip}:${port}/Streaming/Channels/${ch}01`,
-        subStreamUrl: `rtsp://${encUser}:${encPass}@${ip}:${port}/Streaming/Channels/${ch}02`
-    }
-}
+const { buildRtspUrls } = require('../../services/rtspUrls')
 
 // -----------------------------------------------------------------
 // 1. GET /api/Admin/farms/:farmId/cameras
@@ -75,13 +65,14 @@ router.post('/', async (req, res) => {
         })
     }
 
-    const { mainStreamUrl, subStreamUrl } = buildHikvisionUrls(
+    const { mainStreamUrl, subStreamUrl } = buildRtspUrls({
+        brand,
         username,
         password,
-        ip_address,
-        rtsp_port,
-        channel_no
-    )
+        ip: ip_address,
+        port: rtsp_port,
+        channel: channel_no
+    })
 
     const client = await db.pool.connect()
     try {

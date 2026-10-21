@@ -1,0 +1,72 @@
+/**
+ * โหลดไฟล์โมเดล YOLO ตอนเปิด server
+ * ไฟล์ ~82MB ไม่เก็บใน git: เก็บใน Supabase Storage (bucket private) แล้วดาวน์โหลดมาไว้ในเครื่องเมื่อยังไม่มี
+ * ดิสก์ของ Render ล้างทุกครั้งที่ deploy จึงดาวน์โหลดใหม่หลัง deploy (ไม่กี่วินาที)
+ *
+ * env:
+ *   YOLO_MODEL_FILE         ชื่อไฟล์ (ค่าเริ่มต้น yolo26m_480.onnx)
+ *   YOLO_MODEL_BUCKET       bucket (ค่าเริ่มต้น models)
+ *   YOLO_MODEL_SHA256       checksum ของไฟล์ (แนะนำให้ตั้ง กันไฟล์เสียหรือถูกสลับ)
+ *   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY   key ฝั่ง server เท่านั้น ห้ามใช้ใน frontend
+ */
+const fs = require('fs')
+const path = require('path')
+const crypto = require('crypto')
+
+const MODEL_FILE = process.env.YOLO_MODEL_FILE || 'yolo26m_480.onnx'
+const BUCKET = process.env.YOLO_MODEL_BUCKET || 'models'
+const LOCAL_DIR = path.resolve(__dirname, '../weights')
+const LOCAL_PATH = path.join(LOCAL_DIR, MODEL_FILE)
+
+const sha256File = (file) => new Promise((resolve, reject) => {
+    const h = crypto.createHash('sha256')
+    fs.createReadStream(file).on('data', d => h.update(d)).on('end', () => resolve(h.digest('hex'))).on('error', reject)
+})
+
+const checksumOk = async (file) => {
+    const expected = (process.env.YOLO_MODEL_SHA256 || '').trim().toLowerCase()
+    if (!expected) return true
+    return (await sha256File(file)) === expected
+}
+
+const download = async () => {
+    const url = process.env.SUPABASE_URL
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!url || !key) throw new Error(`ไม่พบไฟล์โมเดล ${LOCAL_PATH} และยังไม่ได้ตั้ง SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY สำหรับดาวน์โหลด`)
+    const { createClient } = require('@supabase/supabase-js')
+    const supabase = createClient(url, key, { auth: { persistSession: false } })
+    console.log(`[ModelStore] downloading ${BUCKET}/${MODEL_FILE} ...`)
+    const t0 = Date.now()
+    const { data, error } = await supabase.storage.from(BUCKET).download(MODEL_FILE)
+    if (error) throw new Error(`ดาวน์โหลดโมเดลไม่สำเร็จ: ${error.message}`)
+    const buf = Buffer.from(await data.arrayBuffer())
+    fs.mkdirSync(LOCAL_DIR, { recursive: true })
+    const tmp = `${LOCAL_PATH}.download`
+    fs.writeFileSync(tmp, buf)
+    if (!(await checksumOk(tmp))) {
+        fs.unlinkSync(tmp)
+        throw new Error('checksum ของโมเดลที่ดาวน์โหลดไม่ตรงกับ YOLO_MODEL_SHA256')
+    }
+    fs.renameSync(tmp, LOCAL_PATH)
+    console.log(`[ModelStore] ✅ ${MODEL_FILE} (${(buf.length / 1048576).toFixed(1)} MB) in ${Date.now() - t0} ms`)
+}
+
+let inflight = null
+
+// คืน path ของโมเดลที่พร้อมใช้ (ดาวน์โหลดครั้งเดียวแม้ถูกเรียกพร้อมกันหลายครั้ง)
+const ensureModel = () => {
+    if (!inflight) {
+        inflight = (async () => {
+            if (fs.existsSync(LOCAL_PATH)) {
+                if (await checksumOk(LOCAL_PATH)) return LOCAL_PATH
+                console.warn('[ModelStore] local model checksum mismatch - re-downloading')
+                fs.unlinkSync(LOCAL_PATH)
+            }
+            await download()
+            return LOCAL_PATH
+        })().catch(err => { inflight = null; throw err })
+    }
+    return inflight
+}
+
+module.exports = { ensureModel, LOCAL_PATH, MODEL_FILE }

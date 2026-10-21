@@ -9,6 +9,7 @@ const {
 } = require('../../services/dailyLstmScheduler')
 const { calcThi, getRiskLevel, getFarmProfile, getThresholds, toAlertLevel, PROFILES } = require('../../services/heatStress')
 const { generateBaselineForecast, isCurrentForecast } = require('../../services/forecastService')
+const { buildRtspUrls } = require('../../services/rtspUrls')
 
 // Helper function to check if a string is a valid UUID
 const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str || '').trim())
@@ -267,10 +268,7 @@ router.post('/', verifyToken, requireRole('admin'), async (req, res) => {
                 const camCh = Number(camData.channel_no) || 1
                 const camBrand = String(camData.brand || 'Hikvision').trim()
                 const camModel = String(camData.model || 'DS-2CD2143G2-I').trim()
-                const encUser = encodeURIComponent(camUser)
-                const encPass = encodeURIComponent(camPass)
-                const mainStreamUrl = `rtsp://${encUser}:${encPass}@${camIp}:${camPort}/Streaming/Channels/${camCh}01`
-                const subStreamUrl = `rtsp://${encUser}:${encPass}@${camIp}:${camPort}/Streaming/Channels/${camCh}02`
+                const { mainStreamUrl, subStreamUrl } = buildRtspUrls({ brand: camBrand, username: camUser, password: camPass, ip: camIp, port: camPort, channel: camCh })
 
                 const camRes = await client.query(`
                     INSERT INTO cctv_cameras (
@@ -963,10 +961,7 @@ router.put('/:id', verifyToken, requireRole('admin'), async (req, res) => {
                     finalPass = existingCam.rows[0].password_encrypted || ''
                 }
 
-                const encUser = encodeURIComponent(camUser)
-                const encPass = encodeURIComponent(finalPass)
-                const mainStreamUrl = `rtsp://${encUser}:${encPass}@${camIp}:${camPort}/Streaming/Channels/${camCh}01`
-                const subStreamUrl = `rtsp://${encUser}:${encPass}@${camIp}:${camPort}/Streaming/Channels/${camCh}02`
+                const { mainStreamUrl, subStreamUrl } = buildRtspUrls({ brand: camBrand, username: camUser, password: finalPass, ip: camIp, port: camPort, channel: camCh })
 
                 if (existingCam.rows.length > 0) {
                     await client.query(`

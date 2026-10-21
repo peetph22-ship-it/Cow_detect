@@ -26,6 +26,14 @@ const parseRecordedAt = (raw) => {
     return { date: new Date(ms) }
 }
 
+// ใช้กติกาเวลาเดียวกันทุก endpoint ที่รับเวลาจากอุปกรณ์
+const checkTimeWindow = (date, nowMs = Date.now()) => {
+    const ms = date.getTime()
+    if (ms > nowMs + MAX_FUTURE_MS) return 'time_in_future'
+    if (ms < nowMs - MAX_AGE_MS) return 'time_too_old'
+    return null
+}
+
 /**
  * ตรวจค่าหนึ่งค่า คืน { reading } หรือ { error }
  */
@@ -42,9 +50,8 @@ const parseReading = (raw, nowMs = Date.now()) => {
     const t = parseRecordedAt(raw.recorded_at)
     if (t.error) return { error: t.error }
     if (t.date) {
-        const ms = t.date.getTime()
-        if (ms > nowMs + MAX_FUTURE_MS) return { error: 'time_in_future' }
-        if (ms < nowMs - MAX_AGE_MS) return { error: 'time_too_old' }
+        const timeError = checkTimeWindow(t.date, nowMs)
+        if (timeError) return { error: timeError }
     }
     return {
         reading: {
@@ -124,6 +131,7 @@ const insertReadings = async (deviceId, farmId, readings) => {
 module.exports = {
     MAX_BATCH,
     parseRecordedAt,
+    checkTimeWindow,
     parseReading,
     resolveDevice,
     insertReadings

@@ -19,7 +19,8 @@ const keysMatch = (key, storedHash) => {
 
 exports.verifyDeviceKey = async (req, res, next) => {
     const enforce = getMode() === 'enforce'
-    const serial = String(req.body?.serial_no || '').trim().toUpperCase()
+    // serial มาจาก JSON body หรือ header X-Device-Serial (เช่น endpoint รับภาพที่ body เป็น JPEG)
+    const serial = String((req.body && req.body.serial_no) || req.get('X-Device-Serial') || '').trim().toUpperCase()
     const key = req.get('X-Device-Key')
 
     // enforce: ตอบข้อความเดียวกันทุกกรณี ไม่บอกว่าผิดที่ serial หรือ key

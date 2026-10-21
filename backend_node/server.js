@@ -76,6 +76,10 @@ const cctvCameras = require('./app/routes/Admin/cctvCameras')
 app.use('/api/Admin/farms/:farmId/cameras', cctvCameras)
 app.use('/api/farms/:farmId/cameras', cctvCameras)
 
+// camera snapshot ingest from ESP32 gateway (device key)
+const camera = require('./app/routes/camera')
+app.use('/api/camera', camera)
+
 // system benchmarks, multimodal validation & feedback (Admin & Global)
 const systemRouter = require('./app/routes/Admin/system')
 app.use('/api/Admin/system', systemRouter)
