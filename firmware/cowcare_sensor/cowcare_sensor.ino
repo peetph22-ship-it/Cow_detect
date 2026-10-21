@@ -104,6 +104,7 @@ unsigned long lastReadTime   = 0;
 unsigned long lastSampleTime = 0;
 unsigned long lastNtpSync    = 0;
 unsigned long lastReconnect  = 0;
+bool lastWifiUp = false;
 unsigned long nextSendAllowed = 0;
 unsigned long backoffMs = 0;
 
@@ -628,6 +629,7 @@ void setup() {
 
   tft.init(240, 320);
   tft.setRotation(1);
+  tft.invertDisplay(false);  // จอรุ่นนี้กลับสีเมื่อใช้ค่าเริ่มต้นของ library
   drawBaseUI();
 
   // Partition Scheme แบบ SPIFFS ตั้งชื่อพื้นที่ว่า "spiffs" ส่วนแบบ FATFS ตั้งชื่อว่า "ffat"
@@ -700,10 +702,19 @@ void loop() {
     lastReadOk = readSuccess;
     updateDashboard(readSuccess);
 
-    // พยายามต่อ Wi-Fi ใหม่ทุก 30 วินาที (ถี่กว่านี้จะขัดจังหวะการเชื่อมต่อที่กำลังทำอยู่)
-    if (WiFi.status() != WL_CONNECTED && now - lastReconnect > 30000UL) {
+    // ต่อ Wi-Fi ใหม่ทุก 30 วินาที (ถี่กว่านี้จะขัดจังหวะการเชื่อมต่อที่กำลังทำอยู่)
+    // ใช้ disconnect + begin แทน WiFi.reconnect() ซึ่งบางครั้งต่อไม่ติดเมื่อ AP หายไปนาน
+    bool wifiUp = WiFi.status() == WL_CONNECTED;
+    if (wifiUp != lastWifiUp) {
+      lastWifiUp = wifiUp;
+      if (wifiUp) Serial.printf("[WiFi] connected, IP %s\n", WiFi.localIP().toString().c_str());
+      else Serial.println("[WiFi] disconnected");
+    }
+    if (!wifiUp && now - lastReconnect > 30000UL) {
       lastReconnect = now;
-      WiFi.reconnect();
+      Serial.println("[WiFi] reconnecting...");
+      WiFi.disconnect();
+      WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
     }
 
     if (readSuccess && (now - lastSampleTime >= sampleInterval)) {
