@@ -9,7 +9,7 @@
  * THI: NRC (1971) เกณฑ์ค่าเริ่มต้นโคนมลูกผสมไทย 74 / 76 / 82 (ตรงกับ backend heatStress.js)
  *
  * ⚠️ Arduino IDE: Tools > Partition Scheme ต้องเลือกแบบที่มีพื้นที่ไฟล์ (SPIFFS/LittleFS/FATFS)
- *    เช่น "16M Flash (3MB APP/9.9MB FATFS)" ไม่งั้น LittleFS.begin() จะล้มเหลว
+ *    เช่น "16M Flash (3MB APP/9.9MB FATFS)" (firmware ลองทั้งพื้นที่ชื่อ spiffs และ ffat)
  * ⚠️ คัดลอก secrets.h.example เป็น secrets.h แล้วใส่ค่าจริงก่อนคอมไพล์
  */
 
@@ -630,12 +630,20 @@ void setup() {
   tft.setRotation(1);
   drawBaseUI();
 
-  fsOk = LittleFS.begin(true);  // format ถ้ายังไม่มีระบบไฟล์
+  // Partition Scheme แบบ SPIFFS ตั้งชื่อพื้นที่ว่า "spiffs" ส่วนแบบ FATFS ตั้งชื่อว่า "ffat"
+  // ลองทั้งสองชื่อ (format เป็น LittleFS ถ้ายังไม่มีระบบไฟล์)
+  const char* fsLabel = "spiffs";
+  fsOk = LittleFS.begin(true, "/littlefs", 10, "spiffs");
+  if (!fsOk) {
+    fsLabel = "ffat";
+    fsOk = LittleFS.begin(true, "/littlefs", 10, "ffat");
+  }
   if (fsOk) {
     qLoadHead();
-    Serial.printf("[QUEUE] %lu readings waiting\n", (unsigned long)qCount());
+    Serial.printf("[QUEUE] LittleFS on '%s' (%lu KB) - %lu readings waiting\n", fsLabel,
+                  (unsigned long)(LittleFS.totalBytes() / 1024), (unsigned long)qCount());
   } else {
-    Serial.println("[QUEUE] LittleFS mount failed - check Partition Scheme");
+    Serial.println("[QUEUE] LittleFS mount failed - check Partition Scheme (needs SPIFFS/FATFS/LittleFS)");
   }
 
   Serial1.begin(9600, SERIAL_8N1, RX_PIN, TX_PIN);

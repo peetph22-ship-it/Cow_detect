@@ -7,6 +7,7 @@
 1. **Library** (Arduino Library Manager): Adafruit GFX, Adafruit ST7735 and ST7789
    (WiFi, HTTPClient, WiFiClientSecure, LittleFS มากับ ESP32 core อยู่แล้ว ไม่ต้องใช้ ArduinoJson)
 2. **Tools > Partition Scheme**: เลือกแบบที่มีพื้นที่ไฟล์ เช่น `16M Flash (3MB APP/9.9MB FATFS)`
+   firmware จะ mount LittleFS บนพื้นที่ชื่อ `spiffs` หรือ `ffat` อย่างใดอย่างหนึ่ง
    ถ้าเลือกแบบไม่มีพื้นที่ไฟล์ Serial Monitor จะขึ้น `LittleFS mount failed` และบอร์ดจะเก็บคิวไม่ได้
 3. คัดลอก `secrets.h.example` เป็น `secrets.h` แล้วใส่ Wi-Fi, serial และ device key
    (`secrets.h` ถูก `.gitignore` ไว้ ห้าม commit)
@@ -31,7 +32,7 @@
 
 ## ทดสอบหลังแฟลช
 
-1. เปิด Serial Monitor (115200) ต้องเห็น `[QUEUE] 0 readings waiting` และ `[CLOUD] single 200`
+1. เปิด Serial Monitor (115200) ต้องเห็น `[QUEUE] LittleFS on 'ffat' (... KB) - 0 readings waiting` และ `[CLOUD] single 200`
 2. **ถอดปลั๊ก router 10 นาที** จอต้องขึ้น `WIFI OFFLINE` และ `Q:` เพิ่มทีละ 1 ทุก 15 วินาที (~40 ค่า)
 3. **เสียบ router กลับ** ต้องเห็น `[CLOUD] batch n=... -> 200` และ `Q:` หายไป
 4. เปิดกราฟในหน้าฟาร์ม ช่วง 10 นาทีที่ถอด router ต้อง**ต่อเนื่อง ไม่มีช่องว่าง**
