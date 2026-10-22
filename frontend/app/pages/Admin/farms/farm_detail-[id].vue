@@ -456,7 +456,15 @@
             สภาวะความร้อนสะสม
           </span>
           <div class="flex items-baseline gap-1.5 mt-0.5">
-            <template v-if="dailySummary?.count_stress_readings != null">
+            <template v-if="dailySummary?.stress_hours != null">
+              <span class="text-2xl font-black text-rose-600 tabular-nums">
+                {{ dailySummary.stress_hours }}
+              </span>
+              <span class="text-xs font-bold text-[#718078]">
+                ชม. ใน 24 ชม. ({{ dailySummary.stress_percentage ?? 0 }}%)
+              </span>
+            </template>
+            <template v-else-if="dailySummary?.count_stress_readings != null">
               <span class="text-2xl font-black text-rose-600 tabular-nums">
                 {{ dailySummary.count_stress_readings }}
               </span>
@@ -1266,7 +1274,7 @@
 
     </div>
 
-    <!-- 🟢 5. 50-Point Telemetry Audit Table (ประวัติการตรวจวัด) -->
+    <!-- 🟢 5. 24-Hour Telemetry Audit Table (ประวัติการตรวจวัด) -->
     <div class="bg-white/80 backdrop-blur-xl rounded-[32px] p-6 md:p-8 border border-white/90 shadow-[0_8px_30px_rgba(36,67,58,0.04)] space-y-4 animate-fade-up delay-250">
       
       <!-- Table Header Bar -->
@@ -1274,10 +1282,10 @@
         <div>
           <h3 class="text-lg md:text-xl font-black text-[#24433a] tracking-tight flex items-center gap-2">
             <v-icon icon="mdi-history" size="22" class="text-[#24433a]" />
-            <span>ประวัติการตรวจวัดจากเซ็นเซอร์ (50-Point Telemetry Audit)</span>
+            <span>ประวัติการตรวจวัดจากเซ็นเซอร์ (24-Hour Telemetry Audit)</span>
           </h3>
           <p class="text-xs text-[#718078] mt-0.5 font-medium">
-            รายการบันทึกย้อนหลัง 50 รายการล่าสุดจากอุปกรณ์เซ็นเซอร์ IoT ประจำฟาร์ม
+            ค่าเฉลี่ยทุก 5 นาที ย้อนหลัง 24 ชม. จากอุปกรณ์เซ็นเซอร์ IoT ประจำฟาร์ม
           </p>
         </div>
 
@@ -1391,7 +1399,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import { Admin, getFastApiBase } from '~/API/baseAPI'
@@ -1434,6 +1442,8 @@ const dailySummary = ref(null)
 const savedDailySummary = ref(null)
 const isRunningDailyJob = ref(false)
 const historyList = ref([])
+const HISTORY_BUCKET_MS = 5 * 60 * 1000
+const HISTORY_WINDOW_MS = 24 * 60 * 60 * 1000
 const lstmForecast = ref(null)
 const farmProfile = ref('default')
 const farmThresholds = computed(() => getThresholds(farmProfile.value))
@@ -1490,10 +1500,28 @@ const currentCameraSourceLabel = computed(() => {
   return 'ยังไม่ได้ติดตั้งกล้อง'
 })
 
+// รายการกล้องไม่มีรหัสใน URL แล้ว: ขอ URL พร้อมรหัสจาก server (admin) เฉพาะตอนเปิดภาพสด
+const liveRtspUrl = ref('')
+const loadLiveRtspUrl = async () => {
+  liveRtspUrl.value = ''
+  const cam = primaryCamera.value
+  if (!cam || !farmId.value) return
+  try {
+    const token = getToken()
+    const res = await axios.get(`${Admin}/farms/${farmId.value}/cameras/${cam.id}/stream-url`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    })
+    liveRtspUrl.value = res.data?.sub_stream_url || res.data?.main_stream_url || ''
+  } catch (err) {
+    console.warn('[Camera] stream url:', err.response?.data?.message || err.message)
+  }
+}
+watch(() => primaryCamera.value?.id, loadLiveRtspUrl)
+
 const cameraStreamUrl = computed(() => {
-  if (!primaryCamera.value) return ''
+  if (!primaryCamera.value || !liveRtspUrl.value) return ''
   const fastApi = getFastApiBase()
-  const url = primaryCamera.value.sub_stream_url || primaryCamera.value.main_stream_url || ''
+  const url = liveRtspUrl.value
   return `${fastApi}/api/cam/stream?cam_id=rtsp&rtsp_url=${encodeURIComponent(url)}&flip=${cameraFlip.value}&t=${cameraStreamKey.value}`
 })
 
@@ -1803,10 +1831,20 @@ const pollLatestTelemetry = async () => {
       if (incoming && incoming.id && String(incoming.id) !== String(latestSensor.value?.id)) {
         latestSensor.value = incoming
 
-        const alreadyInHistory = historyList.value.some(h => String(h.id) === String(incoming.id))
-        if (!alreadyInHistory) {
-          historyList.value.push(incoming)
-          if (historyList.value.length > 50) historyList.value.shift()
+        // กราฟเป็นค่าเฉลี่ยทุก 5 นาที: เพิ่มจุดใหม่เมื่อเข้าช่วง 5 นาทีใหม่ แล้วตัดข้อมูลที่เก่ากว่า 24 ชม.
+        // (ค่าล่าสุดแบบวินาทีต่อวินาทีแสดงที่การ์ดด้านบนอยู่แล้ว)
+        const t = new Date(incoming.recorded_at).getTime()
+        const last = historyList.value[historyList.value.length - 1]
+        const lastT = last ? new Date(last.recorded_at).getTime() : -Infinity
+        if (Number.isFinite(t) && Math.floor(t / HISTORY_BUCKET_MS) > Math.floor(lastT / HISTORY_BUCKET_MS)) {
+          historyList.value.push({
+            ...incoming,
+            recorded_at: new Date(Math.floor(t / HISTORY_BUCKET_MS) * HISTORY_BUCKET_MS).toISOString(),
+            sample_count: 1
+          })
+          while (historyList.value.length && t - new Date(historyList.value[0].recorded_at).getTime() > HISTORY_WINDOW_MS) {
+            historyList.value.shift()
+          }
         }
       }
     }

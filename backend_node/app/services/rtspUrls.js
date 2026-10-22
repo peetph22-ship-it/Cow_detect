@@ -1,5 +1,7 @@
 /**
  * ที่อยู่ RTSP ตามยี่ห้อกล้อง (เดิมใช้รูปแบบ Hikvision กับทุกยี่ห้อ ทำให้กล้อง Dahua เปิดสตรีมไม่ได้)
+ * ค่าเริ่มต้นไม่ใส่ user/รหัสใน URL (ใช้เก็บลง DB และส่งให้หน้าเว็บ)
+ * ใส่ includeCredentials: true เฉพาะตอนเปิดภาพสด (GET /cameras/:id/stream-url)
  */
 const STREAM_PATHS = {
     hikvision: (ch) => [`/Streaming/Channels/${ch}01`, `/Streaming/Channels/${ch}02`],
@@ -15,8 +17,8 @@ const brandKey = (brand) => {
     return 'hikvision'
 }
 
-const buildRtspUrls = ({ brand, username, password, ip, port = 554, channel = 1 }) => {
-    const auth = `${encodeURIComponent(username || '')}:${encodeURIComponent(password || '')}@`
+const buildRtspUrls = ({ brand, username, password, ip, port = 554, channel = 1, includeCredentials = false }) => {
+    const auth = includeCredentials ? `${encodeURIComponent(username || '')}:${encodeURIComponent(password || '')}@` : ''
     const [main, sub] = STREAM_PATHS[brandKey(brand)](Number(channel) || 1)
     const base = `rtsp://${auth}${ip}:${Number(port) || 554}`
     return { mainStreamUrl: base + main, subStreamUrl: base + sub }

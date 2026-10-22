@@ -2,6 +2,11 @@ const express = require('express')
 const router = express.Router({ mergeParams: true })
 const db = require('../../config/db')
 const { verifyToken, requireRole } = require('../../middleware/authMiddleware')
+const { encryptSecret, decryptSecret, isConfigured, CameraSecretError } = require('../../services/cameraSecrets')
+
+// ข้อมูลกล้อง (ที่อยู่, user, รหัส) ดูหรือแก้ได้เฉพาะ admin
+// telemetry/alerts ยังเปิดอยู่เพราะ behavior engine ฝั่ง Python ส่งเข้ามาโดยไม่มี token
+const adminOnly = [verifyToken, requireRole('admin')]
 
 const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str || '').trim())
 
@@ -11,7 +16,7 @@ const { buildRtspUrls } = require('../../services/rtspUrls')
 // 1. GET /api/Admin/farms/:farmId/cameras
 // List all CCTV cameras bound to the farm
 // -----------------------------------------------------------------
-router.get('/', async (req, res) => {
+router.get('/', adminOnly, async (req, res) => {
     const farmId = req.params.farmId
     if (!isUUID(farmId)) {
         return res.status(400).json({ success: false, message: 'Invalid Farm UUID' })
@@ -38,7 +43,7 @@ router.get('/', async (req, res) => {
 // 2. POST /api/Admin/farms/:farmId/cameras
 // Register a new Hikvision camera and bind to the farm (ACID Transaction)
 // -----------------------------------------------------------------
-router.post('/', async (req, res) => {
+router.post('/', adminOnly, async (req, res) => {
     const farmId = req.params.farmId
     if (!isUUID(farmId)) {
         return res.status(400).json({ success: false, message: 'Invalid Farm UUID' })
@@ -63,6 +68,9 @@ router.post('/', async (req, res) => {
             success: false,
             message: 'กรุณากรอกข้อมูลกล้องให้ครบถ้วน: camera_name, ip_address, username, password'
         })
+    }
+    if (!isConfigured()) {
+        return res.status(503).json({ success: false, message: 'ยังไม่ได้ตั้ง CAMERA_SECRET_KEY บน server จึงบันทึกรหัสกล้องไม่ได้' })
     }
 
     const { mainStreamUrl, subStreamUrl } = buildRtspUrls({
@@ -106,7 +114,7 @@ router.post('/', async (req, res) => {
             Number(rtsp_port) || 554,
             Number(http_port) || 80,
             username.trim(),
-            Buffer.from(password).toString('base64'), // Simple reversible encoding for gateway workers
+            encryptSecret(password),
             Number(channel_no) || 1,
             mainStreamUrl,
             subStreamUrl,
@@ -131,10 +139,45 @@ router.post('/', async (req, res) => {
 })
 
 // -----------------------------------------------------------------
+// GET /api/Admin/farms/:farmId/cameras/:cameraId/stream-url
+// ที่อยู่ RTSP พร้อม user/รหัส สำหรับเปิดภาพสดเท่านั้น (admin) ไม่เก็บไว้ในรายการกล้อง
+// -----------------------------------------------------------------
+router.get('/:cameraId/stream-url', adminOnly, async (req, res) => {
+    const { farmId, cameraId } = req.params
+    if (!isUUID(farmId) || !isUUID(cameraId)) {
+        return res.status(400).json({ success: false, message: 'Invalid UUID' })
+    }
+    try {
+        const { rows } = await db.query(
+            `SELECT brand, ip_address, rtsp_port, username, password_encrypted, channel_no
+             FROM cctv_cameras WHERE id = $1 AND farm_id = $2`,
+            [cameraId, farmId]
+        )
+        if (rows.length === 0) return res.status(404).json({ success: false, message: 'ไม่พบกล้อง' })
+        const c = rows[0]
+        const urls = buildRtspUrls({
+            brand: c.brand,
+            username: c.username,
+            password: decryptSecret(c.password_encrypted),
+            ip: c.ip_address,
+            port: c.rtsp_port,
+            channel: c.channel_no,
+            includeCredentials: true
+        })
+        res.set('Cache-Control', 'no-store')
+        return res.json({ success: true, main_stream_url: urls.mainStreamUrl, sub_stream_url: urls.subStreamUrl })
+    } catch (err) {
+        if (err instanceof CameraSecretError) return res.status(503).json({ success: false, message: err.message })
+        console.error('[CCTV Router] stream-url error:', err.message)
+        return res.status(500).json({ success: false, message: 'Database error fetching camera' })
+    }
+})
+
+// -----------------------------------------------------------------
 // 3. DELETE /api/Admin/farms/:farmId/cameras/:cameraId
 // Delete/unbind a camera (ACID Transaction)
 // -----------------------------------------------------------------
-router.delete('/:cameraId', async (req, res) => {
+router.delete('/:cameraId', adminOnly, async (req, res) => {
     const { farmId, cameraId } = req.params
     if (!isUUID(farmId) || !isUUID(cameraId)) {
         return res.status(400).json({ success: false, message: 'Invalid UUID' })

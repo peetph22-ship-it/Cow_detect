@@ -857,15 +857,30 @@ const currentCameraSourceLabel = computed(() => {
   return found ? (found.name || found.label) : `USB Cam ${idx}`
 })
 
+// รายการกล้องไม่มีรหัสใน URL แล้ว: ขอ URL พร้อมรหัสจาก server (admin) เฉพาะกล้องที่เลือกดู
+const liveRtspUrl = ref('')
+watch(selectedCameraSource, async (src) => {
+  liveRtspUrl.value = ''
+  if (!src || !src.startsWith('rtsp-') || !selectedFarmId.value) return
+  try {
+    const token = getToken()
+    const res = await axios.get(`${Admin}/farms/${selectedFarmId.value}/cameras/${src.replace('rtsp-', '')}/stream-url`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    })
+    if (selectedCameraSource.value === src) liveRtspUrl.value = res.data?.sub_stream_url || res.data?.main_stream_url || ''
+  } catch (err) {
+    console.warn('[Camera] stream url:', err.response?.data?.message || err.message)
+  }
+})
+
 const cameraStreamUrl = computed(() => {
   const fastApi = getFastApiBase()
   if (selectedCameraSource.value === 'simulation') {
     return `${fastApi}/api/cam/stream?cam_id=simulation&sample_video=sample_barn.mp4&flip=${cameraFlip.value}&t=${cameraStreamKey.value}`
   }
   if (selectedCameraSource.value.startsWith('rtsp-')) {
-    const camId = selectedCameraSource.value.replace('rtsp-', '')
-    const cam = registeredCameras.value.find(c => String(c.id) === String(camId))
-    const url = cam ? (cam.sub_stream_url || cam.main_stream_url) : ''
+    const url = liveRtspUrl.value
+    if (!url) return ''
     return `${fastApi}/api/cam/stream?cam_id=rtsp&rtsp_url=${encodeURIComponent(url)}&flip=${cameraFlip.value}&t=${cameraStreamKey.value}`
   }
   const idx = parseInt(selectedCameraSource.value.replace('usb-', '') || '0', 10)

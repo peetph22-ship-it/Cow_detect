@@ -289,7 +289,7 @@ const form = ref({
 
 const mainStreamPreview = computed(() => {
   const user = form.value.username || 'admin'
-  const pass = form.value.password || 'password'
+  const pass = '••••••'  // ไม่แสดงรหัสจริงบนจอ
   const ip = form.value.ip_address || '192.168.1.108'
   const port = form.value.rtsp_port || 554
   const ch = form.value.channel_no || 1
@@ -298,7 +298,7 @@ const mainStreamPreview = computed(() => {
 
 const subStreamPreview = computed(() => {
   const user = form.value.username || 'admin'
-  const pass = form.value.password || 'password'
+  const pass = '••••••'  // ไม่แสดงรหัสจริงบนจอ
   const ip = form.value.ip_address || '192.168.1.108'
   const port = form.value.rtsp_port || 554
   const ch = form.value.channel_no || 1
@@ -343,11 +343,8 @@ const submitCamera = async () => {
 
   try {
     const token = getToken()
-    const payload = {
-      ...form.value,
-      main_stream_url: mainStreamPreview.value,
-      sub_stream_url: subStreamPreview.value
-    }
+    // server สร้าง URL สตรีมเอง (ไม่มีรหัสใน URL) ไม่ต้องส่งตัวอย่างจากหน้าจอไป
+    const payload = { ...form.value }
 
     const res = await axios.post(`${Admin}/farms/${props.farmId}/cameras`, payload, {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
