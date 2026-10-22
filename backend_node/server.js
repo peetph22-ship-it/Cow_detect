@@ -99,4 +99,5 @@ const { startDailyLstmCron } = require('./app/services/dailyLstmScheduler')
 app.listen(PORT , () => {
     console.log(`Server Running On Port ${PORT}`)
     startDailyLstmCron()
+    if (process.env.VISION_PRELOAD === '1') require('./app/services/visionService').warmup()
 })

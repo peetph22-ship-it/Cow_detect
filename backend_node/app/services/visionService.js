@@ -92,4 +92,8 @@ const status = () => ({ ready: Boolean(worker), pending: pendingCount })
 
 const shutdown = () => resetWorker('shutdown')
 
-module.exports = { detect, canAccept, status, shutdown, VisionBusyError, IMGSZ }
+// โหลดโมเดลล่วงหน้าตอนเปิด server (VISION_PRELOAD=1) ไว้ทดสอบว่าดาวน์โหลดได้และ RAM พอ
+// ปกติไม่ต้องเปิด: ภาพแรกที่เข้ามาจะโหลดให้เอง และตอนยังไม่มีกล้องจะไม่จอง RAM ~300MB ไว้เปล่าๆ
+const warmup = () => (readyPromise || startWorker()).catch(err => console.error('[Vision] preload failed:', err.message))
+
+module.exports = { detect, canAccept, status, shutdown, warmup, VisionBusyError, IMGSZ }
