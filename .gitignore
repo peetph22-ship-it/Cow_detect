@@ -40,4 +40,5 @@ firmware/**/secrets.h
 
 # YOLO model weights (downloaded from Supabase Storage at startup)
 backend_node/app/weights/yolo*.onnx
+backend_node/app/weights/yolo*.onnx.part*
 backend_node/app/weights/*.download
