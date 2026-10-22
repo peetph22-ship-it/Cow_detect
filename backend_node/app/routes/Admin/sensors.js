@@ -2,12 +2,23 @@ const express = require('express')
 const router = express.Router()
 const db = require('../../config/db')
 const { verifyDeviceKey } = require('../../middleware/deviceAuthMiddleware')
+const { verifyToken, requireRole } = require('../../middleware/authMiddleware')
 
 const { calcThi, getRiskLevel } = require('../../services/heatStress')
 const { MAX_BATCH, parseReading, resolveDevice, insertReadings } = require('../../services/sensorIngest')
 
 // endpoint ส่วนนี้ไม่ผูกฟาร์ม ใช้เกณฑ์ค่าเริ่มต้น (ระดับรายฟาร์มดูที่ /api/Admin/farms/:id)
 const getStressLevel = (thi) => getRiskLevel(thi, 'default')
+
+// GET ทั้งหมดในไฟล์นี้เป็นข้อมูลสำหรับ admin (อุปกรณ์ส่งข้อมูลผ่าน POST + device key)
+const adminOnly = [verifyToken, requireRole('admin')]
+
+const withThi = (r) => {
+    const temp = r.temperature_c != null ? parseFloat(r.temperature_c) : null
+    const hum = r.humidity_pct != null ? parseFloat(r.humidity_pct) : null
+    const thi = calcThi(temp, hum) ?? (r.thi != null ? parseFloat(r.thi) : null)
+    return { ...r, temperature_c: temp, humidity_pct: hum, thi, stress_level: getStressLevel(thi) }
+}
 
 // -----------------------------------------------------------------
 // 1. POST: /api/sensors/data (หรือ /api/Admin/sensors/data, /api/sensors)
@@ -104,12 +115,12 @@ router.post('/batch', verifyDeviceKey, async (req, res) => {
 // 2. GET: /api/Admin/sensors/latest
 // ดึงข้อมูลเซ็นเซอร์ล่าสุด สำหรับ Admin Dashboard แสดงผล Real-time
 // -----------------------------------------------------------------
-router.get('/latest', async (req, res) => {
+router.get('/latest', adminOnly, async (req, res) => {
     try {
         const { rows } = await db.query(`
-            SELECT sr.*, d.name AS device_name, d.serial_no, d.status AS device_status
-            FROM sensor_readings sr
-            JOIN devices d ON d.id = sr.device_id
+            SELECT sr.*, d.name_devices AS device_name, d.serial_no, d.status AS device_status
+            FROM tb_sensor_readings sr
+            LEFT JOIN tb_devices d ON d.id_devices = sr.id_devices
             ORDER BY sr.recorded_at DESC
             LIMIT 1
         `)
@@ -124,7 +135,7 @@ router.get('/latest', async (req, res) => {
 
         return res.json({
             success: true,
-            data: rows[0]
+            data: withThi(rows[0])
         })
     } catch (err) {
         console.error('[Get Latest Sensor Error]:', err.message)
@@ -139,9 +150,9 @@ router.get('/latest', async (req, res) => {
 // 3. GET: /api/Admin/sensors/history
 // ดึงประวัติข้อมูลเซ็นเซอร์ 50 รายการล่าสุด สำหรับวาดกราฟใน Dashboard
 // -----------------------------------------------------------------
-router.get('/history', async (req, res) => {
+router.get('/history', adminOnly, async (req, res) => {
     try {
-        const limit = parseInt(req.query.limit) || 50
+        const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 1000)
         const { rows } = await db.query(`
             SELECT sr.*, d.serial_no, d.name_devices AS device_name
             FROM tb_sensor_readings sr
@@ -150,18 +161,7 @@ router.get('/history', async (req, res) => {
             LIMIT $1
         `, [limit])
 
-        const mapped = rows.map(r => {
-            const temp = r.temperature_c != null ? parseFloat(r.temperature_c) : null
-            const hum = r.humidity_pct != null ? parseFloat(r.humidity_pct) : null
-            const thi = calcThi(temp, hum) ?? (r.thi != null ? parseFloat(r.thi) : null)
-            return {
-                ...r,
-                temperature_c: temp,
-                humidity_pct: hum,
-                thi,
-                stress_level: getStressLevel(thi)
-            }
-        })
+        const mapped = rows.map(withThi)
 
         return res.json({
             success: true,
@@ -181,10 +181,11 @@ router.get('/history', async (req, res) => {
 // 4. GET: /api/Admin/sensors/devices
 // ดึงรายการอุปกรณ์ IoT ทั้งหมด พร้อมสถานะ Online/Offline
 // -----------------------------------------------------------------
-router.get('/devices', async (req, res) => {
+router.get('/devices', adminOnly, async (req, res) => {
     try {
+        // ไม่ส่ง hash ของ device key ออกไป (to_jsonb - คอลัมน์ ใช้ได้แม้ตารางมีคอลัมน์เพิ่มในอนาคต)
         const { rows } = await db.query(`
-            SELECT d.*, f.name_farms AS farm_name,
+            SELECT to_jsonb(d) - 'api_key_hash' AS device, f.name_farms AS farm_name,
                    CASE 
                      WHEN d.last_seen_at >= NOW() - INTERVAL '5 minutes' THEN 'online'
                      ELSE 'offline'
@@ -194,10 +195,11 @@ router.get('/devices', async (req, res) => {
             ORDER BY d.created_at DESC
         `)
 
+        const devices = rows.map(({ device, ...rest }) => ({ ...device, ...rest }))
         return res.json({
             success: true,
-            count: rows.length,
-            devices: rows
+            count: devices.length,
+            devices
         })
     } catch (err) {
         console.error('[Get Devices Error]:', err.message)
@@ -212,7 +214,7 @@ router.get('/devices', async (req, res) => {
 // 5. GET: /api/Admin/sensors/stats
 // สรุปภาพรวมสถานะสำหรับ Metrics Cards ในหน้า Admin
 // -----------------------------------------------------------------
-router.get('/stats', async (req, res) => {
+router.get('/stats', adminOnly, async (req, res) => {
     try {
         const devicesRes = await db.query(`
             SELECT 
@@ -223,7 +225,7 @@ router.get('/stats', async (req, res) => {
         `)
 
         const latestRes = await db.query(`
-            SELECT thi, temperature_c, humidity_pct, recorded_at
+            SELECT temperature_c, humidity_pct, recorded_at
             FROM tb_sensor_readings
             ORDER BY recorded_at DESC
             LIMIT 1
@@ -231,7 +233,7 @@ router.get('/stats', async (req, res) => {
 
         const stats = {
             devices: devicesRes.rows[0] || { total_devices: 0, online_devices: 0, offline_devices: 0 },
-            latest: latestRes.rows[0] || null
+            latest: latestRes.rows[0] ? withThi(latestRes.rows[0]) : null
         }
 
         return res.json({
