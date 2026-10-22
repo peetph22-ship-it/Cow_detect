@@ -20,9 +20,30 @@
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <LittleFS.h>
+#include <MD5Builder.h>
 #include <time.h>
 #include <math.h>
 #include "secrets.h"
+
+// ค่ากล้องใน secrets.h ไม่บังคับ: ไม่ใส่ = ปิดส่วนกล้อง (secrets.h เดิมคอมไพล์ได้เหมือนเดิม)
+#ifndef CAMERA_ENABLED_VAL
+#define CAMERA_ENABLED_VAL 0
+#endif
+#ifndef CAMERA_HOST_VAL
+#define CAMERA_HOST_VAL "192.168.1.108"
+#endif
+#ifndef CAMERA_PORT_VAL
+#define CAMERA_PORT_VAL 80
+#endif
+#ifndef CAMERA_USER_VAL
+#define CAMERA_USER_VAL ""
+#endif
+#ifndef CAMERA_PASS_VAL
+#define CAMERA_PASS_VAL ""
+#endif
+#ifndef CAMERA_SNAPSHOT_PATH_VAL
+#define CAMERA_SNAPSHOT_PATH_VAL "/cgi-bin/snapshot.cgi?channel=1"  // Dahua
+#endif
 
 // ==========================================
 // 1. ตั้งค่า
@@ -32,6 +53,16 @@ const char* WIFI_PASSWORD = WIFI_PASSWORD_VAL;
 const char* DEVICE_SERIAL = DEVICE_SERIAL_VAL;
 const char* DEVICE_KEY    = DEVICE_KEY_VAL;
 const char* SERVER_BASE   = SERVER_BASE_VAL;
+
+const bool  CAMERA_ENABLED       = CAMERA_ENABLED_VAL;
+const char* CAMERA_HOST          = CAMERA_HOST_VAL;
+const int   CAMERA_PORT          = CAMERA_PORT_VAL;
+const char* CAMERA_USER          = CAMERA_USER_VAL;
+const char* CAMERA_PASS          = CAMERA_PASS_VAL;
+const char* CAMERA_SNAPSHOT_PATH = CAMERA_SNAPSHOT_PATH_VAL;
+const unsigned long CAM_INTERVAL_MS = 5UL * 60UL * 1000UL;  // ภาพนิ่งทุก 5 นาที
+const size_t CAM_BUF_PSRAM = 1536UL * 1024UL;  // server รับไม่เกิน 2MB
+const size_t CAM_BUF_HEAP  = 200UL * 1024UL;   // บอร์ดที่ไม่ได้เปิด PSRAM
 
 const unsigned long readInterval   = 2000;   // อ่านเซ็นเซอร์ทุก 2 วินาที
 const unsigned long sampleInterval = 15000;  // บันทึก/ส่งทุก 15 วินาที
@@ -124,6 +155,38 @@ PendRec pending[PENDING_MAX];
 int pendingCount = 0;
 
 uint32_t qHead = 0;
+
+// กล้อง: task บนคอร์ 0 เขียนสถานะ, loop (คอร์ 1) วาดจอ
+enum CamStatus : uint8_t { CAM_WAIT = 0, CAM_OK, CAM_ERR, CAM_NET };
+volatile uint8_t camStatus = CAM_WAIT;
+uint8_t prevCamStatus = 255;
+// ส่ง HTTPS ทีละงาน (เซ็นเซอร์กับกล้องไม่ใช้ TLS พร้อมกัน ประหยัด RAM)
+SemaphoreHandle_t netMutex = nullptr;
+
+// รับ body ของ HTTP ลง buffer ที่จองไว้ (ใช้กับ HTTPClient::writeToStream ซึ่งรองรับ chunked ด้วย)
+class BufStream : public Stream {
+ public:
+  BufStream(uint8_t* b, size_t c) : buf(b), cap(c), len(0) {}
+  void reset() { len = 0; }
+  size_t write(uint8_t c) override {
+    if (len >= cap) return 0;
+    buf[len++] = c;
+    return 1;
+  }
+  size_t write(const uint8_t* d, size_t n) override {
+    if (len + n > cap) n = cap - len;  // เต็ม -> writeToStream คืน error
+    memcpy(buf + len, d, n);
+    len += n;
+    return n;
+  }
+  int available() override { return 0; }
+  int read() override { return -1; }
+  int peek() override { return -1; }
+  void flush() override {}
+  uint8_t* buf;
+  size_t cap;
+  size_t len;
+};
 
 // -----------------------------------------------------
 // CRC16 Modbus RTU
@@ -283,6 +346,11 @@ void pendingPush(int16_t t100, uint16_t h100) {
 // HTTP
 // -----------------------------------------------------
 int httpPost(const String& path, const String& body, String& response, uint16_t timeoutMs) {
+  // กล้องกำลังส่งภาพอยู่: รอได้ไม่เกิน 30 วินาที ไม่งั้นนับเป็นส่งไม่สำเร็จ (ค่าเข้าคิวตามปกติ)
+  if (netMutex && xSemaphoreTake(netMutex, pdMS_TO_TICKS(30000)) != pdTRUE) {
+    lastHttpCode = -1;
+    return -1;
+  }
   WiFiClientSecure client;
   client.setInsecure();  // TODO ก่อนใช้งานจริง: ฝัง Root CA ของ server แทน
   HTTPClient http;
@@ -293,6 +361,7 @@ int httpPost(const String& path, const String& body, String& response, uint16_t 
   int code = http.POST(body);
   if (code > 0) response = http.getString();
   http.end();
+  if (netMutex) xSemaphoreGive(netMutex);
   lastHttpCode = code;
   return code;
 }
@@ -357,6 +426,175 @@ void onSendSuccess() {
 
 bool canSendNow() {
   return WiFi.status() == WL_CONNECTED && timeSynced() && (long)(millis() - nextSendAllowed) >= 0;
+}
+
+// -----------------------------------------------------
+// กล้อง: ดึงภาพนิ่งจากกล้อง IP ใน LAN ทุก 5 นาที แล้วส่งขึ้น cloud (YOLO ประมวลผลฝั่ง server)
+// ส่งไม่สำเร็จ = ข้ามรอบนั้น (ไม่เก็บภาพเข้าคิว)
+// -----------------------------------------------------
+
+String md5hex(const String& s) {
+  MD5Builder m;
+  m.begin();
+  m.add(s);
+  m.calculate();
+  return m.toString();
+}
+
+// อ่านค่าจาก WWW-Authenticate เช่น realm="Login to xxx", qop="auth", algorithm=MD5
+String authParam(const String& h, const char* key) {
+  String k = String(key) + "=";
+  int i = 0;
+  while ((i = h.indexOf(k, i)) >= 0) {
+    if (i == 0 || h[i - 1] == ' ' || h[i - 1] == ',') break;  // กัน "nonce" ไปเจอ "cnonce"
+    i += k.length();
+  }
+  if (i < 0) return "";
+  i += k.length();
+  if (i < (int)h.length() && h[i] == '"') {
+    int e = h.indexOf('"', i + 1);
+    return e < 0 ? "" : h.substring(i + 1, e);
+  }
+  int e = h.indexOf(',', i);
+  String v = h.substring(i, e < 0 ? h.length() : e);
+  v.trim();
+  return v;
+}
+
+// HTTP Digest (RFC 2617, MD5) แบบที่กล้อง Dahua/Hikvision ใช้
+String digestHeader(const String& ch, const char* method, const char* uri) {
+  String realm = authParam(ch, "realm");
+  String nonce = authParam(ch, "nonce");
+  String opaque = authParam(ch, "opaque");
+  String qop = authParam(ch, "qop");
+  String algo = authParam(ch, "algorithm");
+  if (nonce.length() == 0) return "";
+  if (algo.length() && !algo.equalsIgnoreCase("MD5")) {
+    Serial.println("[CAM] digest algorithm not supported: " + algo);
+    return "";
+  }
+  bool useQop = qop.indexOf("auth") >= 0;
+  const char* nc = "00000001";
+  char cnonce[17];
+  snprintf(cnonce, sizeof(cnonce), "%08lx%08lx", (unsigned long)esp_random(), (unsigned long)esp_random());
+
+  String ha1 = md5hex(String(CAMERA_USER) + ":" + realm + ":" + CAMERA_PASS);
+  String ha2 = md5hex(String(method) + ":" + uri);
+  String resp = useQop ? md5hex(ha1 + ":" + nonce + ":" + nc + ":" + cnonce + ":auth:" + ha2)
+                       : md5hex(ha1 + ":" + nonce + ":" + ha2);
+
+  String h = String("Digest username=\"") + CAMERA_USER + "\", realm=\"" + realm + "\", nonce=\"" + nonce +
+             "\", uri=\"" + uri + "\", algorithm=MD5, response=\"" + resp + "\"";
+  if (opaque.length()) h += ", opaque=\"" + opaque + "\"";
+  if (useQop) h += String(", qop=auth, nc=") + nc + ", cnonce=\"" + cnonce + "\"";
+  return h;
+}
+
+// GET ภาพจากกล้อง: auth = header Digest ที่คำนวณแล้ว, basic = ใช้ Basic auth
+int camGet(const String& auth, bool basic, String* challenge, BufStream& out) {
+  static const char* hdrs[] = { "WWW-Authenticate" };
+  WiFiClient client;
+  HTTPClient http;
+  String url = String("http://") + CAMERA_HOST + ":" + CAMERA_PORT + CAMERA_SNAPSHOT_PATH;
+  if (!http.begin(client, url)) return -1;
+  http.setConnectTimeout(5000);
+  http.setTimeout(10000);
+  http.collectHeaders(hdrs, 1);
+  if (basic) http.setAuthorization(CAMERA_USER, CAMERA_PASS);
+  else if (auth.length()) http.addHeader("Authorization", auth);
+  int code = http.GET();
+  if (code == 401 && challenge) *challenge = http.header("WWW-Authenticate");
+  if (code == 200) {
+    out.reset();
+    int n = http.writeToStream(&out);
+    if (n < 0) {
+      Serial.printf("[CAM] read body failed %d (image > %u KB?)\n", n, (unsigned)(out.cap / 1024));
+      code = n;
+    }
+  }
+  http.end();
+  return code;
+}
+
+String camUploadUrl() {
+  String base = SERVER_BASE;  // ".../api/sensors" -> ".../api/camera/snapshot"
+  if (base.endsWith("/sensors")) base = base.substring(0, base.length() - 8);
+  return base + "/camera/snapshot";
+}
+
+int camUpload(const uint8_t* buf, size_t len, uint32_t capturedAt) {
+  WiFiClientSecure client;
+  client.setInsecure();  // TODO ก่อนใช้งานจริง: ฝัง Root CA ของ server แทน
+  HTTPClient http;
+  if (!http.begin(client, camUploadUrl())) return -1;
+  http.setTimeout(30000);
+  http.addHeader("Content-Type", "image/jpeg");
+  http.addHeader("X-Device-Serial", DEVICE_SERIAL);
+  http.addHeader("X-Device-Key", DEVICE_KEY);
+  http.addHeader("X-Captured-At", String((unsigned long)capturedAt));
+  int code = http.POST((uint8_t*)buf, len);
+  if (code > 0 && code != 202) Serial.println("[CAM] server: " + http.getString());
+  http.end();
+  return code;
+}
+
+void cameraRound(BufStream& bs) {
+  uint32_t capturedAt = (uint32_t)time(nullptr);
+  String challenge;
+  int code = camGet("", false, &challenge, bs);
+  if (code == 401) {
+    challenge.trim();
+    if (challenge.length() >= 6 && challenge.substring(0, 6).equalsIgnoreCase("Digest")) {
+      String auth = digestHeader(challenge, "GET", CAMERA_SNAPSHOT_PATH);
+      code = auth.length() ? camGet(auth, false, nullptr, bs) : 401;
+    } else {
+      code = camGet("", true, nullptr, bs);
+    }
+    if (code == 401) Serial.println("[CAM] camera login failed - check CAMERA_USER/CAMERA_PASS");
+  }
+  bool jpeg = bs.len > 4 && bs.buf[0] == 0xFF && bs.buf[1] == 0xD8;
+  if (code != 200 || !jpeg) {
+    Serial.printf("[CAM] snapshot failed: code %d, %u bytes%s\n", code, (unsigned)bs.len,
+                  (code == 200 && !jpeg) ? " (not JPEG)" : "");
+    camStatus = CAM_ERR;
+    return;
+  }
+
+  if (!netMutex || xSemaphoreTake(netMutex, pdMS_TO_TICKS(60000)) != pdTRUE) {
+    Serial.println("[CAM] network busy, skip this round");
+    camStatus = CAM_NET;
+    return;
+  }
+  unsigned long t0 = millis();
+  int up = camUpload(bs.buf, bs.len, capturedAt);
+  xSemaphoreGive(netMutex);
+  Serial.printf("[CAM] snapshot %u KB -> upload %d (%lu ms)\n", (unsigned)(bs.len / 1024), up, millis() - t0);
+  camStatus = (up == 202) ? CAM_OK : CAM_NET;
+}
+
+void cameraTask(void*) {
+  bool ps = psramFound();
+  size_t cap = ps ? CAM_BUF_PSRAM : CAM_BUF_HEAP;
+  uint8_t* mem = ps ? (uint8_t*)ps_malloc(cap) : (uint8_t*)malloc(cap);
+  if (!mem) {
+    Serial.println("[CAM] cannot allocate image buffer - camera disabled");
+    camStatus = CAM_ERR;
+    vTaskDelete(nullptr);
+    return;
+  }
+  Serial.printf("[CAM] buffer %u KB in %s, snapshot every %lu min\n", (unsigned)(cap / 1024),
+                ps ? "PSRAM" : "heap (enable PSRAM for big images)", CAM_INTERVAL_MS / 60000UL);
+  BufStream bs(mem, cap);
+  bool first = true;
+  unsigned long lastShot = 0;
+  for (;;) {
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    if (WiFi.status() != WL_CONNECTED || !timeSynced()) continue;
+    if (!first && millis() - lastShot < CAM_INTERVAL_MS) continue;
+    first = false;
+    lastShot = millis();
+    cameraRound(bs);
+  }
 }
 
 // -----------------------------------------------------
@@ -481,13 +719,15 @@ void updateDashboard(bool success) {
   bool needRedraw = (!prevReadOk) ||
                     (fabs(currentTemp - prevTemp) >= 0.1f) ||
                     (fabs(currentHum - prevHum) >= 0.1f) ||
-                    (fabs(currentThi - prevThi) >= 0.1f);
+                    (fabs(currentThi - prevThi) >= 0.1f) ||
+                    (CAMERA_ENABLED && camStatus != prevCamStatus);
   if (!needRedraw) return;
 
   prevReadOk = true;
   prevTemp = currentTemp;
   prevHum = currentHum;
   prevThi = currentThi;
+  prevCamStatus = camStatus;
 
   // --- อุณหภูมิ ---
   tft.fillRect(92, 35, 60, 15, C_CARD_BG);
@@ -523,6 +763,12 @@ void updateDashboard(bool success) {
     tft.print(buf);
   } else {
     tft.print("TIME NOT SYNCED");
+  }
+  if (CAMERA_ENABLED) {  // สถานะภาพนิ่งรอบล่าสุด (รายละเอียดดูใน Serial)
+    uint8_t cs = prevCamStatus;
+    tft.setCursor(110, 108);
+    tft.setTextColor(cs == CAM_OK ? C_GREEN : cs == CAM_ERR ? C_RED : cs == CAM_NET ? C_YELLOW : C_TEXT_MUTED);
+    tft.print(cs == CAM_OK ? "CAM OK" : cs == CAM_ERR ? "CAM ERR" : cs == CAM_NET ? "CAM NET" : "CAM --");
   }
 
   // --- ความชื้น ---
@@ -654,6 +900,12 @@ void setup() {
   WiFi.setAutoReconnect(true);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   startNtp();
+
+  netMutex = xSemaphoreCreateMutex();
+  if (CAMERA_ENABLED) {
+    // คอร์ 0 (loop อยู่คอร์ 1) จอและการอ่านเซ็นเซอร์ไม่ค้างระหว่างดึง/ส่งภาพ
+    xTaskCreatePinnedToCore(cameraTask, "camera", 16384, nullptr, 1, nullptr, 0);
+  }
   updateHeaderStatus();
 }
 
