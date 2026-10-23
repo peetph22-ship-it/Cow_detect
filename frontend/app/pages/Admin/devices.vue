@@ -244,6 +244,17 @@
                     </span>
                     {{ device.computed_status === 'online' ? 'ออนไลน์ (Online)' : 'ออฟไลน์ (Offline)' }}
                   </span>
+                  <!-- สถานะกล่องจาก heartbeat -->
+                  <div v-if="device.health_summary" class="text-[11px] leading-snug" :class="healthClass(device.health_summary.status)">
+                    {{ device.health_summary.message }}
+                  </div>
+                  <div v-if="device.health_summary && !device.is_camera && device.health_summary.fw_version" class="text-[10px] text-[#718078] tabular-nums">
+                    fw {{ device.health_summary.fw_version }}
+                    <template v-if="device.health_summary.rssi != null"> · Wi-Fi {{ device.health_summary.rssi }} dBm ({{ device.health_summary.signal }})</template>
+                    <template v-if="device.health_summary.queue"> · ค้าง {{ device.health_summary.queue }} ค่า</template>
+                    <template v-if="device.health_summary.uptime_h != null"> · เปิดมา {{ device.health_summary.uptime_h }} ชม.</template>
+                  </div>
+                  <div v-for="w in device.health_summary?.warnings || []" :key="w" class="text-[10px] text-amber-700">⚠ {{ w }}</div>
                 </div>
               </td>
 
@@ -449,6 +460,7 @@ const fetchDevices = async () => {
 // Stats Computed
 const totalDevices = computed(() => devices.value.length)
 const onlineCount = computed(() => devices.value.filter(d => d.computed_status === 'online').length)
+const healthClass = (st) => ({ ok: 'text-emerald-700', sensor_fault: 'text-rose-700 font-semibold', backlog: 'text-amber-700', offline: 'text-rose-700' }[st] || 'text-[#718078]')
 const offlineCount = computed(() => totalDevices.value - onlineCount.value)
 const cameraCount = computed(() => devices.value.filter(d => d.type === 'camera').length)
 

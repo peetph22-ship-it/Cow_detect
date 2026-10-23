@@ -19,6 +19,7 @@ const { calcThi, thiSql, getRiskLevel, getFarmProfile, getThresholds } = require
 const { getFarm24h } = require('../services/farmHistory')
 const { generateBaselineForecast } = require('../services/forecastService')
 const { getCameraBehavior } = require('../services/cameraBehavior')
+const { summarizeHealth } = require('../services/deviceHealth')
 
 const SENSOR_OFFLINE_MIN = 5  // กล่องส่งทุก 15 วินาที เงียบเกิน 5 นาที = ขาดการติดต่อ
 const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str || '').trim())
@@ -83,7 +84,7 @@ router.get('/me', verifyToken, requireFarm, async (req, res) => {
     try {
         const { farms, farm, profile, thresholds } = req
 
-        const [latestRes, h24, forecast, camera] = await Promise.all([
+        const [latestRes, h24, forecast, camera, devRes] = await Promise.all([
             db.query(`
                 SELECT sr.temperature_c, sr.humidity_pct, sr.recorded_at
                 FROM tb_sensor_readings sr
@@ -95,7 +96,12 @@ router.get('/me', verifyToken, requireFarm, async (req, res) => {
             `, [farm.id_farms]),
             getFarm24h(farm.id_farms, profile).catch(() => ({ daily_summary: null })),
             generateBaselineForecast(farm).catch(() => null),
-            getCameraBehavior(farm.id_farms).catch(() => null)
+            getCameraBehavior(farm.id_farms).catch(() => null),
+            db.query(`
+                SELECT d.last_seen_at, to_jsonb(d)->>'last_heartbeat_at' AS last_heartbeat_at, to_jsonb(d)->'health' AS health
+                FROM tb_devices d WHERE d.id_farms = $1
+                ORDER BY d.last_seen_at DESC NULLS LAST LIMIT 1
+            `, [farm.id_farms]).catch(() => ({ rows: [] }))
         ])
 
         const r = latestRes.rows[0]
@@ -116,6 +122,9 @@ router.get('/me', verifyToken, requireFarm, async (req, res) => {
             }
         }
 
+        const dv = devRes.rows[0]
+        const health = dv ? summarizeHealth({ ...dv, last_reading_at: r?.recorded_at || null }) : null
+
         const d = h24.daily_summary
         return res.json({
             success: true,
@@ -130,6 +139,8 @@ router.get('/me', verifyToken, requireFarm, async (req, res) => {
             },
             thresholds,
             now,
+            // สถานะกล่อง: ใช้บอกเกษตรกรว่าควรตรวจอะไร (ไม่ส่งรายละเอียดทางเทคนิค)
+            device: health ? { status: health.status, message: health.message, signal: health.signal } : null,
             today: d ? {
                 avg_thi: d.avg_thi != null ? Number(d.avg_thi) : null,
                 max_temp: d.max_temp != null ? Number(d.max_temp) : null,

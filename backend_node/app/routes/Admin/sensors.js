@@ -6,6 +6,9 @@ const { verifyToken, requireRole } = require('../../middleware/authMiddleware')
 
 const { calcThi, getRiskLevel } = require('../../services/heatStress')
 const { MAX_BATCH, parseReading, resolveDevice, insertReadings } = require('../../services/sensorIngest')
+const { sanitizeHeartbeat } = require('../../services/deviceHealth')
+
+const UNKNOWN_DEVICE = { success: false, message: 'ไม่พบอุปกรณ์นี้ในระบบ ลงทะเบียนในหน้า Admin > Devices ก่อน (ข้อมูลยังเก็บอยู่ในกล่อง)' }
 
 // endpoint ส่วนนี้ไม่ผูกฟาร์ม ใช้เกณฑ์ค่าเริ่มต้น (ระดับรายฟาร์มดูที่ /api/Admin/farms/:id)
 const getStressLevel = (thi) => getRiskLevel(thi, 'default')
@@ -26,7 +29,8 @@ const withThi = (r) => {
 // -----------------------------------------------------------------
 router.post(['/data', '/'], verifyDeviceKey, async (req, res) => {
     const body = req.body ?? {}
-    const serial = body.serial_no ? String(body.serial_no).trim() : 'ESP32-S3-01'
+    const serial = body.serial_no ? String(body.serial_no).trim() : ''
+    if (!serial) return res.status(400).json({ success: false, message: 'กรุณาส่ง serial_no' })
 
     if (body.temperature_c === undefined || body.humidity_pct === undefined) {
         return res.status(400).json({ success: false, message: 'กรุณาส่งค่า temperature_c และ humidity_pct ให้ครบถ้วน' })
@@ -38,7 +42,9 @@ router.post(['/data', '/'], verifyDeviceKey, async (req, res) => {
     const r = parsed.reading
 
     try {
-        const { deviceId, farmId } = await resolveDevice(req, serial)
+        const dev = await resolveDevice(req, serial)
+        if (!dev) return res.status(404).json(UNKNOWN_DEVICE)
+        const { deviceId, farmId } = dev
         const { inserted, duplicates } = await insertReadings(deviceId, farmId, [r])
         const thi = calcThi(r.temperature_c, r.humidity_pct)
         return res.status(200).json({
@@ -71,7 +77,8 @@ router.post(['/data', '/'], verifyDeviceKey, async (req, res) => {
 // -----------------------------------------------------------------
 router.post('/batch', verifyDeviceKey, async (req, res) => {
     const body = req.body ?? {}
-    const serial = body.serial_no ? String(body.serial_no).trim() : 'ESP32-S3-01'
+    const serial = body.serial_no ? String(body.serial_no).trim() : ''
+    if (!serial) return res.status(400).json({ success: false, message: 'กรุณาส่ง serial_no' })
     const items = body.readings
 
     if (!Array.isArray(items) || items.length === 0) {
@@ -93,7 +100,9 @@ router.post('/batch', verifyDeviceKey, async (req, res) => {
     })
 
     try {
-        const { deviceId, farmId } = await resolveDevice(req, serial)
+        const dev = await resolveDevice(req, serial)
+        if (!dev) return res.status(404).json({ ...UNKNOWN_DEVICE, processed: 0 })
+        const { deviceId, farmId } = dev
         const { inserted, duplicates } = await insertReadings(deviceId, farmId, valid)
         const lastMs = valid.reduce((m, r) => Math.max(m, r.recorded_at.getTime()), 0)
         if (rejected.length) console.warn(`[Sensor Batch] ${serial}: rejected ${rejected.length}/${items.length}`, rejected.slice(0, 5))
@@ -108,6 +117,38 @@ router.post('/batch', verifyDeviceKey, async (req, res) => {
     } catch (err) {
         console.error('[Sensor Batch Error]:', err.message)
         return res.status(503).json({ success: false, processed: 0, message: 'บันทึกข้อมูลไม่สำเร็จ กรุณาส่งใหม่' })
+    }
+})
+
+// -----------------------------------------------------------------
+// 1.2 POST: /api/sensors/heartbeat
+// สถานะกล่องทุก 5 นาที (firmware 1.4.0+) ส่งแม้เซ็นเซอร์อ่านค่าไม่ได้
+// ต้องรัน migrations/20261025_device_heartbeat.sql (ยังไม่รัน = อัปเดตแค่ last_seen_at)
+// -----------------------------------------------------------------
+router.post('/heartbeat', verifyDeviceKey, async (req, res) => {
+    const body = req.body ?? {}
+    const serial = body.serial_no ? String(body.serial_no).trim() : ''
+    if (!serial) return res.status(400).json({ success: false, message: 'กรุณาส่ง serial_no' })
+    try {
+        const dev = await resolveDevice(req, serial)
+        if (!dev) return res.status(404).json(UNKNOWN_DEVICE)
+        const health = sanitizeHeartbeat(body)
+        try {
+            await db.query(
+                `UPDATE tb_devices SET status = 'online', last_seen_at = NOW(), last_heartbeat_at = NOW(),
+                        fw_version = $1, health = $2::jsonb WHERE id_devices = $3`,
+                [health.fw_version, JSON.stringify(health), dev.deviceId]
+            )
+        } catch (colErr) {
+            if (colErr.code !== '42703') throw colErr
+            console.warn('[Heartbeat] columns missing - run migrations/20261025_device_heartbeat.sql')
+            await db.query(`UPDATE tb_devices SET status = 'online', last_seen_at = NOW() WHERE id_devices = $1`, [dev.deviceId])
+            return res.json({ success: true, stored: false })
+        }
+        return res.json({ success: true, stored: true })
+    } catch (err) {
+        console.error('[Heartbeat Error]:', err.message)
+        return res.status(503).json({ success: false, message: 'บันทึกสถานะไม่สำเร็จ' })
     }
 })
 

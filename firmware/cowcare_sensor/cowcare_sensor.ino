@@ -24,6 +24,13 @@
 #include <time.h>
 #include <math.h>
 #include "secrets.h"
+#include "root_ca.h"
+
+// HTTPS ตรวจใบรับรอง server ด้วย Root CA ใน root_ca.h
+// ฉุกเฉินเท่านั้น (เช่น server เปลี่ยนใบรับรองแล้วบอร์ดส่งไม่ได้): #define TLS_INSECURE_VAL 1 ใน secrets.h แล้วแฟลช
+#ifndef TLS_INSECURE_VAL
+#define TLS_INSECURE_VAL 0
+#endif
 
 // ค่ากล้องใน secrets.h ไม่บังคับ: ไม่ใส่ = ปิดส่วนกล้อง (secrets.h เดิมคอมไพล์ได้เหมือนเดิม)
 #ifndef CAMERA_ENABLED_VAL
@@ -69,6 +76,8 @@ const size_t CAM_BUF_HEAP  = 200UL * 1024UL;   // บอร์ดที่ไม
 
 const unsigned long readInterval   = 2000;   // อ่านเซ็นเซอร์ทุก 2 วินาที
 const unsigned long sampleInterval = 15000;  // บันทึก/ส่งทุก 15 วินาที
+const unsigned long HEARTBEAT_MS = 5UL * 60UL * 1000UL;  // รายงานสถานะกล่องทุก 5 นาที
+const char* FW_VERSION = "1.4.0";
 
 // เวลา: กองทัพเรือ (มาตรฐานเวลาไทย) เป็นหลัก, pool.ntp.org สำรอง
 const char* NTP_PRIMARY   = "time.navy.mi.th";
@@ -139,6 +148,15 @@ unsigned long lastSampleTime = 0;
 unsigned long lastNtpSync    = 0;
 unsigned long lastReconnect  = 0;
 bool lastWifiUp = false;
+
+// สถานะกล่องสำหรับ heartbeat (นับตั้งแต่ heartbeat ครั้งก่อน ยกเว้น wifiReconnects นับตั้งแต่เปิดเครื่อง)
+uint32_t sensorOkReads = 0;
+uint32_t sensorFailReads = 0;
+unsigned long lastSensorOkMs = 0;
+bool everSensorOk = false;
+uint32_t wifiReconnects = 0;
+unsigned long lastHeartbeat = 0;
+bool firstHeartbeatDone = false;
 unsigned long nextSendAllowed = 0;
 unsigned long backoffMs = 0;
 
@@ -348,6 +366,11 @@ void pendingPush(int16_t t100, uint16_t h100) {
 // -----------------------------------------------------
 // HTTP
 // -----------------------------------------------------
+void secureClient(WiFiClientSecure& client) {
+  if (TLS_INSECURE_VAL) client.setInsecure();  // โหมดฉุกเฉินเท่านั้น
+  else client.setCACert(SERVER_ROOT_CA);       // ต้องซิงก์เวลาแล้ว (ใบรับรองตรวจวันหมดอายุ)
+}
+
 int httpPost(const String& path, const String& body, String& response, uint16_t timeoutMs) {
   // กล้องกำลังส่งภาพอยู่: รอได้ไม่เกิน 30 วินาที ไม่งั้นนับเป็นส่งไม่สำเร็จ (ค่าเข้าคิวตามปกติ)
   if (netMutex && xSemaphoreTake(netMutex, pdMS_TO_TICKS(30000)) != pdTRUE) {
@@ -355,7 +378,7 @@ int httpPost(const String& path, const String& body, String& response, uint16_t 
     return -1;
   }
   WiFiClientSecure client;
-  client.setInsecure();  // TODO ก่อนใช้งานจริง: ฝัง Root CA ของ server แทน
+  secureClient(client);
   HTTPClient http;
   http.begin(client, String(SERVER_BASE) + path);
   http.setTimeout(timeoutMs);
@@ -527,7 +550,7 @@ String camUploadUrl() {
 
 int camUpload(const uint8_t* buf, size_t len, uint32_t capturedAt) {
   WiFiClientSecure client;
-  client.setInsecure();  // TODO ก่อนใช้งานจริง: ฝัง Root CA ของ server แทน
+  secureClient(client);
   HTTPClient http;
   if (!http.begin(client, camUploadUrl())) return -1;
   http.setTimeout(30000);
@@ -598,6 +621,48 @@ void cameraTask(void*) {
     lastShot = millis();
     cameraRound(bs);
   }
+}
+
+// -----------------------------------------------------
+// Heartbeat: สถานะกล่องทุก 5 นาที (POST /heartbeat)
+// -----------------------------------------------------
+const char* resetReasonText() {
+  switch (esp_reset_reason()) {
+    case ESP_RST_POWERON: return "power_on";
+    case ESP_RST_SW: return "software";
+    case ESP_RST_PANIC: return "crash";
+    case ESP_RST_INT_WDT:
+    case ESP_RST_TASK_WDT:
+    case ESP_RST_WDT: return "watchdog";
+    case ESP_RST_BROWNOUT: return "brownout";  // ไฟตก: อะแดปเตอร์/สายไฟไม่พอ
+    case ESP_RST_EXT: return "reset_button";
+    case ESP_RST_DEEPSLEEP: return "deep_sleep";
+    default: return "other";
+  }
+}
+
+void sendHeartbeat() {
+  unsigned long nowMs = millis();
+  long sensorLastOkS = everSensorOk ? (long)((nowMs - lastSensorOkMs) / 1000UL) : -1;
+  char body[640];
+  snprintf(body, sizeof(body),
+    "{\"serial_no\":\"%s\",\"fw_version\":\"%s\",\"uptime_s\":%lu,\"rssi\":%d,"
+    "\"free_heap\":%lu,\"min_free_heap\":%lu,\"psram_free\":%lu,"
+    "\"queue\":%lu,\"pending\":%d,\"fs_ok\":%s,"
+    "\"sensor_ok\":%s,\"sensor_ok_reads\":%lu,\"sensor_fail_reads\":%lu,\"sensor_last_ok_s\":%ld,"
+    "\"last_http_code\":%d,\"wifi_reconnects\":%lu,\"reset_reason\":\"%s\","
+    "\"camera_enabled\":%s,\"camera_status\":%u,\"tls\":\"%s\"}",
+    DEVICE_SERIAL, FW_VERSION, nowMs / 1000UL, (int)WiFi.RSSI(),
+    (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getMinFreeHeap(), (unsigned long)ESP.getFreePsram(),
+    (unsigned long)qCount(), pendingCount, fsOk ? "true" : "false",
+    lastReadOk ? "true" : "false", (unsigned long)sensorOkReads, (unsigned long)sensorFailReads, sensorLastOkS,
+    lastHttpCode, (unsigned long)wifiReconnects, resetReasonText(),
+    CAMERA_ENABLED ? "true" : "false", (unsigned)camStatus, TLS_INSECURE_VAL ? "insecure" : "verified");
+  String resp;
+  int code = httpPost("/heartbeat", body, resp, 8000);
+  Serial.printf("[HB] heartbeat -> %d (sensor %s, ok %lu / fail %lu, rssi %d)\n", code,
+                lastReadOk ? "ok" : "FAIL", (unsigned long)sensorOkReads, (unsigned long)sensorFailReads, (int)WiFi.RSSI());
+  if (code == 200) { sensorOkReads = 0; sensorFailReads = 0; }
 }
 
 // -----------------------------------------------------
@@ -955,6 +1020,8 @@ void loop() {
       }
     }
     lastReadOk = readSuccess;
+    if (readSuccess) { sensorOkReads++; lastSensorOkMs = now; everSensorOk = true; }
+    else sensorFailReads++;
     updateDashboard(readSuccess);
 
     // ต่อ Wi-Fi ใหม่ทุก 30 วินาที (ถี่กว่านี้จะขัดจังหวะการเชื่อมต่อที่กำลังทำอยู่)
@@ -968,6 +1035,7 @@ void loop() {
     if (!wifiUp && now - lastReconnect > 30000UL) {
       lastReconnect = now;
       Serial.println("[WiFi] reconnecting...");
+      wifiReconnects++;
       WiFi.disconnect();
       WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
     }
@@ -977,5 +1045,13 @@ void loop() {
       handleSample();
       updateHeaderStatus();
     }
+  }
+
+  // ส่งสถานะกล่องแม้เซ็นเซอร์อ่านค่าไม่ได้ เพื่อให้ server แยกได้ว่าเสียที่เน็ต ไฟ หรือเซ็นเซอร์
+  if (WiFi.status() == WL_CONNECTED && timeSynced() &&
+      (!firstHeartbeatDone || now - lastHeartbeat >= HEARTBEAT_MS)) {
+    lastHeartbeat = now;
+    firstHeartbeatDone = true;
+    sendHeartbeat();
   }
 }

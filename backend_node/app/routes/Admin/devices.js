@@ -8,6 +8,9 @@ const router = express.Router()
 const db = require('../../config/db')
 const { verifyToken, requireRole } = require('../../middleware/authMiddleware')
 const { generateDeviceKey, hashDeviceKey } = require('../../middleware/deviceAuthMiddleware')
+const { summarizeHealth } = require('../../services/deviceHealth')
+const { calcThi } = require('../../services/heatStress')
+const { INTERVAL_MIN: CAMERA_INTERVAL_MIN } = require('../../services/cameraBehavior')
 
 // Helper function to check valid UUID
 const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str || '').trim())
@@ -27,6 +30,9 @@ router.get('/', verifyToken, requireRole('admin'), async (req, res) => {
                 d.status,
                 d.last_seen_at,
                 d.created_at,
+                to_jsonb(d)->>'fw_version' AS fw_version,
+                to_jsonb(d)->>'last_heartbeat_at' AS last_heartbeat_at,
+                to_jsonb(d)->'health' AS health,
                 f.id_farms,
                 f.name_farms,
                 f.province,
@@ -34,13 +40,12 @@ router.get('/', verifyToken, requireRole('admin'), async (req, res) => {
                 u.name_users AS farmer_name,
                 sr.temperature_c,
                 sr.humidity_pct,
-                sr.thi,
                 sr.recorded_at AS last_reading_time
             FROM tb_devices d
             LEFT JOIN tb_farms f ON f.id_farms = d.id_farms
             LEFT JOIN tb_users u ON u.id_users = f.id_users
             LEFT JOIN LATERAL (
-                SELECT s.temperature_c, s.humidity_pct, s.thi, s.recorded_at
+                SELECT s.temperature_c, s.humidity_pct, s.recorded_at
                 FROM tb_sensor_readings s
                 WHERE s.id_devices = d.id_devices
                 ORDER BY s.recorded_at DESC
@@ -66,10 +71,16 @@ router.get('/', verifyToken, requireRole('admin'), async (req, res) => {
                 c.updated_at,
                 f.name_farms,
                 f.province,
-                u.name_users AS farmer_name
+                u.name_users AS farmer_name,
+                lt.last_image_at
             FROM cctv_cameras c
             LEFT JOIN tb_farms f ON f.id_farms = c.farm_id
             LEFT JOIN tb_users u ON u.id_users = f.id_users
+            LEFT JOIN LATERAL (
+                SELECT MAX(t.timestamp) AS last_image_at
+                FROM cctv_behavior_telemetry t
+                WHERE t.farm_id = c.farm_id AND t.is_simulation = false
+            ) lt ON true
             ORDER BY c.created_at DESC
         `
 
@@ -82,30 +93,39 @@ router.get('/', verifyToken, requireRole('admin'), async (req, res) => {
         ])
 
         const now = Date.now()
+        // สถานะจริงจาก heartbeat (firmware 1.4.0+) และเวลาค่าล่าสุด ไม่มีค่าสมมติ (เดิมใส่แบตเตอรี่ 95% และสัญญาณ -65 dBm ตายตัว)
         const devices = devRes.rows.map(dev => {
             const lastSeen = dev.last_seen_at ? new Date(dev.last_seen_at).getTime() : 0
-            const diffMin = lastSeen > 0 ? (now - lastSeen) / (1000 * 60) : 9999
-            const isOnline = diffMin < 2
-
+            const diffMin = lastSeen > 0 ? (now - lastSeen) / (1000 * 60) : null
+            const health = summarizeHealth({
+                last_heartbeat_at: dev.last_heartbeat_at,
+                health: dev.health,
+                last_reading_at: dev.last_reading_time,
+                last_seen_at: dev.last_seen_at
+            })
+            const temp = dev.temperature_c != null ? Number(dev.temperature_c) : null
+            const hum = dev.humidity_pct != null ? Number(dev.humidity_pct) : null
+            const { health: _raw, ...rest } = dev
             return {
-                ...dev,
-                computed_status: isOnline ? 'online' : 'offline',
-                minutes_since_seen: Math.round(diffMin),
-                battery_pct: 95, // ESP32-S3 AC Powered / LiPo Backup
-                signal_rssi: isOnline ? -65 : -95,
-                signal_quality: isOnline ? 'ดีเยี่ยม (-65 dBm)' : 'ไม่มีสัญญาณ'
+                ...rest,
+                thi: calcThi(temp, hum),
+                computed_status: diffMin != null && diffMin < 5 ? 'online' : 'offline',
+                minutes_since_seen: diffMin != null ? Math.round(diffMin) : null,
+                health_summary: health
             }
         })
 
+        // กล้อง: ออนไลน์ = มีภาพจริงเข้ามาภายใน 3 รอบ (เดิมถือว่าออนไลน์ทุกตัวที่เปิดใช้งาน)
         const cameras = camRes.rows.map(cam => {
-            const isOnline = cam.is_active !== false
+            const imgMin = cam.last_image_at ? Math.round((now - new Date(cam.last_image_at).getTime()) / 60000) : null
+            const isOnline = cam.is_active !== false && imgMin != null && imgMin <= CAMERA_INTERVAL_MIN * 3
             return {
                 id_devices: cam.id,
                 name_devices: cam.camera_name,
-                serial_no: `${cam.brand || 'Hikvision'} (${cam.ip_address})`,
+                serial_no: `${cam.brand || 'กล้อง'} (${cam.ip_address})`,
                 type: 'camera',
-                status: isOnline ? 'active' : 'inactive',
-                last_seen_at: cam.updated_at || cam.created_at,
+                status: cam.is_active !== false ? 'active' : 'inactive',
+                last_seen_at: cam.last_image_at || null,
                 created_at: cam.created_at,
                 id_farms: cam.farm_id,
                 name_farms: cam.name_farms || 'ฟาร์มไม่ระบุ',
@@ -117,10 +137,14 @@ router.get('/', verifyToken, requireRole('admin'), async (req, res) => {
                 thi: null,
                 last_reading_time: null,
                 computed_status: isOnline ? 'online' : 'offline',
-                minutes_since_seen: 0,
-                battery_pct: 100, // กล้องวงจรปิดใช้ไฟตรง PoE
-                signal_rssi: isOnline ? -55 : -99,
-                signal_quality: isOnline ? 'เชื่อมต่อ LAN/PoE ปกติ' : 'ออฟไลน์ (RTSP ขาด)',
+                minutes_since_seen: imgMin,
+                health_summary: {
+                    status: cam.is_active === false ? 'disabled' : imgMin == null ? 'never_seen' : isOnline ? 'ok' : 'offline',
+                    message: cam.is_active === false ? 'ปิดใช้งาน'
+                        : imgMin == null ? 'ยังไม่เคยได้รับภาพจากกล้องนี้'
+                        : isOnline ? `ภาพล่าสุด ${imgMin} นาทีที่แล้ว` : `ไม่มีภาพใหม่ ${imgMin} นาที`,
+                    warnings: []
+                },
                 is_simulation: cam.is_simulation,
                 is_camera: true
             }

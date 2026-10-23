@@ -72,10 +72,11 @@
         <button type="button" @click="logout" class="text-sm text-[#718078] underline cursor-pointer">ออกจากระบบ</button>
       </div>
       <template v-else>
-        <div v-if="now && now.sensor_status === 'offline'" class="bg-[#4a3a1f] text-[#F7DDB2]">
+        <!-- สถานะกล่อง: แยกให้เห็นว่าเสียที่เซ็นเซอร์ หรือที่ไฟ/อินเทอร์เน็ต (จาก heartbeat) -->
+        <div v-if="deviceAlert" class="bg-[#4a3a1f] text-[#F7DDB2]">
           <div class="max-w-5xl mx-auto px-4 py-2.5 text-sm flex items-center gap-2">
-            <v-icon icon="mdi-alert-outline" size="18" />
-            กล่องเซ็นเซอร์ไม่ได้ส่งข้อมูลมา {{ agoText(now.minutes_ago) }} · ตรวจไฟและอินเทอร์เน็ตที่โรงเรือน
+            <v-icon :icon="deviceAlert.icon" size="18" />
+            {{ deviceAlert.text }}
           </div>
         </div>
         <slot />
@@ -107,6 +108,14 @@ const route = useRoute()
 const { me, farm, now, isAdmin, loaded, error, farmId, ensureAuth, refresh, selectFarm, logout, startPolling, stopPolling } = useFarmer()
 
 const farms = computed(() => me.value?.farms || [])
+
+const deviceAlert = computed(() => {
+  const dev = me.value?.device
+  if (dev?.status === 'sensor_fault') return { icon: 'mdi-thermometer-off', text: 'กล่องออนไลน์ แต่อ่านค่าเซ็นเซอร์ไม่ได้ · ตรวจสายเซ็นเซอร์ที่ต่อกับกล่อง' }
+  if (dev?.status === 'backlog') return { icon: 'mdi-cloud-upload-outline', text: 'กล่องวัดได้ปกติ แต่ส่งข้อมูลช้า · ข้อมูลยังเก็บอยู่ในกล่อง จะส่งให้ครบเมื่อเน็ตดีขึ้น' }
+  if (now.value && now.value.sensor_status === 'offline') return { icon: 'mdi-wifi-off', text: `กล่องเซ็นเซอร์ไม่ได้ส่งข้อมูลมา ${agoText(now.value.minutes_ago)} · ตรวจไฟและอินเทอร์เน็ตที่โรงเรือน` }
+  return null
+})
 
 const navItems = computed(() => [
   { to: '/Farmer', label: 'ตอนนี้', icon: 'mdi-home-variant-outline' },

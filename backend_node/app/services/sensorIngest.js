@@ -65,30 +65,18 @@ const parseReading = (raw, nowMs = Date.now()) => {
 
 /**
  * หา device ของ request: ถ้าผ่าน verifyDeviceKey ใช้ device ที่ยืนยันแล้ว
- * ถ้าไม่ผ่าน (เกิดได้เฉพาะ DEVICE_AUTH_MODE=warn) ใช้ logic เดิมรวมถึงการสร้าง device อัตโนมัติ
+ * ถ้าไม่ผ่าน (เกิดได้เฉพาะ DEVICE_AUTH_MODE=warn) หาจาก serial
+ * ไม่สร้างอุปกรณ์อัตโนมัติ (เดิมสร้างแล้วผูกกับฟาร์มแรกในระบบ ข้อมูลจากอุปกรณ์แปลกปลอมจึงปนเข้าฟาร์มจริงได้)
+ * คืน null = ไม่รู้จักอุปกรณ์ ให้ลงทะเบียนในหน้า Admin > Devices ก่อน
  */
 const resolveDevice = async (req, serial) => {
     if (req.device) return { deviceId: req.device.id, farmId: req.device.farmId }
-
-    const devRes = await db.query(`SELECT id_devices, id_farms FROM tb_devices WHERE serial_no = $1 LIMIT 1`, [serial])
-    if (devRes.rows.length > 0) {
-        return { deviceId: devRes.rows[0].id_devices, farmId: devRes.rows[0].id_farms }
-    }
-
-    let farmId
-    const farmRes = await db.query(`SELECT id_farms FROM tb_farms LIMIT 1`)
-    if (farmRes.rows.length > 0) {
-        farmId = farmRes.rows[0].id_farms
-    } else {
-        const newFarm = await db.query(`INSERT INTO tb_farms (name_farms, province) VALUES ($1, $2) RETURNING id_farms`, ['CowCare AI Demo Farm', 'สระบุรี'])
-        farmId = newFarm.rows[0].id_farms
-    }
-    const newDev = await db.query(
-        `INSERT INTO tb_devices (id_farms, type, name_devices, serial_no, status, last_seen_at)
-         VALUES ($1, 'env_sensor', $2, $3, 'online', NOW()) RETURNING id_devices`,
-        [farmId, `ESP32 SHT40 (${serial})`, serial]
+    if (!serial) return null
+    const devRes = await db.query(
+        `SELECT id_devices, id_farms FROM tb_devices WHERE UPPER(serial_no) = UPPER($1) LIMIT 1`,
+        [serial]
     )
-    return { deviceId: newDev.rows[0].id_devices, farmId }
+    return devRes.rows[0] ? { deviceId: devRes.rows[0].id_devices, farmId: devRes.rows[0].id_farms } : null
 }
 
 // ใช้ INSERT ... VALUES (ไม่ใช่ INSERT ... SELECT) เพื่อให้ Postgres อนุมานชนิดพารามิเตอร์จากคอลัมน์ปลายทาง (เช่น uuid)
