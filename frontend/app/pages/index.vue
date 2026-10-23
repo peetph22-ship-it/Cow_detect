@@ -30,7 +30,7 @@
 
           <!-- Easy-to-read Subtitle -->
           <p class="text-base sm:text-lg text-[#5A6B63] leading-relaxed max-w-xl font-normal">
-            ผสานเซนเซอร์ <span class="text-[#142820] font-semibold">IoT (SHT40)</span>, กล้องตรวจจับพฤติกรรม <span class="text-[#142820] font-semibold">YOLO26m</span> และระบบติดตามความร้อนสะสม เพื่อเตือนให้ลดความร้อนก่อนผลกระทบที่มักตามมาหลายวัน (Lag Effect) <span class="text-[#142820] font-semibold">· ต้นแบบ อยู่ระหว่างทดสอบภาคสนาม</span>
+            ผสานเซนเซอร์ <span class="text-[#142820] font-semibold">IoT (SHT20 RS485)</span>, กล้องตรวจจับพฤติกรรม <span class="text-[#142820] font-semibold">YOLO26m</span> และระบบติดตามความร้อนสะสม เพื่อเตือนให้ลดความร้อนก่อนผลกระทบที่มักตามมาหลายวัน (Lag Effect) <span class="text-[#142820] font-semibold">· ต้นแบบ อยู่ระหว่างทดสอบภาคสนาม</span>
           </p>
 
           <!-- Clean Inline Highlights instead of Heavy Boxes -->
@@ -257,7 +257,7 @@
               <div class="flex items-center justify-between text-xs text-white/70 pb-3 border-b border-white/10">
                 <span class="flex items-center gap-2 font-mono">
                   <span class="w-2 h-2 rounded-full bg-[#10B981] animate-ping"></span>
-                  YOLO26m Vision + SHT40 Sensor
+                  YOLO26m Vision + SHT20 Sensor
                 </span>
                 <span class="px-2 py-0.5 rounded bg-white/10 text-[10px] font-mono">RS485 Modbus</span>
               </div>
@@ -602,7 +602,7 @@ const archLayers = [
     badge: 'LAYER 01 • EDGE & IOT SENSING',
     icon: 'mdi-access-point',
     title: 'เก็บข้อมูลแม่นยำโดยไม่ต้องติดอุปกรณ์บนตัววัว',
-    desc: 'ลดต้นทุนให้เกษตรกรรายย่อยด้วยการใช้กล้องวงจรปิดร่วมกับโมเดล YOLO26m ตรวจจับพฤติกรรมโคนม (อยู่ระหว่างทดสอบกับกล้องจริง) และใช้เซนเซอร์ SHT40 วัดอุณหภูมิ-ความชื้นผ่านสาย RS485',
+    desc: 'ลดต้นทุนให้เกษตรกรรายย่อยด้วยการใช้กล้องวงจรปิดร่วมกับโมเดล YOLO26m ตรวจจับพฤติกรรมโคนม (อยู่ระหว่างทดสอบกับกล้องจริง) และใช้เซนเซอร์ SHT20 ราคาประหยัด (โมดูล RS485 ประมาณ 280 บาท) วัดอุณหภูมิ-ความชื้นผ่านสาย RS485',
     points: [
       'ตรวจจับ 4 พฤติกรรมหลัก: ยืน, นอนพัก, กินน้ำ, กินอาหาร แบบเรียลไทม์',
       'ไม่ต้องซื้อปลอกคออัจฉริยะราคาแพง ไม่ทำให้วัวเครียด',

@@ -11,7 +11,7 @@
           </span>
         </h1>
         <p class="text-[#718078] text-[15px] font-medium max-w-2xl">
-          ตรวจสอบสถานะการเชื่อมต่อ ฮาร์ดแวร์เซ็นเซอร์ตรวจวัดสิ่งแวดล้อม (ESP32-S3 SHT40/BMP280) และกล้อง CCTV ปัญญาประดิษฐ์ในเครือข่ายฟาร์มโคนม
+          ตรวจสอบสถานะการเชื่อมต่อ ฮาร์ดแวร์เซ็นเซอร์ตรวจวัดสิ่งแวดล้อม (ESP32-S3 + SHT20 RS485) และกล้อง CCTV ปัญญาประดิษฐ์ในเครือข่ายฟาร์มโคนม
         </p>
       </div>
 
@@ -359,7 +359,7 @@
               <select
                 v-model="formDevice.type"
                 class="w-full px-4 py-2.5 bg-[#F6F7F5] border border-[#E4E8E5] rounded-xl text-xs font-medium text-[#142820] focus:outline-none focus:border-[#142820] focus:bg-white">
-                <option value="env_sensor">เซ็นเซอร์สิ่งแวดล้อม (ESP32-S3 SHT40 + BMP280)</option>
+                <option value="env_sensor">เซ็นเซอร์สิ่งแวดล้อม (ESP32-S3 + SHT20 RS485)</option>
                 <option value="camera">กล้อง CCTV / Vision AI (YOLO26m พฤติกรรมโค)</option>
               </select>
             </div>

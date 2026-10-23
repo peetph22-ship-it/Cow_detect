@@ -153,7 +153,7 @@ router.get('/devices', verifyToken, requireRole('admin'), async (req, res) => {
         if (rows.length === 0) {
             const insertDev = await db.query(`
                 INSERT INTO tb_devices (name_devices, serial_no, type, status, last_seen_at)
-                VALUES ('ESP32 SHT40 (ESP32-S3-01)', 'ESP32-S3-01', 'env_sensor', 'online', NOW())
+                VALUES ('ESP32 SHT20 (ESP32-S3-01)', 'ESP32-S3-01', 'env_sensor', 'online', NOW())
                 ON CONFLICT (serial_no) DO UPDATE SET status = 'online'
                 RETURNING id_devices, name_devices, serial_no, status, type, id_farms
             `)
@@ -251,7 +251,7 @@ router.post('/', verifyToken, requireRole('admin'), async (req, res) => {
             }
         } else if (device_serial && device_serial.trim()) {
             const serial = device_serial.trim()
-            const devName = new_device_name ? new_device_name.trim() : `ESP32 SHT40 (${serial})`
+            const devName = new_device_name ? new_device_name.trim() : `ESP32 SHT20 (${serial})`
             const devRes = await client.query(
                 `INSERT INTO tb_devices (id_farms, type, name_devices, serial_no, status, last_seen_at, created_at, updated_at)
                  VALUES ($1, 'env_sensor', $2, $3, 'online', NOW(), NOW(), NOW())

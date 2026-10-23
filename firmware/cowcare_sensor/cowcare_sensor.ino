@@ -1,5 +1,5 @@
 /*
- * CowCare AI - ESP32-S3 Barn Sensor (SHT40 RS485 Modbus + ST7789 display)
+ * CowCare AI - ESP32-S3 Barn Sensor (SHT20 RS485 Modbus ตระกูล XY-MD02 + ST7789 display)
  *
  * Store-and-forward:
  *  - ทุกค่าประทับเวลาจริง (Unix epoch UTC จาก NTP)

@@ -49,7 +49,7 @@
 flowchart TD
     subgraph Layer1["1. SENSE — การรับรู้ข้อมูลหน้าฟาร์มโดยไม่ต้องใช้คอมพิวเตอร์ (Computerless Smart Barn)"]
         direction LR
-        S1["ESP32-S3 N16R8 + SHT40 / AHT20<br/>(วัดอุณหภูมิ, ความชื้น, คำนวณ THI NRC 1971)"]
+        S1["ESP32-S3 N16R8 + SHT20 (RS485)<br/>(วัดอุณหภูมิ, ความชื้น, คำนวณ THI NRC 1971)"]
         S2["กล้องวงจรปิด Hikvision IP Camera<br/>(ส่งสตรีม RTSP Sub-Stream 360p)"]
         WIFI["4G Pocket Wi-Fi / Router<br/>(แชร์เน็ตให้ทั้ง ESP32 และกล้อง)"]
         S1 --> WIFI
@@ -122,11 +122,10 @@ flowchart TD
 - 🟡 **Case B — `SENSOR_DRIFT_SUSPECTED` (ป้องกันแจ้งเตือนหลอก):** เซ็นเซอร์รายงานค่าความร้อนสูง (`THI >= 80.0`) แต่กล้อง AI มองเห็นชัดเจน (`conf >= 0.50`) และพบว่าแม่โคนอนพักผ่อนสบาย (`CCI >= 75%`, ไม่หอบ) ระบบจะระงับการแจ้งเตือนฉุกเฉิน และเตือนให้เกษตรกรตรวจสอบว่าแดดส่องโดนกล่องเซ็นเซอร์โดยตรงหรือไม่
 - 🟠 **Case C — `FAILSAFE_THAI_HEURISTIC` (โหมดสำรองเมื่อกล้องมัว/ไม่ได้ติดกล้อง):** หากฟาร์มยังไม่ได้ติดตั้งกล้อง กล้องออฟไลน์ หรือเลนส์สกปรก (`conf < 0.40`) ในขณะที่ `THI >= 80.0` ระบบจะสลับไปใช้สมการฟิสิกส์โรงเรือนไทยจากเซ็นเซอร์ทันที เพื่อให้การแจ้งเตือนทำงานได้ 100% ไม่มีสะดุด
 
-### 3. Bi-LSTM 72-Hour Forecast & Empirical Uncertainty Bands
-พยากรณ์ล่วงหน้า 3 วันด้วยโมเดล `farm_lstm.onnx` พร้อมแถบความคลาดเคลื่อนมาตรฐาน (MAE Uncertainty Bands):
-- **Day +1 (+24h):** `Predicted THI ±0.58` | `Milk Risk ±0.19 kg` (`Confidence: 95.8%`)
-- **Day +2 (+48h):** `Predicted THI ±0.84` | `Milk Risk ±0.28 kg` (`Confidence: 91.2%`)
-- **Day +3 (+72h):** `Predicted THI ±1.18` | `Milk Risk ±0.39 kg` (`Confidence: 86.4%`)
+### 3. พยากรณ์ THI ล่วงหน้า 1–3 วัน (สถานะปัจจุบัน)
+- ใช้ **baseline ค่าเฉลี่ย THI 72 ชม.** ของโรงเรือน (`forecastService.js`) เพราะยังชนะ Bi-LSTM ที่เทรนจากข้อมูลจำลอง (MAE 0.45 เทียบ 0.87)
+- Bi-LSTM (`farm_lstm.onnx`) ปิดไว้ (`ENABLE_LSTM=false`) จนกว่าจะชนะ baseline บนข้อมูลจริง
+- **ยังไม่ประเมินปริมาณน้ำนมที่ลดลง** (ระบบไม่มีข้อมูลน้ำนม) แสดงเฉพาะระดับความเสี่ยงตามเกณฑ์ THI โคนมลูกผสมไทย
 
 ---
 
@@ -158,7 +157,7 @@ flowchart TD
 | **Vision AI Backend (`:8000`)** | Python, FastAPI, Uvicorn, Ultralytics YOLO26m (`best1.pt`), ByteTrack, OpenCV |
 | **Core API Backend (`:4001`)** | Node.js, Express 5, `onnxruntime-node` (`farm_lstm.onnx`), `node-cron`, `pg` |
 | **Database** | Supabase PostgreSQL (Transaction Pooler + Idle Connection Error Guard) |
-| **IoT & Barn Hardware** | ESP32-S3 N16R8, SHT40 / AHT20, Hikvision IP Camera (RTSP), 4G Pocket Wi-Fi |
+| **IoT & Barn Hardware** | ESP32-S3 N16R8, SHT20 RS485 Modbus (XY-MD02, ±0.3°C / ±3% RH), Dahua IP Camera |
 | **DevOps & Deployment** | Docker, Docker Compose |
 
 ---

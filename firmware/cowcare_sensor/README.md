@@ -1,6 +1,6 @@
 # CowCare Sensor Firmware (ESP32-S3)
 
-กล่องเซ็นเซอร์ SHT40 (RS485 Modbus) + จอ ST7789 ส่งข้อมูลขึ้น `backend_node` แบบ store-and-forward
+กล่องเซ็นเซอร์ SHT20 (โมดูล RS485 Modbus ตระกูล XY-MD02) + จอ ST7789 ส่งข้อมูลขึ้น `backend_node` แบบ store-and-forward
 
 ## เตรียมก่อนแฟลช
 

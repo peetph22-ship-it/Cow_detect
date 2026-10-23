@@ -1,6 +1,6 @@
 /**
  * CowCare AI - Admin Device Management Router
- * API สำหรับจัดการอุปกรณ์ IoT (ESP32-S3 SHT40/BMP280) และกล้อง CCTV/Vision AI
+ * API สำหรับจัดการอุปกรณ์ IoT (ESP32-S3 + SHT20 RS485) และกล้อง CCTV/Vision AI
  */
 
 const express = require('express')
