@@ -893,6 +893,23 @@ router.put('/:id', verifyToken, requireRole('admin'), async (req, res) => {
             rows[0] = profRes.rows[0]
         }
 
+        // เบอร์สัตวแพทย์ (migrations/20261024_farm_vet_phone.sql) ยังไม่รัน migration = ข้าม ไม่ให้การบันทึกฟาร์มล้ม
+        if (req.body.vet_phone !== undefined) {
+            const vetPhone = String(req.body.vet_phone || '').trim()
+            if (vetPhone && !/^[0-9+\-\s]{9,20}$/.test(vetPhone)) {
+                await client.query('ROLLBACK')
+                return res.status(400).json({ success: false, message: 'เบอร์สัตวแพทย์ไม่ถูกต้อง (ตัวเลข 9-20 หลัก)' })
+            }
+            await client.query('SAVEPOINT vet_phone')
+            try {
+                const vpRes = await client.query(`UPDATE tb_farms SET vet_phone = $1 WHERE id_farms = $2 RETURNING *`, [vetPhone || null, id])
+                rows[0] = vpRes.rows[0]
+            } catch (vpErr) {
+                await client.query('ROLLBACK TO SAVEPOINT vet_phone')
+                console.warn('[Update Farm] vet_phone not saved (run migration 20261024_farm_vet_phone.sql):', vpErr.message)
+            }
+        }
+
         if (id_devices) {
             if (isUUID(id_devices)) {
                 await client.query(`UPDATE tb_devices SET id_farms = $1 WHERE id_devices = $2`, [id, id_devices])
