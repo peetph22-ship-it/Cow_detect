@@ -77,7 +77,7 @@ const size_t CAM_BUF_HEAP  = 200UL * 1024UL;   // บอร์ดที่ไม
 const unsigned long readInterval   = 2000;   // อ่านเซ็นเซอร์ทุก 2 วินาที
 const unsigned long sampleInterval = 15000;  // บันทึก/ส่งทุก 15 วินาที
 const unsigned long HEARTBEAT_MS = 5UL * 60UL * 1000UL;  // รายงานสถานะกล่องทุก 5 นาที
-const char* FW_VERSION = "1.4.0";
+const char* FW_VERSION = "1.4.1";
 
 // เวลา: กองทัพเรือ (มาตรฐานเวลาไทย) เป็นหลัก, pool.ntp.org สำรอง
 const char* NTP_PRIMARY   = "time.navy.mi.th";
@@ -863,7 +863,7 @@ void updateDashboard(bool success) {
   tft.setCursor(274, 84);
   tft.print("RH");
   tft.setCursor(172, 108);
-  tft.print(currentHum >= 75.0f ? "No Misting (RH>=75%)" : "Evap Cooling Ready");
+  tft.print(currentHum >= 75.0f ? "No mist: soak + fans" : "Mist/soak + fans OK");
 
   // --- THI + คำแนะนำ ---
   tft.fillRect(195, 135, 115, 15, C_CARD_BG);
@@ -885,8 +885,8 @@ void updateDashboard(bool success) {
       break;
     case 2:
       thiColor = C_ORANGE; thiStatus = "STRESS (76+)";
-      if (currentHum >= 75.0f) { thiAction1 = "MAX FANS (NO MIST)"; thiAction2 = "High RH blocks sweating"; }
-      else                     { thiAction1 = "FANS + MISTING ON";  thiAction2 = "Shift feeding to evening"; }
+      if (currentHum >= 75.0f) { thiAction1 = "MAX FANS (NO MIST)"; thiAction2 = "Wet backs, then fan dry"; }
+      else                     { thiAction1 = "FANS + MISTING ON";  thiAction2 = "Feed in coolest hours"; }
       break;
     default:
       thiColor = C_RED;    thiStatus = "SEVERE (82+)";

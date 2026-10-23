@@ -15,7 +15,7 @@ const express = require('express')
 const router = express.Router()
 const db = require('../config/db')
 const { verifyToken } = require('../middleware/authMiddleware')
-const { calcThi, getRiskLevel, getFarmProfile, getThresholds, getMethod } = require('../services/heatStress')
+const { calcThi, getRiskLevel, getFarmProfile, getThresholds, getMethod, getCoolingAdvice } = require('../services/heatStress')
 const { loadBuckets: loadBucketRange, dailySeries, stressStreak, bkkDate, round1 } = require('../services/heatMetrics')
 const { getFarm24h } = require('../services/farmHistory')
 const { generateBaselineForecast } = require('../services/forecastService')
@@ -147,9 +147,13 @@ router.get('/me', verifyToken, requireFarm, async (req, res) => {
             } : null,
             streak: stressStreak(week, profile),
             method: getMethod(profile),
+            // คำแนะนำเรื่องน้ำตามความชื้นตอนนี้ (heatStress.getCoolingAdvice ชุดเดียวทั้งระบบ)
+            cooling: now ? getCoolingAdvice(now.humidity_pct) : null,
             forecast: forecast ? {
                 insufficient_data: Boolean(forecast.insufficient_data),
                 reason: forecast.reason || null,
+                peak_window: forecast.peak_window || null,
+                cool_window: forecast.cool_window || null,
                 days: (forecast.forecasts || []).map(f => ({
                     horizon_days: f.horizon_days,
                     label: f.label,

@@ -10,9 +10,9 @@
  */
 
 const db = require('../config/db')
-const { getRiskLevel, getFarmProfile, getThresholds, thiSql } = require('./heatStress')
+const { getRiskLevel, getFarmProfile, getThresholds, thiSql, getCoolingAdvice } = require('./heatStress')
 
-const FORECAST_VERSION = 'baseline-72h-mean-v1'
+const FORECAST_VERSION = 'baseline-72h-mean-v2'  // v2: คำแนะนำใช้ช่วงร้อน/เย็นจริงของโรงเรือน (บันทึกเก่าที่เป็น v1 จะไม่ถูกแสดง)
 const LOOKBACK_HOURS = 72
 const MIN_HOURS = 24
 
@@ -29,20 +29,52 @@ const BADGE_CLASS = {
     severe: 'bg-rose-50 text-rose-800 border-rose-200'
 }
 
-// คำแนะนำภาษาชาวบ้านตามระดับความเสี่ยง (บังคับ Anti-Misting เมื่อความชื้น >= 75%)
-const getRiskAdvisory = (riskLevel, avgHum = null) => {
-    const humid = avgHum != null && avgHum >= 75.0
-    const humTxt = humid ? ` (ความชื้นสูง ${Number(avgHum).toFixed(0)}% งดพ่นหมอก เสี่ยงคอกแฉะและเต้านมอักเสบ)` : ''
+const pad = (h) => `${String(((h % 24) + 24) % 24).padStart(2, '0')}:00`
+
+/**
+ * ช่วงร้อนที่สุด (4 ชม.) และช่วงเย็นที่สุดสำหรับให้อาหาร (3 ชม. ภายใน 04:00–20:00) ของโรงเรือนนี้ จาก THI เฉลี่ยรายชั่วโมงของวันในช่วง lookback
+ * ใช้แทนเวลาตายตัว (เดิม "11:00–15:00") เพราะโรงเรือนแต่ละแบบร้อนสุดคนละเวลา เช่น หลังคาสังกะสีมักร้อนสุดตอนเย็น
+ */
+const findWindows = (hourly) => {
+    const byHour = new Map()
+    for (const h of hourly) {
+        const thi = Number(h.avg_thi)
+        if (!Number.isFinite(thi) || !h.hour_bucket) continue
+        // hour_bucket เป็นเวลาไทยแบบไม่มี timezone: getHours() คืนชั่วโมงเดิมเสมอ
+        const hr = new Date(h.hour_bucket).getHours()
+        const v = byHour.get(hr) || { s: 0, n: 0 }
+        v.s += thi; v.n++
+        byHour.set(hr, v)
+    }
+    if (byHour.size < 18) return null  // ข้อมูลไม่ครอบคลุมทั้งวัน
+    const avg = (hr) => { const v = byHour.get(((hr % 24) + 24) % 24); return v ? v.s / v.n : null }
+    const scan = (len, better, firstStart = 0, lastStart = 23) => {
+        let best = null
+        for (let start = firstStart; start <= lastStart; start++) {
+            const vals = Array.from({ length: len }, (_, i) => avg(start + i))
+            if (vals.some(v => v == null)) continue
+            const m = vals.reduce((a, b) => a + b, 0) / len
+            if (!best || better(m, best.mean)) best = { start, end: start + len, mean: m }
+        }
+        return best && { start_hour: best.start % 24, end_hour: best.end % 24, label: `${pad(best.start)}–${pad(best.end)} น.`, mean_thi: Math.round(best.mean * 10) / 10 }
+    }
+    // ช่วงเย็นสำหรับให้อาหาร: เฉพาะเวลาที่เกษตรกรทำงานได้จริง (เริ่ม 04:00 ถึงจบไม่เกิน 20:00)
+    return { peak: scan(4, (a, b) => a > b), cool: scan(3, (a, b) => a < b, 4, 17) }
+}
+
+// คำแนะนำภาษาชาวบ้านตามระดับความเสี่ยง ใช้ช่วงเวลาจริงของโรงเรือน และกฎความชื้นจาก heatStress
+const getRiskAdvisory = (riskLevel, avgHum = null, windows = null) => {
+    const cooling = getCoolingAdvice(avgHum)
+    const peak = windows?.peak ? ` โดยเฉพาะช่วง ${windows.peak.label} (ช่วงที่โรงเรือนนี้ร้อนที่สุด)` : ''
+    const feed = windows?.cool ? ` ให้อาหารช่วงที่เย็นที่สุด ${windows.cool.label}` : ' ให้อาหารช่วงที่อากาศเย็น'
     if (riskLevel === 'severe') {
-        return humid
-            ? `🚨 วิกฤต: เปิดพัดลมเต็มกำลังช่วง 10:00–16:00 น.${humTxt} เสริมเกลือแร่ในน้ำ และเลื่อนเวลาให้อาหารไปช่วงเย็น`
-            : '🚨 วิกฤต: เปิดพัดลมร่วมกับพ่นหมอกเต็มกำลังช่วง 10:00–16:00 น. เสริมเกลือแร่ในน้ำ และเลื่อนเวลาให้อาหารไปช่วงเย็น'
+        return `🚨 วิกฤต: เปิดพัดลมเต็มกำลัง${peak} ${cooling.short}${feed} และเสริมเกลือแร่ในน้ำ`
     }
     if (riskLevel === 'moderate') {
-        return `⚠️ เครียดจากความร้อน: เปิดพัดลมระบายอากาศช่วง 11:00–15:00 น.${humTxt} จัดน้ำสะอาดให้กินตลอดเวลา`
+        return `⚠️ เครียดจากความร้อน: เปิดพัดลมระบายอากาศ${peak} ${cooling.short} จัดน้ำสะอาดให้กินตลอดเวลา`
     }
     if (riskLevel === 'mild') {
-        return 'เฝ้าระวัง: อากาศเริ่มอบอ้าว เปิดพัดลมระบายอากาศในคอกเพื่อป้องกันความร้อนสะสม'
+        return `เฝ้าระวัง: อากาศเริ่มอบอ้าว เปิดพัดลมระบายอากาศ${peak}`
     }
     return 'สภาวะอากาศปกติ'
 }
@@ -106,6 +138,7 @@ const buildBaselineForecast = ({ farm, hourly, now = new Date() }) => {
     const recentHums = hourly.slice(-24).map(h => Number(h.avg_hum)).filter(Number.isFinite)
     const avgRecentHum = recentHums.length ? mean(recentHums) : null
     const riskLevel = getRiskLevel(predictedThi, profile)
+    const windows = findWindows(hourly)
 
     const forecasts = HORIZONS.map(h => {
         const targetTime = new Date(now.getTime() + h.offset * 24 * 3600 * 1000)
@@ -116,7 +149,7 @@ const buildBaselineForecast = ({ farm, hourly, now = new Date() }) => {
             date: targetTime.toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', weekday: 'short', day: 'numeric', month: 'short' }),
             predicted_thi: predictedThi,
             risk_level: riskLevel,
-            advisory: getRiskAdvisory(riskLevel, avgRecentHum),
+            advisory: getRiskAdvisory(riskLevel, avgRecentHum, windows),
             badge_class: getBadgeClass(riskLevel)
         }
     })
@@ -125,6 +158,9 @@ const buildBaselineForecast = ({ farm, hourly, now = new Date() }) => {
         ...base,
         insufficient_data: false,
         peak_predicted_thi: predictedThi,
+        // ช่วงร้อนสุด/เย็นสุดของโรงเรือนนี้ (3 วันล่าสุด) ใช้ในคำแนะนำ
+        peak_window: windows?.peak || null,
+        cool_window: windows?.cool || null,
         forecasts
     }
 }

@@ -360,7 +360,7 @@ const runOnnxInference = async (farm, windowData) => {
 const generateElderlyFriendlyAdvisory = (summaryDate, avgThi, maxThi, avgTemp, avgHum, severeHours, stressHours, nightRecoveryThi, cci = null, profile = 'default') => {
     let advisory = `สรุปสภาวะอากาศวันที่ ${summaryDate}: ค่า THI เฉลี่ย ${avgThi} (สูงสุด ${maxThi}) อุณหภูมิเฉลี่ย ${avgTemp}°C ความชื้นเฉลี่ย ${avgHum}%`
 
-    // บริบทพิเศษ: ฤดูฝน (ความชื้นสูงจัด >75% - Maejo context)
+    // บริบทพิเศษ: ฤดูฝน (ความชื้นสูงจัด >= HUMID_RH ใน heatStress.js, ค่าแนวทางของระบบ)
     if (avgHum >= 75.0) {
         if (severeHours > 0) {
             advisory += ` 🌧️🚨 อากาศอบอ้าวความชื้นสูงจัด (${avgHum}%) ตรวจพบวิกฤตความร้อน ${severeHours} ชม. เสี่ยงน้ำนมตก! ให้เปิดพัดลมระบายอากาศเต็มที่ *ห้ามพ่นหมอกเด็ดขาด* เพื่อป้องกันคอกแฉะและโรคเต้านมอักเสบ`

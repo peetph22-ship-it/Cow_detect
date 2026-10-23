@@ -131,7 +131,7 @@
             class="p-3 rounded-xl bg-sky-50 border border-sky-200 text-sky-900 text-xs flex items-center gap-2 animate-fade-in">
             <v-icon icon="mdi-fan-alert" size="18" class="text-sky-600 shrink-0" />
             <span class="font-medium">
-              🌧️ <strong>กฎป้องกันความชื้นสูง (Maejo Rule):</strong> ความชื้น {{ simHum }}% (≥75%) แนะนำ <strong>เปิดพัดลมเท่านั้น (ห้ามพ่นหมอก)</strong> เพื่อป้องกันคอกแฉะและโรคเต้านมอักเสบ
+              🌧️ <strong>กฎความชื้นสูง (แนวทางของระบบ):</strong> ความชื้น {{ simHum }}% (≥75%) แนะนำ <strong>งดพ่นหมอกฝอย ใช้ฉีดน้ำตัวโคเป็นช่วงๆ ร่วมกับพัดลม</strong>
             </span>
           </div>
         </div>

@@ -167,22 +167,26 @@ const statusText = computed(() => ({
 
 const actions = computed(() => {
   const lvl = level.value
-  const hum = now.value?.humidity_pct
+  const peak = me.value?.forecast?.peak_window
+  const cool = me.value?.forecast?.cool_window
+  const cooling = me.value?.cooling
   const list = [{
     key: 'fan', icon: 'mdi-fan',
     title: hot.value ? 'เปิดพัดลมเต็มกำลังทุกตัว' : lvl === 'mild' ? 'เปิดพัดลมระบายอากาศ' : 'เปิดพัดลมตามปกติ',
-    detail: 'ลมช่วยไล่ความร้อนและความชื้นออกจากตัวแม่โค'
+    // ช่วงร้อนที่สุดจริงของโรงเรือนนี้ (3 วันล่าสุด) แทนเวลาตายตัว
+    detail: peak && (hot.value || lvl === 'mild') ? `โรงเรือนนี้ร้อนที่สุดช่วง ${peak.label} เปิดให้แรงที่สุดช่วงนี้` : 'ลมช่วยไล่ความร้อนและความชื้นออกจากตัวแม่โค'
   }]
-  if (hum != null && (hot.value || lvl === 'mild')) {
-    list.push(hum >= 75
-      ? { key: 'mist', icon: 'mdi-water-off', title: 'ยังไม่ควรพ่นหมอกน้ำ', detail: `ความชื้นสูง (${Math.round(hum)}%) ใช้พัดลมแทน` }
-      : { key: 'mist', icon: 'mdi-weather-fog', title: 'พ่นหมอกสลับกับเปิดพัดลมได้', detail: 'อากาศไม่ชื้นเกินไป ละอองน้ำช่วยลดความร้อน' })
+  if (cooling && (hot.value || lvl === 'mild')) {
+    list.push({ key: 'water-cool', icon: cooling.humid ? 'mdi-water-off' : 'mdi-weather-fog', title: cooling.title, detail: cooling.detail })
   }
   list.push({
     key: 'water', icon: 'mdi-cup-water',
     title: hot.value ? 'เติมน้ำให้เต็มราง ตรวจบ่อยขึ้น' : 'ตรวจน้ำในรางให้สะอาดและมีตลอด',
     detail: hot.value ? 'แม่โคที่ร้อนจะกินน้ำมากขึ้นมาก' : 'แม่โคต้องมีน้ำสะอาดกินได้ตลอดเวลา'
   })
+  if (hot.value && cool) {
+    list.push({ key: 'feed', icon: 'mdi-clock-outline', title: `ให้อาหารช่วง ${cool.label}`, detail: 'ช่วงที่โรงเรือนนี้เย็นที่สุดในเวลากลางวัน วัวจะกินได้มากขึ้น' })
+  }
   if (lvl === 'severe') {
     list.push({ key: 'vet', icon: 'mdi-stethoscope', title: 'สังเกตแม่โคที่หอบหนักหรือไม่ลุก', detail: 'ถ้าพบอาการผิดปกติ ควรให้สัตวแพทย์ตรวจ' })
   }

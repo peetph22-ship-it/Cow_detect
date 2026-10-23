@@ -122,7 +122,7 @@
             <span class="text-xs font-bold text-[#718078]">%RH</span>
           </div>
           <span v-if="simHum >= 75" class="text-[10px] text-amber-700 font-bold block">
-            ⚠️ เกิน 75% (Maejo Rule)
+            ⚠️ เกิน 75% (งดพ่นหมอก)
           </span>
           <span v-else class="text-[10px] text-emerald-700 font-medium block">
             ความชื้นเหมาะสม
@@ -463,13 +463,13 @@
             </div>
           </div>
 
-          <!-- Maejo Anti-Misting Rule Notice -->
+          <!-- High-humidity rule notice (system guideline) -->
           <div 
             v-if="simHum >= 75" 
             class="p-3.5 rounded-2xl bg-sky-50 border border-sky-200 text-sky-900 text-xs flex items-start gap-2.5 animate-fade-in">
             <v-icon icon="mdi-fan-alert" size="20" class="text-sky-600 shrink-0 mt-0.5" />
             <div class="space-y-0.5">
-              <span class="font-black block">🌧️ กฎป้องกันความชื้นสูง (Maejo Anti-Misting Rule):</span>
+              <span class="font-black block">🌧️ กฎความชื้นสูง (แนวทางของระบบ):</span>
               <p class="text-[11px] text-sky-800 leading-relaxed">
                 ความชื้น {{ simHum }}% (≥75%) แนะนำ <strong>เปิดพัดลมเท่านั้น (ห้ามพ่นหมอก)</strong> เพื่อป้องกันคอกแฉะและโรคเต้านมอักเสบ
               </p>

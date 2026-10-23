@@ -79,6 +79,29 @@ const toAlertLevel = (riskLevel) => ALERT_LEVEL[riskLevel] || null
 const MIN_ALERT_THI = Math.min(...Object.values(PROFILES).map(p => p.mild))
 
 /**
+ * ความชื้นที่ถือว่า "ชื้นมาก" สำหรับคำแนะนำเรื่องน้ำ (ค่าแนวทางของระบบ ยังไม่พบเกณฑ์ทางการของไทย)
+ * หลักฐาน: อากาศชื้น การพ่นหมอกฝอย (ลดความร้อนของอากาศ) แทบไม่ได้ผลและเพิ่มความชื้น
+ * แต่การฉีดน้ำเม็ดใหญ่ให้ตัวโคเปียกเป็นช่วงๆ ร่วมกับพัดลมแรง ยังช่วยได้ (Penn State Extension; รายงานภาคสนาม)
+ */
+const HUMID_RH = 75
+
+const getCoolingAdvice = (rh) => {
+    const humid = rh != null && Number(rh) >= HUMID_RH
+    const pct = rh != null ? `${Math.round(Number(rh))}%` : ''
+    return humid ? {
+        humid: true,
+        title: 'งดพ่นหมอกฝอย ใช้ฉีดน้ำตัวโคแทน',
+        detail: `ความชื้นสูง (${pct}) หมอกฝอยทำให้อากาศชื้นขึ้นแต่ไม่ช่วยลดร้อน ถ้ามีหัวฉีด ให้ฉีดน้ำที่หลังและไหล่ให้เปียกช่วงสั้นๆ (เลี่ยงเต้านม) แล้วเปิดพัดลมเป่าให้แห้ง`,
+        short: `งดพ่นหมอก (ความชื้น ${pct}) ใช้ฉีดน้ำตัวโคเป็นช่วงๆ ร่วมกับพัดลม`
+    } : {
+        humid: false,
+        title: 'พ่นหมอกร่วมกับพัดลมได้',
+        detail: 'อากาศไม่ชื้นเกินไป พ่นหมอกร่วมกับพัดลมได้ หรือฉีดน้ำที่หลังและไหล่ให้เปียกแล้วเปิดพัดลม (เลี่ยงเต้านม)',
+        short: 'พ่นหมอกหรือฉีดน้ำตัวโค ร่วมกับเปิดพัดลม'
+    }
+}
+
+/**
  * วิธีคำนวณและที่มา สำหรับแสดงบนหน้าเว็บ (ทุกหน้าใช้ข้อความชุดนี้ ไม่เขียนซ้ำใน frontend)
  */
 const getMethod = (profile = 'default') => {
@@ -99,7 +122,9 @@ const getMethod = (profile = 'default') => {
         caveats: [
             'เกณฑ์ในงานวิจัยกำหนดจาก THI เฉลี่ยรายวันของสถานีอุตุนิยมวิทยา (นอกโรงเรือน) ระบบนี้วัดในโรงเรือนซึ่งมักร้อนกว่า จึงควรดูระดับรายวันประกอบ',
             'เซ็นเซอร์ SHT20 (โมดูล RS485 ตระกูล XY-MD02) ความแม่นยำตามสเปก ±0.3°C / ±3% RH ทำให้ THI คลาดได้ประมาณ ±0.7',
-            'ยังไม่ประเมินปริมาณน้ำนมที่ลดลง (ระบบไม่มีข้อมูลน้ำนม)'
+            'ยังไม่ประเมินปริมาณน้ำนมที่ลดลง (ระบบไม่มีข้อมูลน้ำนม)',
+            `เกณฑ์ความชื้น ${HUMID_RH}% สำหรับงดพ่นหมอกเป็นค่าแนวทางของระบบ ยังไม่พบเกณฑ์ทางการของไทย`,
+            'ช่วงเวลาในคำแนะนำ (ช่วงร้อนที่สุด/เย็นที่สุด) คำนวณจากข้อมูลของโรงเรือนนี้ 3 วันล่าสุด ไม่ใช่เวลาตายตัว'
         ],
         references: [
             'NRC (1971). A Guide to Environmental Research on Animals. National Academy of Sciences, Washington DC. (สูตร THI)',
@@ -107,7 +132,8 @@ const getMethod = (profile = 'default') => {
             'Boonkum et al. (2011). Journal of Dairy Science 94:487. (น้ำนมเริ่มลดที่ THI 74 ในโคสายเลือด HF สูง)',
             'Boonkum et al. (2024). Animals 14(20):3026. (เกณฑ์ระดับประชากรที่ THI 76)',
             'Duangjinda et al. ICAR Technical Series 23. (moderate > 74, severe > 80)',
-            'Igono et al. (1992). International Journal of Biometeorology 36:77–87. (ช่วงเย็นกลางคืนช่วยให้โคฟื้นจากความร้อน)'
+            'Igono et al. (1992). International Journal of Biometeorology 36:77–87. (ช่วงเย็นกลางคืนช่วยให้โคฟื้นจากความร้อน)',
+            'Penn State Extension. Heat Stress Abatement Techniques for Dairy Cattle. (การฉีดน้ำตัวโคต้องคู่กับการระบายอากาศ)'
         ]
     }
 }
@@ -125,5 +151,7 @@ module.exports = {
     thiSql,
     getRiskLevel,
     toAlertLevel,
-    getMethod
+    getMethod,
+    HUMID_RH,
+    getCoolingAdvice
 }

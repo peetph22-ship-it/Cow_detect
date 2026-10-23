@@ -267,7 +267,7 @@ const handleFarmReportDetail = async (req, res) => {
                     source: 'sensor'
                 },
                 { item: 'เปิดพัดลมระบายอากาศเมื่อเข้าระดับเฝ้าระวัง', compliance_pct: null, source: 'not_recorded' },
-                { item: 'งดพ่นหมอกเมื่อความชื้นในอากาศ ≥ 75%', compliance_pct: null, source: 'not_recorded' },
+                { item: 'งดพ่นหมอกฝอยเมื่อความชื้น ≥ 75% (ใช้ฉีดน้ำตัวโคร่วมกับพัดลมแทน)', compliance_pct: null, source: 'not_recorded' },
                 { item: 'น้ำดื่มสะอาดไหลเวียนต่อเนื่อง', compliance_pct: null, source: 'not_recorded' }
             ]
         })
