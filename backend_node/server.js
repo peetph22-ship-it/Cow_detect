@@ -76,6 +76,10 @@ const cctvCameras = require('./app/routes/Admin/cctvCameras')
 app.use('/api/Admin/farms/:farmId/cameras', cctvCameras)
 app.use('/api/farms/:farmId/cameras', cctvCameras)
 
+// farmer view: only the logged-in farmer's own farm
+const farmer = require('./app/routes/farmer')
+app.use('/api/farmer', farmer)
+
 // camera snapshot ingest from ESP32 gateway (device key)
 const camera = require('./app/routes/camera')
 app.use('/api/camera', camera)
