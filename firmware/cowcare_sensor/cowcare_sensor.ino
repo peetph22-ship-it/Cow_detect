@@ -41,6 +41,9 @@
 #ifndef CAMERA_PASS_VAL
 #define CAMERA_PASS_VAL ""
 #endif
+#ifndef CAMERA_INTERVAL_MIN_VAL
+#define CAMERA_INTERVAL_MIN_VAL 10  // นาทีต่อภาพ (10 นาที ~1.3GB/เดือน ที่ภาพละ 300KB)
+#endif
 #ifndef CAMERA_SNAPSHOT_PATH_VAL
 #define CAMERA_SNAPSHOT_PATH_VAL "/cgi-bin/snapshot.cgi?channel=1"  // Dahua
 #endif
@@ -60,7 +63,7 @@ const int   CAMERA_PORT          = CAMERA_PORT_VAL;
 const char* CAMERA_USER          = CAMERA_USER_VAL;
 const char* CAMERA_PASS          = CAMERA_PASS_VAL;
 const char* CAMERA_SNAPSHOT_PATH = CAMERA_SNAPSHOT_PATH_VAL;
-const unsigned long CAM_INTERVAL_MS = 5UL * 60UL * 1000UL;  // ภาพนิ่งทุก 5 นาที
+const unsigned long CAM_INTERVAL_MS = (unsigned long)max(1, CAMERA_INTERVAL_MIN_VAL) * 60UL * 1000UL;
 const size_t CAM_BUF_PSRAM = 1536UL * 1024UL;  // server รับไม่เกิน 2MB
 const size_t CAM_BUF_HEAP  = 200UL * 1024UL;   // บอร์ดที่ไม่ได้เปิด PSRAM
 
@@ -429,7 +432,7 @@ bool canSendNow() {
 }
 
 // -----------------------------------------------------
-// กล้อง: ดึงภาพนิ่งจากกล้อง IP ใน LAN ทุก 5 นาที แล้วส่งขึ้น cloud (YOLO ประมวลผลฝั่ง server)
+// กล้อง: ดึงภาพนิ่งจากกล้อง IP ใน LAN ทุก CAMERA_INTERVAL_MIN_VAL นาที แล้วส่งขึ้น cloud (YOLO ประมวลผลฝั่ง server)
 // ส่งไม่สำเร็จ = ข้ามรอบนั้น (ไม่เก็บภาพเข้าคิว)
 // -----------------------------------------------------
 
