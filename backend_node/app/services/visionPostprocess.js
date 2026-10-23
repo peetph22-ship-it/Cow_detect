@@ -2,11 +2,18 @@
  * YOLO26m (Ultralytics, end2end=False) post-processing - pure functions, ทดสอบได้โดยไม่ต้องมีโมเดล
  *
  * output0 shape [1, 4 + nc, N]: แถว 0..3 = cx, cy, w, h (พิกเซลในภาพ letterbox), แถว 4.. = คะแนนแต่ละคลาส
- * โมเดลนี้ export แบบไม่ใช่ NMS-free จึงต้องทำ NMS เอง (class-wise เหมือน Ultralytics ค่าเริ่มต้น)
+ * โมเดลนี้ export แบบไม่ใช่ NMS-free จึงต้องทำ NMS เอง (ค่าที่ใช้จริงดู DETECT_OPTS)
  */
 
 // ต้องตรงกับ names ใน metadata ของโมเดล (data.yaml ของ dataset)
 const CLASS_NAMES = ['drinking', 'feeding', 'lying down', 'standing']
+
+/**
+ * ค่าที่ใช้จริงบนเซิร์ฟเวอร์ (บันทึกลง JSON ของภาพตัวอย่างด้วย)
+ * agnostic: วัด 203 ภาพทดสอบด้วย scripts/eval_counts.js แล้ว แบบแยกตามท่ามีวัวตัวเดียวได้ 2 กรอบต่างท่า 11 คู่
+ * แบบไม่ดูท่าเหลือ 0 คู่ จำนวนวัวรวมคลาดน้อยลงเล็กน้อย (0.93 -> 0.90 ตัว/ภาพ) จำนวนวัวนอนคลาดเท่าเดิม (0.47)
+ */
+const DETECT_OPTS = Object.freeze({ conf: 0.25, iouThr: 0.7, agnostic: true })
 
 const iou = (a, b) => {
     const x1 = Math.max(a.x1, b.x1)
@@ -22,7 +29,7 @@ const iou = (a, b) => {
  * @param {Float32Array} data  output0 flat
  * @param {number[]} dims      [1, 4+nc, N]
  */
-const decodeDetections = (data, dims, { conf = 0.25, iouThr = 0.7, maxDet = 300 } = {}) => {
+const decodeDetections = (data, dims, { conf = 0.25, iouThr = 0.7, maxDet = 300, agnostic = false } = {}) => {
     const nc = dims[1] - 4
     const n = dims[2]
     const candidates = []
@@ -45,7 +52,8 @@ const decodeDetections = (data, dims, { conf = 0.25, iouThr = 0.7, maxDet = 300 
     const kept = []
     for (const d of candidates) {
         if (kept.length >= maxDet) break
-        if (kept.some(k => k.cls === d.cls && iou(k, d) > iouThr)) continue
+        // agnostic = ตัดกรอบที่ซ้อนกันโดยไม่ดูท่า (วัว 1 ตัวได้กรอบเดียว)
+        if (kept.some(k => (agnostic || k.cls === d.cls) && iou(k, d) > iouThr)) continue
         kept.push(d)
     }
     return kept
@@ -75,4 +83,24 @@ const summarize = (detections) => {
     }
 }
 
-module.exports = { CLASS_NAMES, iou, decodeDetections, summarize }
+/**
+ * แปลงกรอบจากพิกัดภาพ letterbox (imgsz x imgsz) เป็นสัดส่วน 0-1 บนภาพจริง (width x height)
+ * ไว้วาดทับภาพตัวอย่างและนำเข้าเครื่องมือตีกรอบ เช่น Roboflow
+ */
+const toImageBoxes = (detections, width, height, imgsz) => {
+    const s = Math.min(imgsz / width, imgsz / height)
+    const px = (imgsz - width * s) / 2
+    const py = (imgsz - height * s) / 2
+    const clamp = (v) => Math.min(1, Math.max(0, v))
+    const r4 = (v) => Math.round(v * 1e4) / 1e4
+    return detections.map(d => ({
+        cls: CLASS_NAMES[d.cls],
+        score: Math.round(d.score * 1000) / 1000,
+        x1: r4(clamp((d.x1 - px) / s / width)),
+        y1: r4(clamp((d.y1 - py) / s / height)),
+        x2: r4(clamp((d.x2 - px) / s / width)),
+        y2: r4(clamp((d.y2 - py) / s / height))
+    }))
+}
+
+module.exports = { CLASS_NAMES, DETECT_OPTS, iou, decodeDetections, summarize, toImageBoxes }

@@ -6,12 +6,17 @@
 const { parentPort, workerData } = require('worker_threads')
 const ort = require('onnxruntime-node')
 const sharp = require('sharp')
-const { decodeDetections, summarize } = require('./visionPostprocess')
+const { DETECT_OPTS, decodeDetections, summarize, toImageBoxes } = require('./visionPostprocess')
 
 const IMG = workerData.imgsz || 480
 
 // ภาพ letterbox แบบเดียวกับ Ultralytics: ย่อคงสัดส่วน วางกลาง เติมสีเทา 114
+// คืนขนาดภาพจริง (หลังหมุนตาม EXIF) ไว้แปลงพิกัดกรอบกลับ
 const preprocess = async (jpeg) => {
+    const meta = await sharp(jpeg).metadata()
+    const swap = (meta.orientation || 1) >= 5
+    const width = swap ? meta.height : meta.width
+    const height = swap ? meta.width : meta.height
     const { data, info } = await sharp(jpeg)
         .rotate()  // หมุนตาม EXIF
         .resize(IMG, IMG, { fit: 'contain', background: { r: 114, g: 114, b: 114 }, kernel: 'linear' })
@@ -26,7 +31,7 @@ const preprocess = async (jpeg) => {
         chw[plane + i] = data[i * 3 + 1] / 255
         chw[2 * plane + i] = data[i * 3 + 2] / 255
     }
-    return chw
+    return { chw, width, height }
 }
 
 ;(async () => {
@@ -46,16 +51,24 @@ const preprocess = async (jpeg) => {
     parentPort.on('message', async ({ id, jpeg }) => {
         const t0 = Date.now()
         try {
-            const chw = await preprocess(Buffer.from(jpeg))
+            const { chw, width, height } = await preprocess(Buffer.from(jpeg))
             const t1 = Date.now()
             const out = await session.run({ images: new ort.Tensor('float32', chw, [1, 3, IMG, IMG]) })
             const t2 = Date.now()
             const o = out.output0
-            const detections = decodeDetections(o.data, o.dims, workerData.thresholds || {})
+            const opts = { ...DETECT_OPTS, ...(workerData.thresholds || {}) }
+            const detections = decodeDetections(o.data, o.dims, opts)
             parentPort.postMessage({
                 type: 'result',
                 id,
-                result: { ...summarize(detections), detections, timing_ms: { preprocess: t1 - t0, inference: t2 - t1, total: Date.now() - t0 } }
+                result: {
+                    ...summarize(detections),
+                    detections,
+                    boxes: toImageBoxes(detections, width, height, IMG),
+                    image: { width, height },
+                    detect_opts: opts,
+                    timing_ms: { preprocess: t1 - t0, inference: t2 - t1, total: Date.now() - t0 }
+                }
             })
         } catch (err) {
             parentPort.postMessage({ type: 'error', id, error: err.message })

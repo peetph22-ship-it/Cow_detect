@@ -5,10 +5,10 @@
  *   body:    JPEG (Content-Type: image/jpeg) ไม่เกิน 2MB
  *   headers: X-Device-Serial, X-Device-Key, X-Captured-At (Unix epoch UTC วินาที, ไม่บังคับ)
  *
- * ESP32 ดึงภาพนิ่งจากกล้องทุก 5 นาทีแล้วส่งมาที่นี่ -> ตอบ 202 ทันที -> YOLO (worker thread) เบื้องหลัง
+ * ESP32 ดึงภาพนิ่งจากกล้องทุก CAMERA_INTERVAL_MIN_VAL นาที (ค่าเริ่มต้น 10) แล้วส่งมาที่นี่ -> ตอบ 202 ทันที -> YOLO (worker thread) เบื้องหลัง
  * -> บันทึกจำนวนวัวต่อพฤติกรรม -> ทิ้งภาพ
  * ตอบทันทีเพราะบน Render ฟรี (CPU 0.1) YOLO ใช้ ~30 วินาที/รูป ถ้าให้บอร์ดรอ HTTPS จะค้างนานและงานส่งเซ็นเซอร์ต้องรอตาม
- * เก็บภาพตัวอย่างชั่วโมงละ 1 รูปไว้ทำ dataset (services/cameraSamples.js)
+ * เก็บภาพตัวอย่างชั่วโมงละ 1 รูป พร้อมผลของโมเดลกับภาพนั้น (services/cameraSamples.js)
  */
 const express = require('express')
 const router = express.Router()
@@ -108,7 +108,7 @@ const processSnapshot = async (device, capturedAt, jpeg) => {
     ])
     console.log(`[Camera] ${device.serial || device.id}: ${result.total} cows ${JSON.stringify(counts)} cci=${result.cci} in ${result.timing_ms.total} ms`)
 
-    await maybeSaveSample(device.farmId, capturedAt, jpeg)
+    await maybeSaveSample(device.farmId, capturedAt, jpeg, result, vision.IMGSZ)
 }
 
 // สถานะ worker (ไม่มีข้อมูลลับ)
