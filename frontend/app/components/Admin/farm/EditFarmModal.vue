@@ -170,6 +170,44 @@
           <p class="text-[11px] text-[#718078] mt-1">เกษตรกรกดโทรได้จากหน้า "ฉัน" ในแอป</p>
         </div>
 
+        <!-- เวลารีดนม/ให้อาหาร: ถามเกษตรกรครั้งเดียวตอนติดตั้ง ใช้ตัดช่วงที่วัวยืนเพราะงานประจำออกตอนวิเคราะห์พฤติกรรมเทียบ THI -->
+        <div>
+          <label class="block text-xs font-black text-[#4e6057] uppercase tracking-wider mb-1.5">
+            เวลารีดนมและให้อาหาร <span class="normal-case font-medium text-[#718078]">(ไม่บังคับ)</span>
+          </label>
+          <div class="space-y-2.5">
+            <div v-for="group in routineGroups" :key="group.key" class="flex flex-wrap items-center gap-2">
+              <span class="w-[72px] shrink-0 text-xs font-bold text-[#4e6057] flex items-center gap-1">
+                <v-icon :icon="group.icon" size="16" class="text-[#718078]" />{{ group.label }}
+              </span>
+              <div
+                v-for="(t, i) in form[group.key]"
+                :key="`${group.key}-${i}`"
+                class="flex items-center bg-white border border-[#e5ece9] rounded-[12px] pl-2.5 pr-1 py-1 focus-within:border-[#24433a]">
+                <input
+                  v-model="form[group.key][i]"
+                  type="time"
+                  class="bg-transparent text-sm font-medium text-[#1f3d34] focus:outline-none w-[92px]" />
+                <button
+                  type="button"
+                  class="w-6 h-6 rounded-full flex items-center justify-center text-[#718078] hover:bg-[#f6f7f5] hover:text-rose-500"
+                  :aria-label="`ลบ${group.label} ${t || ''}`"
+                  @click="form[group.key].splice(i, 1)">
+                  <v-icon icon="mdi-close" size="14" />
+                </button>
+              </div>
+              <button
+                v-if="form[group.key].length < group.max"
+                type="button"
+                class="text-xs font-bold text-[#24433a] border border-dashed border-[#c9d6d0] rounded-[12px] px-3 py-1.5 hover:bg-[#f6f7f5]"
+                @click="form[group.key].push(group.defaults[form[group.key].length] || group.defaults[0])">
+                + เพิ่มเวลา
+              </button>
+            </div>
+          </div>
+          <p class="text-[11px] text-[#718078] mt-1">ถามเกษตรกรตอนติดตั้ง ใช้ตัดช่วงที่วัวยืนเพราะรีดนม/กินอาหารออก ตอนวิเคราะห์พฤติกรรมเทียบกับ THI เกษตรกรไม่เห็นช่องนี้</p>
+        </div>
+
         <!-- ชนิดหลังคา: ดูด้วยตาได้ ไม่บังคับ ใช้อธิบายว่าทำไมโรงเรือนร้อนต่างจากข้างนอก -->
         <div>
           <label class="block text-xs font-black text-[#4e6057] uppercase tracking-wider mb-1.5">
@@ -451,6 +489,8 @@ const form = ref({
   district: '',
   address: '',
   vet_phone: '',
+  milking_times: [],
+  feeding_times: [],
   roof_type: '',
   id_devices: '',
   has_camera: false,
@@ -461,6 +501,12 @@ const form = ref({
   camera_user: 'admin',
   camera_pass: ''
 })
+
+// รีดนมได้ 2 เวลา ให้อาหารได้ 3 เวลา (ตรงกับที่ backend ตรวจ)
+const routineGroups = [
+  { key: 'milking_times', label: 'รีดนม', icon: 'mdi-water-outline', max: 2, defaults: ['05:00', '15:00'] },
+  { key: 'feeding_times', label: 'ให้อาหาร', icon: 'mdi-silverware-fork-knife', max: 3, defaults: ['07:00', '11:00', '16:00'] }
+]
 
 const token = process.client ? localStorage.getItem('token') : null
 
@@ -510,6 +556,8 @@ const loadFarmData = () => {
       district: props.farm.district || '',
       address: props.farm.address || '',
       vet_phone: props.farm.vet_phone || '',
+      milking_times: Array.isArray(props.farm.milking_times) ? [...props.farm.milking_times] : [],
+      feeding_times: Array.isArray(props.farm.feeding_times) ? [...props.farm.feeding_times] : [],
       // ค่าเดิมที่ระบบเคยใส่อัตโนมัติ ("สังกะสี (Zinc)") ไม่ใช่ค่าที่มีคนกรอก จึงแสดงเป็นไม่ระบุ
       roof_type: props.farm.roof_type && props.farm.roof_type !== 'สังกะสี (Zinc)' ? props.farm.roof_type : '',
       id_devices: props.farm.id_devices || '',
@@ -641,6 +689,8 @@ const submitEdit = async () => {
       district: form.value.district ? form.value.district.trim() : null,
       address: form.value.address ? form.value.address.trim() : null,
       vet_phone: form.value.vet_phone ? form.value.vet_phone.trim() : '',
+      milking_times: form.value.milking_times.filter(Boolean),
+      feeding_times: form.value.feeding_times.filter(Boolean),
       roof_type: form.value.roof_type || null,
       id_devices: form.value.id_devices
     }

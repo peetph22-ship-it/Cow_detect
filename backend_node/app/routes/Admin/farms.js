@@ -22,6 +22,18 @@ const CAMERA_PUBLIC_COLUMNS = `id, farm_id, camera_name, barn_unit, brand, model
 // Helper function to check if a string is a valid UUID
 const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str || '').trim())
 
+// เวลารีดนม/ให้อาหาร 'HH:MM' (เวลาไทย) undefined = ไม่แก้, [] = ล้าง
+const MAX_MILKING_TIMES = 2
+const MAX_FEEDING_TIMES = 3
+const parseRoutineTimes = (value, max, label) => {
+    if (value === undefined) return { times: null }
+    const list = Array.isArray(value) ? value : [value]
+    const times = [...new Set(list.map(v => String(v ?? '').trim()).filter(Boolean))]
+    if (times.some(t => !/^([01]\d|2[0-3]):[0-5]\d$/.test(t))) return { error: `${label}ต้องเป็นรูปแบบ HH:MM เช่น 05:30` }
+    if (times.length > max) return { error: `${label}ได้ไม่เกิน ${max} เวลา` }
+    return { times: times.sort() }
+}
+
 // -----------------------------------------------------------------
 // 1. GET: /api/Admin/farms/all
 // ดึงข้อมูลฟาร์มทั้งหมด พร้อมค่าเซ็นเซอร์ล่าสุดต่ออุปกรณ์
@@ -921,6 +933,29 @@ router.put('/:id', verifyToken, requireRole('admin'), async (req, res) => {
             } catch (vpErr) {
                 await client.query('ROLLBACK TO SAVEPOINT vet_phone')
                 console.warn('[Update Farm] vet_phone not saved (run migration 20261024_farm_vet_phone.sql):', vpErr.message)
+            }
+        }
+
+        // เวลารีดนม/ให้อาหาร (migrations/20261026_farm_routine_times.sql) ยังไม่รัน migration = ข้าม เหมือน vet_phone
+        if (req.body.milking_times !== undefined || req.body.feeding_times !== undefined) {
+            const milking = parseRoutineTimes(req.body.milking_times, MAX_MILKING_TIMES, 'เวลารีดนม')
+            const feeding = parseRoutineTimes(req.body.feeding_times, MAX_FEEDING_TIMES, 'เวลาให้อาหาร')
+            const timeErr = milking.error || feeding.error
+            if (timeErr) {
+                await client.query('ROLLBACK')
+                return res.status(400).json({ success: false, message: timeErr })
+            }
+            await client.query('SAVEPOINT routine_times')
+            try {
+                const rtRes = await client.query(
+                    `UPDATE tb_farms SET milking_times = COALESCE($1, milking_times), feeding_times = COALESCE($2, feeding_times)
+                     WHERE id_farms = $3 RETURNING *`,
+                    [milking.times, feeding.times, id]
+                )
+                rows[0] = rtRes.rows[0]
+            } catch (rtErr) {
+                await client.query('ROLLBACK TO SAVEPOINT routine_times')
+                console.warn('[Update Farm] routine times not saved (run migration 20261026_farm_routine_times.sql):', rtErr.message)
             }
         }
 
