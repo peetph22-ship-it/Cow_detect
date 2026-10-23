@@ -6,6 +6,8 @@
  * - ไม่มีการเติมค่าสมมติเมื่อไม่มีข้อมูล (เป็น null)
  * - ไม่ประมาณการมูลค่าความเสียหายน้ำนม (ยังไม่มีค่าสัมประสิทธิ์ที่วัดจากโคนมไทย)
  * - ไม่แสดงผลการปฏิบัติตามเกณฑ์ที่ระบบไม่ได้บันทึกจริง
+ * - ไม่ให้เกรด/คะแนน และไม่อ้างว่าผ่านการรับรองจากหน่วยงานใด (เกณฑ์ภายในยังไม่ได้ตรวจสอบกับโรงเรือนไทย
+ *   และเกรดต่ำอาจกระทบการพิจารณาสินเชื่อของเกษตรกรโดยไม่เป็นธรรม) แสดงเป็นตัวเลขที่วัดได้ + ความครบถ้วนของข้อมูล
  */
 
 const express = require('express')
@@ -17,7 +19,7 @@ const { getRiskLevel, getFarmProfile, getThresholds, thiSql } = require('../../s
 const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str || '').trim())
 
 const REPORT_DAYS = 30
-const GRADING_BASIS = 'เกณฑ์ภายในของ CowCare จากชั่วโมงวิกฤตและการระบายความร้อนกลางคืน (ยังไม่อ้างอิงมาตรฐานภายนอก)'
+const DATA_NOTE = 'ข้อมูลจากเซ็นเซอร์ในโรงเรือนของฟาร์ม บันทึกอัตโนมัติ ยังไม่ผ่านการรับรองจากหน่วยงานภายนอก ผู้รับเอกสารควรตรวจสอบประกอบ'
 
 const round1 = (v) => (v == null ? null : parseFloat(Number(v).toFixed(1)))
 
@@ -76,20 +78,31 @@ const computeFarmRisk = async (farm) => {
     const avgThi = hoursSampled ? round1(thiValues.reduce((a, b) => a + b, 0) / hoursSampled) : null
     const nightRecoveryRate = nightHours > 0 ? Math.round((nightRecovered / nightHours) * 100) : null
 
-    let welfareGrade = null
-    let welfareStatus = 'ข้อมูลไม่เพียงพอสำหรับประเมิน'
-    if (hoursSampled > 0) {
-        const avgLevel = getRiskLevel(avgThi, profile)
-        if (counts.severe === 0 && (avgLevel === 'normal' || avgLevel === 'mild') && (nightRecoveryRate ?? 0) >= 80) {
-            welfareGrade = 'A'
-            welfareStatus = 'ไม่พบชั่วโมงวิกฤต และกลางคืนระบายความร้อนได้ดี'
-        } else if (counts.severe > 10 || (nightRecoveryRate != null && nightRecoveryRate < 60)) {
-            welfareGrade = 'C'
-            welfareStatus = 'ควรปรับปรุงระบบระบายความร้อน'
-        } else {
-            welfareGrade = 'B'
-            welfareStatus = 'มีช่วงเครียดจากความร้อนบางช่วง'
-        }
+    // ความครบถ้วน: ชั่วโมงที่มีข้อมูล / ชั่วโมงทั้งหมดในรอบรายงาน
+    // นับจากค่าแรกของฟาร์มถ้าติดตั้งไม่ถึง REPORT_DAYS วัน (แยกให้เห็นทั้ง 2 แบบ)
+    const periodEnd = new Date()
+    const periodStart = new Date(periodEnd.getTime() - REPORT_DAYS * 86400000)
+    const { rows: [firstRow] } = await db.query(`
+        SELECT MIN(sr.recorded_at) AS first_at
+        FROM tb_sensor_readings sr
+        LEFT JOIN tb_devices d ON d.id_devices = sr.id_devices
+        WHERE (d.id_farms = $1 OR sr.id_farms = $1)
+    `, [farm.id_farms])
+    const firstAt = firstRow?.first_at ? new Date(firstRow.first_at) : null
+    const periodHours = REPORT_DAYS * 24
+    const sinceInstallHours = firstAt
+        ? Math.max(1, Math.ceil((periodEnd - Math.max(firstAt.getTime(), periodStart.getTime())) / 3600000))
+        : null
+    const coverage = {
+        hours_with_data: hoursSampled,
+        period_hours: periodHours,
+        period_pct: Math.round((hoursSampled / periodHours) * 100),
+        first_reading_at: firstAt ? firstAt.toISOString() : null,
+        installed_within_period: Boolean(firstAt && firstAt > periodStart),
+        since_install_hours: sinceInstallHours,
+        since_install_pct: sinceInstallHours ? Math.min(100, Math.round((hoursSampled / sinceInstallHours) * 100)) : null,
+        period_start: periodStart.toISOString(),
+        period_end: periodEnd.toISOString()
     }
 
     return {
@@ -103,8 +116,7 @@ const computeFarmRisk = async (farm) => {
         minThi: hoursSampled ? round1(Math.min(...thiValues)) : null,
         nightHours,
         nightRecoveryRate,
-        welfareGrade,
-        welfareStatus
+        coverage
     }
 }
 
@@ -174,9 +186,7 @@ router.get('/farms-summary', verifyToken, requireRole('admin'), async (req, res)
                     max_thi: r.maxThi,
                     min_thi: r.minThi,
                     night_recovery_rate_pct: r.nightRecoveryRate,
-                    welfare_grade: r.welfareGrade,
-                    welfare_status: r.welfareStatus,
-                    grading_basis: GRADING_BASIS,
+                    data_coverage: r.coverage,
                     stress_breakdown: {
                         mild_hours: r.counts.mild,
                         moderate_hours: r.counts.moderate,
@@ -230,10 +240,12 @@ const handleFarmReportDetail = async (req, res) => {
 
         res.json({
             success: true,
-            report_id: `ESG-${new Date().getFullYear()}-${farm.id_farms.slice(0, 8)}`,
+            report_id: `CCR-${new Date().getFullYear()}-${farm.id_farms.slice(0, 8)}`,
             generated_at: new Date().toISOString(),
             report_days: REPORT_DAYS,
             data_basis: `THI เฉลี่ยรายชั่วโมง (สูตร NRC 1971) จากเซ็นเซอร์ในโรงเรือน ย้อนหลัง ${REPORT_DAYS} วัน`,
+            data_note: DATA_NOTE,
+            data_coverage: r.coverage,
             farm_profile: {
                 id_farms: farm.id_farms,
                 name_farms: farm.name_farms,
@@ -262,11 +274,6 @@ const handleFarmReportDetail = async (req, res) => {
                 stressed_hours: stressedHours,
                 night_hours_sampled: r.nightHours,
                 night_recovery_rate_pct: r.nightRecoveryRate
-            },
-            welfare_assessment: {
-                welfare_grade: r.welfareGrade,
-                welfare_status: r.welfareStatus,
-                grading_basis: GRADING_BASIS
             },
             // ระบบยังไม่ได้บันทึกการปฏิบัติของเกษตรกร จึงรายงานได้เฉพาะรายการที่วัดจากเซ็นเซอร์
             action_checklist: [

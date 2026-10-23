@@ -26,9 +26,6 @@
             <h1 class="text-2xl md:text-3xl font-black text-[#142820] tracking-tight">
               {{ reportData?.farm_profile?.name_farms || 'กำลังโหลดข้อมูลฟาร์ม...' }}
             </h1>
-            <span class="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 rounded-full text-[11px] font-black tracking-wide border border-emerald-200">
-              ESG &amp; BAAC Certified
-            </span>
           </div>
         </div>
       </div>
@@ -83,7 +80,7 @@
           </div>
           <div>
             <div class="text-[10px] font-black text-[#D87939] uppercase tracking-[0.2em]">
-              OFFICIAL DAIRY ESG RISK LOGBOOK
+              HEAT RISK LOGBOOK · SENSOR DATA
             </div>
             <h2 class="text-2xl font-black text-[#142820] tracking-tight">
               สมุดรายงานความเสี่ยงสภาวะเครียดจากความร้อนในโคนม
@@ -140,21 +137,22 @@
       <!-- 3. Risk & Welfare Scorecard -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         
-        <!-- Scorecard Grade Badge -->
+        <!-- ความครบถ้วนของข้อมูล (ผู้รับเอกสารควรดูก่อนตัวเลขอื่น) -->
         <div class="p-6 rounded-3xl bg-gradient-to-br from-[#142820] to-[#1C362B] text-white flex flex-col justify-between shadow-md">
           <div>
-            <div class="text-[10px] font-bold text-[#F2BD7C] uppercase tracking-widest">
-              COWCARE INTERNAL WELFARE GRADE
-            </div>
-            <div class="text-base font-black mt-1">เกรดสวัสดิภาพโคนมเบื้องต้น</div>
-            <div class="text-xs text-white/70 mt-0.5">ประเมินจากชั่วโมงวิกฤตและการฟื้นตัวกลางคืน</div>
+            <div class="text-[10px] font-bold text-[#F2BD7C] uppercase tracking-widest">DATA COVERAGE</div>
+            <div class="text-base font-black mt-1">ความครบถ้วนของข้อมูล</div>
+            <div class="text-xs text-white/70 mt-0.5">ชั่วโมงที่มีข้อมูลเซ็นเซอร์ในรอบ {{ reportData.report_days || 30 }} วัน</div>
           </div>
           <div class="my-4 text-center">
-            <div class="text-6xl font-black text-[#F2BD7C] leading-none">{{ reportData.welfare_assessment?.welfare_grade || '—' }}</div>
-            <div class="text-xs font-bold text-white/90 mt-2">{{ reportData.welfare_assessment?.welfare_status || 'ยังไม่มีข้อมูล' }}</div>
+            <div class="text-6xl font-black text-[#F2BD7C] leading-none tabular-nums">{{ coverage ? `${coverage.period_pct}%` : '—' }}</div>
+            <div class="text-xs font-bold text-white/90 mt-2 tabular-nums">{{ coverage ? `${coverage.hours_with_data} จาก ${coverage.period_hours} ชั่วโมง` : 'ยังไม่มีข้อมูล' }}</div>
           </div>
-          <div class="text-[10px] text-white/60 text-center border-t border-white/10 pt-2">
-            {{ reportData.welfare_assessment?.grading_basis || 'เกณฑ์ภายในของ CowCare จากข้อมูลเซ็นเซอร์จริง' }}
+          <div v-if="coverage?.installed_within_period" class="text-[10px] text-white/70 text-center border-t border-white/10 pt-2">
+            เริ่มบันทึก {{ formatThaiDate(coverage.first_reading_at) }} · นับจากวันเริ่มบันทึก ครบ {{ coverage.since_install_pct }}%
+          </div>
+          <div v-else class="text-[10px] text-white/70 text-center border-t border-white/10 pt-2">
+            ช่วงที่ไม่มีข้อมูล: กล่องเซ็นเซอร์ไม่ได้ส่งข้อมูล (ไฟดับ/อินเทอร์เน็ตขัดข้อง)
           </div>
         </div>
 
@@ -270,7 +268,7 @@
       <div class="mb-10">
         <h3 class="text-sm font-black text-[#142820] uppercase tracking-wider mb-3 flex items-center gap-2">
           <v-icon icon="mdi-checkbox-marked-circle-outline" size="18" class="text-emerald-700" />
-          รายการตรวจสอบการปฏิบัติตามมาตรฐานสวัสดิภาพสัตว์
+          รายการปฏิบัติด้านการระบายความร้อน (บันทึกได้เฉพาะรายการที่วัดจากเซ็นเซอร์)
         </h3>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div 
@@ -309,15 +307,19 @@
 
         <div>
           <div class="h-16 flex items-end justify-center pb-2">
-            <div class="px-3 py-1 rounded bg-[#142820] text-[#F2BD7C] font-mono text-[10px] font-bold">
-              DIGITALLY VERIFIED
+            <div class="px-3 py-1 rounded bg-[#F6F7F5] border border-[#E4E8E5] text-[#4e6057] font-mono text-[10px] font-bold">
+              {{ reportData.report_id }}
             </div>
           </div>
-          <div class="font-bold text-[#142820]">CowCare AI Smart Auditor</div>
-          <div class="text-[10px] text-[#718078] mt-0.5">ระบบโทรมาตรอัตโนมัติ (IoT)</div>
+          <div class="font-bold text-[#142820]">สร้างโดยระบบ CowCare AI</div>
+          <div class="text-[10px] text-[#718078] mt-0.5">ข้อมูลอัตโนมัติจากเซ็นเซอร์ในโรงเรือน (ไม่ใช่การรับรอง)</div>
         </div>
 
       </div>
+
+      <p class="mt-8 text-[11px] text-[#718078] leading-relaxed border-t border-[#E4E8E5] pt-4">
+        หมายเหตุ: {{ reportData.data_note }} · {{ reportData.data_basis }} · ไม่มีการประมาณมูลค่าความเสียหายหรือปริมาณน้ำนมที่ลดลง
+      </p>
 
     </div>
 
@@ -342,7 +344,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import axios from 'axios'
 import { Admin } from '../../API/baseAPI'
@@ -355,11 +357,13 @@ const route = useRoute()
 const farmId = ref(route.params.id || null)
 
 useHead({ 
-  title: 'สมุดรายงานความเสี่ยงสหกรณ์ (Coop ESG Risk Logbook) | CowCare AI' 
+  title: 'สมุดรายงานความเสี่ยงความร้อน | CowCare AI' 
 })
 
 const reportData = ref(null)
 const isLoading = ref(true)
+const coverage = computed(() => reportData.value?.data_coverage || null)
+const formatThaiDate = (iso) => (iso ? new Date(iso).toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', year: 'numeric' }) : '—')
 
 const fetchReport = async () => {
   if (!farmId.value) return

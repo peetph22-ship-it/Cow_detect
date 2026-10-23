@@ -7,7 +7,7 @@
         <h1 class="text-[32px] md:text-[40px] font-black text-[#142820] tracking-tight leading-tight mb-2 flex items-center gap-3">
           สมุดความเสี่ยง &amp; เอกสารยื่นสหกรณ์
           <span class="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-[12px] text-xs font-bold uppercase tracking-wider border border-emerald-200">
-            Coop ESG Logbook Hub
+            Heat Risk Logbook
           </span>
         </h1>
         <p class="text-[#718078] text-[15px] font-medium max-w-2xl">
@@ -110,7 +110,7 @@
                 <th class="py-4 px-5 text-center w-14">#</th>
                 <th class="py-4 px-6">ข้อมูลฟาร์ม &amp; เกษตรกร</th>
                 <th class="py-4 px-6">โครงสร้างโรงเรือน</th>
-                <th class="py-4 px-6 text-center">เกรดสวัสดิภาพ (Welfare)</th>
+                <th class="py-4 px-6 text-center">ความครบถ้วนข้อมูล (30 วัน)</th>
                 <th class="py-4 px-6 text-right">ค่าเฉลี่ย THI สะสม</th>
                 <th class="py-4 px-6 text-center">Night Recovery</th>
                 <th class="py-4 px-6 text-right">ชั่วโมงความร้อนสะสม (30 วัน)</th>
@@ -162,17 +162,11 @@
                   </div>
                 </td>
 
-                <!-- Welfare Grade Badge -->
+                <!-- ความครบถ้วนของข้อมูล -->
                 <td class="py-4 px-6 text-center">
-                  <div v-if="farm.welfare_grade" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black border"
-                    :class="farm.welfare_grade === 'A' 
-                      ? 'bg-emerald-50 text-emerald-800 border-emerald-300 ring-1 ring-emerald-500/20' 
-                      : farm.welfare_grade === 'B' 
-                      ? 'bg-amber-50 text-amber-800 border-amber-300' 
-                      : 'bg-rose-50 text-rose-800 border-rose-300'">
-                    <span class="w-2 h-2 rounded-full" :class="farm.welfare_grade === 'A' ? 'bg-emerald-500' : farm.welfare_grade === 'B' ? 'bg-amber-500' : 'bg-rose-500'"></span>
-                    <span>เกรด {{ farm.welfare_grade }}</span>
-                    <span class="text-[10px] font-medium opacity-80">({{ farm.welfare_grade === 'A' ? 'ดีเยี่ยม' : farm.welfare_grade === 'B' ? 'ระดับดี' : 'ปรับปรุง' }})</span>
+                  <div v-if="farm.data_coverage" class="inline-flex flex-col items-center">
+                    <span class="text-sm font-black tabular-nums" :class="coverageClass(farm.data_coverage.period_pct)">{{ farm.data_coverage.period_pct }}%</span>
+                    <span class="text-[10px] text-[#718078] tabular-nums">{{ farm.data_coverage.hours_with_data }} / {{ farm.data_coverage.period_hours }} ชม.</span>
                   </div>
                   <span v-else class="text-xs font-bold text-[#718078]">ไม่มีข้อมูล</span>
                 </td>
@@ -249,15 +243,11 @@
                 </div>
               </div>
 
-              <!-- Welfare Grade Pill -->
-              <span v-if="farm.welfare_grade"
-                class="px-3 py-1 rounded-full text-xs font-black border shadow-2xs shrink-0"
-                :class="farm.welfare_grade === 'A' 
-                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300' 
-                  : farm.welfare_grade === 'B' 
-                  ? 'bg-amber-50 text-amber-800 border-amber-300' 
-                  : 'bg-rose-50 text-rose-800 border-rose-300'">
-                เกรด {{ farm.welfare_grade }}
+              <!-- ความครบถ้วนของข้อมูล -->
+              <span v-if="farm.data_coverage"
+                class="px-3 py-1 rounded-full text-xs font-black border border-[#E4E8E5] bg-[#F6F7F5] shrink-0 tabular-nums"
+                :class="coverageClass(farm.data_coverage.period_pct)">
+                ข้อมูล {{ farm.data_coverage.period_pct }}%
               </span>
               <span v-else class="px-3 py-1 rounded-full text-xs font-bold border border-[#E4E8E5] bg-[#F6F7F5] text-[#718078] shrink-0">
                 ไม่มีข้อมูล
@@ -323,13 +313,16 @@ definePageMeta({
 })
 
 useHead({ 
-  title: 'สมุดความเสี่ยง & เอกสารยื่นสหกรณ์ (Coop ESG Risk Logbook) | CowCare AI' 
+  title: 'สมุดความเสี่ยงความร้อน & เอกสารประกอบสหกรณ์ | CowCare AI' 
 })
 
 const farms = ref([])
 const isLoading = ref(true)
 const searchQuery = ref('')
 const viewMode = ref('table') // 'table' | 'grid'
+
+// ความครบถ้วนของข้อมูล: ≥90% ใช้ประกอบได้ดี, 60–89% มีช่องว่าง, <60% ข้อมูลน้อย
+const coverageClass = (pct) => (pct >= 90 ? 'text-emerald-700' : pct >= 60 ? 'text-amber-700' : 'text-rose-700')
 
 const fetchFarmsSummary = async () => {
   isLoading.value = true
