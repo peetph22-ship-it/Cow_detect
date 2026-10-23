@@ -64,7 +64,8 @@
           <div class="text-xs text-[#3e7d4f] font-semibold">24 ชม. ที่ผ่านมา</div>
           <template v-if="today">
             <div class="mt-1 tabular-nums"><span class="text-[26px] font-bold">{{ Math.round(today.stress_hours) }}</span> <span class="text-xs text-[#3e7d4f]">ชม. เครียด</span></div>
-            <div class="text-xs text-[#4e6b59] mt-1">สูงสุด {{ today.max_temp }}°C</div>
+            <div class="text-xs text-[#4e6b59] mt-1">สูงสุด {{ Number(today.max_temp).toFixed(1) }}°C</div>
+            <div v-if="today.coverage_pct < 90" class="text-[11px] text-[#a4521c] mt-1">มีข้อมูล {{ today.data_hours }} จาก 24 ชม.</div>
           </template>
           <div v-else class="text-sm text-[#4e6b59] mt-2">ยังไม่มีข้อมูล</div>
         </section>
@@ -76,6 +77,20 @@
             <div class="text-xs opacity-90 mt-1">{{ tomorrow.risk_level === 'normal' ? 'อากาศสบาย' : 'เตรียมพัดลมและน้ำ' }}</div>
           </template>
           <div v-else class="text-xs opacity-90 mt-2">{{ me?.forecast?.insufficient_data ? 'ข้อมูลยังไม่พอคาดการณ์' : 'ยังไม่มีคาดการณ์' }}</div>
+        </section>
+      </div>
+
+      <!-- พักกลางคืน + เครียดติดต่อกัน -->
+      <div v-if="today" class="grid grid-cols-2 gap-3">
+        <section class="bg-[#fffdf7] border border-[#EFE6D6] rounded-[22px] p-4">
+          <div class="text-xs text-[#718078] font-semibold flex items-center gap-1"><v-icon icon="mdi-weather-night" size="15" />พักกลางคืน</div>
+          <div class="mt-1 tabular-nums"><span class="text-[24px] font-bold" :class="(today.night_relief_hours ?? 0) >= 3 ? 'text-[#3e7d4f]' : 'text-[#a4521c]'">{{ today.night_relief_hours ?? 0 }}</span> <span class="text-xs text-[#718078]">ชม.</span></div>
+          <div class="text-[11px] text-[#718078] mt-1">{{ (today.night_relief_hours ?? 0) >= 3 ? 'วัวได้พักจากความร้อน' : 'กลางคืนยังร้อน วัวพักไม่ได้' }}</div>
+        </section>
+        <section class="bg-[#fffdf7] border border-[#EFE6D6] rounded-[22px] p-4">
+          <div class="text-xs text-[#718078] font-semibold flex items-center gap-1"><v-icon icon="mdi-calendar-alert" size="15" />เครียดติดต่อกัน</div>
+          <div class="mt-1 tabular-nums"><span class="text-[24px] font-bold" :class="(streak?.days ?? 0) >= 3 ? 'text-[#c2412d]' : 'text-[#142820]'">{{ streak?.days ?? 0 }}</span> <span class="text-xs text-[#718078]">วัน</span></div>
+          <div class="text-[11px] text-[#718078] mt-1">{{ (streak?.days ?? 0) >= 3 ? 'สะสมหลายวัน เฝ้าดูการกินและน้ำนม' : 'นับจากค่าเฉลี่ยทั้งวัน' }}</div>
         </section>
       </div>
 
@@ -101,10 +116,11 @@
         </button>
         <div v-if="showDetails" class="px-4 pb-4 text-[13px] text-[#4e6057] space-y-1.5 border-t border-[#EFE6D6] pt-3">
           <div class="flex justify-between gap-3"><span>ดัชนีความร้อนชื้น (THI)</span><span class="font-semibold text-[#142820] tabular-nums">{{ now?.thi ?? '—' }}</span></div>
-          <div class="flex justify-between gap-3"><span>THI เฉลี่ย 24 ชม.</span><span class="tabular-nums">{{ today?.avg_thi ?? '—' }}</span></div>
+          <div class="flex justify-between gap-3"><span>THI เฉลี่ย 24 ชม.</span><span class="tabular-nums">{{ today?.avg_thi ?? '—' }}<template v-if="today?.daily_mean_level"> ({{ riskShort(today.daily_mean_level) }})</template></span></div>
           <div class="flex justify-between gap-3"><span>เกณฑ์ เฝ้าระวัง / เครียด / วิกฤต</span><span class="tabular-nums">{{ thresholds.mild }} / {{ thresholds.moderate }} / {{ thresholds.severe }}</span></div>
           <div class="flex justify-between gap-3"><span>เกณฑ์ที่ใช้</span><span class="text-right">{{ PROFILE_LABELS[farm?.profile] }}</span></div>
           <div v-if="camera?.cci != null" class="flex justify-between gap-3"><span>ดัชนีความสบายจากกล้อง</span><span class="tabular-nums">{{ camera.cci }}%</span></div>
+          <HeatMethodNote :method="me?.method" tone="farmer" class="mt-3" />
         </div>
       </section>
     </div>
@@ -114,6 +130,7 @@
 <script setup>
 import { useFarmer, riskStyle, riskLabel, riskShort, agoText } from '~/composables/useFarmer'
 import { PROFILE_LABELS } from '~/utils/heatStress'
+import HeatMethodNote from '~/components/common/HeatMethodNote.vue'
 
 definePageMeta({ layout: 'farmer' })
 useHead({ title: 'ตอนนี้ | CowCare AI' })
@@ -125,6 +142,7 @@ const level = computed(() => now.value?.risk_level || null)
 const hot = computed(() => level.value === 'moderate' || level.value === 'severe')
 const today = computed(() => me.value?.today || null)
 const camera = computed(() => me.value?.camera || null)
+const streak = computed(() => me.value?.streak || null)
 const tomorrow = computed(() => me.value?.forecast?.days?.find(d => d.horizon_days === 1) || null)
 
 // ความกว้างแต่ละช่วงตามเกณฑ์ของฟาร์ม (ช่วงเครียดกว้างสุด เพราะเป็นช่วงที่พบบ่อยในโรงเรือนไทย)

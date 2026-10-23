@@ -170,6 +170,23 @@
           <p class="text-[11px] text-[#718078] mt-1">เกษตรกรกดโทรได้จากหน้า "ฉัน" ในแอป</p>
         </div>
 
+        <!-- ชนิดหลังคา: ดูด้วยตาได้ ไม่บังคับ ใช้อธิบายว่าทำไมโรงเรือนร้อนต่างจากข้างนอก -->
+        <div>
+          <label class="block text-xs font-black text-[#4e6057] uppercase tracking-wider mb-1.5">
+            ชนิดหลังคาโรงเรือน <span class="normal-case font-medium text-[#718078]">(ไม่บังคับ)</span>
+          </label>
+          <select
+            v-model="form.roof_type"
+            class="w-full bg-white border border-[#e5ece9] rounded-[16px] px-4 py-3 text-sm font-medium text-[#1f3d34] focus:outline-none focus:border-[#24433a] cursor-pointer">
+            <option value="">ไม่ระบุ</option>
+            <option value="สังกะสี">สังกะสี</option>
+            <option value="เมทัลชีท">เมทัลชีท</option>
+            <option value="กระเบื้อง">กระเบื้อง</option>
+            <option value="หลังคาจาก / หญ้า">หลังคาจาก / หญ้า</option>
+            <option value="อื่นๆ">อื่นๆ</option>
+          </select>
+        </div>
+
         <!-- 4. เลือกอุปกรณ์ IoT (ไม่มี icon ใน option, ไม่มีระบุ serial, ไม่มีไม่มีอุปกรณ์, ไม่มีรูปดาว) -->
         <div>
           <label class="block text-xs font-black text-[#4e6057] uppercase tracking-wider mb-1.5 flex items-center justify-between">
@@ -434,6 +451,7 @@ const form = ref({
   district: '',
   address: '',
   vet_phone: '',
+  roof_type: '',
   id_devices: '',
   has_camera: false,
   camera_name: '',
@@ -492,6 +510,8 @@ const loadFarmData = () => {
       district: props.farm.district || '',
       address: props.farm.address || '',
       vet_phone: props.farm.vet_phone || '',
+      // ค่าเดิมที่ระบบเคยใส่อัตโนมัติ ("สังกะสี (Zinc)") ไม่ใช่ค่าที่มีคนกรอก จึงแสดงเป็นไม่ระบุ
+      roof_type: props.farm.roof_type && props.farm.roof_type !== 'สังกะสี (Zinc)' ? props.farm.roof_type : '',
       id_devices: props.farm.id_devices || '',
       has_camera: false,
       camera_name: `${props.farm.name_farms || 'ฟาร์ม'} Camera 1`,
@@ -621,6 +641,7 @@ const submitEdit = async () => {
       district: form.value.district ? form.value.district.trim() : null,
       address: form.value.address ? form.value.address.trim() : null,
       vet_phone: form.value.vet_phone ? form.value.vet_phone.trim() : '',
+      roof_type: form.value.roof_type || null,
       id_devices: form.value.id_devices
     }
 

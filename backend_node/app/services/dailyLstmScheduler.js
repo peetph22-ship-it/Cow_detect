@@ -11,6 +11,7 @@ const {
     generateElderlyFriendlyAdvisory
 } = require('./lstmOnnxService')
 const { calcThi, getFarmProfile, getThresholds } = require('./heatStress')
+const { daySummary } = require('./heatMetrics')
 const { generateBaselineForecast } = require('./forecastService')
 
 // Bi-LSTM ปิดไว้จนกว่าจะเทรนใหม่ด้วยข้อมูลจริง (ดูหมายเหตุใน lstmOnnxService.js)
@@ -45,23 +46,13 @@ const calculateFarmDailySummary = async (farmId, targetDateStr = null) => {
     const profile = getFarmProfile(farm)
     const thresholds = getThresholds(profile)
 
-    // 2. ดึงข้อมูลเซ็นเซอร์ของวันนั้น (00:00:00 ถึง 23:59:59 เวลาไทย)
+    // 2-3. สรุปวันด้วยวิธีเดียวทั้งระบบ (heatMetrics: เฉลี่ย 5 นาที, กลางคืน 22:00–06:00)
+    // เดิมคิด "ชั่วโมงเครียด" = สัดส่วน x 24 และกลางคืน 00:00–06:00 ทำให้ตัวเลขไม่ตรงกับหน้าเว็บ
     const startOfDay = `${summaryDate} 00:00:00+07`
     const endOfDay = `${summaryDate} 23:59:59+07`
+    const day = await daySummary(farmId, profile, summaryDate)
 
-    const readingsRes = await db.query(`
-        SELECT sr.temperature_c, sr.humidity_pct, sr.thi, sr.recorded_at
-        FROM tb_sensor_readings sr
-        LEFT JOIN tb_devices d ON d.id_devices = sr.id_devices
-        WHERE (d.id_farms = $1 OR sr.id_farms = $1)
-          AND sr.recorded_at >= $2
-          AND sr.recorded_at <= $3
-        ORDER BY sr.recorded_at ASC
-    `, [farmId, startOfDay, endOfDay])
-
-    const readings = readingsRes.rows
-
-    if (readings.length === 0) {
+    if (!day.has_data) {
         return {
             success: false,
             message: `ไม่มีข้อมูลเซ็นเซอร์สำหรับฟาร์ม ${farm.name_farms} ในวันที่ ${summaryDate}`,
@@ -70,57 +61,18 @@ const calculateFarmDailySummary = async (farmId, targetDateStr = null) => {
         }
     }
 
-    // 3. ประมวลผลสถิติของวันตามเกณฑ์โคนมไทย
-    const temps = []
-    const hums = []
-    const thisList = []
-    let stressCount = 0
-    let severeCount = 0
-    const nightThis = []
-
-    for (const r of readings) {
-        const t = r.temperature_c != null ? parseFloat(r.temperature_c) : null
-        const h = r.humidity_pct != null ? parseFloat(r.humidity_pct) : null
-        let thi = (t !== null && h !== null) ? calcThi(t, h) : (r.thi != null ? parseFloat(r.thi) : null)
-
-        if (t !== null && !isNaN(t)) temps.push(t)
-        if (h !== null && !isNaN(h)) hums.push(h)
-        if (thi !== null && !isNaN(thi)) {
-            thisList.push(thi)
-            // ชั่วโมงเครียด = ระดับ moderate ขึ้นไป ตามเกณฑ์ของฟาร์ม (heatStress.js)
-            if (thi >= thresholds.moderate) stressCount++
-            if (thi >= thresholds.severe) severeCount++
-
-            // ตรวจสอบช่วงกลางคืน (00:00 - 06:00 เวลาไทย) เพื่อประเมิน Night Recovery
-            if (r.recorded_at) {
-                const recDate = new Date(r.recorded_at)
-                const bangkokHour = (recDate.getUTCHours() + 7) % 24
-                if (bangkokHour >= 0 && bangkokHour < 6) {
-                    nightThis.push(thi)
-                }
-            }
-        }
-    }
-
-    const totalCount = thisList.length || 1
-    const avgThi = thisList.length ? parseFloat((thisList.reduce((a, b) => a + b, 0) / thisList.length).toFixed(1)) : null
-    const minThi = thisList.length ? parseFloat(Math.min(...thisList).toFixed(1)) : null
-    const maxThi = thisList.length ? parseFloat(Math.max(...thisList).toFixed(1)) : null
-
-    const avgTemp = temps.length ? parseFloat((temps.reduce((a, b) => a + b, 0) / temps.length).toFixed(1)) : null
-    const minTemp = temps.length ? parseFloat(Math.min(...temps).toFixed(1)) : null
-    const maxTemp = temps.length ? parseFloat(Math.max(...temps).toFixed(1)) : null
-
-    const avgHum = hums.length ? parseFloat((hums.reduce((a, b) => a + b, 0) / hums.length).toFixed(1)) : null
-    const minHum = hums.length ? parseFloat(Math.min(...hums).toFixed(1)) : null
-    const maxHum = hums.length ? parseFloat(Math.max(...hums).toFixed(1)) : null
-
-    // ประมาณการชั่วโมงความเครียดสะสมในรอบวัน
-    const stressHours = parseFloat(((stressCount / totalCount) * 24).toFixed(1))
-    const severeHours = parseFloat(((severeCount / totalCount) * 24).toFixed(1))
-    const nightRecoveryThi = nightThis.length 
-        ? parseFloat((nightThis.reduce((a, b) => a + b, 0) / nightThis.length).toFixed(1)) 
-        : (minThi || avgThi)
+    const avgThi = day.avg_thi
+    const minThi = day.min_thi
+    const maxThi = day.max_thi
+    const avgTemp = day.avg_temp
+    const minTemp = day.min_temp
+    const maxTemp = day.max_temp
+    const avgHum = day.avg_hum
+    const minHum = day.min_hum
+    const maxHum = day.max_hum
+    const stressHours = day.stress_hours
+    const severeHours = day.severe_hours
+    const nightRecoveryThi = day.night_mean_thi ?? minThi
 
     // ดึงค่าเฉลี่ย Cow Comfort Index (CCI) จากกล้องวงจรปิดในรอบวัน
     let dayCci = null
@@ -272,7 +224,9 @@ const calculateFarmDailySummary = async (farmId, targetDateStr = null) => {
     return {
         success: true,
         summary: upsertRes.rows[0],
-        readings_count: readings.length,
+        // จำนวนช่วง 5 นาทีที่มีข้อมูล (วิธีเดียวกับหน้าเว็บ)
+        readings_count: Math.round(day.data_hours * 12),
+        data_hours: day.data_hours,
         farm_name: farm.name_farms,
         engine: lstmForecast.engine || lstmForecast.model_name
     }

@@ -15,7 +15,8 @@ const express = require('express')
 const router = express.Router()
 const db = require('../config/db')
 const { verifyToken } = require('../middleware/authMiddleware')
-const { calcThi, thiSql, getRiskLevel, getFarmProfile, getThresholds } = require('../services/heatStress')
+const { calcThi, getRiskLevel, getFarmProfile, getThresholds, getMethod } = require('../services/heatStress')
+const { loadBuckets: loadBucketRange, dailySeries, stressStreak, bkkDate, round1 } = require('../services/heatMetrics')
 const { getFarm24h } = require('../services/farmHistory')
 const { generateBaselineForecast } = require('../services/forecastService')
 const { getCameraBehavior } = require('../services/cameraBehavior')
@@ -61,30 +62,17 @@ const requireFarm = async (req, res, next) => {
 }
 
 const BUCKET_MIN = 5
-// ค่าเฉลี่ยทุก 5 นาทีย้อนหลัง N วัน (วันตามเวลาไทย) ใช้ร่วมกันระหว่าง history และ events
-const loadBuckets = async (farmId, days) => {
-    const { rows } = await db.query(`
-        SELECT to_timestamp(floor(extract(epoch FROM sr.recorded_at) / ${BUCKET_MIN * 60}) * ${BUCKET_MIN * 60}) AS t,
-               AVG(sr.temperature_c) AS temp, AVG(${thiSql('sr')}) AS thi
-        FROM tb_sensor_readings sr
-        LEFT JOIN tb_devices d ON d.id_devices = sr.id_devices
-        WHERE (d.id_farms = $1 OR sr.id_farms = $1)
-          AND sr.temperature_c IS NOT NULL AND sr.humidity_pct IS NOT NULL
-          AND sr.recorded_at >= (((NOW() AT TIME ZONE 'Asia/Bangkok')::date - $2::int)::timestamp AT TIME ZONE 'Asia/Bangkok')
-        GROUP BY 1 ORDER BY 1
-    `, [farmId, days - 1])
-    return rows.map(r => ({ t: new Date(r.t), temp: Number(r.temp), thi: Number(r.thi) }))
+// ค่าเฉลี่ยทุก 5 นาที ตั้งแต่เที่ยงคืน (เวลาไทย) ของ N-1 วันก่อน ถึงตอนนี้
+const loadBuckets = (farmId, days) => {
+    const firstKey = bkkDate(new Date(Date.now() - (days - 1) * 86400e3))
+    return loadBucketRange(farmId, new Date(`${firstKey}T00:00:00+07:00`), new Date(Date.now() + 60e3))
 }
-
-const bkkDate = (d) => new Date(d.getTime() + 7 * 3600 * 1000).toISOString().slice(0, 10)
-const bkkHour = (d) => new Date(d.getTime() + 7 * 3600 * 1000).getUTCHours()
-const round1 = (v) => (v == null || !Number.isFinite(v) ? null : Math.round(v * 10) / 10)
 
 router.get('/me', verifyToken, requireFarm, async (req, res) => {
     try {
         const { farms, farm, profile, thresholds } = req
 
-        const [latestRes, h24, forecast, camera, devRes] = await Promise.all([
+        const [latestRes, h24, forecast, camera, devRes, week] = await Promise.all([
             db.query(`
                 SELECT sr.temperature_c, sr.humidity_pct, sr.recorded_at
                 FROM tb_sensor_readings sr
@@ -101,7 +89,8 @@ router.get('/me', verifyToken, requireFarm, async (req, res) => {
                 SELECT d.last_seen_at, to_jsonb(d)->>'last_heartbeat_at' AS last_heartbeat_at, to_jsonb(d)->'health' AS health
                 FROM tb_devices d WHERE d.id_farms = $1
                 ORDER BY d.last_seen_at DESC NULLS LAST LIMIT 1
-            `, [farm.id_farms]).catch(() => ({ rows: [] }))
+            `, [farm.id_farms]).catch(() => ({ rows: [] })),
+            dailySeries(farm.id_farms, profile, 14).catch(() => [])
         ])
 
         const r = latestRes.rows[0]
@@ -142,14 +131,22 @@ router.get('/me', verifyToken, requireFarm, async (req, res) => {
             // สถานะกล่อง: ใช้บอกเกษตรกรว่าควรตรวจอะไร (ไม่ส่งรายละเอียดทางเทคนิค)
             device: health ? { status: health.status, message: health.message, signal: health.signal } : null,
             today: d ? {
-                avg_thi: d.avg_thi != null ? Number(d.avg_thi) : null,
-                max_temp: d.max_temp != null ? Number(d.max_temp) : null,
-                min_temp: d.min_temp != null ? Number(d.min_temp) : null,
+                avg_thi: d.avg_thi,
+                daily_mean_level: d.daily_mean_level,
+                max_temp: d.max_temp,
+                min_temp: d.min_temp,
                 stress_hours: d.stress_hours,
+                severe_hours: d.severe_hours,
                 stress_percentage: d.stress_percentage,
+                data_hours: d.data_hours,
+                coverage_pct: d.coverage_pct,
+                night_relief_hours: d.night_relief_hours,
+                night_data_hours: d.night_data_hours,
                 window_start: d.window_start,
                 window_end: d.window_end
             } : null,
+            streak: stressStreak(week, profile),
+            method: getMethod(profile),
             forecast: forecast ? {
                 insufficient_data: Boolean(forecast.insufficient_data),
                 reason: forecast.reason || null,
@@ -180,49 +177,25 @@ router.get('/me', verifyToken, requireFarm, async (req, res) => {
 // สรุปรายวัน 7 วัน: ชั่วโมงที่เครียด/วิกฤต นับจากช่วง 5 นาทีที่ค่าเฉลี่ย THI ถึงเกณฑ์ (ไม่ขึ้นกับความถี่การส่ง)
 router.get('/history', verifyToken, requireFarm, async (req, res) => {
     try {
-        const DAYS = 7
-        const buckets = await loadBuckets(req.farm.id_farms, DAYS)
-        const t = req.thresholds
-        const byDay = new Map()
-        for (const b of buckets) {
-            const key = bkkDate(b.t)
-            if (!byDay.has(key)) byDay.set(key, { buckets: 0, stress: 0, severe: 0, maxTemp: -Infinity, minTemp: Infinity, thiSum: 0, hourThi: new Map() })
-            const d = byDay.get(key)
-            d.buckets++
-            d.thiSum += b.thi
-            if (b.thi >= t.moderate) d.stress++
-            if (b.thi >= t.severe) d.severe++
-            d.maxTemp = Math.max(d.maxTemp, b.temp)
-            d.minTemp = Math.min(d.minTemp, b.temp)
-            const h = bkkHour(b.t)
-            const hv = d.hourThi.get(h) || { sum: 0, n: 0 }
-            hv.sum += b.thi; hv.n++
-            d.hourThi.set(h, hv)
-        }
-        const todayKey = bkkDate(new Date())
-        const days = []
-        for (let i = DAYS - 1; i >= 0; i--) {
-            const key = bkkDate(new Date(Date.now() - i * 86400000))
-            const d = byDay.get(key)
-            if (!d) { days.push({ date: key, is_today: key === todayKey, has_data: false }); continue }
-            let peakHour = null, peakThi = -Infinity
-            for (const [h, v] of d.hourThi) if (v.sum / v.n > peakThi) { peakThi = v.sum / v.n; peakHour = h }
-            const avgThi = d.thiSum / d.buckets
-            days.push({
-                date: key,
-                is_today: key === todayKey,
-                has_data: true,
-                stress_hours: round1(d.stress * BUCKET_MIN / 60),
-                severe_hours: round1(d.severe * BUCKET_MIN / 60),
-                data_hours: round1(d.buckets * BUCKET_MIN / 60),
-                max_temp: round1(d.maxTemp),
-                min_temp: round1(d.minTemp),
-                avg_thi: round1(avgThi),
-                risk_level: getRiskLevel(avgThi, req.profile),
-                peak_hour: peakHour
-            })
-        }
-        return res.json({ success: true, farm_id: req.farm.id_farms, thresholds: t, days })
+        const series = await dailySeries(req.farm.id_farms, req.profile, 7)
+        const days = series.map(d => d.has_data ? {
+            date: d.date,
+            is_today: d.is_today,
+            has_data: true,
+            stress_hours: d.stress_hours,
+            severe_hours: d.severe_hours,
+            data_hours: d.data_hours,
+            coverage_pct: d.coverage_pct,
+            max_temp: d.max_temp,
+            min_temp: d.min_temp,
+            avg_thi: d.avg_thi,
+            // ระดับจาก THI เฉลี่ยทั้งวัน (วิธีเดียวกับงานวิจัย)
+            risk_level: d.daily_mean_level,
+            night_relief_hours: d.night_relief_hours,
+            night_data_hours: d.night_data_hours,
+            peak_hour: d.peak_hour
+        } : { date: d.date, is_today: d.is_today, has_data: false })
+        return res.json({ success: true, farm_id: req.farm.id_farms, thresholds: req.thresholds, days, streak: stressStreak(series, req.profile), method: getMethod(req.profile) })
     } catch (err) {
         console.error('[Farmer API] /history error:', err.message)
         return res.status(500).json({ success: false, message: 'ดึงข้อมูลย้อนหลังไม่สำเร็จ' })

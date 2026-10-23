@@ -47,6 +47,8 @@
           <div class="bg-[#F6F7F5] rounded-2xl p-3"><div class="text-[11px] text-[#718078]">เย็นที่สุด</div><div class="text-[17px] font-bold tabular-nums">{{ selectedDay.min_temp }}°C</div></div>
           <div class="bg-[#F6F7F5] rounded-2xl p-3"><div class="text-[11px] text-[#718078]">ช่วงร้อนที่สุด</div><div class="text-[17px] font-bold tabular-nums">{{ selectedDay.peak_hour != null ? `${selectedDay.peak_hour}:00 น.` : '—' }}</div></div>
           <div class="bg-[#F6F7F5] rounded-2xl p-3"><div class="text-[11px] text-[#718078]">วิกฤต</div><div class="text-[17px] font-bold tabular-nums">{{ selectedDay.severe_hours }} ชม.</div></div>
+          <div class="bg-[#F6F7F5] rounded-2xl p-3"><div class="text-[11px] text-[#718078]">THI เฉลี่ยทั้งวัน</div><div class="text-[17px] font-bold tabular-nums">{{ selectedDay.avg_thi }}</div></div>
+          <div class="bg-[#F6F7F5] rounded-2xl p-3"><div class="text-[11px] text-[#718078]">พักกลางคืน</div><div class="text-[17px] font-bold tabular-nums">{{ selectedDay.night_relief_hours ?? 0 }} ชม.</div></div>
         </div>
         <p v-if="selectedDay.has_data && selectedDay.data_hours < 23 && !selectedDay.is_today" class="text-xs text-[#a4521c] mt-3">
           มีข้อมูล {{ selectedDay.data_hours }} จาก 24 ชม. (กล่องเซ็นเซอร์ขาดการติดต่อบางช่วง)
@@ -82,12 +84,14 @@
       </div>
 
       <p v-if="errorMsg" class="text-sm text-[#a4521c] md:col-span-2">{{ errorMsg }}</p>
+      <HeatMethodNote :method="method" tone="farmer" class="md:col-span-2" />
     </div>
   </div>
 </template>
 
 <script setup>
 import { useFarmer, riskStyle, riskShort, thaiDate } from '~/composables/useFarmer'
+import HeatMethodNote from '~/components/common/HeatMethodNote.vue'
 
 definePageMeta({ layout: 'farmer' })
 useHead({ title: 'ย้อนหลัง | CowCare AI' })
@@ -97,6 +101,7 @@ const days = ref([])
 const selected = ref('')
 const loadingDays = ref(true)
 const errorMsg = ref('')
+const method = ref(null)
 
 const withData = computed(() => days.value.filter(d => d.has_data))
 const maxStress = computed(() => Math.max(1, ...withData.value.map(d => d.stress_hours)))
@@ -130,6 +135,7 @@ const load = async () => {
   try {
     const d = await request('history')
     days.value = d.days || []
+    method.value = d.method || null
     if (!days.value.find(x => x.date === selected.value)) selected.value = days.value[days.value.length - 1]?.date || ''
     errorMsg.value = ''
   } catch {

@@ -78,6 +78,40 @@ const toAlertLevel = (riskLevel) => ALERT_LEVEL[riskLevel] || null
 // จุดต่ำสุดของระดับเฝ้าระวังในทุก profile ใช้กรองข้อมูลใน SQL ก่อนจัดระดับรายฟาร์มใน JS
 const MIN_ALERT_THI = Math.min(...Object.values(PROFILES).map(p => p.mild))
 
+/**
+ * วิธีคำนวณและที่มา สำหรับแสดงบนหน้าเว็บ (ทุกหน้าใช้ข้อความชุดนี้ ไม่เขียนซ้ำใน frontend)
+ */
+const getMethod = (profile = 'default') => {
+    const t = getThresholds(profile)
+    return {
+        formula: 'THI = (1.8 × T + 32) − (0.55 − 0.0055 × RH) × (1.8 × T − 26)',
+        formula_note: 'T = อุณหภูมิ (°C), RH = ความชื้นสัมพัทธ์ (%) วัดในโรงเรือนด้วยเซ็นเซอร์ของฟาร์ม',
+        thresholds: { ...t },
+        thresholds_note: `เฝ้าระวัง ≥ ${t.mild} · เครียด ≥ ${t.moderate} · วิกฤต ≥ ${t.severe} (เกณฑ์โคนมลูกผสมไทย ${PROFILE_LABELS[normalizeProfile(profile)]})`,
+        steps: [
+            'เฉลี่ยค่าเซ็นเซอร์ทุก 5 นาที แล้วคำนวณ THI',
+            'ชั่วโมงเครียด = จำนวนช่วง 5 นาทีที่ THI ถึงระดับเครียด × 5 นาที (ช่วงที่ไม่มีข้อมูลไม่ถูกนับ)',
+            'ความครบถ้วน = ชั่วโมงที่มีข้อมูล ÷ ชั่วโมงในช่วงที่สรุป',
+            'ระดับรายวัน = จาก THI เฉลี่ยทั้งวัน เพื่อเทียบกับวิธีของงานวิจัย ส่วนค่ารายชั่วโมงใช้เตือนช่วงที่ร้อน',
+            `พักกลางคืน = ชั่วโมงช่วง 22:00–06:00 ที่ THI ต่ำกว่า ${t.mild}`,
+            `เครียดติดต่อกัน = จำนวนวันล่าสุดที่ THI เฉลี่ยรายวัน ≥ ${t.moderate} (นับเฉพาะวันที่มีข้อมูลอย่างน้อย 12 ชม.)`
+        ],
+        caveats: [
+            'เกณฑ์ในงานวิจัยกำหนดจาก THI เฉลี่ยรายวันของสถานีอุตุนิยมวิทยา (นอกโรงเรือน) ระบบนี้วัดในโรงเรือนซึ่งมักร้อนกว่า จึงควรดูระดับรายวันประกอบ',
+            'เซ็นเซอร์ SHT20 (โมดูล RS485 ตระกูล XY-MD02) ความแม่นยำตามสเปก ±0.3°C / ±3% RH ทำให้ THI คลาดได้ประมาณ ±0.7',
+            'ยังไม่ประเมินปริมาณน้ำนมที่ลดลง (ระบบไม่มีข้อมูลน้ำนม)'
+        ],
+        references: [
+            'NRC (1971). A Guide to Environmental Research on Animals. National Academy of Sciences, Washington DC. (สูตร THI)',
+            'Sae-tiao et al. (2019). Livestock Research for Rural Development 31(12). (ใช้สูตร NRC กับโคนมไทย)',
+            'Boonkum et al. (2011). Journal of Dairy Science 94:487. (น้ำนมเริ่มลดที่ THI 74 ในโคสายเลือด HF สูง)',
+            'Boonkum et al. (2024). Animals 14(20):3026. (เกณฑ์ระดับประชากรที่ THI 76)',
+            'Duangjinda et al. ICAR Technical Series 23. (moderate > 74, severe > 80)',
+            'Igono et al. (1992). International Journal of Biometeorology 36:77–87. (ช่วงเย็นกลางคืนช่วยให้โคฟื้นจากความร้อน)'
+        ]
+    }
+}
+
 module.exports = {
     RISK_LEVELS,
     PROFILES,
@@ -90,5 +124,6 @@ module.exports = {
     calcThi,
     thiSql,
     getRiskLevel,
-    toAlertLevel
+    toAlertLevel,
+    getMethod
 }

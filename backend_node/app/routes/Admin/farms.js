@@ -7,12 +7,13 @@ const {
     runAllFarmsDailySummary, 
     getDailySummariesByFarm 
 } = require('../../services/dailyLstmScheduler')
-const { calcThi, thiSql, getRiskLevel, getFarmProfile, getThresholds, toAlertLevel, PROFILES } = require('../../services/heatStress')
+const { calcThi, thiSql, getRiskLevel, getFarmProfile, getThresholds, toAlertLevel, PROFILES, getMethod } = require('../../services/heatStress')
 const { generateBaselineForecast, isCurrentForecast } = require('../../services/forecastService')
 const { buildRtspUrls } = require('../../services/rtspUrls')
 const { encryptSecret, CameraSecretError } = require('../../services/cameraSecrets')
 const { getCameraBehavior } = require('../../services/cameraBehavior')
 const { getFarm24h } = require('../../services/farmHistory')
+const { dailySeries, stressStreak } = require('../../services/heatMetrics')
 
 // คอลัมน์กล้องที่ส่งกลับให้หน้าเว็บได้ (ไม่มี password_encrypted)
 const CAMERA_PUBLIC_COLUMNS = `id, farm_id, camera_name, barn_unit, brand, model, ip_address, rtsp_port, http_port,
@@ -203,15 +204,16 @@ router.post('/', verifyToken, requireRole('admin'), async (req, res) => {
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()) 
              RETURNING *`,
             [
+                // ไม่กรอก = ว่าง (เดิมใส่ "สระบุรี / 2.7 ม. / สังกะสี / พัดลม" แทน ทั้งที่ฟอร์มไม่มีช่องให้กรอก)
                 farmName,
-                province ? province.trim() : 'สระบุรี',
-                district ? district.trim() : 'มวกเหล็ก',
+                province ? province.trim() : null,
+                district ? district.trim() : null,
                 address ? address.trim() : null,
                 barn_unit ? barn_unit.trim() : 'โรงเรือนหลัก (Unit 1)',
                 id_users && isUUID(id_users) ? id_users : null,
-                barn_height_m ? parseFloat(barn_height_m) : 2.7,
-                roof_type ? roof_type.trim() : 'สังกะสี (Zinc)',
-                cooling_system ? cooling_system.trim() : 'พัดลมระบายอากาศ'
+                barn_height_m ? parseFloat(barn_height_m) : null,
+                roof_type ? roof_type.trim() : null,
+                cooling_system ? cooling_system.trim() : null
             ]
         )
         let newFarm = farmRes.rows[0]
@@ -801,6 +803,14 @@ router.get('/:id', verifyToken, requireRole('admin'), async (req, res) => {
             console.warn('[Farm Detail API] Saved daily summary query error:', dsErr.message)
         }
 
+        // วันที่ THI เฉลี่ยรายวันถึงระดับเครียดติดต่อกัน (heatMetrics)
+        let streak = null
+        try {
+            streak = stressStreak(await dailySeries(farm.id_farms, profile, 14), profile)
+        } catch (stErr) {
+            console.warn('[Farm Detail API] streak error:', stErr.message)
+        }
+
         // พฤติกรรมวัวจากกล้อง (ผล YOLO จริง) ไม่มีกล้อง/ตารางยังไม่มี = null
         let camera_behavior = null
         try {
@@ -815,6 +825,8 @@ router.get('/:id', verifyToken, requireRole('admin'), async (req, res) => {
             owner,
             device,
             camera_behavior,
+            streak,
+            method: getMethod(profile),
             latest_sensor: latestReading || (history.length > 0 ? history[history.length - 1] : null),
             daily_summary,
             saved_daily_summary,
@@ -863,21 +875,23 @@ router.put('/:id', verifyToken, requireRole('admin'), async (req, res) => {
 
         const { rows } = await client.query(
             `UPDATE tb_farms 
-             SET name_farms = $1, province = $2, district = $3, address = $4, 
+             SET name_farms = $1, province = COALESCE($2, province), district = COALESCE($3, district), address = $4,
                  barn_unit = COALESCE($5, barn_unit),
                  id_users = CASE WHEN $6::text IS NOT NULL AND $6::text != '' THEN $6::uuid ELSE id_users END,
-                 barn_height_m = $7, roof_type = $8, cooling_system = $9, updated_at = NOW()
+                 barn_height_m = COALESCE($7, barn_height_m), roof_type = COALESCE($8, roof_type),
+                 cooling_system = COALESCE($9, cooling_system), updated_at = NOW()
              WHERE id_farms = $10 RETURNING *`,
             [
+                // ไม่ส่งมา = เก็บค่าเดิม (เดิมเขียนทับด้วยค่าเริ่มต้นทุกครั้งที่แก้ไขฟาร์ม)
                 farmName,
-                province ? province.trim() : 'สระบุรี',
-                district ? district.trim() : 'มวกเหล็ก',
+                province ? province.trim() : null,
+                district ? district.trim() : null,
                 address ? address.trim() : null,
                 barn_unit ? barn_unit.trim() : null,
                 id_users && isUUID(id_users) ? id_users : null,
-                barn_height_m ? parseFloat(barn_height_m) : 2.7,
-                roof_type ? roof_type.trim() : 'สังกะสี (Zinc)',
-                cooling_system ? cooling_system.trim() : 'พัดลมระบายอากาศ',
+                barn_height_m ? parseFloat(barn_height_m) : null,
+                roof_type ? roof_type.trim() : null,
+                cooling_system ? cooling_system.trim() : null,
                 id
             ]
         )

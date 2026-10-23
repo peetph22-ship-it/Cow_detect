@@ -14,7 +14,8 @@ const express = require('express')
 const router = express.Router()
 const db = require('../../config/db')
 const { verifyToken, requireRole } = require('../../middleware/authMiddleware')
-const { getRiskLevel, getFarmProfile, getThresholds, thiSql } = require('../../services/heatStress')
+const { getFarmProfile, getThresholds, thiSql, getMethod } = require('../../services/heatStress')
+const { loadBuckets, summarizeBuckets } = require('../../services/heatMetrics')
 
 const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str || '').trim())
 
@@ -30,20 +31,11 @@ const computeFarmRisk = async (farm) => {
     const profile = getFarmProfile(farm)
     const thresholds = getThresholds(profile)
 
-    const { rows: hourly } = await db.query(`
-        SELECT
-            date_trunc('hour', sr.recorded_at AT TIME ZONE 'Asia/Bangkok') AS hour_bkk,
-            EXTRACT(HOUR FROM date_trunc('hour', sr.recorded_at AT TIME ZONE 'Asia/Bangkok'))::int AS hour_of_day,
-            AVG(${thiSql('sr')})::float AS avg_thi
-        FROM tb_sensor_readings sr
-        LEFT JOIN tb_devices d ON d.id_devices = sr.id_devices
-        WHERE (d.id_farms = $1 OR sr.id_farms = $1)
-          AND sr.recorded_at > NOW() - ($2 || ' days')::interval
-          AND sr.temperature_c IS NOT NULL
-          AND sr.humidity_pct IS NOT NULL
-        GROUP BY 1
-        ORDER BY 1 DESC
-    `, [farm.id_farms, String(REPORT_DAYS)])
+    // วิธีเดียวทั้งระบบ (heatMetrics): เฉลี่ย 5 นาที, กลางคืน 22:00–06:00 (เดิมนับเป็นชั่วโมงจากค่าเฉลี่ยรายชั่วโมง)
+    const rangeEnd = new Date()
+    const rangeStart = new Date(rangeEnd.getTime() - REPORT_DAYS * 86400000)
+    const buckets = await loadBuckets(farm.id_farms, rangeStart, rangeEnd)
+    const sm = summarizeBuckets(buckets, profile, REPORT_DAYS * 24)
 
     const { rows: latestRows } = await db.query(`
         SELECT sr.temperature_c, sr.humidity_pct, ${thiSql('sr')}::float AS thi, sr.recorded_at
@@ -55,28 +47,18 @@ const computeFarmRisk = async (farm) => {
     `, [farm.id_farms])
     const latest = latestRows[0] || null
 
-    const counts = { normal: 0, mild: 0, moderate: 0, severe: 0 }
-    const thiValues = []
-    let nightHours = 0
-    let nightRecovered = 0
-
-    for (const h of hourly) {
-        const thi = Number(h.avg_thi)
-        if (!Number.isFinite(thi)) continue
-        thiValues.push(thi)
-        counts[getRiskLevel(thi, profile)]++
-
-        // ชั่วโมงเวลาไทยคำนวณใน SQL (ไม่ขึ้นกับ timezone ของเครื่องที่รัน Node)
-        const hour = Number(h.hour_of_day)
-        if (hour >= 22 || hour <= 5) {
-            nightHours++
-            if (thi < thresholds.mild) nightRecovered++
-        }
-    }
-
-    const hoursSampled = thiValues.length
-    const avgThi = hoursSampled ? round1(thiValues.reduce((a, b) => a + b, 0) / hoursSampled) : null
-    const nightRecoveryRate = nightHours > 0 ? Math.round((nightRecovered / nightHours) * 100) : null
+    const r1 = (v) => (v == null ? 0 : Math.round(v * 10) / 10)
+    const counts = sm.has_data ? {
+        normal: r1(sm.data_hours - sm.watch_hours),
+        mild: r1(sm.watch_hours - sm.stress_hours),
+        moderate: r1(sm.stress_hours - sm.severe_hours),
+        severe: r1(sm.severe_hours)
+    } : { normal: 0, mild: 0, moderate: 0, severe: 0 }
+    const hoursSampled = sm.data_hours || 0
+    const avgThi = sm.avg_thi ?? null
+    const nightHours = sm.night_data_hours || 0
+    const nightRecoveryRate = nightHours > 0 ? Math.round((sm.night_relief_hours / nightHours) * 100) : null
+    const thiValues = { max: sm.max_thi ?? null, min: sm.min_thi ?? null }
 
     // ความครบถ้วน: ชั่วโมงที่มีข้อมูล / ชั่วโมงทั้งหมดในรอบรายงาน
     // นับจากค่าแรกของฟาร์มถ้าติดตั้งไม่ถึง REPORT_DAYS วัน (แยกให้เห็นทั้ง 2 แบบ)
@@ -112,8 +94,9 @@ const computeFarmRisk = async (farm) => {
         hoursSampled,
         counts,
         avgThi,
-        maxThi: hoursSampled ? round1(Math.max(...thiValues)) : null,
-        minThi: hoursSampled ? round1(Math.min(...thiValues)) : null,
+        maxThi: thiValues.max,
+        minThi: thiValues.min,
+        dailyMeanLevel: sm.daily_mean_level || null,
         nightHours,
         nightRecoveryRate,
         coverage
@@ -245,6 +228,7 @@ const handleFarmReportDetail = async (req, res) => {
             report_days: REPORT_DAYS,
             data_basis: `THI เฉลี่ยรายชั่วโมง (สูตร NRC 1971) จากเซ็นเซอร์ในโรงเรือน ย้อนหลัง ${REPORT_DAYS} วัน`,
             data_note: DATA_NOTE,
+            method: getMethod(r.profile),
             data_coverage: r.coverage,
             farm_profile: {
                 id_farms: farm.id_farms,

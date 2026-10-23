@@ -399,6 +399,9 @@
             </span>
             <span class="text-xs font-bold text-[#718078]">THI</span>
           </div>
+          <span v-if="dailySummary?.daily_mean_level" class="text-[11px] font-bold text-[#718078]">
+            ระดับจากค่าเฉลี่ย: {{ RISK_LABELS_TH[dailySummary.daily_mean_level] }}
+          </span>
         </div>
       </div>
 
@@ -461,7 +464,7 @@
                 {{ dailySummary.stress_hours }}
               </span>
               <span class="text-xs font-bold text-[#718078]">
-                ชม. ใน 24 ชม. ({{ dailySummary.stress_percentage ?? 0 }}%)
+                ชม. จากข้อมูล {{ dailySummary.data_hours ?? '-' }} ชม.
               </span>
             </template>
             <template v-else-if="dailySummary?.count_stress_readings != null">
@@ -480,6 +483,32 @@
         </div>
       </div>
 
+    </div>
+
+    <!-- ความครบถ้วน + พักกลางคืน + เครียดติดต่อกัน (heatMetrics) และวิธีคำนวณ -->
+    <div v-if="dailySummary" class="grid grid-cols-1 md:grid-cols-3 gap-4 animate-fade-up delay-150">
+      <div class="bg-white/80 rounded-[24px] p-5 border border-white/90 shadow-[0_8px_30px_rgba(36,67,58,0.04)]">
+        <span class="text-[11px] font-black text-[#718078] uppercase tracking-wider block">ความครบถ้วนของข้อมูล (24 ชม.)</span>
+        <div class="text-2xl font-black tabular-nums mt-0.5" :class="(dailySummary.coverage_pct ?? 0) >= 90 ? 'text-emerald-700' : (dailySummary.coverage_pct ?? 0) >= 60 ? 'text-amber-700' : 'text-rose-700'">
+          {{ dailySummary.coverage_pct ?? 0 }}%
+        </div>
+        <span class="text-xs font-bold text-[#718078]">มีข้อมูล {{ dailySummary.data_hours }} จาก 24 ชม.</span>
+      </div>
+      <div class="bg-white/80 rounded-[24px] p-5 border border-white/90 shadow-[0_8px_30px_rgba(36,67,58,0.04)]">
+        <span class="text-[11px] font-black text-[#718078] uppercase tracking-wider block">พักจากความร้อนกลางคืน (22:00–06:00)</span>
+        <div class="text-2xl font-black tabular-nums mt-0.5" :class="(dailySummary.night_relief_hours ?? 0) >= 3 ? 'text-emerald-700' : 'text-rose-700'">
+          {{ dailySummary.night_relief_hours ?? 0 }} <span class="text-sm">ชม.</span>
+        </div>
+        <span class="text-xs font-bold text-[#718078]">จากกลางคืนที่มีข้อมูล {{ dailySummary.night_data_hours ?? 0 }} ชม. (THI ต่ำกว่า {{ getThresholds(farmProfile).mild }})</span>
+      </div>
+      <div class="bg-white/80 rounded-[24px] p-5 border border-white/90 shadow-[0_8px_30px_rgba(36,67,58,0.04)]">
+        <span class="text-[11px] font-black text-[#718078] uppercase tracking-wider block">เครียดติดต่อกัน (เฉลี่ยรายวัน)</span>
+        <div class="text-2xl font-black tabular-nums mt-0.5" :class="(farmStreak?.days ?? 0) >= 3 ? 'text-rose-700' : 'text-[#24433a]'">
+          {{ farmStreak?.days ?? 0 }} <span class="text-sm">วัน</span>
+        </div>
+        <span class="text-xs font-bold text-[#718078]">{{ farmStreak?.basis || '' }}{{ farmStreak?.includes_today ? ' · รวมวันนี้' : '' }}</span>
+      </div>
+      <HeatMethodNote :method="farmMethod" class="md:col-span-3" />
     </div>
 
     <!-- 🟢 4. HERO SECTION: Baseline 3-day heat stress outlook -->
@@ -1438,6 +1467,7 @@ import { Admin, getFastApiBase } from '~/API/baseAPI'
 import AdminEditFarmModal from '~/components/Admin/farm/EditFarmModal.vue'
 import AddCameraModal from '~/components/Admin/cctv/AddCameraModal.vue'
 import SystemAccuracyModal from '~/components/Admin/cctv/SystemAccuracyModal.vue'
+import HeatMethodNote from '~/components/common/HeatMethodNote.vue'
 import { calcThi, getRiskLevel, getThresholds, normalizeProfile, RISK_LABELS_TH, PROFILE_LABELS } from '~/utils/heatStress'
 
 definePageMeta({
@@ -1559,6 +1589,8 @@ const cameraStreamUrl = computed(() => {
 
 // ผลจากกล้องจริง (YOLO จากภาพที่ ESP32 ส่งมา) ยังไม่มีข้อมูล = ไม่แสดงค่าสมมติ
 const cameraBehavior = ref(null)
+const farmStreak = ref(null)
+const farmMethod = ref(null)
 const editingCamera = ref(null)
 const cameraHourly = computed(() => cameraBehavior.value?.hourly || [])
 
@@ -1837,6 +1869,8 @@ const fetchFarmDetail = async () => {
       savedDailySummary.value = res.data.saved_daily_summary || null
       gapAlert.value = res.data.gap_alert || null
       cameraBehavior.value = res.data.camera_behavior || null
+      farmStreak.value = res.data.streak || null
+      farmMethod.value = res.data.method || null
 
       const rawHistory = res.data.history || []
       

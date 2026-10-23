@@ -320,6 +320,8 @@
       <p class="mt-8 text-[11px] text-[#718078] leading-relaxed border-t border-[#E4E8E5] pt-4">
         หมายเหตุ: {{ reportData.data_note }} · {{ reportData.data_basis }} · ไม่มีการประมาณมูลค่าความเสียหายหรือปริมาณน้ำนมที่ลดลง
       </p>
+      <!-- วิธีคำนวณและอ้างอิง (พิมพ์ติดไปกับเอกสาร) -->
+      <HeatMethodNote :method="reportData.method" class="mt-4 print:border-none" title="วิธีคำนวณและเอกสารอ้างอิง" open />
 
     </div>
 
@@ -345,6 +347,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import HeatMethodNote from '~/components/common/HeatMethodNote.vue'
 import { useRoute } from 'vue-router'
 import axios from 'axios'
 import { Admin } from '../../API/baseAPI'
