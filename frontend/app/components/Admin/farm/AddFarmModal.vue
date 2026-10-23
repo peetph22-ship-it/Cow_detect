@@ -210,6 +210,18 @@
               />
             </div>
 
+            <!-- ยี่ห้อกล้อง (กำหนดรูปแบบที่อยู่ภาพสด) -->
+            <div>
+              <label class="block text-[11px] font-bold text-[#4e6057] mb-1">ยี่ห้อกล้อง</label>
+              <select
+                v-model="form.camera_brand"
+                class="w-full bg-[#fafcfb] border border-[#e5ece9] rounded-[14px] px-3.5 py-2.5 text-xs font-bold text-[#1f3d34] focus:outline-none focus:border-[#24433a] transition-all cursor-pointer">
+                <option value="Dahua">Dahua / Imou</option>
+                <option value="Hikvision">Hikvision</option>
+                <option value="Yoosee">Yoosee / FNKvision</option>
+              </select>
+            </div>
+
             <!-- IP & RTSP Port -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
@@ -339,6 +351,7 @@ const form = ref({
   camera_name: 'กล้องโรงเรือน 1',
   camera_ip: '',
   camera_rtsp_port: 554,
+  camera_brand: 'Dahua',
   camera_user: 'admin',
   camera_pass: ''
 })
@@ -419,6 +432,7 @@ const resetForm = () => {
     camera_name: 'กล้องโรงเรือน 1',
     camera_ip: '',
     camera_rtsp_port: 554,
+    camera_brand: 'Dahua',
     camera_user: 'admin',
     camera_pass: ''
   }
@@ -468,8 +482,7 @@ const submitForm = async () => {
         rtsp_port: Number(form.value.camera_rtsp_port) || 554,
         username: form.value.camera_user ? form.value.camera_user.trim() : 'admin',
         password: form.value.camera_pass ? form.value.camera_pass.trim() : '',
-        brand: 'Hikvision',
-        model: 'DS-2CD2143G2-I'
+        brand: form.value.camera_brand || 'Dahua'
       }
     }
 

@@ -3,6 +3,7 @@ const router = express.Router({ mergeParams: true })
 const db = require('../../config/db')
 const { verifyToken, requireRole } = require('../../middleware/authMiddleware')
 const { encryptSecret, decryptSecret, isConfigured, CameraSecretError } = require('../../services/cameraSecrets')
+const { getCameraBehavior } = require('../../services/cameraBehavior')
 
 // ข้อมูลกล้อง (ที่อยู่, user, รหัส) ดูหรือแก้ได้เฉพาะ admin
 // telemetry/alerts ยังเปิดอยู่เพราะ behavior engine ฝั่ง Python ส่งเข้ามาโดยไม่มี token
@@ -52,8 +53,8 @@ router.post('/', adminOnly, async (req, res) => {
     const {
         camera_name,
         barn_unit,
-        brand = 'Hikvision',
-        model = 'DS-2CD2143G2-I',
+        brand = 'Dahua',
+        model = '',
         ip_address,
         rtsp_port = 554,
         http_port = 80,
@@ -126,7 +127,7 @@ router.post('/', adminOnly, async (req, res) => {
 
         return res.status(201).json({
             success: true,
-            message: 'ลงทะเบียนกล้องวงจรปิด Hikvision และผูกกับฟาร์มสำเร็จ',
+            message: 'ลงทะเบียนกล้องและผูกกับฟาร์มสำเร็จ',
             camera: rows[0]
         })
     } catch (err) {
@@ -135,6 +136,78 @@ router.post('/', adminOnly, async (req, res) => {
         return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการบันทึกกล้อง' })
     } finally {
         client.release()
+    }
+})
+
+// -----------------------------------------------------------------
+// GET /api/Admin/farms/:farmId/cameras/behavior
+// ผลนับพฤติกรรมวัวจากกล้องล่าสุด + รายชั่วโมง 24 ชม. (ข้อมูลจริงเท่านั้น)
+// -----------------------------------------------------------------
+router.get('/behavior', adminOnly, async (req, res) => {
+    const { farmId } = req.params
+    if (!isUUID(farmId)) return res.status(400).json({ success: false, message: 'Invalid Farm UUID' })
+    try {
+        return res.json({ success: true, camera_behavior: await getCameraBehavior(farmId) })
+    } catch (err) {
+        console.error('[CCTV Router] behavior error:', err.message)
+        return res.status(500).json({ success: false, message: 'Database error fetching camera behavior' })
+    }
+})
+
+// -----------------------------------------------------------------
+// PUT /api/Admin/farms/:farmId/cameras/:cameraId
+// แก้ไขกล้อง: ส่งเฉพาะช่องที่เปลี่ยน, password ว่าง = ใช้รหัสเดิม
+// -----------------------------------------------------------------
+router.put('/:cameraId', adminOnly, async (req, res) => {
+    const { farmId, cameraId } = req.params
+    if (!isUUID(farmId) || !isUUID(cameraId)) {
+        return res.status(400).json({ success: false, message: 'Invalid UUID' })
+    }
+    try {
+        const cur = await db.query(`SELECT * FROM cctv_cameras WHERE id = $1 AND farm_id = $2`, [cameraId, farmId])
+        if (cur.rows.length === 0) return res.status(404).json({ success: false, message: 'ไม่พบกล้อง' })
+        const c = cur.rows[0]
+        const b = req.body || {}
+        const pick = (key, fallback) => (b[key] !== undefined && b[key] !== null && String(b[key]).trim() !== '' ? b[key] : fallback)
+
+        const next = {
+            camera_name: String(pick('camera_name', c.camera_name)).trim(),
+            barn_unit: String(pick('barn_unit', c.barn_unit || '')).trim(),
+            brand: String(pick('brand', c.brand)).trim(),
+            model: String(pick('model', c.model || '')).trim(),
+            ip_address: String(pick('ip_address', c.ip_address)).trim(),
+            rtsp_port: Number(pick('rtsp_port', c.rtsp_port)) || 554,
+            http_port: Number(pick('http_port', c.http_port)) || 80,
+            username: String(pick('username', c.username)).trim(),
+            channel_no: Number(pick('channel_no', c.channel_no)) || 1,
+            is_active: b.is_active === undefined ? c.is_active : Boolean(b.is_active)
+        }
+        const newPassword = b.password ? String(b.password) : ''
+        if (newPassword && !isConfigured()) {
+            return res.status(503).json({ success: false, message: 'ยังไม่ได้ตั้ง CAMERA_SECRET_KEY บน server จึงบันทึกรหัสกล้องไม่ได้' })
+        }
+        const { mainStreamUrl, subStreamUrl } = buildRtspUrls({
+            brand: next.brand, ip: next.ip_address, port: next.rtsp_port, channel: next.channel_no
+        })
+        const { rows } = await db.query(`
+            UPDATE cctv_cameras
+            SET camera_name = $1, barn_unit = $2, brand = $3, model = $4, ip_address = $5,
+                rtsp_port = $6, http_port = $7, username = $8, channel_no = $9, is_active = $10,
+                main_stream_url = $11, sub_stream_url = $12,
+                password_encrypted = COALESCE($13, password_encrypted), updated_at = NOW()
+            WHERE id = $14 AND farm_id = $15
+            RETURNING id, farm_id, camera_name, barn_unit, brand, model, ip_address, rtsp_port, http_port,
+                      username, channel_no, main_stream_url, sub_stream_url, is_active, is_simulation, created_at, updated_at
+        `, [
+            next.camera_name, next.barn_unit, next.brand, next.model, next.ip_address,
+            next.rtsp_port, next.http_port, next.username, next.channel_no, next.is_active,
+            mainStreamUrl, subStreamUrl, newPassword ? encryptSecret(newPassword) : null, cameraId, farmId
+        ])
+        return res.json({ success: true, message: 'แก้ไขข้อมูลกล้องสำเร็จ', camera: rows[0] })
+    } catch (err) {
+        if (err instanceof CameraSecretError) return res.status(503).json({ success: false, message: err.message })
+        console.error('[CCTV Router] PUT Camera Error:', err.message)
+        return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการแก้ไขกล้อง' })
     }
 })
 

@@ -11,6 +11,8 @@ const { calcThi, thiSql, getRiskLevel, getFarmProfile, getThresholds, toAlertLev
 const { generateBaselineForecast, isCurrentForecast } = require('../../services/forecastService')
 const { buildRtspUrls } = require('../../services/rtspUrls')
 const { encryptSecret, CameraSecretError } = require('../../services/cameraSecrets')
+const { getCameraBehavior } = require('../../services/cameraBehavior')
+const { getFarm24h } = require('../../services/farmHistory')
 
 // คอลัมน์กล้องที่ส่งกลับให้หน้าเว็บได้ (ไม่มี password_encrypted)
 const CAMERA_PUBLIC_COLUMNS = `id, farm_id, camera_name, barn_unit, brand, model, ip_address, rtsp_port, http_port,
@@ -271,8 +273,8 @@ router.post('/', verifyToken, requireRole('admin'), async (req, res) => {
                 const camPass = String(camData.camera_pass || camData.password || '').trim()
                 const camPort = Number(camData.camera_rtsp_port || camData.rtsp_port) || 554
                 const camCh = Number(camData.channel_no) || 1
-                const camBrand = String(camData.brand || 'Hikvision').trim()
-                const camModel = String(camData.model || 'DS-2CD2143G2-I').trim()
+                const camBrand = String(camData.brand || 'Dahua').trim()
+                const camModel = String(camData.model || '').trim()
                 const { mainStreamUrl, subStreamUrl } = buildRtspUrls({ brand: camBrand, ip: camIp, port: camPort, channel: camCh })
 
                 const camRes = await client.query(`
@@ -739,76 +741,11 @@ router.get('/:id', verifyToken, requireRole('admin'), async (req, res) => {
             device.status = isDeviceOnline ? 'online' : 'offline'
         }
 
-        // ประวัติ 24 ชม. ล่าสุดของฟาร์ม เฉลี่ยทุก 5 นาที (ไม่เกิน 288 จุด) สำหรับกราฟและตาราง
-        // และสรุป 24 ชม. จากค่าดิบทั้งหมดในช่วงเดียวกัน (เดิมดึงแค่ 50 ค่า = ~12 นาที)
-        // ช่วง 24 ชม. นับย้อนจากค่าล่าสุดของฟาร์ม: อุปกรณ์ออฟไลน์ก็ยังเห็นวันสุดท้ายที่มีข้อมูล
+        // ประวัติ 24 ชม. (เฉลี่ยทุก 5 นาที) และสรุป 24 ชม. จากค่าดิบทั้งหมด ดู services/farmHistory.js
         let history = []
         let daily_summary = null
         try {
-            const windowCte = `
-                WITH farm_readings AS (
-                    SELECT sr.recorded_at, sr.temperature_c, sr.humidity_pct, d.serial_no,
-                           ${thiSql('sr')} AS thi
-                    FROM tb_sensor_readings sr
-                    LEFT JOIN tb_devices d ON d.id_devices = sr.id_devices
-                    WHERE (d.id_farms = $1 OR sr.id_farms = $1)
-                      AND sr.temperature_c IS NOT NULL AND sr.humidity_pct IS NOT NULL
-                ),
-                win AS (
-                    SELECT * FROM farm_readings
-                    WHERE recorded_at > (SELECT MAX(recorded_at) FROM farm_readings) - INTERVAL '24 hours'
-                )`
-            const [bucketRes, summaryRes] = await Promise.all([
-                db.query(`${windowCte}
-                    SELECT to_timestamp(floor(extract(epoch FROM recorded_at) / 300) * 300) AS recorded_at,
-                           AVG(temperature_c) AS temperature_c, AVG(humidity_pct) AS humidity_pct,
-                           AVG(thi) AS thi, COUNT(*)::int AS sample_count, MAX(serial_no) AS serial_no
-                    FROM win GROUP BY 1 ORDER BY 1
-                `, [farm.id_farms]),
-                db.query(`${windowCte}
-                    SELECT AVG(thi) AS avg_thi,
-                           MIN(temperature_c) AS min_temp, MAX(temperature_c) AS max_temp,
-                           MIN(humidity_pct) AS min_hum, MAX(humidity_pct) AS max_hum,
-                           COUNT(*)::int AS total_readings,
-                           COUNT(*) FILTER (WHERE thi >= $2)::int AS stress_readings,
-                           MIN(recorded_at) AS window_start, MAX(recorded_at) AS window_end
-                    FROM win
-                `, [farm.id_farms, thresholds.moderate])
-            ])
-
-            history = bucketRes.rows.map(r => {
-                const thi = r.thi != null ? parseFloat(r.thi) : null
-                return {
-                    id: `b-${new Date(r.recorded_at).getTime()}`,
-                    recorded_at: r.recorded_at,
-                    temperature_c: r.temperature_c != null ? parseFloat(r.temperature_c) : null,
-                    humidity_pct: r.humidity_pct != null ? parseFloat(r.humidity_pct) : null,
-                    thi,
-                    stress_level: getRiskLevel(thi, profile),
-                    sample_count: r.sample_count,
-                    serial_no: r.serial_no
-                }
-            })
-
-            const sm = summaryRes.rows[0]
-            if (sm && sm.total_readings > 0) {
-                const fix1 = (v) => v != null ? Number(v).toFixed(1) : null
-                daily_summary = {
-                    avg_thi: fix1(sm.avg_thi),
-                    min_temp: fix1(sm.min_temp),
-                    max_temp: fix1(sm.max_temp),
-                    min_hum: fix1(sm.min_hum),
-                    max_hum: fix1(sm.max_hum),
-                    count_stress_readings: sm.stress_readings,
-                    total_readings: sm.total_readings,
-                    stress_percentage: Math.round((sm.stress_readings / sm.total_readings) * 100),
-                    // ชั่วโมงที่ THI ถึงระดับเครียด (สัดส่วนค่าที่เครียด x ความยาวช่วงข้อมูล) อ่านง่ายกว่าจำนวนค่า
-                    stress_hours: Number(((sm.stress_readings / sm.total_readings) *
-                        ((new Date(sm.window_end) - new Date(sm.window_start)) / 3600000)).toFixed(1)),
-                    window_start: sm.window_start,
-                    window_end: sm.window_end
-                }
-            }
+            ({ history, daily_summary } = await getFarm24h(farm.id_farms, profile))
         } catch (err) {
             console.warn('[Farm Detail API] History readings query error:', err.message)
         }
@@ -864,11 +801,20 @@ router.get('/:id', verifyToken, requireRole('admin'), async (req, res) => {
             console.warn('[Farm Detail API] Saved daily summary query error:', dsErr.message)
         }
 
+        // พฤติกรรมวัวจากกล้อง (ผล YOLO จริง) ไม่มีกล้อง/ตารางยังไม่มี = null
+        let camera_behavior = null
+        try {
+            camera_behavior = await getCameraBehavior(farm.id_farms)
+        } catch (camErr) {
+            console.warn('[Farm Detail API] camera behavior error:', camErr.message)
+        }
+
         return res.json({
             success: true,
             farm,
             owner,
             device,
+            camera_behavior,
             latest_sensor: latestReading || (history.length > 0 ? history[history.length - 1] : null),
             daily_summary,
             saved_daily_summary,
@@ -965,10 +911,11 @@ router.put('/:id', verifyToken, requireRole('admin'), async (req, res) => {
                 const camPass = String(camData.camera_pass || camData.password || '').trim()
                 const camPort = Number(camData.camera_rtsp_port || camData.rtsp_port) || 554
                 const camCh = Number(camData.channel_no) || 1
-                const camBrand = String(camData.brand || 'Hikvision').trim()
-                const camModel = String(camData.model || 'DS-2CD2143G2-I').trim()
-
-                const existingCam = await client.query(`SELECT id, password_encrypted, username FROM cctv_cameras WHERE farm_id = $1 LIMIT 1`, [id])
+                const existingCam = await client.query(`SELECT id, password_encrypted, username, brand, model FROM cctv_cameras WHERE farm_id = $1 ORDER BY created_at ASC LIMIT 1`, [id])
+                // ไม่ส่งยี่ห้อ/รุ่นมา = ใช้ค่าเดิมของกล้อง (เดิมถูกตั้งกลับเป็น Hikvision ทุกครั้งที่แก้ไขฟาร์ม)
+                const prevCam = existingCam.rows[0] || {}
+                const camBrand = String(camData.brand || prevCam.brand || 'Dahua').trim()
+                const camModel = String(camData.model || prevCam.model || '').trim()
                 // ไม่กรอกรหัสใหม่ = ใช้รหัสเดิมที่เก็บไว้ (เข้ารหัสอยู่แล้ว ไม่ต้องแปลงซ้ำ)
                 let finalPass = camPass ? encryptSecret(camPass) : ''
                 if (!finalPass && existingCam.rows.length > 0) {

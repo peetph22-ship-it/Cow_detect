@@ -917,6 +917,13 @@
               <span class="font-mono text-[10px] text-[#718078]">({{ cam.ip_address }})</span>
               <button 
                 type="button" 
+                @click="openEditCamera(cam)"
+                title="แก้ไขกล้องนี้"
+                class="text-[#4e6057] hover:text-[#24433a] p-0.5 rounded cursor-pointer">
+                <v-icon icon="mdi-pencil-outline" size="13" />
+              </button>
+              <button 
+                type="button" 
                 @click="deleteRegisteredCamera(cam.id)"
                 :disabled="isDeletingCamera"
                 title="ลบกล้องนี้"
@@ -944,7 +951,7 @@
         <button 
           v-else
           type="button" 
-          @click="isEditModalOpen = true"
+          @click="openEditCamera(primaryCamera)"
           class="text-xs font-bold text-[#4e6057] hover:text-[#24433a] flex items-center gap-1 cursor-pointer shrink-0">
           <v-icon icon="mdi-pencil-outline" size="15" />
           <span>แก้ไขการตั้งค่ากล้อง</span>
@@ -998,15 +1005,6 @@
               <!-- Offline / Inactive AI Camera View -->
               <div v-else class="w-full py-8 flex flex-col items-center justify-center text-center space-y-3">
                 <div class="relative w-full max-w-sm h-44 bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center overflow-hidden">
-                  <div class="absolute left-6 top-6 border-2 border-orange-400 bg-orange-500/20 rounded px-2 py-1 text-[10px] font-mono text-orange-300">
-                    COW #101 | standing 0.94
-                  </div>
-                  <div class="absolute right-8 bottom-6 border-2 border-sky-400 bg-sky-500/20 rounded px-2 py-1 text-[10px] font-mono text-sky-300">
-                    COW #102 | lying down 0.89
-                  </div>
-                  <div class="absolute right-24 top-10 border-2 border-amber-400 bg-amber-500/20 rounded px-2 py-1 text-[10px] font-mono text-amber-300">
-                    COW #103 | feeding 0.91
-                  </div>
                   <v-icon icon="mdi-cow" size="48" class="text-white/20" />
                 </div>
                 <p class="text-xs text-white/70 font-medium max-w-xs">
@@ -1030,7 +1028,7 @@
             <div class="space-y-1.5 max-w-md">
               <h3 class="text-base font-black text-white tracking-wide">ยังไม่ได้ติดตั้งกล้องวงจรปิดในฟาร์มนี้</h3>
               <p class="text-xs text-white/70 leading-relaxed font-medium">
-                ฟาร์มนี้ยังไม่ได้ผูกกับกล้อง Hikvision IP Camera เพื่อตรวจจับพฤติกรรมโค (ยืน, นอน, กิน, ดื่ม) และคำนวณดัชนีความสบาย (CCI)
+                ฟาร์มนี้ยังไม่ได้ผูกกับกล้อง IP เพื่อตรวจจับพฤติกรรมโค (ยืน, นอน, กิน, ดื่ม) และคำนวณดัชนีความสบาย (CCI)
               </p>
             </div>
             <div class="flex items-center gap-3 pt-2">
@@ -1092,6 +1090,15 @@
             <p class="text-[10.5px] text-[#718078] leading-tight">
               {{ liveCciBadge.description }}
             </p>
+
+            <!-- สถานะภาพล่าสุดจาก ESP32 -->
+            <div class="flex items-center justify-between gap-2 pt-2 border-t border-[#f0f4f2] text-[11px]">
+              <span class="flex items-center gap-1.5 font-bold" :class="cameraStatusInfo.textClass">
+                <span class="w-2 h-2 rounded-full" :class="cameraStatusInfo.dotClass"></span>
+                {{ cameraStatusInfo.label }}
+              </span>
+              <span class="text-[#718078] font-medium">{{ cameraStatusInfo.detail }}</span>
+            </div>
           </div>
 
           <!-- Card 3: Posture Breakdown 4 Metrics -->
@@ -1102,7 +1109,7 @@
                 <v-icon icon="mdi-walk" size="18" class="text-orange-600" />
                 <span class="font-bold text-[#24433a]">ยืน (Standing)</span>
               </div>
-              <span class="text-sm font-black text-orange-600 font-mono">58%</span>
+              <span class="text-sm font-black text-orange-600 font-mono">{{ fmtBehaviorPct('standing') }}</span>
             </div>
 
             <!-- Lying -->
@@ -1111,7 +1118,7 @@
                 <v-icon icon="mdi-sleep" size="18" class="text-blue-600" />
                 <span class="font-bold text-[#24433a]">นอนพัก (Lying)</span>
               </div>
-              <span class="text-sm font-black text-blue-700 font-mono">34%</span>
+              <span class="text-sm font-black text-blue-700 font-mono">{{ fmtBehaviorPct('lying') }}</span>
             </div>
 
             <!-- Feeding -->
@@ -1120,7 +1127,7 @@
                 <v-icon icon="mdi-food-apple-outline" size="18" class="text-emerald-600" />
                 <span class="font-bold text-[#24433a]">กินอาหาร</span>
               </div>
-              <span class="text-sm font-black text-emerald-700 font-mono">5%</span>
+              <span class="text-sm font-black text-emerald-700 font-mono">{{ fmtBehaviorPct('feeding') }}</span>
             </div>
 
             <!-- Drinking -->
@@ -1129,8 +1136,30 @@
                 <v-icon icon="mdi-water" size="18" class="text-cyan-600" />
                 <span class="font-bold text-[#24433a]">ดื่มน้ำ</span>
               </div>
-              <span class="text-sm font-black text-cyan-700 font-mono">3%</span>
+              <span class="text-sm font-black text-cyan-700 font-mono">{{ fmtBehaviorPct('drinking') }}</span>
             </div>
+          </div>
+
+          <!-- % โคนอนพัก รายชั่วโมง 24 ชม. (ค่าเฉลี่ยจากภาพทุก {{ cameraBehavior?.interval_min || 10 }} นาที) -->
+          <div class="p-4 rounded-[22px] bg-white border border-[#e5ece9] shadow-xs space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-black text-[#24433a]">% โคนอนพัก รายชั่วโมง (24 ชม.)</span>
+              <span class="text-[10px] text-[#718078]">ภาพทุก {{ cameraBehavior?.interval_min || 10 }} นาที</span>
+            </div>
+            <div v-if="cameraHourly.length" class="flex items-end gap-[3px] h-20">
+              <div
+                v-for="h in cameraHourly"
+                :key="h.hour"
+                class="flex-1 rounded-t bg-blue-500/80 hover:bg-blue-600 transition-colors min-h-[2px]"
+                :style="{ height: `${Math.max(2, h.lying_pct ?? 0)}%` }"
+                :title="`${formatHour(h.hour)} น. · นอน ${h.lying_pct ?? '-'}% · วัวเฉลี่ย ${h.avg_cows ?? '-'} ตัว · ${h.images} ภาพ`">
+              </div>
+            </div>
+            <div v-if="cameraHourly.length" class="flex justify-between text-[10px] text-[#718078] font-mono">
+              <span>{{ formatHour(cameraHourly[0].hour) }}</span>
+              <span>{{ formatHour(cameraHourly[cameraHourly.length - 1].hour) }}</span>
+            </div>
+            <p v-else class="text-[11px] text-[#718078]">ยังไม่มีภาพจากกล้องใน 24 ชม. ที่ผ่านมา</p>
           </div>
 
         </div>
@@ -1387,7 +1416,10 @@
       v-model="isAddCameraModalOpen" 
       :farm-id="farmId" 
       :farm="farm" 
+      :camera="editingCamera"
       @created="onCameraCreated" 
+      @updated="onCameraUpdated"
+      @update:model-value="v => { if (!v) editingCamera = null }"
     />
 
     <!-- 🟢 8. System Accuracy Benchmarks Modal Component -->
@@ -1525,11 +1557,54 @@ const cameraStreamUrl = computed(() => {
   return `${fastApi}/api/cam/stream?cam_id=rtsp&rtsp_url=${encodeURIComponent(url)}&flip=${cameraFlip.value}&t=${cameraStreamKey.value}`
 })
 
-// ยังไม่มีข้อมูลกล้อง: ไม่แสดงค่าสมมติ
+// ผลจากกล้องจริง (YOLO จากภาพที่ ESP32 ส่งมา) ยังไม่มีข้อมูล = ไม่แสดงค่าสมมติ
+const cameraBehavior = ref(null)
+const editingCamera = ref(null)
+const cameraHourly = computed(() => cameraBehavior.value?.hourly || [])
+
 const liveCciScore = computed(() => {
-  const v = latestSensor.value?.cow_comfort_index
+  const v = cameraBehavior.value?.latest?.cci
   return v != null && Number.isFinite(Number(v)) ? Number(v) : null
 })
+
+const fmtBehaviorPct = (key) => {
+  const latest = cameraBehavior.value?.latest
+  if (!latest || latest.pct?.[key] == null) return '—'
+  return `${Math.round(latest.pct[key])}% (${latest.counts?.[key] ?? 0})`
+}
+
+const formatHour = (iso) => new Date(iso).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' })
+
+const cameraStatusInfo = computed(() => {
+  const b = cameraBehavior.value
+  if (!b || b.status === 'no_data') {
+    return { label: 'ยังไม่มีภาพจากกล้อง', detail: 'รอภาพแรกจากกล่อง ESP32', dotClass: 'bg-gray-300', textClass: 'text-[#718078]' }
+  }
+  const ago = b.minutes_ago < 60 ? `${b.minutes_ago} นาทีที่แล้ว` : `${Math.floor(b.minutes_ago / 60)} ชม. ${b.minutes_ago % 60} นาทีที่แล้ว`
+  const cows = b.latest ? `พบโค ${b.latest.total} ตัว · ` : ''
+  return b.status === 'online'
+    ? { label: 'กล้องส่งภาพปกติ', detail: `${cows}ภาพล่าสุด ${ago}`, dotClass: 'bg-emerald-500', textClass: 'text-emerald-700' }
+    : { label: 'กล้องขาดการติดต่อ', detail: `ภาพล่าสุด ${ago}`, dotClass: 'bg-rose-500', textClass: 'text-rose-700' }
+})
+
+const fetchCameraBehavior = async () => {
+  if (!farmId.value) return
+  try {
+    const token = getToken()
+    const res = await axios.get(`${Admin}/farms/${farmId.value}/cameras/behavior`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    })
+    if (res.data?.success) cameraBehavior.value = res.data.camera_behavior
+  } catch (e) {
+    console.warn('[Camera API] behavior:', e?.message)
+  }
+}
+
+const openEditCamera = (cam) => {
+  if (!cam) return
+  editingCamera.value = cam
+  isAddCameraModalOpen.value = true
+}
 
 const liveCciBadge = computed(() => {
   const score = liveCciScore.value
@@ -1679,6 +1754,12 @@ const onCameraCreated = (cam) => {
   fetchRegisteredCameras()
 }
 
+const onCameraUpdated = () => {
+  editingCamera.value = null
+  fetchRegisteredCameras()
+  loadLiveRtspUrl()
+}
+
 const onCameraChange = () => {
   cameraFeedError.value = false
   cameraStreamKey.value = Date.now()
@@ -1755,6 +1836,7 @@ const fetchFarmDetail = async () => {
       farmProfile.value = normalizeProfile(res.data.hf_profile || res.data.farm?.hf_profile)
       savedDailySummary.value = res.data.saved_daily_summary || null
       gapAlert.value = res.data.gap_alert || null
+      cameraBehavior.value = res.data.camera_behavior || null
 
       const rawHistory = res.data.history || []
       
@@ -1865,9 +1947,12 @@ const toggleAutoSync = () => {
 
 const startAutoSync = () => {
   stopAutoSync()
+  let ticks = 0
   syncTimer = setInterval(() => {
     nowTimestamp.value = Date.now()
     pollLatestTelemetry()
+    // ภาพจากกล้องมาทุก ~10 นาที: ดึงผลกล้องใหม่ทุก ~1 นาทีพอ
+    if (++ticks % 8 === 0) fetchCameraBehavior()
   }, 8000)
 }
 

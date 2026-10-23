@@ -15,13 +15,13 @@
             </div>
             <div>
               <div class="flex items-center gap-2">
-                <h3 class="text-xl font-black tracking-tight text-white">ผูกกล้องวงจรปิด Hikvision</h3>
+                <h3 class="text-xl font-black tracking-tight text-white">{{ isEdit ? 'แก้ไขกล้องวงจรปิด' : 'เพิ่มกล้องและผูกกับฟาร์ม' }}</h3>
                 <span class="px-2.5 py-0.5 rounded-full bg-[#d87939]/20 text-[#f59e0b] text-[10px] font-bold border border-[#d87939]/30 uppercase tracking-wider">
                   RTSP DUAL-STREAM
                 </span>
               </div>
               <p class="text-xs text-white/75 mt-0.5 font-medium">
-                ลงทะเบียนกล้อง IP ประจำฟาร์มเพื่อดึงภาพตรวจจับพฤติกรรมโคนมด้วย YOLO26 + ByteTrack
+                กล้อง IP ในวง LAN เดียวกับกล่องเซ็นเซอร์ ESP32 (ส่งภาพนิ่งให้ YOLO26 นับพฤติกรรมโคนม)
               </p>
             </div>
           </div>
@@ -83,8 +83,9 @@
             <select 
               v-model="form.brand" 
               class="w-full bg-white border border-[#e5ece9] rounded-[16px] px-3.5 py-2.5 text-sm font-bold text-[#1f3d34] focus:outline-none focus:border-[#24433a] focus:ring-4 focus:ring-[#24433a]/8 transition-all cursor-pointer">
-              <option value="Hikvision">Hikvision (แนะนำสำหรับการสตรีม RTSP)</option>
-              <option value="Dahua">Dahua</option>
+              <option value="Dahua">Dahua / Imou</option>
+              <option value="Hikvision">Hikvision</option>
+              <option value="Yoosee">Yoosee / FNKvision</option>
               <option value="Uniview">Uniview</option>
               <option value="Generic RTSP">Generic RTSP / ONVIF</option>
             </select>
@@ -97,7 +98,7 @@
             <input 
               v-model="form.model" 
               type="text" 
-              placeholder="เช่น DS-2CD2143G2-I" 
+              placeholder="ไม่บังคับ เช่น IPC-HFW1230S" 
               class="w-full bg-white border border-[#e5ece9] rounded-[16px] px-3.5 py-2.5 text-sm font-bold text-[#1f3d34] focus:outline-none focus:border-[#24433a] focus:ring-4 focus:ring-[#24433a]/8 transition-all"
             />
           </div>
@@ -148,13 +149,14 @@
 
           <div>
             <label class="block text-xs font-black text-[#4e6057] uppercase tracking-wider mb-1.5">
-              รหัสผ่าน (Password) <span class="text-rose-500">*</span>
+              รหัสผ่าน (Password) <span v-if="!isEdit" class="text-rose-500">*</span>
             </label>
             <input 
               v-model="form.password" 
               type="password" 
-              required
-              placeholder="••••••••" 
+              :required="!isEdit"
+              autocomplete="new-password"
+              :placeholder="isEdit ? 'เว้นว่าง = ใช้รหัสเดิม' : '••••••••'" 
               class="w-full bg-white border border-[#e5ece9] rounded-[16px] px-3.5 py-2.5 text-sm font-bold text-[#1f3d34] focus:outline-none focus:border-[#24433a] focus:ring-4 focus:ring-[#24433a]/8 transition-all"
             />
           </div>
@@ -190,12 +192,12 @@
           />
         </div>
 
-        <!-- 6. Hikvision Dual-Stream URL Auto-Generator Preview -->
+        <!-- 6. RTSP URL Preview (ตามยี่ห้อ, ไม่แสดงรหัสจริง) -->
         <div class="p-4 rounded-[20px] bg-[#142820] text-white space-y-2.5 font-mono text-xs">
           <div class="flex items-center justify-between text-white/70 text-[11px]">
             <span class="font-sans font-bold flex items-center gap-1.5">
               <v-icon icon="mdi-link-variant" size="14" class="text-emerald-400" />
-              <span>Hikvision Dual-Stream Protocol Preview</span>
+              <span>{{ form.brand }} RTSP Preview</span>
             </span>
             <span class="text-emerald-400 text-[10px]">Auto-Generated</span>
           </div>
@@ -233,7 +235,7 @@
             class="px-6 py-2.5 rounded-[16px] bg-[#24433a] hover:bg-[#1a322b] text-white text-xs font-black shadow-[0_4px_14px_rgba(36,67,58,0.2)] hover:shadow-[0_6px_20px_rgba(36,67,58,0.3)] transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50">
             <v-icon v-if="isLoading" icon="mdi-loading" size="16" class="animate-spin" />
             <v-icon v-else icon="mdi-check-circle-outline" size="16" />
-            <span>{{ isLoading ? 'กำลังบันทึกข้อมูล...' : 'บันทึกและผูกกล้อง' }}</span>
+            <span>{{ isLoading ? 'กำลังบันทึกข้อมูล...' : isEdit ? 'บันทึกการแก้ไข' : 'บันทึกและผูกกล้อง' }}</span>
           </button>
         </div>
 
@@ -260,10 +262,16 @@ const props = defineProps({
   farm: {
     type: Object,
     default: () => ({})
+  },
+  // ส่งกล้องมา = โหมดแก้ไข, ไม่ส่ง = เพิ่มกล้องใหม่
+  camera: {
+    type: Object,
+    default: null
   }
 })
 
-const emit = defineEmits(['update:modelValue', 'created'])
+const emit = defineEmits(['update:modelValue', 'created', 'updated'])
+const isEdit = computed(() => Boolean(props.camera?.id))
 
 const internalModel = computed({
   get: () => props.modelValue,
@@ -276,8 +284,8 @@ const errorMessage = ref('')
 const form = ref({
   camera_name: '',
   barn_unit: 'Main Barn Unit 1',
-  brand: 'Hikvision',
-  model: 'DS-2CD2143G2-I',
+  brand: 'Dahua',
+  model: '',
   ip_address: '192.168.1.108',
   rtsp_port: 554,
   http_port: 80,
@@ -287,30 +295,46 @@ const form = ref({
   is_simulation: false
 })
 
-const mainStreamPreview = computed(() => {
+// รูปแบบเดียวกับ backend_node/app/services/rtspUrls.js
+const streamPaths = (brand, ch) => {
+  const b = String(brand || '').toLowerCase()
+  if (b.includes('dahua') || b.includes('imou')) return [`/cam/realmonitor?channel=${ch}&subtype=0`, `/cam/realmonitor?channel=${ch}&subtype=1`]
+  if (b.includes('yoosee') || b.includes('fnk')) return ['/onvif1', '/onvif2']
+  return [`/Streaming/Channels/${ch}01`, `/Streaming/Channels/${ch}02`]
+}
+const previewBase = computed(() => {
   const user = form.value.username || 'admin'
-  const pass = '••••••'  // ไม่แสดงรหัสจริงบนจอ
   const ip = form.value.ip_address || '192.168.1.108'
   const port = form.value.rtsp_port || 554
-  const ch = form.value.channel_no || 1
-  return `rtsp://${user}:${pass}@${ip}:${port}/Streaming/Channels/${ch}01`
+  return `rtsp://${user}:••••••@${ip}:${port}`  // ไม่แสดงรหัสจริงบนจอ
 })
-
-const subStreamPreview = computed(() => {
-  const user = form.value.username || 'admin'
-  const pass = '••••••'  // ไม่แสดงรหัสจริงบนจอ
-  const ip = form.value.ip_address || '192.168.1.108'
-  const port = form.value.rtsp_port || 554
-  const ch = form.value.channel_no || 1
-  return `rtsp://${user}:${pass}@${ip}:${port}/Streaming/Channels/${ch}02`
-})
+const mainStreamPreview = computed(() => previewBase.value + streamPaths(form.value.brand, form.value.channel_no || 1)[0])
+const subStreamPreview = computed(() => previewBase.value + streamPaths(form.value.brand, form.value.channel_no || 1)[1])
 
 const resetForm = () => {
+  const c = props.camera
+  if (c?.id) {
+    form.value = {
+      camera_name: c.camera_name || '',
+      barn_unit: c.barn_unit || '',
+      brand: c.brand || 'Dahua',
+      model: c.model || '',
+      ip_address: c.ip_address || '',
+      rtsp_port: c.rtsp_port || 554,
+      http_port: c.http_port || 80,
+      username: c.username || '',
+      password: '',
+      channel_no: c.channel_no || 1,
+      is_simulation: Boolean(c.is_simulation)
+    }
+    errorMessage.value = ''
+    return
+  }
   form.value = {
     camera_name: props.farm?.name_farms ? `กล้อง ${props.farm.name_farms} - คอกหลัก` : 'กล้องโรงเรือน 1',
     barn_unit: 'Main Barn Unit 1',
-    brand: 'Hikvision',
-    model: 'DS-2CD2143G2-I',
+    brand: 'Dahua',
+    model: '',
     ip_address: '192.168.1.108',
     rtsp_port: 554,
     http_port: 80,
@@ -346,12 +370,13 @@ const submitCamera = async () => {
     // server สร้าง URL สตรีมเอง (ไม่มีรหัสใน URL) ไม่ต้องส่งตัวอย่างจากหน้าจอไป
     const payload = { ...form.value }
 
-    const res = await axios.post(`${Admin}/farms/${props.farmId}/cameras`, payload, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {}
-    })
+    const headers = token ? { Authorization: `Bearer ${token}` } : {}
+    const res = isEdit.value
+      ? await axios.put(`${Admin}/farms/${props.farmId}/cameras/${props.camera.id}`, payload, { headers })
+      : await axios.post(`${Admin}/farms/${props.farmId}/cameras`, payload, { headers })
 
     if (res.data && res.data.success) {
-      emit('created', res.data.camera)
+      emit(isEdit.value ? 'updated' : 'created', res.data.camera)
       closeModal()
     } else {
       errorMessage.value = res.data?.message || 'ไม่สามารถบันทึกข้อมูลกล้องได้'
