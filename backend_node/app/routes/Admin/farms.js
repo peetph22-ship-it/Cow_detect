@@ -14,7 +14,7 @@ const { encryptSecret, CameraSecretError } = require('../../services/cameraSecre
 const { getCameraBehavior } = require('../../services/cameraBehavior')
 const { getFarm24h } = require('../../services/farmHistory')
 const { dailySeries, stressStreak, bkkDate } = require('../../services/heatMetrics')
-const { getFarmOutdoorWeather } = require('../../services/outdoorWeather')
+const { getFarmOutdoorComparison } = require('../../services/outdoorWeather')
 
 // คอลัมน์กล้องที่ส่งกลับให้หน้าเว็บได้ (ไม่มี password_encrypted)
 const CAMERA_PUBLIC_COLUMNS = `id, farm_id, camera_name, barn_unit, brand, model, ip_address, rtsp_port, http_port,
@@ -33,6 +33,16 @@ const parseRoutineTimes = (value, max, label) => {
     if (times.some(t => !/^([01]\d|2[0-3]):[0-5]\d$/.test(t))) return { error: `${label}ต้องเป็นรูปแบบ HH:MM เช่น 05:30` }
     if (times.length > max) return { error: `${label}ได้ไม่เกิน ${max} เวลา` }
     return { times: times.sort() }
+}
+
+// พิกัดฟาร์ม (องศาทศนิยม) ต้องอยู่ในกรอบประเทศไทย ส่งทั้งคู่หรือว่างทั้งคู่ (ว่าง = ล้าง)
+const parseFarmCoordinates = (lat, lon) => {
+    const empty = (v) => v === null || v === undefined || String(v).trim() === ''
+    if (empty(lat) && empty(lon)) return { latitude: null, longitude: null }
+    const la = Number(lat), lo = Number(lon)
+    if (!Number.isFinite(la) || !Number.isFinite(lo)) return { error: 'พิกัดต้องเป็นตัวเลข เช่น 18.7883, 98.9853' }
+    if (la < 5.5 || la > 20.5 || lo < 97.3 || lo > 105.7) return { error: 'พิกัดไม่อยู่ในประเทศไทย (ตรวจว่าใส่ละติจูดก่อน ลองจิจูดทีหลัง)' }
+    return { latitude: Math.round(la * 1e5) / 1e5, longitude: Math.round(lo * 1e5) / 1e5 }
 }
 
 // -----------------------------------------------------------------
@@ -908,14 +918,7 @@ router.get('/:id', verifyToken, requireRole('admin'), async (req, res) => {
             console.warn('[Farm Detail API] camera behavior error:', camErr.message)
         }
 
-        // สภาพอากาศภายนอกโรงเรือนจาก Open-Meteo (ระบุพิกัดอัตโนมัติตามอำเภอ/จังหวัดของฟาร์ม)
-        let outdoor_weather = null
-        try {
-            const currentSensor = latestReading || (history.length > 0 ? history[history.length - 1] : null)
-            outdoor_weather = await getFarmOutdoorWeather(farm, currentSensor)
-        } catch (owErr) {
-            console.warn('[Farm Detail API] outdoor weather error:', owErr.message)
-        }
+        // อากาศภายนอก (Open-Meteo) โหลดแยกที่ GET /:id/outdoor-weather ไม่ให้หน้าฟาร์มต้องรอ API ภายนอก
 
         return res.json({
             success: true,
@@ -926,7 +929,6 @@ router.get('/:id', verifyToken, requireRole('admin'), async (req, res) => {
             streak,
             method: getMethod(profile),
             latest_sensor: latestReading || (history.length > 0 ? history[history.length - 1] : null),
-            outdoor_weather,
             daily_summary,
             saved_daily_summary,
             history,
@@ -947,55 +949,19 @@ router.get('/:id', verifyToken, requireRole('admin'), async (req, res) => {
     }
 })
 
-// 5.1 GET: /api/Admin/farms/:id/outdoor-weather
-// ดึงและคำนวณสภาพอากาศภายนอกโรงเรือน (Open-Meteo) แบบ On-demand
+// 5.1 GET: /api/Admin/farms/:id/outdoor-weather  (?refresh=1 ข้ามแคช 15 นาที)
+// อากาศภายนอกจาก Open-Meteo + เทียบรายชั่วโมงกับในโรงเรือน ดู services/outdoorWeather.js
 router.get('/:id/outdoor-weather', verifyToken, requireRole('admin'), async (req, res) => {
     try {
         const { id } = req.params
-
-        let farm = null
-        if (isUUID(id)) {
-            const { rows } = await db.query(`SELECT * FROM tb_farms WHERE id_farms = $1 LIMIT 1`, [id])
-            if (rows.length > 0) farm = rows[0]
-        } else {
-            const { rows } = await db.query(`SELECT * FROM tb_farms WHERE id_farms::text = $1 LIMIT 1`, [id])
-            if (rows.length > 0) farm = rows[0]
-        }
-
-        if (!farm) {
-            return res.status(404).json({
-                success: false,
-                message: 'ไม่พบข้อมูลฟาร์ม'
-            })
-        }
-
-        let latestReading = null
-        try {
-            const resReading = await db.query(`
-                SELECT sr.*
-                FROM tb_sensor_readings sr
-                JOIN tb_devices d ON d.id_devices = sr.id_devices
-                WHERE d.id_farms = $1
-                ORDER BY sr.recorded_at DESC
-                LIMIT 1
-            `, [farm.id_farms])
-            if (resReading.rows.length > 0) latestReading = resReading.rows[0]
-        } catch (sErr) {
-            console.warn('[Outdoor Weather Route] Reading query fallback:', sErr.message)
-        }
-
-        const outdoor_weather = await getFarmOutdoorWeather(farm, latestReading)
-
-        return res.json({
-            success: true,
-            outdoor_weather
-        })
+        if (!isUUID(id)) return res.status(400).json({ success: false, message: 'id ฟาร์มไม่ถูกต้อง' })
+        const { rows } = await db.query(`SELECT * FROM tb_farms WHERE id_farms = $1 LIMIT 1`, [id])
+        if (!rows.length) return res.status(404).json({ success: false, message: 'ไม่พบข้อมูลฟาร์ม' })
+        const outdoor_weather = await getFarmOutdoorComparison(rows[0], { refresh: req.query.refresh === '1' })
+        return res.json({ success: true, outdoor_weather })
     } catch (err) {
-        console.error('[Get Outdoor Weather Route Error]:', err.message)
-        return res.status(500).json({
-            success: false,
-            message: 'Error fetching outdoor weather: ' + err.message
-        })
+        console.error('[Outdoor Weather Route] error:', err.message)
+        return res.status(500).json({ success: false, message: 'ดึงข้อมูลอากาศภายนอกไม่สำเร็จ' })
     }
 })
 
@@ -1072,6 +1038,26 @@ router.put('/:id', verifyToken, requireRole('admin'), async (req, res) => {
             } catch (vpErr) {
                 await client.query('ROLLBACK TO SAVEPOINT vet_phone')
                 console.warn('[Update Farm] vet_phone not saved (run migration 20261024_farm_vet_phone.sql):', vpErr.message)
+            }
+        }
+
+        // พิกัดฟาร์ม (migrations/20261027_farm_coordinates.sql) ยังไม่รัน migration = ข้าม
+        if (req.body.latitude !== undefined || req.body.longitude !== undefined) {
+            const coords = parseFarmCoordinates(req.body.latitude, req.body.longitude)
+            if (coords.error) {
+                await client.query('ROLLBACK')
+                return res.status(400).json({ success: false, message: coords.error })
+            }
+            await client.query('SAVEPOINT farm_coords')
+            try {
+                const cRes = await client.query(
+                    `UPDATE tb_farms SET latitude = $1, longitude = $2 WHERE id_farms = $3 RETURNING *`,
+                    [coords.latitude, coords.longitude, id]
+                )
+                rows[0] = cRes.rows[0]
+            } catch (cErr) {
+                await client.query('ROLLBACK TO SAVEPOINT farm_coords')
+                console.warn('[Update Farm] coordinates not saved (run migration 20261027_farm_coordinates.sql):', cErr.message)
             }
         }
 

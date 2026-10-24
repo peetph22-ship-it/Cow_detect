@@ -42,3 +42,7 @@ firmware/**/secrets.h
 backend_node/app/weights/yolo*.onnx
 backend_node/app/weights/yolo*.onnx.part*
 backend_node/app/weights/*.download
+
+# โมเดล/แคชขนาดใหญ่ (แชร์ผ่าน Drive หรือ Supabase models แทน)
+backend/app/weights/*.onnx
+**/labels.cache

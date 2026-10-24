@@ -1,23 +1,39 @@
 /**
- * CowCare AI - Outdoor Weather Integration Service (Open-Meteo API)
- * 
- * วัตถุประสงค์:
- * - ดึงสภาพอากาศภายนอกโรงเรือนแบบ Real-time และรายชั่วโมง จาก Open-Meteo API (Open Data ฟรี ไม่ต้องใช้ API Key)
- * - ระบุพิกัดอัตโนมัติจาก อำเภอ (district) และ จังหวัด (province) ของฟาร์มใน tb_farms
- * - มีตารางพิกัดอำเภอโคนมหลักของไทยในตัว (Instant lookup 0ms) พร้อม Geocoding API fallback
- * - คำนวณ Outdoor THI ด้วยสูตร NRC (1971) ตัวเดียวกับระบบเซ็นเซอร์ในโรงเรือน (Single Source of Truth)
- * - วิเคราะห์ผลต่าง ในโรงเรือน vs ภายนอก (Delta THI, Delta Temp, Delta Hum) และประเมินการระบายอากาศ (Ventilation Status)
- * - มี In-memory Cache TTL 15 นาที เพื่อประหยัดแบนด์วิดท์และตอบสนองรวดเร็ว
+ * CowCare AI - อากาศภายนอกโรงเรือนจาก Open-Meteo (ฟรี ไม่ต้องใช้ API key, CC BY 4.0)
+ *
+ * ข้อควรรู้: Open-Meteo เป็นค่าจาก "แบบจำลองพยากรณ์อากาศ" ที่จุดพิกัด ไม่ใช่สถานีวัดจริง
+ * ค่าจากแบบจำลองในพื้นที่หนึ่งอาจต่างจากของจริงได้ราว 1-2°C จึงไม่ตัดสินจากค่าขณะเดียว
+ *
+ * วิธีเทียบ (ค่าเฉลี่ยรายชั่วโมงแบบเดียวกันทั้งสองฝั่ง)
+ * - ในโรงเรือน: ค่าเฉลี่ย 5 นาทีจาก heatMetrics รวมเป็นรายชั่วโมง (ชั่วโมงที่มีข้อมูลอย่างน้อย 30 นาที)
+ * - ภายนอก: ค่ารายชั่วโมงย้อนหลัง 72 ชม. ของ Open-Meteo ที่พิกัดฟาร์ม
+ * - จับคู่ชั่วโมงเดียวกัน แล้วดูผลต่างเฉลี่ยช่วงบ่าย 12:00-16:59 (ช่วงที่หลังคารับความร้อนมากสุด)
+ * - ต่างไม่เกิน ±2°C = ถือว่าใกล้เคียง (เกณฑ์ของระบบ เผื่อความคลาดเคลื่อนของแบบจำลอง)
+ *
+ * พิกัด: ใช้พิกัดฟาร์มที่ admin กรอก ถ้าไม่มี ใช้จุดกลางอำเภอ (ต้องเป็นอำเภอในจังหวัดนั้นจริง) หรือจุดกลางจังหวัด
+ * หาไม่ได้ = ไม่ดึงอากาศ (ไม่เดาพิกัดจากที่อื่น)
  */
 
 const axios = require('axios')
 const { calcThi, getRiskLevel, getFarmProfile, RISK_LABELS_TH } = require('./heatStress')
+const { loadBuckets, bkkDate, bkkHour, round1 } = require('./heatMetrics')
 
-// In-Memory Caches
-const WEATHER_CACHE = new Map() // key -> { data, expiresAt, fetchedAt }
-const GEOCODE_CACHE = new Map() // query -> { lat, lon, name }
-const CACHE_TTL_MS = 15 * 60 * 1000 // 15 นาที
-const STALE_GRACE_MS = 2 * 60 * 60 * 1000 // ยอมใช้ข้อมูลเก่าได้ไม่เกิน 2 ชม. กรณีเน็ตหลุด
+const WEATHER_CACHE = new Map()                 // "lat_lon" -> { data, expiresAt, fetchedAt }
+const CACHE_TTL_MS = 15 * 60 * 1000
+const STALE_GRACE_MS = 2 * 60 * 60 * 1000       // เน็ตหลุด: ใช้ค่าเดิมได้ไม่เกิน 2 ชม.
+const PAST_HOURS = 72
+const MIN_BUCKETS_PER_HOUR = 6                  // 6 x 5 นาที = มีข้อมูลอย่างน้อย 30 นาทีในชั่วโมงนั้น
+const AFTERNOON = { from: 12, to: 16 }          // 12:00-16:59
+const MIN_AFTERNOON_HOURS = 8                   // อย่างน้อย ~2 บ่าย
+const TOLERANCE_C = 2.0                         // เกณฑ์ของระบบ ไม่ใช่ค่าจากงานวิจัย
+const INDOOR_FRESH_MIN = 30
+
+const SOURCE = {
+    provider: 'Open-Meteo',
+    kind_th: 'ค่าจากแบบจำลองพยากรณ์อากาศที่พิกัดฟาร์ม ไม่ใช่สถานีวัดจริง',
+    attribution: 'Weather data by Open-Meteo.com (CC BY 4.0)',
+    url: 'https://open-meteo.com/'
+}
 
 // WMO Weather Interpretation Codes (WW)
 const WMO_WEATHER_CODES = {
@@ -168,324 +184,235 @@ const PROVINCE_COORDS = {
     'กรุงเทพฯ': { lat: 13.756, lon: 100.502 }
 }
 
-/**
- * ตัดคำนำหน้าอำเภอ เช่น "อ.", "อำเภอ", "เมือง" ให้เหลือเฉพาะชื่อค้นหา
- */
-function cleanDistrictName(district) {
-    if (!district) return ''
-    return String(district)
-        .trim()
-        .replace(/^(อำเภอ|อ\.)\s*/g, '')
-        .trim()
-}
+const cleanDistrictName = (d) => String(d || '').trim().replace(/^(อำเภอ|อ\.)\s*/, '').trim()
+const cleanProvinceName = (p) => String(p || '').trim().replace(/^(จังหวัด|จ\.)\s*/, '').trim()
 
 /**
- * ตัดคำนำหน้าจังหวัด เช่น "จ.", "จังหวัด" ให้เหลือเฉพาะชื่อค้นหา
+ * หาพิกัดของฟาร์ม คืน null ถ้าหาไม่ได้ (ไม่เดาพิกัดจากจังหวัดอื่น)
  */
-function cleanProvinceName(province) {
-    if (!province) return ''
-    return String(province)
-        .trim()
-        .replace(/^(จังหวัด|จ\.)\s*/g, '')
-        .trim()
-}
-
-/**
- * ค้นหาพิกัดละติจูด/ลองจิจูดจากข้อมูลฟาร์ม (อำเภอ + จังหวัด)
- * 1. ค้นหาใน Dictionary ท้องถิ่น (0ms)
- * 2. ค้นหาผ่าน Open-Meteo Geocoding API (Fallback)
- * 3. Fallback ไปยังศูนย์กลางจังหวัด หรือ สระบุรี/กรุงเทพฯ
- */
-async function resolveCoordinates(farm) {
-    const rawDistrict = farm?.district || ''
-    const rawProvince = farm?.province || ''
-    const district = cleanDistrictName(rawDistrict)
-    const province = cleanProvinceName(rawProvince)
-
-    // 1. ตรวจสอบใน DISTRICT_COORDS ตรงๆ
-    if (district && DISTRICT_COORDS[district]) {
-        return {
-            ...DISTRICT_COORDS[district],
-            source: 'dictionary',
-            location_name: `อ.${district} จ.${province || DISTRICT_COORDS[district].province}`
-        }
+const resolveLocation = (farm) => {
+    const lat = farm?.latitude != null ? Number(farm.latitude) : NaN
+    const lon = farm?.longitude != null ? Number(farm.longitude) : NaN
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+        return { latitude: lat, longitude: lon, source: 'farm_coordinates', approximate: false, label: 'พิกัดฟาร์ม' }
     }
-
-    // ตรวจสอบแบบมีคำว่า "เมือง" นำหน้า
-    if (district && DISTRICT_COORDS[`เมือง${district}`]) {
-        return {
-            ...DISTRICT_COORDS[`เมือง${district}`],
-            source: 'dictionary',
-            location_name: `อ.เมือง${district} จ.${province || DISTRICT_COORDS[`เมือง${district}`].province}`
-        }
+    const district = cleanDistrictName(farm?.district)
+    const province = cleanProvinceName(farm?.province)
+    const d = DISTRICT_COORDS[district] || DISTRICT_COORDS[`เมือง${district}`]
+    // อำเภอต้องอยู่ในจังหวัดของฟาร์มจริง (กันกรณีข้อมูลฟาร์มอำเภอ/จังหวัดไม่ตรงกัน)
+    if (d && (!province || d.province === province)) {
+        return { latitude: d.lat, longitude: d.lon, source: 'district_center', approximate: true, label: `จุดกลาง อ.${d.district} จ.${d.province} (โดยประมาณ)` }
     }
-
-    // 2. ตรวจสอบใน In-Memory Geocode Cache
-    const cacheKey = `${district}_${province}`.trim().toLowerCase()
-    if (cacheKey && GEOCODE_CACHE.has(cacheKey)) {
-        return GEOCODE_CACHE.get(cacheKey)
-    }
-
-    // 3. เรียก Open-Meteo Geocoding API (ถ้ามีระบุอำเภอหรือจังหวัด)
-    if (district || province) {
-        const query = [district, province, 'Thailand'].filter(Boolean).join(' ')
-        try {
-            const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=th&format=json`
-            const res = await axios.get(url, { timeout: 3500 })
-            if (res.data && Array.isArray(res.data.results) && res.data.results.length > 0) {
-                const item = res.data.results[0]
-                const result = {
-                    lat: parseFloat(Number(item.latitude).toFixed(3)),
-                    lon: parseFloat(Number(item.longitude).toFixed(3)),
-                    district: district || item.name,
-                    province: province || item.admin1 || '',
-                    source: 'open_meteo_geocoding',
-                    location_name: `${district ? `อ.${district} ` : ''}จ.${province || item.admin1 || item.name}`
-                }
-                GEOCODE_CACHE.set(cacheKey, result)
-                return result
-            }
-        } catch (geoErr) {
-            console.warn(`[OutdoorWeather] Geocoding lookup failed for '${query}':`, geoErr.message)
-        }
-    }
-
-    // 4. ตรวจสอบพิกัดระดับจังหวัด
     if (province && PROVINCE_COORDS[province]) {
-        return {
-            lat: PROVINCE_COORDS[province].lat,
-            lon: PROVINCE_COORDS[province].lon,
-            district: district || 'เมือง',
-            province: province,
-            source: 'province_center',
-            location_name: `${district ? `อ.${district} ` : ''}จ.${province}`
-        }
+        const p = PROVINCE_COORDS[province]
+        return { latitude: p.lat, longitude: p.lon, source: 'province_center', approximate: true, label: `ตัวเมือง จ.${province} (โดยประมาณ)` }
     }
+    return null
+}
 
-    // 5. Fallback ขั้นสุดท้าย: ศูนย์กลางโคนมไทย อ.มวกเหล็ก จ.สระบุรี
-    return {
-        lat: 14.654,
-        lon: 101.199,
-        district: district || 'มวกเหล็ก',
-        province: province || 'สระบุรี',
-        source: 'default_fallback',
-        location_name: district ? `อ.${district} จ.${province || 'สระบุรี'}` : 'อ.มวกเหล็ก จ.สระบุรี (ค่าเริ่มต้น)'
+const locationProblem = (farm) => {
+    const district = cleanDistrictName(farm?.district)
+    const province = cleanProvinceName(farm?.province)
+    const d = DISTRICT_COORDS[district]
+    if (d && province && d.province !== province) {
+        return `อำเภอ "${district}" ไม่ได้อยู่ใน จ.${province} ตรวจข้อมูลฟาร์ม หรือใส่พิกัดฟาร์มในหน้าแก้ไขฟาร์ม`
     }
+    return 'ยังไม่ได้ใส่พิกัดฟาร์ม และไม่พบอำเภอ/จังหวัดในตารางพิกัด ใส่พิกัดฟาร์มในหน้าแก้ไขฟาร์ม'
 }
 
 /**
- * ดึงข้อมูลสภาพอากาศภายนอกโรงเรือนจาก Open-Meteo
- * พร้อมแคช 15 นาที และคำนวณ THI ตามสูตร NRC 1971
+ * ดึงค่าปัจจุบัน + รายชั่วโมงย้อนหลัง 72 ชม. (เวลาไทย) แคช 15 นาที
  */
-async function fetchOutdoorWeather(lat, lon, profile = 'default') {
-    const latRounded = Number(lat).toFixed(3)
-    const lonRounded = Number(lon).toFixed(3)
-    const cacheKey = `${latRounded}_${lonRounded}`
-
+const fetchOpenMeteo = async (lat, lon, { refresh = false } = {}) => {
+    const key = `${Number(lat).toFixed(3)}_${Number(lon).toFixed(3)}`
     const now = Date.now()
-    const cached = WEATHER_CACHE.get(cacheKey)
+    const cached = WEATHER_CACHE.get(key)
+    if (!refresh && cached && now < cached.expiresAt) return { ...cached.data, from_cache: true }
 
-    // ใช้ข้อมูลจากแคชถ้ายังไม่หมดอายุ
-    if (cached && now < cached.expiresAt) {
-        return {
-            ...cached.data,
-            from_cache: true
-        }
-    }
-
+    const url = 'https://api.open-meteo.com/v1/forecast'
+        + `?latitude=${Number(lat).toFixed(4)}&longitude=${Number(lon).toFixed(4)}`
+        + '&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m'
+        + '&hourly=temperature_2m,relative_humidity_2m'
+        + '&past_days=3&forecast_days=1&timezone=Asia%2FBangkok'
     try {
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${latRounded}&longitude=${lonRounded}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&hourly=temperature_2m,relative_humidity_2m&timezone=Asia%2FBangkok&forecast_days=1`
-        const res = await axios.get(url, { timeout: 4000 })
-
-        if (!res.data || !res.data.current) {
-            throw new Error('Open-Meteo response missing current telemetry')
-        }
-
-        const current = res.data.current
-        const hourly = res.data.hourly || {}
-
-        const tempC = current.temperature_2m != null ? parseFloat(Number(current.temperature_2m).toFixed(1)) : null
-        const humPct = current.relative_humidity_2m != null ? Math.round(Number(current.relative_humidity_2m)) : null
-        const windKmh = current.wind_speed_10m != null ? parseFloat(Number(current.wind_speed_10m).toFixed(1)) : null
-        const weatherCode = current.weather_code != null ? current.weather_code : 0
-
-        // คำนวณ Outdoor THI ผ่าน Single Source of Truth
-        const outdoorThi = calcThi(tempC, humPct)
-        const outdoorRisk = getRiskLevel(outdoorThi, profile)
-
-        const codeInfo = WMO_WEATHER_CODES[weatherCode] || { desc: 'มีเมฆบางส่วน', icon: 'mdi-weather-cloudy', status: 'cloudy' }
-
-        // คำนวณ Min-Max อุณหภูมิและความชื้นภายนอกของวันนี้จาก hourly
-        const hourlyTemps = Array.isArray(hourly.temperature_2m) ? hourly.temperature_2m.filter(v => v != null) : []
-        const hourlyHums = Array.isArray(hourly.relative_humidity_2m) ? hourly.relative_humidity_2m.filter(v => v != null) : []
-
-        const minTemp = hourlyTemps.length ? Math.min(...hourlyTemps).toFixed(1) : null
-        const maxTemp = hourlyTemps.length ? Math.max(...hourlyTemps).toFixed(1) : null
-        const minHum = hourlyHums.length ? Math.round(Math.min(...hourlyHums)) : null
-        const maxHum = hourlyHums.length ? Math.round(Math.max(...hourlyHums)) : null
-
-        const result = {
-            temperature_c: tempC,
-            humidity_pct: humPct,
-            thi: outdoorThi,
-            risk_level: outdoorRisk,
-            risk_label_th: outdoorRisk ? RISK_LABELS_TH[outdoorRisk] : 'ปกติ',
-            wind_speed_kmh: windKmh,
-            weather_code: weatherCode,
-            weather_desc: codeInfo.desc,
-            weather_icon: codeInfo.icon,
-            weather_condition: codeInfo.status,
-            min_temp: minTemp ? parseFloat(minTemp) : null,
-            max_temp: maxTemp ? parseFloat(maxTemp) : null,
-            min_hum: minHum,
-            max_hum: maxHum,
-            recorded_at: current.time,
-            provider: 'Open-Meteo (DWD/ICON open data)',
-            api_status: 'online',
-            from_cache: false,
-            fetched_at: new Date().toISOString()
-        }
-
-        WEATHER_CACHE.set(cacheKey, {
-            data: result,
-            expiresAt: now + CACHE_TTL_MS,
-            fetchedAt: now
-        })
-
-        return result
-    } catch (apiErr) {
-        console.warn(`[OutdoorWeather] Open-Meteo fetch error (${latRounded}, ${lonRounded}):`, apiErr.message)
-
-        // ถ้ามีแคชเก่าที่ยังไม่เกิน Stale Grace ให้ใช้แทนชั่วคราว
-        if (cached && (now - cached.fetchedAt) < STALE_GRACE_MS) {
-            return {
-                ...cached.data,
-                from_cache: true,
-                stale: true,
-                warning: 'ใช้ข้อมูลสภาพอากาศภายนอกล่าสุดก่อนหน้า เนื่องจากสัญญาณ Open-Meteo ขัดข้องชั่วคราว'
-            }
-        }
-
-        // หากไม่มีข้อมูลเลย ให้ส่ง fallback object ที่ไม่ทำให้หน้าเว็บพัง
-        return {
-            temperature_c: null,
-            humidity_pct: null,
-            thi: null,
-            risk_level: null,
-            risk_label_th: 'ไม่มีข้อมูล',
-            wind_speed_kmh: null,
-            weather_code: 0,
-            weather_desc: 'ไม่สามารถดึงข้อมูลสภาพอากาศได้',
-            weather_icon: 'mdi-cloud-off-outline',
-            recorded_at: null,
-            provider: 'Open-Meteo',
-            api_status: 'offline',
-            from_cache: false,
-            error: apiErr.message
-        }
+        const { data } = await axios.get(url, { timeout: 5000 })
+        if (!data?.current || !data?.hourly?.time) throw new Error('Open-Meteo response missing current/hourly')
+        const h = data.hourly
+        const hourly = h.time.map((t, i) => ({
+            key: t.slice(0, 13),                   // "YYYY-MM-DDTHH" เวลาไทย
+            temp: h.temperature_2m?.[i],
+            hum: h.relative_humidity_2m?.[i]
+        })).filter(x => x.temp != null && x.hum != null)
+        const result = { current: data.current, hourly, model_elevation_m: data.elevation ?? null, api_status: 'online', fetched_at: new Date(now).toISOString() }
+        WEATHER_CACHE.set(key, { data: result, expiresAt: now + CACHE_TTL_MS, fetchedAt: now })
+        return { ...result, from_cache: false }
+    } catch (err) {
+        console.warn(`[OutdoorWeather] Open-Meteo fetch error (${key}):`, err.message)
+        if (cached && now - cached.fetchedAt < STALE_GRACE_MS) return { ...cached.data, from_cache: true, api_status: 'stale' }
+        return { current: null, hourly: [], api_status: 'offline', error: err.message }
     }
 }
 
+const hourKey = (d) => `${bkkDate(d)}T${String(bkkHour(d)).padStart(2, '0')}`
+const mean = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : null)
+
+// ค่าเฉลี่ยรายชั่วโมงในโรงเรือน (เฉพาะชั่วโมงที่มีข้อมูลพอ)
+const indoorHourly = (buckets) => {
+    const by = new Map()
+    for (const b of buckets) {
+        const k = hourKey(b.t)
+        if (!by.has(k)) by.set(k, { temp: [], hum: [], thi: [], hour: bkkHour(b.t) })
+        const v = by.get(k)
+        v.temp.push(b.temp); v.hum.push(b.hum); v.thi.push(b.thi)
+    }
+    const out = new Map()
+    for (const [k, v] of by) {
+        if (v.temp.length < MIN_BUCKETS_PER_HOUR) continue
+        out.set(k, { hour: v.hour, temp: mean(v.temp), hum: mean(v.hum), thi: mean(v.thi) })
+    }
+    return out
+}
+
 /**
- * เปรียบเทียบสภาพอากาศ ในโรงเรือน (เซ็นเซอร์ SHT20) vs ภายนอกโรงเรือน (Open-Meteo)
- * วิเคราะห์ Delta THI, Delta Temp, Delta RH และประเมินการสะสมความร้อน (Ventilation Assessment)
+ * เทียบรายชั่วโมงที่ตรงกัน (pure function ทดสอบได้โดยไม่ต้องมี DB/เน็ต)
  */
-function computeComparison(latestSensor, outdoorWeather) {
-    if (!outdoorWeather || outdoorWeather.temperature_c == null || !latestSensor || latestSensor.temperature_c == null) {
+const comparePeriod = (indoor, outdoorHourly, nowKey) => {
+    const pairs = []
+    for (const o of outdoorHourly) {
+        if (o.key >= nowKey) continue              // ข้ามชั่วโมงปัจจุบันและค่าพยากรณ์ล่วงหน้า
+        const i = indoor.get(o.key)
+        if (!i) continue
+        const outThi = calcThi(o.temp, o.hum)
+        pairs.push({ hour: i.hour, dTemp: i.temp - o.temp, dThi: i.thi - outThi, inThi: i.thi, outThi })
+    }
+    const aft = pairs.filter(p => p.hour >= AFTERNOON.from && p.hour <= AFTERNOON.to)
+    const base = {
+        window_hours: PAST_HOURS,
+        matched_hours: pairs.length,
+        afternoon_hours: aft.length,
+        mean_delta_temp: round1(mean(pairs.map(p => p.dTemp))),
+        mean_delta_thi: round1(mean(pairs.map(p => p.dThi))),
+        afternoon_delta_temp: round1(mean(aft.map(p => p.dTemp))),
+        afternoon_delta_thi: round1(mean(aft.map(p => p.dThi))),
+        indoor_mean_thi: round1(mean(pairs.map(p => p.inThi))),
+        outdoor_mean_thi: round1(mean(pairs.map(p => p.outThi))),
+        tolerance_c: TOLERANCE_C
+    }
+    if (aft.length < MIN_AFTERNOON_HOURS) {
         return {
-            has_comparison: false,
-            delta_thi: null,
-            delta_temp: null,
-            delta_hum: null,
-            status: 'incomplete_data',
-            status_th: 'ข้อมูลไม่ครบถ้วน',
-            ventilation_insight: 'ยังไม่มีข้อมูลเซ็นเซอร์หรือสภาพอากาศภายนอกเพียงพอสำหรับเปรียบเทียบ'
+            ...base,
+            status: 'insufficient',
+            status_th: 'ข้อมูลยังไม่พอเปรียบเทียบ',
+            note_th: `ต้องมีข้อมูลช่วงบ่ายในโรงเรือนตรงกับข้อมูลภายนอกอย่างน้อย ${MIN_AFTERNOON_HOURS} ชม. (ตอนนี้ ${aft.length} ชม.)`
         }
     }
-
-    const inTemp = Number(latestSensor.temperature_c)
-    const outTemp = Number(outdoorWeather.temperature_c)
-    const inHum = Number(latestSensor.humidity_pct)
-    const outHum = Number(outdoorWeather.humidity_pct)
-
-    const inThi = latestSensor.thi != null ? Number(latestSensor.thi) : calcThi(inTemp, inHum)
-    const outThi = outdoorWeather.thi != null ? Number(outdoorWeather.thi) : calcThi(outTemp, outHum)
-
-    const deltaTemp = parseFloat((inTemp - outTemp).toFixed(1))
-    const deltaHum = parseFloat((inHum - outHum).toFixed(1))
-    const deltaThi = (inThi != null && outThi != null) ? parseFloat((inThi - outThi).toFixed(1)) : null
-
-    // ประเมินการระบายอากาศและการสะสมความร้อน (อ้างอิง Tikul & Prachum, 2562: โรงเรือนไทยไม่มีฝ้า ร้อนกว่านอก +1.5 ถึง +2°C)
-    let status = 'balanced'
-    let statusTh = 'สมดุลใกล้เคียงภายนอก'
-    let badgeClass = 'bg-emerald-100 text-emerald-800 border-emerald-200'
-    let insight = 'อุณหภูมิในโรงเรือนใกล้เคียงกับภายนอก การถ่ายเทอากาศเป็นไปตามธรรมชาติปกติ'
-
-    if (deltaTemp >= 1.5 || (deltaThi != null && deltaThi >= 2.0)) {
-        status = 'heat_trapping'
-        statusTh = 'โรงเรือนสะสมความร้อน (Heat Trapping)'
-        badgeClass = 'bg-rose-100 text-rose-800 border-rose-300'
-        insight = `ในโรงเรือนร้อนกว่าภายนอก +${deltaTemp}°C (+${deltaThi ?? 0} THI) สอดคล้องกับสภาพโรงเรือนไทยที่ระบายอากาศใต้หลังคาช้า แนะนำเปิดพัดลมระบายอากาศเร่งการไหลเวียน`
-    } else if (deltaTemp <= -1.0 || (deltaThi != null && deltaThi <= -1.5)) {
-        status = 'cooler_inside'
-        statusTh = 'ในโรงเรือนเย็นกว่าภายนอก'
-        badgeClass = 'bg-sky-100 text-sky-800 border-sky-300'
-        insight = `ในโรงเรือนเย็นกว่าภายนอก ${deltaTemp}°C (${deltaThi ?? 0} THI) ระบบร่มเงาหรือพัดลมระบายอากาศในโรงเรือนช่วยลดอุณหภูมิได้มีประสิทธิภาพ`
+    const d = base.afternoon_delta_temp
+    if (d >= TOLERANCE_C) {
+        return {
+            ...base,
+            status: 'hotter_inside',
+            status_th: 'ช่วงบ่ายในโรงเรือนร้อนกว่าภายนอกชัดเจน',
+            note_th: `ช่วงบ่ายในโรงเรือนร้อนกว่าภายนอกเฉลี่ย +${d}°C (${aft.length} ชม.) เกินช่วงที่แบบจำลองอาจคลาด (±${TOLERANCE_C}°C) อาจเกิดจากความร้อนใต้หลังคาหรือลมผ่านน้อย ควรตรวจการระบายอากาศช่วงบ่าย`
+        }
     }
-
+    if (d <= -TOLERANCE_C) {
+        return {
+            ...base,
+            status: 'cooler_inside',
+            status_th: 'ช่วงบ่ายในโรงเรือนเย็นกว่าภายนอก',
+            note_th: `ช่วงบ่ายในโรงเรือนเย็นกว่าภายนอกเฉลี่ย ${d}°C (${aft.length} ชม.) อาจเป็นผลจากร่มเงาของหลังคา หรือเซ็นเซอร์อยู่จุดที่เย็นกว่าบริเวณที่วัวอยู่`
+        }
+    }
     return {
-        has_comparison: true,
-        delta_thi: deltaThi,
-        delta_temp: deltaTemp,
-        delta_hum: deltaHum,
-        status,
-        status_th: statusTh,
-        badge_class: badgeClass,
-        ventilation_insight: insight,
-        in_barn: {
-            temperature_c: inTemp,
-            humidity_pct: inHum,
-            thi: inThi
-        },
-        outdoor: {
-            temperature_c: outTemp,
-            humidity_pct: outHum,
-            thi: outThi
-        }
+        ...base,
+        status: 'similar',
+        status_th: 'ใกล้เคียงภายนอก',
+        note_th: `ช่วงบ่ายต่างกันเฉลี่ย ${d > 0 ? '+' : ''}${d}°C ไม่เกิน ±${TOLERANCE_C}°C ซึ่งอยู่ในช่วงที่แบบจำลองอาจคลาด ยังสรุปไม่ได้ว่าโรงเรือนร้อนหรือเย็นกว่าภายนอก`
     }
 }
 
 /**
- * Entry Point หลักสำหรับ API: รับฟาร์มและข้อมูลเซ็นเซอร์ล่าสุด แล้วดึงสภาพอากาศภายนอกพร้อมบทวิเคราะห์
+ * ค่าปัจจุบัน: เทียบเฉพาะเมื่อเซ็นเซอร์ในโรงเรือนส่งค่ามาไม่เกิน 30 นาที (ใช้ดูคร่าวๆ ไม่ใช้ตัดสิน)
  */
-async function getFarmOutdoorWeather(farm, latestSensor = null) {
-    if (!farm) return null
+const compareNow = (latestBucket, current, nowMs) => {
+    if (!current || current.temperature_2m == null) return { has: false, reason: 'ไม่มีค่าภายนอกตอนนี้' }
+    if (!latestBucket) return { has: false, reason: 'ยังไม่มีค่าเซ็นเซอร์ในโรงเรือน' }
+    const ageMin = Math.round((nowMs - latestBucket.t.getTime()) / 60000)
+    if (ageMin > INDOOR_FRESH_MIN) return { has: false, reason: `เซ็นเซอร์ในโรงเรือนไม่ได้ส่งค่ามา ${ageMin} นาที`, indoor_age_min: ageMin }
+    const outThi = calcThi(current.temperature_2m, current.relative_humidity_2m)
+    return {
+        has: true,
+        indoor_age_min: ageMin,
+        delta_temp: round1(latestBucket.temp - current.temperature_2m),
+        delta_hum: round1(latestBucket.hum - current.relative_humidity_2m),
+        delta_thi: outThi != null ? round1(latestBucket.thi - outThi) : null
+    }
+}
 
+const summarizeOutdoor = (om, profile, nowKey) => {
+    const c = om.current
+    if (!c) return null
+    const past24 = om.hourly.filter(h => h.key < nowKey).slice(-24)
+    const today = om.hourly.filter(h => h.key.slice(0, 10) === nowKey.slice(0, 10))
+    const thi = calcThi(c.temperature_2m, c.relative_humidity_2m)
+    const mean24 = past24.length >= 20 ? round1(mean(past24.map(h => calcThi(h.temp, h.hum)))) : null
+    const code = WMO_WEATHER_CODES[c.weather_code] || { desc: 'ไม่ทราบสภาพท้องฟ้า', icon: 'mdi-weather-cloudy' }
+    return {
+        temperature_c: round1(c.temperature_2m),
+        humidity_pct: c.relative_humidity_2m != null ? Math.round(c.relative_humidity_2m) : null,
+        thi,
+        risk_level: getRiskLevel(thi, profile),
+        risk_label_th: thi != null ? RISK_LABELS_TH[getRiskLevel(thi, profile)] : 'ไม่มีข้อมูล',
+        // เกณฑ์ในงานวิจัยกำหนดจาก THI เฉลี่ยรายวันของสถานีภายนอก จึงแสดงค่าเฉลี่ย 24 ชม. ภายนอกให้เทียบด้วย
+        mean_thi_24h: mean24,
+        mean_level_24h: mean24 != null ? getRiskLevel(mean24, profile) : null,
+        wind_speed_kmh: c.wind_speed_10m != null ? round1(c.wind_speed_10m) : null,
+        weather_desc: code.desc,
+        weather_icon: code.icon,
+        min_temp: today.length ? round1(Math.min(...today.map(h => h.temp))) : null,
+        max_temp: today.length ? round1(Math.max(...today.map(h => h.temp))) : null,
+        min_hum: today.length ? Math.round(Math.min(...today.map(h => h.hum))) : null,
+        max_hum: today.length ? Math.round(Math.max(...today.map(h => h.hum))) : null,
+        observed_at: c.time
+    }
+}
+
+/**
+ * Entry point: อากาศภายนอก + การเทียบกับในโรงเรือนของฟาร์ม
+ */
+const getFarmOutdoorComparison = async (farm, { refresh = false, now = new Date() } = {}) => {
     const profile = getFarmProfile(farm)
-    const location = await resolveCoordinates(farm)
-    const outdoor = await fetchOutdoorWeather(location.lat, location.lon, profile)
-    const comparison = computeComparison(latestSensor, outdoor)
-
+    const location = resolveLocation(farm)
+    if (!location) {
+        return { location: { status: 'missing', note_th: locationProblem(farm) }, weather: null, comparison: null, source: SOURCE, api_status: 'not_requested' }
+    }
+    const [om, buckets] = await Promise.all([
+        fetchOpenMeteo(location.latitude, location.longitude, { refresh }),
+        loadBuckets(farm.id_farms, new Date(now.getTime() - PAST_HOURS * 3600e3), now)
+    ])
+    const nowKey = hourKey(now)
     return {
-        location: {
-            district: location.district,
-            province: location.province,
-            location_name: location.location_name,
-            latitude: location.lat,
-            longitude: location.lon,
-            source: location.source
-        },
-        weather: outdoor,
-        comparison,
-        hf_profile: profile
+        location: { status: 'ok', ...location },
+        weather: summarizeOutdoor(om, profile, nowKey),
+        comparison: om.current ? {
+            now: compareNow(buckets[buckets.length - 1], om.current, now.getTime()),
+            period: comparePeriod(indoorHourly(buckets), om.hourly, nowKey)
+        } : null,
+        source: SOURCE,
+        api_status: om.api_status,
+        from_cache: Boolean(om.from_cache),
+        fetched_at: om.fetched_at || null
     }
 }
 
 module.exports = {
-    resolveCoordinates,
-    fetchOutdoorWeather,
-    computeComparison,
-    getFarmOutdoorWeather,
+    resolveLocation,
+    fetchOpenMeteo,
+    indoorHourly,
+    comparePeriod,
+    compareNow,
+    getFarmOutdoorComparison,
+    TOLERANCE_C,
     DISTRICT_COORDS,
     PROVINCE_COORDS,
     WMO_WEATHER_CODES

@@ -170,6 +170,25 @@
           <p class="text-[11px] text-[#718078] mt-1">เกษตรกรกดโทรได้จากหน้า "ฉัน" ในแอป</p>
         </div>
 
+        <!-- พิกัดฟาร์ม: ใช้ดึงอากาศภายนอก (Open-Meteo) ให้ตรงจุด ไม่ใส่ = ใช้จุดกลางอำเภอโดยประมาณ -->
+        <div>
+          <label class="block text-xs font-black text-[#4e6057] uppercase tracking-wider mb-1.5">
+            พิกัดฟาร์ม <span class="normal-case font-medium text-[#718078]">(ไม่บังคับ)</span>
+          </label>
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#718078]">
+              <v-icon icon="mdi-map-marker-outline" size="18" class="text-[#718078]" />
+            </div>
+            <input
+              v-model="form.coords"
+              type="text"
+              inputmode="decimal"
+              placeholder="เช่น 18.7883, 98.9853"
+              class="w-full bg-white border border-[#e5ece9] rounded-[16px] pl-10 pr-4 py-3 text-sm font-medium text-[#1f3d34] placeholder-[#a6b5aa] focus:outline-none focus:border-[#24433a] focus:ring-4 focus:ring-[#24433a]/8 transition-all" />
+          </div>
+          <p class="text-[11px] text-[#718078] mt-1">ใน Google Maps กดค้างที่โรงเรือน แล้วคัดลอกตัวเลขมาวาง ใช้ดึงอากาศภายนอกให้ตรงจุดฟาร์ม ไม่ใส่ = ใช้จุดกลางอำเภอโดยประมาณ</p>
+        </div>
+
         <!-- เวลารีดนม/ให้อาหาร: ถามเกษตรกรครั้งเดียวตอนติดตั้ง ใช้ตัดช่วงที่วัวยืนเพราะงานประจำออกตอนวิเคราะห์พฤติกรรมเทียบ THI -->
         <div>
           <label class="block text-xs font-black text-[#4e6057] uppercase tracking-wider mb-1.5">
@@ -450,7 +469,9 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import axios from 'axios'
-import { Admin } from '../../../API/baseAPI'
+import { getNodeApiBase } from '../../../API/baseAPI'
+// อ่าน base ตอน setup (ค่าคงที่ Admin ชี้ production เสมอในเบราว์เซอร์ แม้รันในเครื่อง)
+const Admin = `${getNodeApiBase()}/Admin`
 
 const props = defineProps({
   modelValue: {
@@ -489,6 +510,7 @@ const form = ref({
   district: '',
   address: '',
   vet_phone: '',
+  coords: '',
   milking_times: [],
   feeding_times: [],
   roof_type: '',
@@ -501,6 +523,15 @@ const form = ref({
   camera_user: 'admin',
   camera_pass: ''
 })
+
+// "18.7883, 98.9853" จาก Google Maps -> { latitude, longitude } ว่าง = ล้างพิกัด (backend ตรวจกรอบประเทศไทยซ้ำ)
+const parseCoords = (text) => {
+  const t = String(text || '').trim()
+  if (!t) return { latitude: '', longitude: '' }
+  const nums = t.match(/-?\d+(?:\.\d+)?/g)
+  if (!nums || nums.length !== 2) return { error: 'พิกัดต้องเป็นตัวเลข 2 ค่า คั่นด้วยจุลภาค เช่น 18.7883, 98.9853' }
+  return { latitude: Number(nums[0]), longitude: Number(nums[1]) }
+}
 
 // รีดนมได้ 2 เวลา ให้อาหารได้ 3 เวลา (ตรงกับที่ backend ตรวจ)
 const routineGroups = [
@@ -556,6 +587,7 @@ const loadFarmData = () => {
       district: props.farm.district || '',
       address: props.farm.address || '',
       vet_phone: props.farm.vet_phone || '',
+      coords: props.farm.latitude != null && props.farm.longitude != null ? `${props.farm.latitude}, ${props.farm.longitude}` : '',
       milking_times: Array.isArray(props.farm.milking_times) ? [...props.farm.milking_times] : [],
       feeding_times: Array.isArray(props.farm.feeding_times) ? [...props.farm.feeding_times] : [],
       // ค่าเดิมที่ระบบเคยใส่อัตโนมัติ ("สังกะสี (Zinc)") ไม่ใช่ค่าที่มีคนกรอก จึงแสดงเป็นไม่ระบุ
@@ -680,6 +712,12 @@ const submitEdit = async () => {
   errorMessage.value = ''
 
   try {
+    const coords = parseCoords(form.value.coords)
+    if (coords.error) {
+      errorMessage.value = coords.error
+      isLoading.value = false
+      return
+    }
     const selectedOption = userFarmOptions.value.find(opt => opt.farmName === form.value.name_farms)
     const payload = {
       name_farms: form.value.name_farms.trim(),
@@ -689,6 +727,8 @@ const submitEdit = async () => {
       district: form.value.district ? form.value.district.trim() : null,
       address: form.value.address ? form.value.address.trim() : null,
       vet_phone: form.value.vet_phone ? form.value.vet_phone.trim() : '',
+      latitude: coords.latitude,
+      longitude: coords.longitude,
       milking_times: form.value.milking_times.filter(Boolean),
       feeding_times: form.value.feeding_times.filter(Boolean),
       roof_type: form.value.roof_type || null,
