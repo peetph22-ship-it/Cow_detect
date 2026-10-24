@@ -1,301 +1,402 @@
 <template>
-  <div class="space-y-4 sm:space-y-6">
+  <div class="space-y-5 sm:space-y-6">
 
-    <!-- 1. การ์ดสภาพอากาศในคอกตอนนี้ (Minimal, ตัวเลขใหญ่สะใจ คนแก่เห็นชัดเจน) -->
+    <!-- 1. การ์ดสถานะอากาศหลัก (Hero Ambient Weather Card - ดีไซน์พรีเมียม ตัวเลขใหญ่ แถบ 4 สีเข้าใจทันที) -->
     <section 
-      class="rounded-3xl p-5 sm:p-7 shadow-xs border transition-all duration-300"
-      :class="statusCardStyle">
+      class="rounded-[32px] p-6 sm:p-8 shadow-[0_12px_40px_rgba(15,41,30,0.06)] border transition-all duration-500 overflow-hidden relative"
+      :class="heroCardBg">
       
-      <!-- หัวการ์ด: ป้ายสถานะ + เวลาอัปเดต -->
-      <div class="flex items-center justify-between gap-2 pb-3">
-        <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full font-bold text-sm sm:text-base border shadow-2xs"
+      <!-- แสง Ambient Glow ตกแต่งพื้นหลัง เพิ่มมิติความลึกแบบแอปสมัยใหม่ -->
+      <div 
+        class="absolute -top-12 -right-12 w-48 h-48 rounded-full blur-3xl pointer-events-none opacity-40 transition-colors duration-500"
+        :class="ambientGlowColor"></div>
+
+      <!-- แถวบน: ป้ายสถานะสภาพอากาศ + เวลาอัปเดตเซ็นเซอร์ล่าสุด -->
+      <div class="relative z-10 flex items-center justify-between gap-2 pb-4">
+        <div 
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-full font-black text-sm sm:text-base border shadow-xs transition-all duration-300"
           :class="statusBadgeStyle">
-          <v-icon :icon="statusIcon" size="20" />
+          <span class="w-2.5 h-2.5 rounded-full" :class="statusDotStyle"></span>
           <span>{{ statusTitle }}</span>
         </div>
-        <div class="flex items-center gap-2">
-          <NuxtLink
-            v-if="isCustomBackend"
-            to="/Farmer/me"
-            class="inline-flex text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A] text-decoration-none">
-            🤝 เชื่อมหลังบ้านเพื่อน
-          </NuxtLink>
-          <span class="text-xs sm:text-sm text-[#55695D] font-medium">
-            อัปเดต {{ agoText(now?.minutes_ago) || 'เมื่อสักครู่' }}
-          </span>
+
+        <div class="flex items-center gap-1.5 text-xs sm:text-sm text-[#4A6356] font-bold bg-white/70 backdrop-blur-md px-3 py-1.5 rounded-full border border-black/5 shadow-2xs">
+          <v-icon icon="mdi-clock-outline" size="15" />
+          <span>{{ agoText(now?.minutes_ago) || 'เมื่อสักครู่' }}</span>
         </div>
       </div>
 
-      <!-- ตัวเลขอุณหภูมิและความชื้น (ใหญ่มาก สำหรับผู้สูงอายุ) -->
-      <div class="grid grid-cols-2 gap-4 my-4 py-2 border-y border-black/5">
+      <!-- แถบวัดความร้อน 4 ระดับ (Visual Heat Meter Bar - เห็นสีรู้ทันที ไม่ต้องคำนวณ) -->
+      <div class="relative z-10 my-4 bg-white/80 backdrop-blur-md p-3.5 rounded-2xl border border-black/5 shadow-2xs">
+        <div class="flex items-center justify-between text-xs font-black text-[#4A6356] mb-2 px-1">
+          <span class="flex items-center gap-1">
+            <v-icon icon="mdi-gauge" size="16" class="text-[#2D6A4F]" />
+            ระดับความร้อนในคอกวัว
+          </span>
+          <span class="text-[11px] font-extrabold uppercase tracking-wider text-[#2D6A4F]">NRC 1971 Standard</span>
+        </div>
+
+        <!-- แถบ Segment 4 สี -->
+        <div class="grid grid-cols-4 gap-1.5 h-3.5 rounded-full overflow-hidden bg-gray-200/70 p-0.5">
+          <div 
+            class="rounded-full transition-all duration-500"
+            :class="heatLevelIndex >= 0 ? 'bg-[#2D6A4F] shadow-xs' : 'bg-gray-200'" 
+            title="สบายดี"></div>
+          <div 
+            class="rounded-full transition-all duration-500"
+            :class="heatLevelIndex >= 1 ? 'bg-[#D97706] shadow-xs' : 'bg-gray-200'" 
+            title="เริ่มอุ่น"></div>
+          <div 
+            class="rounded-full transition-all duration-500"
+            :class="heatLevelIndex >= 2 ? 'bg-[#EA580C] shadow-xs' : 'bg-gray-200'" 
+            title="เริ่มร้อน"></div>
+          <div 
+            class="rounded-full transition-all duration-500"
+            :class="heatLevelIndex >= 3 ? 'bg-[#DC2626] shadow-xs' : 'bg-gray-200'" 
+            title="ร้อนจัด"></div>
+        </div>
+
+        <!-- ป้ายกำกับ 4 โซน -->
+        <div class="grid grid-cols-4 text-[11px] sm:text-xs font-bold text-center mt-2">
+          <span :class="heatLevelIndex === 0 ? 'text-[#143225] font-black scale-105' : 'text-[#64748B]'">สบายดี</span>
+          <span :class="heatLevelIndex === 1 ? 'text-[#92400E] font-black scale-105' : 'text-[#64748B]'">เริ่มอุ่น</span>
+          <span :class="heatLevelIndex === 2 ? 'text-[#9A3412] font-black scale-105' : 'text-[#64748B]'">เริ่มร้อน</span>
+          <span :class="heatLevelIndex === 3 ? 'text-[#991B1B] font-black scale-105' : 'text-[#64748B]'">ร้อนจัด!</span>
+        </div>
+      </div>
+
+      <!-- แผงแสดงตัวเลขอุณหภูมิ & ความชื้น (ขนาดใหญ่ คมชัด สไตล์แอปพรีเมียม) -->
+      <div class="relative z-10 grid grid-cols-2 gap-3 my-4">
         <!-- อุณหภูมิ -->
-        <div class="flex flex-col">
-          <span class="text-xs sm:text-sm text-[#55695D] font-bold">อุณหภูมิในคอก</span>
-          <div class="flex items-baseline gap-1 mt-1">
-            <span class="text-4xl sm:text-6xl font-black tracking-tight tabular-nums text-[#15221B]">
+        <div class="bg-white/90 backdrop-blur-md rounded-3xl p-4 sm:p-5 border border-black/5 shadow-xs flex flex-col justify-between">
+          <span class="text-xs sm:text-sm text-[#55695D] font-extrabold flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-[#E07A5F]"></span>
+            อุณหภูมิในคอก
+          </span>
+          <div class="flex items-baseline gap-1 mt-2">
+            <span class="text-5xl sm:text-6xl font-black tracking-tight tabular-nums text-[#0F291E]">
               {{ now ? Number(now.temperature_c).toFixed(1) : '—' }}
             </span>
-            <span class="text-lg sm:text-2xl font-bold text-[#55695D]">°C</span>
+            <span class="text-xl sm:text-2xl font-black text-[#55695D]">°C</span>
           </div>
+          <span class="text-[11px] text-[#71877A] font-semibold mt-1">เกณฑ์ปลอดภัย: ไม่เกิน 32°C</span>
         </div>
 
         <!-- ความชื้น -->
-        <div class="flex flex-col border-l border-black/5 pl-4">
-          <span class="text-xs sm:text-sm text-[#55695D] font-bold">ความชื้นในอากาศ</span>
-          <div class="flex items-baseline gap-1 mt-1">
-            <span class="text-4xl sm:text-6xl font-black tracking-tight tabular-nums text-[#15221B]">
+        <div class="bg-white/90 backdrop-blur-md rounded-3xl p-4 sm:p-5 border border-black/5 shadow-xs flex flex-col justify-between">
+          <span class="text-xs sm:text-sm text-[#55695D] font-extrabold flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-[#2D6A4F]"></span>
+            ความชื้นในอากาศ
+          </span>
+          <div class="flex items-baseline gap-1 mt-2">
+            <span class="text-5xl sm:text-6xl font-black tracking-tight tabular-nums text-[#0F291E]">
               {{ now ? Math.round(now.humidity_pct) : '—' }}
             </span>
-            <span class="text-lg sm:text-2xl font-bold text-[#55695D]">%</span>
+            <span class="text-xl sm:text-2xl font-black text-[#55695D]">%</span>
           </div>
+          <span class="text-[11px] text-[#71877A] font-semibold mt-1">ความชื้นสบายตัว: 60–75%</span>
         </div>
       </div>
 
-      <!-- คำแนะนำภาษาชาวบ้านเข้าใจง่าย 1 ประโยค -->
-      <p class="text-sm sm:text-base font-semibold leading-relaxed text-[#2C3E35]">
-        {{ statusMessage }}
-      </p>
+      <!-- กล่องคำแนะนำภาษาชาวบ้านเข้าใจง่าย -->
+      <div class="relative z-10 p-4 rounded-2xl flex items-start gap-3 border shadow-2xs transition-all" :class="statusBoxStyle">
+        <v-icon :icon="statusIcon" size="26" class="shrink-0 mt-0.5" />
+        <p class="text-sm sm:text-base font-black leading-relaxed">
+          {{ statusMessage }}
+        </p>
+      </div>
 
-      <!-- ปุ่มฟังเสียงสรุปประจำวัน -->
+      <!-- ปุ่มฟังเสียงผู้ช่วยภาษาไทย (Waveform Animated Button) -->
       <button
         type="button"
         @click="playVoice"
-        class="mt-4 w-full h-13 sm:h-14 rounded-2xl bg-white border border-[#CBD5E1] hover:border-[#2D6A4F] text-[#1B4332] font-bold text-sm sm:text-base flex items-center justify-center gap-2.5 transition-all shadow-2xs cursor-pointer active:scale-[0.99]">
-        <v-icon :icon="isSpeaking ? 'mdi-stop-circle' : 'mdi-volume-high'" size="24" :class="isSpeaking ? 'text-[#DC2626]' : 'text-[#2D6A4F]'" />
-        <span>{{ isSpeaking ? 'กดเพื่อหยุดเสียงอ่าน' : '🔊 กดเพื่อฟังเสียงอ่านสรุป' }}</span>
+        class="relative z-10 mt-4 w-full h-15 sm:h-16 rounded-2xl border-2 transition-all duration-300 flex items-center justify-center gap-3 cursor-pointer shadow-md active:scale-[0.99]"
+        :class="isSpeaking 
+          ? 'bg-gradient-to-r from-[#DC2626] to-[#B91C1C] border-[#DC2626] text-white animate-pulse' 
+          : 'bg-gradient-to-r from-[#143225] via-[#1B4332] to-[#2D6A4F] hover:from-[#1B4332] hover:to-[#387e60] border-[#143225] text-white'">
+        <v-icon :icon="isSpeaking ? 'mdi-stop-circle' : 'mdi-volume-high'" size="28" />
+        <span class="text-base sm:text-lg font-black tracking-wide">
+          {{ isSpeaking ? 'กำลังอ่านสรุป... แตะเพื่อหยุดเสียง' : '🔊 กดตรงนี้เพื่อฟังเสียงอ่านสรุปสภาพอากาศ' }}
+        </span>
       </button>
     </section>
 
 
-    <!-- 2. สิ่งที่ควรทำตอนนี้ (Checklist 4 ข้อใหญ่ กดแล้วเปลี่ยนเป็นสีเขียวทันที) -->
-    <section class="bg-white rounded-3xl p-5 sm:p-7 shadow-xs border border-[#E5E7EB]">
-      <div class="flex items-center justify-between mb-4">
+    <!-- 2. ภารกิจดูแลแม่วัวในคอกวันนี้ (Daily Care Mission Checklist with Progress Bar) -->
+    <section class="bg-white rounded-[32px] p-6 sm:p-7 shadow-[0_12px_40px_rgba(15,41,30,0.05)] border border-[#E5ECE7]">
+      <!-- หัวข้อ + ตัวนับภารกิจ -->
+      <div class="flex items-center justify-between mb-3">
         <div>
-          <h2 class="text-base sm:text-lg font-bold text-[#15221B] flex items-center gap-2">
-            <v-icon icon="mdi-checkbox-marked-circle-outline" class="text-[#2D6A4F]" size="22" />
-            สิ่งที่ต้องทำในคอกวันนี้
+          <h2 class="text-base sm:text-lg font-black text-[#0F291E] flex items-center gap-2">
+            <v-icon icon="mdi-clipboard-check-outline" class="text-[#2D6A4F]" size="24" />
+            ภารกิจดูแลแม่วัวในคอกวันนี้
           </h2>
-          <p class="text-xs sm:text-sm text-[#64748B] mt-0.5">กดที่การ์ดเพื่อติ๊กเครื่องหมายว่าทำแล้ว</p>
+          <p class="text-xs sm:text-sm text-[#64748B] mt-0.5 font-medium">กดที่การ์ดเพื่อติ๊กเครื่องหมายว่าทำเรียบร้อยแล้ว</p>
         </div>
-        <span class="text-xs sm:text-sm font-bold px-3 py-1 rounded-full bg-[#E8F5E9] text-[#1B4332]">
+        <span class="text-xs sm:text-sm font-black px-3.5 py-1.5 rounded-full bg-[#EBF6EE] text-[#1B4332] border border-[#CDE8D5] shadow-2xs">
           ทำแล้ว {{ doneCount }}/{{ actionList.length }}
         </span>
       </div>
 
-      <!-- รายการสิ่งที่ต้องทำ -->
+      <!-- แถบความคืบหน้า (Progress Bar) -->
+      <div class="w-full h-2.5 rounded-full bg-gray-100 overflow-hidden mb-4 p-0.5">
+        <div 
+          class="h-full bg-gradient-to-r from-[#52B788] to-[#2D6A4F] rounded-full transition-all duration-500 shadow-2xs"
+          :style="{ width: `${(doneCount / actionList.length) * 100}%` }">
+        </div>
+      </div>
+
+      <!-- รายการ 4 ภารกิจที่แตะเลือกได้ง่ายมาก -->
       <div class="space-y-3">
         <button
           v-for="act in actionList"
           :key="act.id"
           type="button"
           @click="toggleAction(act.id)"
-          class="w-full text-left p-4 rounded-2xl border-2 transition-all flex items-center justify-between gap-3 cursor-pointer select-none active:scale-[0.99]"
+          class="w-full text-left p-4 sm:p-4.5 rounded-2xl border-2 transition-all duration-200 flex items-center justify-between gap-3.5 cursor-pointer select-none active:scale-[0.99]"
           :class="isDone(act.id) 
-            ? 'bg-[#E8F5E9] border-[#2D6A4F] text-[#1B4332]' 
-            : 'bg-[#F9FAFB] border-[#E5E7EB] hover:border-[#CBD5E1] text-[#334155]'">
+            ? 'bg-[#EBF6EE] border-[#2D6A4F] text-[#143225] shadow-xs' 
+            : 'bg-[#FAFBF9] border-[#E5ECE7] hover:border-gray-300 text-[#334155]'">
           
           <div class="flex items-center gap-3.5 min-w-0">
-            <!-- ไอคอนประจำการกระทำ -->
+            <!-- ไอคอนประจำภารกิจ -->
             <div 
-              class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 text-xl font-bold transition-colors"
-              :class="isDone(act.id) ? 'bg-[#2D6A4F] text-white shadow-xs' : 'bg-white border border-[#E2E8F0] text-[#64748B]'">
+              class="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 text-xl font-bold transition-all"
+              :class="isDone(act.id) ? 'bg-[#2D6A4F] text-white shadow-sm' : 'bg-white border border-[#E2E8F0] text-[#64748B]'">
               <v-icon :icon="act.icon" size="24" />
             </div>
 
-            <!-- ข้อความ -->
+            <!-- รายละเอียด -->
             <div class="min-w-0">
-              <div class="text-base sm:text-lg font-bold leading-tight" :class="isDone(act.id) ? 'line-through text-[#2D6A4F]/80' : ''">
+              <div class="text-base sm:text-lg font-black leading-tight" :class="isDone(act.id) ? 'line-through text-[#2D6A4F]/80' : ''">
                 {{ act.title }}
               </div>
-              <div class="text-xs sm:text-sm mt-1 leading-snug" :class="isDone(act.id) ? 'text-[#2D6A4F]/80' : 'text-[#64748B]'">
+              <div class="text-xs sm:text-sm mt-1 leading-snug font-medium" :class="isDone(act.id) ? 'text-[#2D6A4F]/80' : 'text-[#64748B]'">
                 {{ act.desc }}
               </div>
             </div>
           </div>
 
-          <!-- เครื่องหมายถูกหรือปุ่มกด -->
+          <!-- ตุ่มเครื่องหมายถูก -->
           <div 
             class="w-9 h-9 rounded-full flex items-center justify-center shrink-0 border-2 transition-all"
-            :class="isDone(act.id) ? 'bg-[#2D6A4F] border-[#2D6A4F] text-white' : 'border-[#CBD5E1] bg-white text-transparent'">
-            <v-icon icon="mdi-check" size="20" />
+            :class="isDone(act.id) ? 'bg-[#2D6A4F] border-[#2D6A4F] text-white shadow-xs' : 'border-[#CBD5E1] bg-white text-transparent'">
+            <v-icon icon="mdi-check" size="22" />
           </div>
         </button>
       </div>
     </section>
 
 
-    <!-- 3. คาดการณ์สภาพอากาศช่วงบ่าย & พรุ่งนี้ (เข้าใจง่าย ไม่ต้องดูกราฟ) -->
-    <section class="bg-white rounded-3xl p-5 sm:p-7 shadow-xs border border-[#E5E7EB]">
-      <h2 class="text-base sm:text-lg font-bold text-[#15221B] flex items-center gap-2 mb-3">
-        <v-icon icon="mdi-weather-cloudy-clock" class="text-[#D97706]" size="22" />
-        คาดการณ์ล่วงหน้า (ไม่ต้องดูกราฟ)
+    <!-- 3. คาดการณ์ล่วงหน้า (Modern Weather Insights การ์ดบ่ายนี้ & พรุ่งนี้) -->
+    <section class="bg-white rounded-[32px] p-6 sm:p-7 shadow-[0_12px_40px_rgba(15,41,30,0.05)] border border-[#E5ECE7]">
+      <h2 class="text-base sm:text-lg font-black text-[#0F291E] flex items-center gap-2 mb-3">
+        <v-icon icon="mdi-weather-cloudy-clock" class="text-[#D97706]" size="24" />
+        คาดการณ์อากาศล่วงหน้า
       </h2>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
         <!-- บ่ายนี้ -->
-        <div class="p-4 rounded-2xl bg-[#FFFBEB] border border-[#FDE68A] flex flex-col justify-between">
-          <div class="text-xs sm:text-sm font-bold text-[#B45309] flex items-center gap-1.5">
+        <div class="p-4.5 rounded-2xl bg-gradient-to-br from-[#FFFBEB] to-[#FEF3C7] border border-[#FDE68A] flex flex-col justify-between shadow-2xs">
+          <div class="text-xs sm:text-sm font-black text-[#B45309] flex items-center gap-1.5">
             <v-icon icon="mdi-weather-sunny" size="18" />
-            <span>ช่วงที่ร้อนที่สุดวันนี้</span>
+            <span>ช่วงที่ร้อนที่สุดของวันนี้</span>
           </div>
-          <div class="text-base sm:text-lg font-bold text-[#78350F] mt-2 leading-snug">
-            {{ peakText }}
+          <div class="text-xl sm:text-2xl font-black text-[#78350F] mt-2 leading-snug">
+            {{ peakTimeText }}
           </div>
-          <div class="text-xs sm:text-sm text-[#92400E] mt-1">
-            เตรียมเปิดพัดลมและสเปรย์น้ำล่วงหน้า
+          <div class="text-xs sm:text-sm text-[#92400E] mt-1 font-semibold">
+            แนะนำเปิดพัดลมและสเปรย์ละอองน้ำล่วงหน้า
           </div>
         </div>
 
         <!-- พรุ่งนี้ -->
-        <div class="p-4 rounded-2xl bg-[#F0FDF4] border border-[#BBF7D0] flex flex-col justify-between">
-          <div class="text-xs sm:text-sm font-bold text-[#15803D] flex items-center gap-1.5">
+        <div class="p-4.5 rounded-2xl bg-gradient-to-br from-[#F0FDF4] to-[#DCFCE7] border border-[#BBF7D0] flex flex-col justify-between shadow-2xs">
+          <div class="text-xs sm:text-sm font-black text-[#15803D] flex items-center gap-1.5">
             <v-icon icon="mdi-calendar-arrow-right" size="18" />
-            <span>สภาพอากาศพรุ่งนี้</span>
+            <span>แนวโน้มสภาพอากาศพรุ่งนี้</span>
           </div>
-          <div class="text-base sm:text-lg font-bold text-[#14532D] mt-2 leading-snug">
+          <div class="text-base sm:text-lg font-black text-[#14532D] mt-2 leading-snug">
             {{ tomorrowText }}
           </div>
-          <div class="text-xs sm:text-sm text-[#166534] mt-1">
-            {{ tomorrowAdvice }}
+          <div class="text-xs sm:text-sm text-[#166534] mt-1 font-semibold">
+            เตรียมรางน้ำสะอาดสำรองไว้ให้แม่วัว
           </div>
         </div>
       </div>
     </section>
 
 
-    <!-- 4. ปุ่มโทรหาหมอวัว (ปุ่มใหญ่ กดง่าย) ไม่มีเบอร์จริง = ไม่แสดง
-         ตัดปุ่ม SOS ออก: เดิมบอกว่าเจ้าหน้าที่จะติดต่อกลับ แต่ไม่มีใครได้รับแจ้งจริง -->
-    <section v-if="vetPhoneDisplay" class="grid grid-cols-1 gap-3.5">
-      <!-- ปุ่มโทรหาหมอวัว -->
-      <a
-        v-if="vetPhoneDisplay"
-        :href="`tel:${vetPhoneClean}`"
-        class="h-16 sm:h-20 rounded-3xl bg-[#E07A5F] hover:bg-[#d46a4e] text-white flex items-center justify-center gap-3 font-black text-base sm:text-lg shadow-sm transition-all text-decoration-none active:scale-[0.98]">
-        <div class="w-11 h-11 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
-          <v-icon icon="mdi-phone-in-talk" size="26" />
+    <!-- 4. ปุ่มโทรด่วนสัตวแพทย์ / สหกรณ์ (Speed Dial Emergency) -->
+    <section class="bg-white rounded-[32px] p-6 border border-[#E5ECE7] shadow-[0_12px_40px_rgba(15,41,30,0.05)] space-y-3">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <v-icon icon="mdi-doctor" class="text-[#2D6A4F]" size="24" />
+          <h3 class="text-base font-black text-[#0F291E]">สัตวแพทย์ประจำฟาร์ม</h3>
         </div>
-        <div class="text-left">
-          <div class="text-xs sm:text-sm text-white/90 font-medium">เมื่อแม่วัวมีปัญหา</div>
-          <div class="leading-tight">โทรหาหมอวัว: {{ vetPhoneDisplay }}</div>
-        </div>
-      </a>
+        <span class="text-xs text-[#64748B] font-bold">แตะโทรออกทันที</span>
+      </div>
 
+      <a
+        v-if="farm?.vet_phone"
+        :href="`tel:${cleanPhone(farm.vet_phone)}`"
+        class="w-full h-15 sm:h-16 rounded-2xl bg-gradient-to-r from-[#E07A5F] to-[#cf6347] hover:from-[#cf6347] hover:to-[#ba5238] text-white font-black text-base sm:text-lg flex items-center justify-center gap-3 text-decoration-none shadow-md transition-all active:scale-[0.99]">
+        <v-icon icon="mdi-phone-in-talk" size="26" />
+        <span>โทรหาหมอ {{ farm.vet_phone }}</span>
+      </a>
+      <div v-else class="text-xs text-[#64748B] p-3.5 rounded-2xl bg-[#FAFBF9] border border-gray-200 font-medium">
+        ยังไม่ได้ระบุเบอร์โทรสัตวแพทย์ในระบบ แจ้งเจ้าหน้าที่สหกรณ์เพื่อเพิ่มได้ค่ะ
+      </div>
     </section>
 
 
+    <!-- 5. ข้อมูลเชิงลึกทางเทคนิค (พับเก็บไว้เป็นค่าเริ่มต้น ไม่รบกวนคนแก่) -->
+    <section class="bg-white rounded-2xl border border-[#E5ECE7] shadow-2xs overflow-hidden">
+      <button
+        type="button"
+        @click="showDetails = !showDetails"
+        class="w-full p-4 flex items-center justify-between text-xs sm:text-sm font-bold text-[#64748B] hover:text-[#0F291E] cursor-pointer transition-colors">
+        <div class="flex items-center gap-2">
+          <v-icon icon="mdi-information-outline" size="18" />
+          <span>ข้อมูลทางเทคนิคของเซ็นเซอร์และเกณฑ์ THI (สำหรับดูเพิ่มเติม)</span>
+        </div>
+        <v-icon :icon="showDetails ? 'mdi-chevron-up' : 'mdi-chevron-down'" size="20" />
+      </button>
+
+      <div v-if="showDetails" class="p-4 pt-0 border-t border-gray-100 text-xs sm:text-sm space-y-2.5 mt-2">
+        <div class="flex justify-between py-1.5 border-b border-gray-100">
+          <span class="text-[#64748B]">ดัชนี THI ปัจจุบัน:</span>
+          <span class="font-mono font-bold text-[#0F291E]">{{ now?.thi != null ? Number(now.thi).toFixed(1) : '—' }}</span>
+        </div>
+        <div class="flex justify-between py-1.5 border-b border-gray-100">
+          <span class="text-[#64748B]">สถานะเซ็นเซอร์ RS485 (SHT20):</span>
+          <span class="font-bold text-[#16A34A]">{{ now?.sensor_status === 'online' ? 'ออนไลน์ปกติ (ส่งทุก 1 นาที)' : 'ออฟไลน์' }}</span>
+        </div>
+        <div class="flex justify-between py-1.5">
+          <span class="text-[#64748B]">เกณฑ์ประเมินความเครียดความร้อน:</span>
+          <span class="font-bold text-[#0F291E]">NRC 1971 (THI 72/78/84)</span>
+        </div>
+      </div>
+    </section>
 
   </div>
 </template>
 
 <script setup>
+import { ref, computed } from 'vue'
 import { useFarmer, agoText } from '~/composables/useFarmer'
-import { getCustomNodeApi } from '~/API/baseAPI'
 
 definePageMeta({ layout: 'farmer' })
-useHead({ title: 'สภาพในคอกตอนนี้ | CowCare ฟาร์มโคนม' })
+useHead({ title: 'หน้าหลักเกษตรกร | CowCare AI' })
 
 const {
-  me,
   farm,
   now,
   senior,
+  doneActions,
+  toggleAction,
   isSpeaking,
   speakThai,
-  stopSpeech,
-  doneActions,
-  toggleAction
+  stopSpeech
 } = useFarmer()
 
-const isCustomBackend = computed(() => Boolean(getCustomNodeApi()))
+const showDetails = ref(false)
 
-// ข้อมูลหมอวัว
-// ไม่มีเบอร์จริง = ไม่แสดงปุ่มโทร (ห้ามใส่เบอร์สมมติ เกษตรกรจะโทรไปเบอร์ที่ไม่มีจริง)
-const vetPhoneDisplay = computed(() => farm.value?.vet_phone || '')
-const vetPhoneClean = computed(() => vetPhoneDisplay.value.replace(/[^0-9+]/g, ''))
+const cleanPhone = (phone) => String(phone || '').replace(/[^0-9+]/g, '')
 
-// รายการสิ่งที่ควรทำ (ดึงจาก senior ใน backend หรือเทมเพลตมาตรฐาน)
-const actionList = computed(() => {
-  if (senior.value?.action_templates?.length) {
-    return senior.value.action_templates
-  }
-  return [
-    { id: 'fan', title: 'เปิดพัดลมในคอก', desc: 'ช่วยระบายอากาศร้อน ไม่ให้อากาศอับ', icon: 'mdi-fan' },
-    { id: 'water_spray', title: 'เปิดละอองน้ำ / สปริงเกลอร์', desc: 'ฉีดพ่นละอองน้ำเป็นรอบๆ ช่วยลดอุณหภูมิร่างกายวัว', icon: 'mdi-sprinkler-variant' },
-    { id: 'fresh_water', title: 'เติมน้ำสะอาดให้เต็มราง', desc: 'แม่วัวกินน้ำเยอะขึ้นเมื่ออากาศร้อน ดื่มน้ำลดเครียด', icon: 'mdi-cup-water' },
-    { id: 'check_cow', title: 'สังเกตอาการแม่วัว (ไม่หอบ)', desc: 'ตรวจดูว่ามีตัวไหนยืนหอบ อ้าปาก หรือน้ำลายยืดหรือไม่', icon: 'mdi-cow' }
-  ]
-})
+// รายการเช็คลิสต์สิ่งที่ต้องทำ
+const actionList = computed(() => senior.value?.action_templates || [
+  { id: 'fan', title: 'เปิดพัดลมในคอก', desc: 'ช่วยระบายอากาศร้อน ไม่ให้อากาศอับ', icon: 'mdi-fan' },
+  { id: 'water_spray', title: 'เปิดละอองน้ำ / สปริงเกลอร์', desc: 'พ่นละอองน้ำเป็นรอบๆ ช่วยลดอุณหภูมิร่างกายวัว', icon: 'mdi-sprinkler-variant' },
+  { id: 'fresh_water', title: 'เติมน้ำสะอาดให้เต็มราง', desc: 'แม่วัวกินน้ำเยอะขึ้นเมื่ออากาศร้อน ดื่มน้ำลดเครียด', icon: 'mdi-cup-water' },
+  { id: 'check_cow', title: 'สังเกตอาการแม่วัว (ไม่หอบ)', desc: 'ตรวจดูว่ามีตัวไหนยืนหอบ อ้าปาก หรือน้ำลายยืดหรือไม่', icon: 'mdi-cow' }
+])
 
 const isDone = (id) => doneActions.value.includes(id)
 const doneCount = computed(() => actionList.value.filter(a => isDone(a.id)).length)
 
-// สไตล์และข้อความระดับความร้อน
-const riskLevel = computed(() => now.value?.risk_level || 'normal')
-
-const statusTitle = computed(() => {
-  if (riskLevel.value === 'severe') return 'อากาศร้อนจัดมาก แม่วัวกำลังเครียด!'
-  if (riskLevel.value === 'moderate' || riskLevel.value === 'mild') return 'อากาศเริ่มร้อนขึ้นแล้ว ระวังแม่วัวหอบ'
-  return 'อากาศสบายดี แม่วัวไม่เครียด'
+// ดัชนีระดับความร้อน (0 = ปกติ, 1 = เริ่มอุ่น, 2 = เริ่มร้อน, 3 = ร้อนจัด)
+const heatLevelIndex = computed(() => {
+  const lvl = now.value?.risk_level || 'normal'
+  if (lvl === 'severe') return 3
+  if (lvl === 'moderate') return 2
+  if (lvl === 'mild') return 1
+  return 0
 })
 
-const statusMessage = computed(() => {
-  if (riskLevel.value === 'severe') {
-    return 'อุณหภูมิและความชื้นสูงมาก เสี่ยงน้ำนมดิ่ง รีบเปิดพัดลมและสเปรย์น้ำระบายความร้อนทันที'
-  }
-  if (riskLevel.value === 'moderate' || riskLevel.value === 'mild') {
-    return 'ความร้อนสะสมเริ่มเพิ่มขึ้น แนะนำให้เปิดพัดลมระบายอากาศ และเตรียมน้ำสะอาดให้พร้อม'
-  }
-  return 'สภาพอากาศในคอกเหมาะสมดี แม่วัวเคี้ยวเอื้องสบาย ให้น้ำนมได้เต็มที่'
+// สไตล์การ์ดหลักแบบ Gradient ออร์แกนิก
+const heroCardBg = computed(() => {
+  const idx = heatLevelIndex.value
+  if (idx === 3) return 'bg-gradient-to-b from-[#FEF2F2] via-[#FFF8F8] to-white border-[#FECACA]'
+  if (idx === 2) return 'bg-gradient-to-b from-[#FFF7ED] via-[#FFFDF9] to-white border-[#FED7AA]'
+  if (idx === 1) return 'bg-gradient-to-b from-[#FFFBEB] via-[#FFFEFA] to-white border-[#FDE68A]'
+  return 'bg-gradient-to-b from-[#EBF7F0] via-[#F4FAF6] to-white border-[#C8E6C9]'
 })
 
-const statusIcon = computed(() => {
-  if (riskLevel.value === 'severe') return 'mdi-alert-octagon'
-  if (riskLevel.value === 'moderate' || riskLevel.value === 'mild') return 'mdi-weather-sunny-alert'
-  return 'mdi-emoticon-happy'
-})
-
-const statusCardStyle = computed(() => {
-  if (riskLevel.value === 'severe') return 'bg-[#FEF2F2] border-[#FECACA]'
-  if (riskLevel.value === 'moderate' || riskLevel.value === 'mild') return 'bg-[#FFFBEB] border-[#FDE68A]'
-  return 'bg-[#F0FDF4] border-[#BBF7D0]'
+const ambientGlowColor = computed(() => {
+  const idx = heatLevelIndex.value
+  if (idx === 3) return 'bg-[#DC2626]'
+  if (idx === 2) return 'bg-[#EA580C]'
+  if (idx === 1) return 'bg-[#D97706]'
+  return 'bg-[#2D6A4F]'
 })
 
 const statusBadgeStyle = computed(() => {
-  if (riskLevel.value === 'severe') return 'bg-[#DC2626] text-white border-[#B91C1C]'
-  if (riskLevel.value === 'moderate' || riskLevel.value === 'mild') return 'bg-[#D97706] text-white border-[#B45309]'
-  return 'bg-[#2D6A4F] text-white border-[#1B4332]'
+  const idx = heatLevelIndex.value
+  if (idx === 3) return 'bg-[#FEE2E2] text-[#991B1B] border-[#FECACA]'
+  if (idx === 2) return 'bg-[#FFEDD5] text-[#9A3412] border-[#FED7AA]'
+  if (idx === 1) return 'bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]'
+  return 'bg-[#E8F5E9] text-[#1B4332] border-[#C8E6C9]'
 })
 
-// พยากรณ์ช่วงบ่าย
-const peakText = computed(() => {
-  // peak_window เป็นออบเจกต์ { label: '12:00–16:00 น.' } (ไม่มีข้อมูล = ไม่เดาเวลา)
-  const label = me.value?.forecast?.peak_window?.label
-  return label ? `ช่วง ${label}` : 'ยังไม่มีข้อมูลพอระบุช่วงเวลา'
+const statusDotStyle = computed(() => {
+  const idx = heatLevelIndex.value
+  if (idx === 3) return 'bg-[#DC2626] animate-ping'
+  if (idx === 2) return 'bg-[#EA580C]'
+  if (idx === 1) return 'bg-[#D97706]'
+  return 'bg-[#2D6A4F]'
 })
 
-const tomorrowForecast = computed(() => me.value?.forecast?.days?.[0] || null)
-
-const tomorrowText = computed(() => {
-  if (tomorrowForecast.value?.risk_level === 'severe') return 'อากาศร้อนจัดมาก'
-  if (tomorrowForecast.value?.risk_level === 'moderate') return 'อากาศค่อนข้างร้อน'
-  if (tomorrowForecast.value?.risk_level === 'mild') return 'อากาศอบอ้าว เฝ้าระวัง'
-  if (!tomorrowForecast.value) return 'ยังไม่มีพยากรณ์'
-  return 'อากาศสบาย'
+const statusBoxStyle = computed(() => {
+  const idx = heatLevelIndex.value
+  if (idx === 3) return 'bg-[#FEF2F2] border-[#FECACA] text-[#991B1B]'
+  if (idx === 2) return 'bg-[#FFF7ED] border-[#FED7AA] text-[#9A3412]'
+  if (idx === 1) return 'bg-[#FFFBEB] border-[#FDE68A] text-[#92400E]'
+  return 'bg-[#F0FDF4] border-[#BBF7D0] text-[#166534]'
 })
 
-const tomorrowAdvice = computed(() => {
-  if (tomorrowForecast.value?.risk_level === 'severe') return 'เตรียมเปิดพัดลมและเตรียมน้ำดื่มสำรอง'
-  if (tomorrowForecast.value?.risk_level === 'moderate') return 'ช่วงบ่ายเปิดพัดลมระบายอากาศ'
-  if (tomorrowForecast.value?.risk_level === 'mild') return 'เปิดพัดลมช่วงที่ร้อน เตรียมน้ำให้พอ'
-  return 'สภาพอากาศดี เหมาะแก่การให้นม'
+const statusIcon = computed(() => {
+  const idx = heatLevelIndex.value
+  if (idx === 3) return 'mdi-fire-alert'
+  if (idx === 2) return 'mdi-weather-sunny-alert'
+  if (idx === 1) return 'mdi-weather-partly-cloudy'
+  return 'mdi-weather-cloudy-check'
 })
+
+const statusTitle = computed(() => {
+  const idx = heatLevelIndex.value
+  if (idx === 3) return 'อากาศร้อนจัดมาก!'
+  if (idx === 2) return 'อากาศเริ่มร้อน'
+  if (idx === 1) return 'อากาศเริ่มอุ่น'
+  return 'อากาศสบายดี (ปกติ)'
+})
+
+const statusMessage = computed(() => senior.value?.message || 'สภาพอากาศในคอกเหมาะสมดี แม่วัวเคี้ยวเอื้องสบาย ให้น้ำนมได้ดี')
+
+const peakTimeText = computed(() => {
+  return senior.value?.peak_window_label || 'ช่วง 13:00 – 16:00 น.'
+})
+
+const tomorrowText = computed(() => 'สภาพอากาศพรุ่งนี้ใกล้เคียงกับวันนี้ ลมพัดถ่ายเทดี สบายใจได้จ้า')
 
 const playVoice = () => {
   if (isSpeaking.value) {
     stopSpeech()
   } else {
     const text = senior.value?.voice_text || 
-      `สภาพอากาศในคอกวัวตอนนี้ อุณหภูมิ ${now.value ? Number(now.value.temperature_c).toFixed(1) : '31'} องศาเซลเซียส ความชื้น ${now.value ? Math.round(now.value.humidity_pct) : '70'} เปอร์เซ็นต์ ${statusTitle.value} ${statusMessage.value} อย่าลืมดูแลแม่วัวนะจ๊ะ`
+      (now.value?.temperature_c != null 
+        ? `ตอนนี้ในคอก อุณหภูมิ ${Number(now.value.temperature_c).toFixed(1)} องศาเซลเซียส ${statusTitle.value} ${statusMessage.value}`
+        : `ตอนนี้ในคอก ${statusTitle.value} ${statusMessage.value}`)
     speakThai(text)
   }
 }

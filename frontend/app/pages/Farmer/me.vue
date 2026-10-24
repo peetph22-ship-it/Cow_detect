@@ -1,355 +1,200 @@
 <template>
-  <div class="space-y-5">
+  <div class="space-y-5 pb-8">
 
-    <!-- 1. บัตรประจำตัวเกษตรกร & ฟาร์ม -->
-    <section class="bg-white rounded-3xl p-5 sm:p-7 shadow-xs border border-[#E5E7EB]">
+    <!-- 1. การ์ดข้อมูลผู้ใช้ & ฟาร์ม (Modern Profile Card) -->
+    <section class="bg-white rounded-3xl p-5 sm:p-7 border border-[#E5E9E5] shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
       <div class="flex items-center gap-4">
-        <div class="w-16 h-16 rounded-2xl bg-[#1B4332] text-white flex items-center justify-center text-2xl font-black shadow-xs shrink-0">
+        <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-[#143225] text-white flex items-center justify-center text-2xl sm:text-3xl font-black shrink-0 shadow-sm border border-white/10">
           {{ initial }}
         </div>
-        <div class="min-w-0">
-          <h1 class="text-xl sm:text-2xl font-black text-[#15221B] truncate leading-tight">
-            {{ displayName }}
-          </h1>
-          <p class="text-xs sm:text-sm text-[#2D6A4F] font-bold mt-0.5">
-            {{ isAdmin ? 'ผู้ดูแลระบบ (ดูตัวอย่างหน้าเกษตรกร)' : 'เกษตรกรเจ้าของฟาร์ม' }}
-          </p>
+        <div class="min-w-0 flex-1">
+          <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-[#EBF6EE] text-[#1B4332] border border-[#CDE8D5] mb-1.5">
+            <v-icon :icon="isAdmin ? 'mdi-shield-crown' : 'mdi-cow'" size="15" />
+            <span>{{ isAdmin ? 'ผู้ดูแลระบบ (Admin)' : 'เกษตรกรผู้เลี้ยงโคนม' }}</span>
+          </div>
+          <h1 class="text-xl sm:text-2xl font-black text-[#15221B] truncate">{{ displayName }}</h1>
+          <p class="text-xs sm:text-sm text-[#64748B] truncate mt-0.5 font-medium">{{ user?.email || user?.phone || 'ไม่มีข้อมูลติดต่อ' }}</p>
         </div>
       </div>
 
-      <!-- รายละเอียดฟาร์ม -->
-      <div class="mt-5 pt-4 border-t border-gray-100 space-y-3">
-        <div class="flex justify-between items-center text-sm sm:text-base">
-          <span class="text-[#64748B]">ชื่อฟาร์ม</span>
-          <span class="font-bold text-[#15221B] text-right">{{ farm?.name || '—' }}</span>
+      <!-- รายละเอียดฟาร์ม 4 ช่องสวยงาม -->
+      <div class="mt-5 pt-4 border-t border-gray-100 grid grid-cols-2 gap-3 sm:gap-4 text-sm">
+        <div class="bg-[#F8F9F6] p-3.5 rounded-2xl border border-[#E9EFEA]">
+          <span class="text-xs text-[#64748B] block font-bold">ชื่อฟาร์ม</span>
+          <span class="font-black text-[#15221B] mt-0.5 block truncate">{{ farm?.name || '—' }}</span>
         </div>
-        <div class="flex justify-between items-center text-sm sm:text-base">
-          <span class="text-[#64748B]">โรงเรือน</span>
-          <span class="font-bold text-[#15221B] text-right">{{ farm?.barn_unit || 'โรงเรือนหลัก' }}</span>
+        <div class="bg-[#F8F9F6] p-3.5 rounded-2xl border border-[#E9EFEA]">
+          <span class="text-xs text-[#64748B] block font-bold">โรงเรือน</span>
+          <span class="font-black text-[#15221B] mt-0.5 block truncate">{{ farm?.barn_unit || '—' }}</span>
         </div>
-        <div class="flex justify-between items-center text-sm sm:text-base">
-          <span class="text-[#64748B]">จังหวัด</span>
-          <span class="font-bold text-[#15221B] text-right">{{ farm?.province || '—' }}</span>
+        <div class="bg-[#F8F9F6] p-3.5 rounded-2xl border border-[#E9EFEA]">
+          <span class="text-xs text-[#64748B] block font-bold">จังหวัด</span>
+          <span class="font-black text-[#15221B] mt-0.5 block truncate">{{ farm?.province || '—' }}</span>
+        </div>
+        <div class="bg-[#F8F9F6] p-3.5 rounded-2xl border border-[#E9EFEA]">
+          <span class="text-xs text-[#64748B] block font-bold">เกณฑ์ประเมินความร้อน</span>
+          <span class="font-black text-[#15221B] mt-0.5 block truncate">{{ PROFILE_LABELS[farm?.profile] || 'โคนมลูกผสมไทย' }}</span>
         </div>
       </div>
     </section>
 
-
-    <!-- 2. ปุ่มติดต่อสัตวแพทย์ / สหกรณ์ (ปุ่มใหญ่ เด่นมาก) -->
-    <section class="bg-white rounded-3xl p-5 sm:p-7 shadow-xs border border-[#E5E7EB] space-y-3">
-      <div class="text-xs sm:text-sm font-bold text-[#64748B] flex items-center gap-1.5">
-        <v-icon icon="mdi-doctor" class="text-[#2D6A4F]" size="20" />
-        <span>สัตวแพทย์และผู้ดูแลประจำฟาร์ม</span>
-      </div>
-
-      <a
-        v-if="farm?.vet_phone"
-        :href="`tel:${farm.vet_phone.replace(/[^0-9+]/g, '')}`"
-        class="w-full h-15 sm:h-16 rounded-2xl bg-[#E07A5F] hover:bg-[#d46a4e] text-white font-black text-base sm:text-lg flex items-center justify-center gap-2.5 transition-all text-decoration-none shadow-xs active:scale-[0.99]">
-        <v-icon icon="mdi-phone-in-talk" size="24" />
-        <span>โทรหาสัตวแพทย์: {{ farm.vet_phone }}</span>
-      </a>
-      <div v-else class="p-4 rounded-2xl bg-[#FFFBEB] text-[#92400E] text-sm font-medium">
-        ยังไม่ได้บันทึกเบอร์สัตวแพทย์ สามารถติดต่อเจ้าหน้าที่สหกรณ์เพื่อเพิ่มเบอร์ได้จ้า
-      </div>
-    </section>
-
-
-    <!-- 3. การเชื่อมต่อหลังบ้าน: มีเฉพาะตอนรันในเครื่อง (บนเว็บจริงซ่อน กันเกษตรกรถูกหลอกให้ส่งรหัสไปที่อื่น) -->
-    <section v-if="showBackendSwitch" class="bg-white rounded-3xl p-5 sm:p-7 shadow-xs border border-[#E5E7EB] space-y-4">
+    <!-- 2. เบอร์โทรด่วนสัตวแพทย์ / สหกรณ์ (ตัวหนังสือใหญ่ แตะโทรได้ทันที) -->
+    <section class="bg-white rounded-3xl p-5 sm:p-6 border border-[#E5E9E5] shadow-[0_8px_30px_rgba(0,0,0,0.04)] space-y-3">
       <div class="flex items-center justify-between">
-        <h2 class="text-base sm:text-lg font-bold text-[#15221B] flex items-center gap-2">
-          <v-icon icon="mdi-server-network" class="text-[#2D6A4F]" size="22" />
-          <span>เชื่อมต่อหลังบ้าน (Backend Server)</span>
-        </h2>
-        <span 
-          class="text-xs font-bold px-2.5 py-1 rounded-full border"
-          :class="isCustomBackend ? 'bg-[#FFFBEB] text-[#B45309] border-[#FDE68A]' : 'bg-[#F0FDF4] text-[#15803D] border-[#BBF7D0]'">
-          {{ isCustomBackend ? 'หลังบ้านกำหนดเอง' : 'เซิร์ฟเวอร์หลัก' }}
-        </span>
-      </div>
-
-      <p class="text-xs sm:text-sm text-[#64748B] leading-relaxed">
-        สามารถเลือกเชื่อมต่อกับเซิร์ฟเวอร์หลัก, เครื่องนี้, หรือ <strong class="text-[#15221B]">ใส่ IP / URL หลังบ้านของเพื่อน</strong> เพื่อดึงข้อมูลเซ็นเซอร์ร่วมกันได้ทันที
-      </p>
-
-      <!-- ปุ่มเลือกหลังบ้านด่วน -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-        <button
-          type="button"
-          @click="selectBackendOption('cloud')"
-          class="p-3 rounded-2xl border-2 text-left font-bold text-xs sm:text-sm transition-all cursor-pointer flex flex-col justify-between"
-          :class="selectedOption === 'cloud' ? 'border-[#2D6A4F] bg-[#E8F5E9] text-[#1B4332]' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'">
-          <div class="flex items-center gap-1.5">
-            <v-icon icon="mdi-cloud-outline" size="18" />
-            <span>เซิร์ฟเวอร์หลัก (Cloud)</span>
-          </div>
-          <span class="text-[11px] font-normal opacity-80 mt-1">Render Cloud</span>
-        </button>
-
-        <button
-          type="button"
-          @click="selectBackendOption('local')"
-          class="p-3 rounded-2xl border-2 text-left font-bold text-xs sm:text-sm transition-all cursor-pointer flex flex-col justify-between"
-          :class="selectedOption === 'local' ? 'border-[#2D6A4F] bg-[#E8F5E9] text-[#1B4332]' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'">
-          <div class="flex items-center gap-1.5">
-            <v-icon icon="mdi-laptop" size="18" />
-            <span>เครื่องนี้ (Localhost)</span>
-          </div>
-          <span class="text-[11px] font-normal opacity-80 mt-1">port 4001</span>
-        </button>
-
-        <button
-          type="button"
-          @click="selectBackendOption('friend')"
-          class="p-3 rounded-2xl border-2 text-left font-bold text-xs sm:text-sm transition-all cursor-pointer flex flex-col justify-between"
-          :class="selectedOption === 'friend' ? 'border-[#2D6A4F] bg-[#E8F5E9] text-[#1B4332]' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'">
-          <div class="flex items-center gap-1.5">
-            <v-icon icon="mdi-account-network-outline" size="18" />
-            <span>หลังบ้านของเพื่อน</span>
-          </div>
-          <span class="text-[11px] font-normal opacity-80 mt-1">ใส่ IP / URL</span>
-        </button>
-      </div>
-
-      <!-- ช่องกรอก URL -->
-      <div class="space-y-1.5">
-        <label class="block text-xs font-bold text-[#64748B]">
-          URL API หลังบ้านที่ต้องการเชื่อมต่อ:
-        </label>
-        <div class="flex gap-2">
-          <input
-            v-model="inputBackendUrl"
-            type="text"
-            placeholder="เช่น http://192.168.1.50:4001/api หรือ https://xxxx.trycloudflare.com/api"
-            class="flex-1 px-4 py-3 rounded-xl border border-gray-300 text-xs sm:text-sm focus:outline-none focus:border-[#2D6A4F] bg-[#F8F9F5]" />
-          
-          <button
-            type="button"
-            @click="runPingTest"
-            :disabled="testingPing"
-            class="px-4 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-[#15221B] font-bold text-xs sm:text-sm shrink-0 flex items-center gap-1.5 cursor-pointer border border-gray-300">
-            <v-icon v-if="testingPing" icon="mdi-loading" class="animate-spin" size="16" />
-            <v-icon v-else icon="mdi-access-point" size="16" />
-            <span>ทดสอบ</span>
-          </button>
+        <div class="flex items-center gap-2">
+          <v-icon icon="mdi-doctor" class="text-[#2D6A4F]" size="24" />
+          <h2 class="text-base sm:text-lg font-black text-[#15221B]">ติดต่อสัตวแพทย์ / สหกรณ์</h2>
         </div>
+        <span class="text-xs font-bold text-[#64748B]">กดเพื่อโทรออกทันที</span>
       </div>
 
-      <!-- ผลการทดสอบการเชื่อมต่อ -->
-      <div v-if="pingResult" class="p-3 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2"
-        :class="pingResult.success ? 'bg-[#F0FDF4] text-[#15803D] border border-[#BBF7D0]' : 'bg-[#FEF2F2] text-[#B91C1C] border border-[#FECACA]'">
-        <v-icon :icon="pingResult.success ? 'mdi-check-circle' : 'mdi-alert-circle'" size="18" />
-        <span>{{ pingResult.message }}</span>
+      <div v-if="farm?.vet_phone">
+        <a
+          :href="`tel:${cleanPhone(farm.vet_phone)}`"
+          class="w-full h-15 sm:h-16 rounded-2xl bg-[#E07A5F] hover:bg-[#cf6b50] text-white font-black text-base sm:text-lg flex items-center justify-center gap-3 text-decoration-none shadow-sm transition-all active:scale-[0.99]">
+          <v-icon icon="mdi-phone-in-talk" size="26" />
+          <span>โทรหาหมอ {{ farm.vet_phone }}</span>
+        </a>
       </div>
-
-      <!-- ปุ่มบันทึกการเชื่อมต่อ -->
-      <div class="flex gap-2.5 pt-1">
-        <button
-          type="button"
-          @click="applyBackendConnection"
-          class="flex-1 h-12 rounded-xl bg-[#1B4332] hover:bg-[#2D6A4F] text-white font-bold text-sm sm:text-base flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-[0.99]">
-          <v-icon icon="mdi-content-save-check" size="20" />
-          <span>บันทึกและเชื่อมต่อทันที</span>
-        </button>
-
-        <button
-          v-if="isCustomBackend"
-          type="button"
-          @click="resetToDefaultBackend"
-          class="px-4 h-12 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs sm:text-sm cursor-pointer border border-gray-300">
-          คืนค่าเริ่มต้น
-        </button>
+      <div v-else class="p-4 rounded-2xl bg-[#FEF3C7] text-[#92400E] text-sm font-bold flex items-center gap-2 border border-[#FDE68A]">
+        <v-icon icon="mdi-alert-circle" size="22" class="shrink-0" />
+        <span>ยังไม่ได้บันทึกเบอร์โทรสัตวแพทย์ในระบบนี้ สามารถแจ้งเจ้าหน้าที่สหกรณ์ให้เพิ่มได้ค่ะ</span>
       </div>
     </section>
 
-
-    <!-- 4. การตั้งค่าความสะดวกสำหรับผู้สูงอายุ (ขนาดตัวหนังสือ & เสียงพูด) -->
-    <section class="bg-white rounded-3xl p-5 sm:p-7 shadow-xs border border-[#E5E7EB] space-y-4">
-      <h2 class="text-base sm:text-lg font-bold text-[#15221B] flex items-center gap-2">
-        <v-icon icon="mdi-eye-check-outline" class="text-[#2D6A4F]" size="22" />
-        การตั้งค่าการมองเห็นและเสียง
-      </h2>
+    <!-- 3. ปรับขนาดตัวอักษรและเสียงอ่าน (เพื่อผู้สูงอายุ) -->
+    <section class="bg-white rounded-3xl p-5 sm:p-6 border border-[#E5E9E5] shadow-[0_8px_30px_rgba(0,0,0,0.04)] space-y-4">
+      <div class="flex items-center gap-2">
+        <v-icon icon="mdi-eye-outline" class="text-[#2D6A4F]" size="24" />
+        <h2 class="text-base sm:text-lg font-black text-[#15221B]">การมองเห็นและเสียงอ่าน</h2>
+      </div>
 
       <!-- ขนาดตัวหนังสือ -->
       <div class="space-y-2">
-        <label class="block text-xs sm:text-sm font-bold text-[#64748B]">
-          ขนาดตัวอักษรในแอป (เลือกขนาดที่สบายตา):
+        <label class="text-xs sm:text-sm font-black text-[#334155] block">
+          เลือกขนาดตัวหนังสือที่อ่านสบายตาที่สุด:
         </label>
-        <div class="grid grid-cols-3 gap-2 sm:gap-3">
+        <div class="grid grid-cols-3 gap-2.5">
           <button
-            v-for="opt in [
-              { key: 'normal', title: 'ก ปกติ', desc: 'ขนาดทั่วไป' },
-              { key: 'large', title: 'ก+ ใหญ่', desc: 'สำหรับสายตายาว' },
-              { key: 'huge', title: 'ก++ ใหญ่มาก', desc: 'ไม่ต้องใส่แว่น' }
-            ]"
-            :key="opt.key"
             type="button"
-            @click="setFontSize(opt.key)"
-            class="p-3 rounded-2xl border-2 text-center transition-all cursor-pointer"
-            :class="fontSize === opt.key ? 'border-[#2D6A4F] bg-[#E8F5E9] text-[#1B4332] font-black' : 'border-gray-200 bg-white text-gray-700 font-bold'">
-            <div class="text-base sm:text-lg">{{ opt.title }}</div>
-            <div class="text-[11px] opacity-80 mt-0.5">{{ opt.desc }}</div>
+            @click="setFontSize('normal')"
+            class="py-3 px-2 rounded-2xl border-2 font-bold text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 active:scale-95"
+            :class="fontSize === 'normal' ? 'border-[#1B4332] bg-[#EBF6EE] text-[#1B4332] shadow-xs' : 'border-[#E5E9E5] text-[#64748B] hover:border-gray-300'">
+            <span class="text-base font-black">ก</span>
+            <span class="text-xs font-bold">ขนาดปกติ</span>
+          </button>
+          <button
+            type="button"
+            @click="setFontSize('large')"
+            class="py-3 px-2 rounded-2xl border-2 font-bold text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 active:scale-95"
+            :class="fontSize === 'large' ? 'border-[#1B4332] bg-[#EBF6EE] text-[#1B4332] shadow-xs' : 'border-[#E5E9E5] text-[#64748B] hover:border-gray-300'">
+            <span class="text-xl font-black">ก+</span>
+            <span class="text-xs font-bold">ตัวใหญ่</span>
+          </button>
+          <button
+            type="button"
+            @click="setFontSize('huge')"
+            class="py-3 px-2 rounded-2xl border-2 font-bold text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 active:scale-95"
+            :class="fontSize === 'huge' ? 'border-[#1B4332] bg-[#EBF6EE] text-[#1B4332] shadow-xs' : 'border-[#E5E9E5] text-[#64748B] hover:border-gray-300'">
+            <span class="text-2xl font-black">ก++</span>
+            <span class="text-xs font-bold">ใหญ่พิเศษ</span>
           </button>
         </div>
       </div>
 
-      <!-- ทดสอบเสียงพูด -->
-      <div class="pt-2">
+      <!-- ทดสอบเสียงอ่าน -->
+      <div class="pt-3 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div class="text-xs sm:text-sm text-[#64748B] font-medium">
+          ระบบช่วยเหลือด้วยเสียงสังเคราะห์ภาษาไทย (Web Speech)
+        </div>
         <button
           type="button"
           @click="testVoice"
-          class="w-full h-13 rounded-2xl bg-[#F8F9F5] border border-[#CBD5E1] hover:border-[#2D6A4F] text-[#1B4332] font-bold text-sm sm:text-base flex items-center justify-center gap-2 cursor-pointer transition-colors">
-          <v-icon icon="mdi-volume-high" size="22" class="text-[#2D6A4F]" />
-          <span>กดทดสอบระบบเสียงอ่านภาษาไทย</span>
+          class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#2D6A4F] hover:bg-[#1B4332] text-white text-xs sm:text-sm font-black flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-2xs active:scale-95">
+          <v-icon :icon="isSpeaking ? 'mdi-volume-high' : 'mdi-volume-medium'" size="18" />
+          <span>{{ isSpeaking ? 'กำลังพูด...' : 'ทดลองฟังเสียงผู้ช่วย' }}</span>
         </button>
       </div>
     </section>
 
+    <!-- 4. ความหมายของสีระดับความร้อน (คู่มือเตือนภัยเข้าใจง่าย) -->
+    <section class="bg-white rounded-3xl p-5 sm:p-6 border border-[#E5E9E5] shadow-[0_8px_30px_rgba(0,0,0,0.04)] space-y-3">
+      <div class="flex items-center gap-2">
+        <v-icon icon="mdi-palette" class="text-[#2D6A4F]" size="24" />
+        <h2 class="text-base sm:text-lg font-black text-[#15221B]">ความหมายของสีระดับความร้อน</h2>
+      </div>
 
-    <!-- 5. ความหมายของสีในแอป (เข้าใจง่าย) -->
-    <section class="bg-white rounded-3xl p-5 sm:p-7 shadow-xs border border-[#E5E7EB] space-y-3">
-      <h2 class="text-base sm:text-lg font-bold text-[#15221B] flex items-center gap-2">
-        <v-icon icon="mdi-palette-outline" class="text-[#2D6A4F]" size="22" />
-        ความหมายของสีระดับความร้อน
-      </h2>
-
-      <div class="space-y-2 text-xs sm:text-sm">
-        <div class="p-3 rounded-2xl bg-[#F0FDF4] border border-[#BBF7D0] flex items-center gap-3">
-          <span class="w-3.5 h-3.5 rounded-full bg-[#16A34A] shrink-0"></span>
+      <div class="space-y-2.5 text-xs sm:text-sm">
+        <div class="p-3.5 rounded-2xl bg-[#E8F5E9] border border-[#C8E6C9] flex items-center gap-3">
+          <span class="w-4 h-4 rounded-full bg-[#2D6A4F] shrink-0"></span>
           <div>
-            <span class="font-bold text-[#14532D]">สีเขียว (สบายดี):</span>
-            <span class="text-[#166534] ml-1">อากาศร่มรื่น แม่วัวไม่เครียด ให้นมได้เต็มที่</span>
+            <span class="font-black text-[#1B4332] block">สีเขียว — สบายดี (ปกติ)</span>
+            <span class="text-[#2D6A4F] font-medium">อากาศสบาย ไม่มีความเครียด กินอาหารได้ดี ให้น้ำนมปกติ</span>
           </div>
         </div>
 
-        <div class="p-3 rounded-2xl bg-[#FFFBEB] border border-[#FDE68A] flex items-center gap-3">
-          <span class="w-3.5 h-3.5 rounded-full bg-[#D97706] shrink-0"></span>
+        <div class="p-3.5 rounded-2xl bg-[#FEF3C7] border border-[#FDE68A] flex items-center gap-3">
+          <span class="w-4 h-4 rounded-full bg-[#D97706] shrink-0"></span>
           <div>
-            <span class="font-bold text-[#78350F]">สีส้ม (เริ่มร้อน):</span>
-            <span class="text-[#92400E] ml-1">เริ่มมีไอร้อน ควรเปิดพัดลมระบายอากาศ</span>
+            <span class="font-black text-[#92400E] block">สีเหลือง/ส้มอ่อน — เริ่มอุ่น</span>
+            <span class="text-[#B45309] font-medium">อากาศเริ่มร้อนขึ้น แนะนำเปิดพัดลมให้อากาศถ่ายเท</span>
           </div>
         </div>
 
-        <div class="p-3 rounded-2xl bg-[#FEF2F2] border border-[#FECACA] flex items-center gap-3">
-          <span class="w-3.5 h-3.5 rounded-full bg-[#DC2626] shrink-0"></span>
+        <div class="p-3.5 rounded-2xl bg-[#FFEDD5] border border-[#FED7AA] flex items-center gap-3">
+          <span class="w-4 h-4 rounded-full bg-[#EA580C] shrink-0"></span>
           <div>
-            <span class="font-bold text-[#991B1B]">สีแดง (ร้อนจัด):</span>
-            <span class="text-[#B91C1C] ml-1">อากาศร้อนมาก เสี่ยงน้ำนมดิ่ง รีบเปิดพัดลมและสเปรย์น้ำด่วน</span>
+            <span class="font-black text-[#9A3412] block">สีส้มเข้ม — เริ่มร้อนจัด</span>
+            <span class="text-[#C2410C] font-medium">แม่วัวเริ่มหอบ เปิดพัดลมและเตรียมเปิดน้ำพ่นละออง เติมน้ำสะอาด</span>
+          </div>
+        </div>
+
+        <div class="p-3.5 rounded-2xl bg-[#FEE2E2] border border-[#FECACA] flex items-center gap-3">
+          <span class="w-4 h-4 rounded-full bg-[#DC2626] shrink-0"></span>
+          <div>
+            <span class="font-black text-[#991B1B] block">สีแดง — ร้อนจัดอันตราย!</span>
+            <span class="text-[#DC2626] font-medium">เครียดความร้อนรุนแรง รีบพ่นน้ำ-เปิดพัดลมเต็มกำลัง สังเกตตัวที่หอบ และติดต่อหมอ</span>
           </div>
         </div>
       </div>
     </section>
 
-
-    <!-- 6. ปุ่มกลับหน้าแอดมิน (ถ้าเป็นแอดมิน) & ออกจากระบบ -->
-    <div class="space-y-3 pt-2">
-      <NuxtLink
-        v-if="isAdmin"
-        to="/Admin"
-        class="w-full h-14 rounded-2xl border border-gray-300 bg-white hover:bg-gray-50 text-[#15221B] text-base font-bold flex items-center justify-center gap-2 text-decoration-none shadow-2xs">
-        <v-icon icon="mdi-shield-account-outline" size="22" />
-        <span>กลับสู่หน้าระบบแอดมิน</span>
-      </NuxtLink>
-
-      <button
-        type="button"
-        @click="openLogoutModal"
-        class="w-full h-14 rounded-2xl border border-[#FECACA] bg-[#FEF2F2] hover:bg-[#FEE2E2] text-[#DC2626] text-base font-bold flex items-center justify-center gap-2 cursor-pointer shadow-2xs active:scale-[0.99]">
-        <v-icon icon="mdi-logout" size="22" />
-        <span>ออกจากระบบ</span>
-      </button>
-    </div>
+    <!-- ลิงก์กลับหน้าแอดมิน (ถ้าเป็นแอดมิน) -->
+    <NuxtLink 
+      v-if="isAdmin" 
+      to="/Admin" 
+      class="w-full h-14 rounded-2xl bg-white border border-[#CBD5E1] hover:bg-gray-50 text-[#15221B] font-bold text-sm sm:text-base flex items-center justify-center gap-2 text-decoration-none shadow-xs transition-colors active:scale-98">
+      <v-icon icon="mdi-shield-crown-outline" size="20" />
+      <span>กลับหน้าแผงควบคุมหลัก (Admin Portal)</span>
+    </NuxtLink>
 
   </div>
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useFarmer } from '~/composables/useFarmer'
-import { getCustomNodeApi, canSwitchBackend } from '~/API/baseAPI'
+import { PROFILE_LABELS } from '~/utils/heatStress'
 
 definePageMeta({ layout: 'farmer' })
-useHead({ title: 'ฟาร์มฉัน & เชื่อมต่อหลังบ้าน | CowCare ฟาร์มโคนม' })
+useHead({ title: 'ฟาร์มของฉัน | CowCare AI' })
 
-const { 
-  farm, 
-  user, 
-  isAdmin, 
-  fontSize, 
-  setFontSize, 
-  speakThai, 
-  currentBackendUrl, 
-  testBackend, 
-  switchBackend, 
-  logout,
-  openLogoutModal 
+const {
+  farm,
+  user,
+  isAdmin,
+  fontSize,
+  setFontSize,
+  isSpeaking,
+  speakThai
 } = useFarmer()
 
-const displayName = computed(() => user.value?.name_users || user.value?.full_name || user.value?.name || user.value?.email || 'เกษตรกร')
-const initial = computed(() => String(displayName.value).trim().charAt(0).toUpperCase() || 'ก')
+const displayName = computed(() => user.value?.name_users || user.value?.full_name || user.value?.email || 'เกษตรกร')
+const initial = computed(() => String(displayName.value).trim().charAt(0).toUpperCase() || 'K')
 
-// การจัดการเชื่อมต่อหลังบ้าน
-const inputBackendUrl = ref('')
-const selectedOption = ref('cloud')
-const testingPing = ref(false)
-const pingResult = ref(null)
-
-const isCustomBackend = computed(() => Boolean(getCustomNodeApi()))
-const showBackendSwitch = ref(false)
-onMounted(() => { showBackendSwitch.value = canSwitchBackend() })
-
-const selectBackendOption = (opt) => {
-  selectedOption.value = opt
-  pingResult.value = null
-  if (opt === 'cloud') {
-    inputBackendUrl.value = 'https://cow-detect-zea6.onrender.com/api'
-  } else if (opt === 'local') {
-    inputBackendUrl.value = 'http://localhost:4001/api'
-  } else if (opt === 'friend') {
-    inputBackendUrl.value = getCustomNodeApi() || 'http://192.168.1.50:4001/api'
-  }
-}
-
-const runPingTest = async () => {
-  testingPing.value = true
-  pingResult.value = null
-  try {
-    const res = await testBackend(inputBackendUrl.value)
-    pingResult.value = res
-  } catch (e) {
-    pingResult.value = { success: false, message: `ทดสอบล้มเหลว: ${e.message}` }
-  } finally {
-    testingPing.value = false
-  }
-}
-
-const applyBackendConnection = async () => {
-  const url = inputBackendUrl.value.trim()
-  await switchBackend(url)
-  alert(`เชื่อมต่อหลังบ้านเรียบร้อยแล้ว: ${url || 'เซิร์ฟเวอร์เริ่มต้น'}`)
-  pingResult.value = null
-}
-
-const resetToDefaultBackend = async () => {
-  await switchBackend('')
-  inputBackendUrl.value = currentBackendUrl.value
-  selectedOption.value = 'cloud'
-  pingResult.value = null
-  alert('คืนค่าเริ่มต้นกลับสู่เซิร์ฟเวอร์หลักเรียบร้อย')
-}
+const cleanPhone = (phone) => String(phone || '').replace(/[^0-9+]/g, '')
 
 const testVoice = () => {
-  speakThai('ยินดีต้อนรับสู่ระบบเฝ้าระวังความเครียดความร้อนโคนม CowCare สำหรับเกษตรกรจ้า ระบบนี้ช่วยให้คุณดูแลแม่วัวได้อย่างสบายใจ')
+  speakThai('สวัสดีค่ะ ระบบช่วยเหลือด้วยเสียงของ CowCare AI พร้อมดูแลคุณตาคุณยายแล้วค่ะ')
 }
-
-onMounted(() => {
-  inputBackendUrl.value = currentBackendUrl.value || 'https://cow-detect-zea6.onrender.com/api'
-  if (inputBackendUrl.value.includes('localhost')) {
-    selectedOption.value = 'local'
-  } else if (isCustomBackend.value) {
-    selectedOption.value = 'friend'
-  } else {
-    selectedOption.value = 'cloud'
-  }
-})
 </script>

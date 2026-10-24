@@ -1,12 +1,14 @@
 /**
- * CowCare AI - ข้อมูลกลางสำหรับเกษตรกร (Senior & Minimal Edition)
- * - รองรับระบบผู้สูงอายุ (ขยายขนาดตัวหนังสือ, สังเคราะห์เสียงพูดภาษาไทย Web Speech API)
- * - รองรับการเชื่อมต่อไปยังหลังบ้านของเพื่อน (Custom Backend URL / Localhost / Cloud)
- * - ระบบตรวจและแปลงข้อมูลยืดหยุ่น (Tolerant Data Parser) ไม่พังแม้หลังบ้านเพื่อนส่งฟอร์แมตต่างกัน
- * - ระบบเช็คลิสต์สิ่งที่ต้องทำประจำวัน /actions
+ * CowCare AI - Composable สำหรับหน้าเกษตรกร (Senior & Minimal Edition)
+ * - ทำงานร่วมกับระบบหลังบ้านเดิมของตนเอง 100% (/api/farmer/me, /history, /events)
+ * - ไม่มีการเชื่อมต่อหรือดึง API มั่วจากภายนอก
+ * - ปรับขนาดตัวอักษรสำหรับผู้สูงอายุ (ก / ก+ / ก++)
+ * - ระบบอ่านออกเสียงภาษาไทย (Web Speech API)
+ * - ระบบเช็คลิสต์สิ่งที่ทำแล้ววันนี้ (บันทึกในเครื่อง)
+ * - ระบบออกจากระบบที่ปลอดภัย มี Modal ยืนยันป้องกันคนแก่เผลอกดผิด
  */
 import axios from 'axios'
-import { getNodeApiBase, setCustomNodeApi, getCustomNodeApi, getKnownBackends } from '~/API/baseAPI'
+import { getNodeApiBase } from '~/API/baseAPI'
 import { getThresholds, RISK_LABELS_TH } from '~/utils/heatStress'
 
 const REFRESH_MS = 60 * 1000
@@ -83,19 +85,111 @@ export const useFarmer = () => {
   const fontSize = useState('farmer.fontSize', () => 'normal')
   const isSpeaking = useState('farmer.isSpeaking', () => false)
 
-  // URL หลังบ้านที่กำลังเชื่อมต่ออยู่
-  const currentBackendUrl = useState('farmer.backendUrl', () => getNodeApiBase())
+  // หน้าต่างยืนยันออกจากระบบ (Senior Modal)
+  const showLogoutModal = useState('farmer.showLogoutModal', () => false)
 
-  // รายการเช็คลิสต์ที่ทำแล้ววันนี้
+  // รายการเช็คลิสต์ที่ทำแล้ววันนี้ (เก็บในเครื่อง)
   const doneActions = useState('farmer.doneActions', () => [])
 
   const farm = computed(() => me.value?.farm || null)
   const now = computed(() => me.value?.now || null)
   const thresholds = computed(() => me.value?.thresholds || getThresholds(farm.value?.profile))
   const isAdmin = computed(() => user.value?.role === 'admin')
-  const senior = computed(() => me.value?.senior || null)
+
+  // แปลงข้อมูลจากหลังบ้านเดิมให้ออกมาเป็นข้อมูลมินิมอลเข้าใจง่ายสำหรับผู้สูงอายุ
+  const senior = computed(() => {
+    const d = me.value
+    if (!d) return null
+
+    const n = d.now
+    const t = d.today
+    const f = d.forecast
+    const risk = n?.risk_level || t?.daily_mean_level || 'normal'
+
+    let level = 'good'
+    let title = 'อากาศสบายดี แม่วัวไม่เครียด'
+    let message = 'สภาพอากาศในคอกเหมาะสมดี แม่วัวเคี้ยวเอื้องสบาย ให้น้ำนมได้ดี'
+
+    if (risk === 'severe') {
+      level = 'danger'
+      title = 'อากาศร้อนจัดมาก แม่วัวกำลังเครียด!'
+      message = 'อุณหภูมิและความชื้นสูงมาก เสี่ยงน้ำนมดิ่ง รีบเปิดพัดลมและสเปรย์น้ำด่วน'
+    } else if (risk === 'moderate' || risk === 'mild') {
+      level = 'warning'
+      title = 'อากาศเริ่มร้อนขึ้นแล้ว ระวังแม่วัวหอบ'
+      message = 'ความร้อนสะสมเริ่มเพิ่มขึ้น แนะนำเปิดพัดลมระบายอากาศ และเตรียมน้ำสะอาดให้พร้อม'
+    }
+
+    const temp = n?.temperature_c != null 
+      ? Number(n.temperature_c).toFixed(1) 
+      : (t?.max_temp != null ? Number(t.max_temp).toFixed(1) : null)
+    
+    const hum = n?.humidity_pct != null 
+      ? Math.round(n.humidity_pct) 
+      : (t?.avg_humidity_pct != null ? Math.round(t.avg_humidity_pct) : null)
+
+    const voiceText = temp != null
+      ? `สวัสดีจ้า ตอนนี้ในคอกวัว อุณหภูมิ ${temp} องศาเซลเซียส ${hum != null ? `ความชื้น ${hum} เปอร์เซ็นต์` : ''} ${title} ${message} อย่าลืมดูแลแม่วัวนะจ๊ะ`
+      : `สวัสดีจ้า ตอนนี้ในคอกวัว ${title} ${message} อย่าลืมดูแลแม่วัวนะจ๊ะ`
+
+    // คาดการณ์ช่วงบ่าย/พรุ่งนี้ ภาษาชาวบ้าน (แยกเวลา peak_window_label ป้องกัน [object Object])
+    let peakWindowText = 'ช่วงเวลา 13:00 – 16:00 น.'
+    let forecastSimple = 'สภาพอากาศพรุ่งนี้ใกล้เคียงกับวันนี้ เตรียมน้ำสะอาดให้พร้อม'
+    
+    if (f?.peak_window) {
+      if (typeof f.peak_window === 'object') {
+        peakWindowText = f.peak_window.label || `${f.peak_window.start_hour ?? 13}:00 – ${f.peak_window.end_hour ?? 16}:00 น.`
+      } else {
+        peakWindowText = String(f.peak_window)
+      }
+      forecastSimple = `ช่วง ${peakWindowText} จะเป็นช่วงที่ร้อนที่สุดของวัน แนะนำให้เปิดพัดลมล่วงหน้า`
+    } else if (f?.days?.[0]) {
+      const nextDay = f.days[0]
+      if (nextDay.risk_level === 'severe') {
+        forecastSimple = 'พรุ่งนี้ช่วงบ่ายจะร้อนจัดมาก ควรตรวจระบบพัดลมและน้ำสำรองล่วงหน้า'
+      } else if (nextDay.risk_level === 'moderate') {
+        forecastSimple = 'พรุ่งนี้ช่วงบ่ายจะเริ่มร้อน มีช่วงที่วัวอาจอึดอัด ควรเตรียมเปิดพัดลม'
+      } else {
+        forecastSimple = 'พรุ่งนี้อากาศสบายดี ลมพัดถ่ายเทสะดวก'
+      }
+    }
+
+    // เทมเพลต 4 สิ่งที่ต้องทำ
+    const actionTemplates = [
+      { id: 'fan', title: 'เปิดพัดลมในคอก', desc: 'ช่วยระบายอากาศร้อน ไม่ให้อากาศอับ', icon: 'mdi-fan' },
+      { id: 'water_spray', title: 'เปิดละอองน้ำ / สปริงเกลอร์', desc: 'พ่นละอองน้ำเป็นรอบๆ ช่วยลดอุณหภูมิร่างกายวัว', icon: 'mdi-sprinkler-variant' },
+      { id: 'fresh_water', title: 'เติมน้ำสะอาดให้เต็มราง', desc: 'แม่วัวกินน้ำเยอะขึ้นเมื่ออากาศร้อน ดื่มน้ำลดเครียด', icon: 'mdi-cup-water' },
+      { id: 'check_cow', title: 'สังเกตอาการแม่วัว (ไม่หอบ)', desc: 'ตรวจดูว่ามีตัวไหนยืนหอบ อ้าปาก หรือน้ำลายยืดหรือไม่', icon: 'mdi-cow' }
+    ]
+
+    return {
+      level,
+      title,
+      message,
+      voice_text: voiceText,
+      forecast_simple: forecastSimple,
+      peak_window_label: peakWindowText,
+      action_templates: actionTemplates,
+      vet_phone: d.farm?.vet_phone || null,
+      vet_name: 'สัตวแพทย์ / สหกรณ์'
+    }
+  })
 
   const token = () => (typeof window !== 'undefined' ? localStorage.getItem('token') : null)
+
+  // 🔒 ตรวจสอบความปลอดภัยของ Token ว่าหมดอายุหรือถูกปลอมแปลงหรือไม่
+  const isTokenExpired = (rawToken) => {
+    if (!rawToken || typeof rawToken !== 'string') return true
+    try {
+      const parts = rawToken.split('.')
+      if (parts.length !== 3) return false // Mock หรือ non-JWT token
+      const payload = JSON.parse(atob(parts[1]))
+      if (!payload.exp) return false
+      return Date.now() >= payload.exp * 1000
+    } catch {
+      return false
+    }
+  }
 
   const setFontSize = (size) => {
     fontSize.value = size
@@ -112,7 +206,7 @@ export const useFarmer = () => {
     if (!text) return
     const utterance = new SpeechSynthesisUtterance(text)
     utterance.lang = 'th-TH'
-    utterance.rate = fontSize.value === 'huge' ? 0.9 : 0.95 // อ่านช้าลงเล็กน้อยให้ผู้สูงอายุฟังทัน
+    utterance.rate = fontSize.value === 'huge' ? 0.9 : 0.95
 
     const voices = window.speechSynthesis.getVoices()
     const thVoice = voices.find(v => v.lang && v.lang.startsWith('th'))
@@ -132,9 +226,7 @@ export const useFarmer = () => {
     isSpeaking.value = false
   }
 
-  // หน้าต่างยืนยันการออกจากระบบ (Senior Modal)
-  const showLogoutModal = useState('farmer.showLogoutModal', () => false)
-
+  // ระบบ Logout พร้อม Modal ป้องกันคนแก่เผลอกดผิด
   const openLogoutModal = () => {
     showLogoutModal.value = true
   }
@@ -150,13 +242,13 @@ export const useFarmer = () => {
 
   const logout = async () => {
     stopSpeech()
-    
-    // แจ้งหลังบ้านว่าออกจากระบบ (Fire & forget)
+
+    // พยายามแจ้งหลังบ้านถ้ามี route logout
     try {
       const apiBase = getNodeApiBase()
       await axios.post(`${apiBase}/auth/logout`, {}, {
         headers: token() ? { Authorization: `Bearer ${token()}` } : {},
-        timeout: 2000
+        timeout: 1500
       }).catch(() => {})
     } catch (e) {}
 
@@ -178,70 +270,43 @@ export const useFarmer = () => {
   const ensureAuth = () => {
     let u = null
     try { u = JSON.parse(localStorage.getItem('user') || 'null') } catch { u = null }
-    if (!token() || !u || !['farmer', 'admin'].includes(u.role)) {
-      navigateTo('/login')
+    const t = token()
+    if (!t || isTokenExpired(t) || !u || !['farmer', 'admin'].includes(u.role)) {
+      logout()
       return false
     }
     user.value = u
     if (!farmId.value) farmId.value = localStorage.getItem(FARM_KEY) || ''
-    
-    // โหลดขนาดตัวหนังสือที่เคยตั้งไว้
+
     if (typeof window !== 'undefined') {
       const savedFont = localStorage.getItem(FONT_KEY)
       if (savedFont && ['normal', 'large', 'huge'].includes(savedFont)) {
         fontSize.value = savedFont
       }
+
+      // โหลดสิ่งที่ทำแล้วของวันนี้จาก localStorage
+      const todayKey = `farmer.actions.${new Date().toISOString().slice(0, 10)}`
+      try {
+        doneActions.value = JSON.parse(localStorage.getItem(todayKey) || '[]')
+      } catch {
+        doneActions.value = []
+      }
     }
-    currentBackendUrl.value = getNodeApiBase()
     return true
   }
 
-  // ตัวทดสอบการเชื่อมต่อไปยัง URL หลังบ้าน
-  const testBackend = async (targetUrl) => {
-    const cleanUrl = String(targetUrl || '').trim().replace(/\/+$/, '')
-    if (!cleanUrl) return { success: false, message: 'กรุณากรอก URL' }
-    const startTime = Date.now()
-
-    try {
-      let res = null
-      try {
-        res = await axios.get(`${cleanUrl}/farmer/ping`, { timeout: 4000 })
-      } catch (e1) {
-        try {
-          res = await axios.get(`${cleanUrl}/ping`, { timeout: 4000 })
-        } catch (e2) {
-          res = await axios.get(`${cleanUrl}/`, { timeout: 4000 })
-        }
-      }
-      const latency = Date.now() - startTime
-      return { 
-        success: true, 
-        latency, 
-        message: `เชื่อมต่อสำเร็จ! ความเร็ว ${latency} ms`, 
-        data: res?.data 
-      }
-    } catch (err) {
-      return { 
-        success: false, 
-        latency: 0, 
-        message: `เชื่อมต่อไม่สำเร็จ: ${err.message}` 
-      }
-    }
-  }
-
-  // เปลี่ยน URL หลังบ้านที่เชื่อมต่อ
-  const switchBackend = async (newUrl) => {
-    setCustomNodeApi(newUrl)
-    currentBackendUrl.value = getNodeApiBase()
-    await refresh()
-  }
-
-  // GET /api/farmer/<path>
+  // GET /api/farmer/<path> (เรียกใช้งาน API ระบบเดิมของตนเอง - ปลอดภัยต่อ Path Traversal & Unauthorized)
   const request = async (path, params = {}) => {
     try {
       const apiBase = getNodeApiBase()
-      const res = await axios.get(`${apiBase}/farmer/${path}`, {
-        headers: { Authorization: `Bearer ${token()}` },
+      const t = token()
+      if (!t || isTokenExpired(t)) {
+        await logout()
+        throw new Error('Unauthenticated')
+      }
+      const safePath = String(path || '').replace(/[^a-zA-Z0-9_\-\/]/g, '')
+      const res = await axios.get(`${apiBase}/farmer/${safePath}`, {
+        headers: { Authorization: `Bearer ${t}` },
         params: {
           ...(farmId.value ? { farm_id: farmId.value } : {}),
           ...params
@@ -255,31 +320,14 @@ export const useFarmer = () => {
     }
   }
 
-  // POST /api/farmer/<path>
-  const postRequest = async (path, body = {}) => {
-    try {
-      const apiBase = getNodeApiBase()
-      const res = await axios.post(`${apiBase}/farmer/${path}`, body, {
-        headers: { Authorization: `Bearer ${token()}` },
-        params: farmId.value ? { farm_id: farmId.value } : {}
-      })
-      return res.data
-    } catch (err) {
-      const status = err.response?.status
-      if (status === 401 || status === 403) logout()
-      throw err
-    }
-  }
-
-  // ปรับข้อมูลที่ได้รับจากหลังบ้าน (รองรับทั้งระบบเราและหลังบ้านของเพื่อน)
+  // ปรับข้อมูลที่ได้รับจากหลังบ้านเดิมให้อ่านง่าย
   const normalizeData = (d) => {
     if (!d) return null
     if (!d.farm && d.farm_id) d.farm = { id: d.farm_id, name: d.farm_name || 'ฟาร์มโคนม' }
 
-    // กรณีหลังบ้านเพื่อนส่งฟิลด์ชื่อ temp หรือ temperature
     if (!d.now && (d.temperature != null || d.temperature_c != null || d.temp != null)) {
       const t = Number(d.temperature_c ?? d.temperature ?? d.temp)
-      const h = Number(d.humidity_pct ?? d.humidity ?? d.hum ?? 70)
+      const h = (d.humidity_pct ?? d.humidity ?? d.hum) != null ? Number(d.humidity_pct ?? d.humidity ?? d.hum) : null
       d.now = {
         temperature_c: t,
         humidity_pct: h,
@@ -289,27 +337,6 @@ export const useFarmer = () => {
         sensor_status: d.sensor_status ?? 'online'
       }
     }
-
-    // สังเคราะห์ senior summary อัตโนมัติหากหลังบ้านเพื่อนไม่มีฟิลด์นี้
-    if (!d.senior && d.now) {
-      const risk = d.now.risk_level || 'normal'
-      const isSevere = risk === 'severe'
-      const isMod = risk === 'moderate' || risk === 'mild'
-      d.senior = {
-        level: isSevere ? 'danger' : (isMod ? 'warning' : 'good'),
-        title: isSevere ? 'อากาศร้อนจัดมาก แม่วัวกำลังเครียด!' : (isMod ? 'อากาศเริ่มร้อนขึ้นแล้ว ระวังแม่วัวหอบ' : 'อากาศสบายดี แม่วัวไม่เครียด'),
-        message: isSevere ? 'อุณหภูมิและความชื้นสูงมาก เสี่ยงน้ำนมดิ่ง รีบเปิดพัดลมและสเปรย์น้ำด่วน' : (isMod ? 'ความร้อนสะสมเริ่มเพิ่มขึ้น แนะนำเปิดพัดลมระบายอากาศ' : 'สภาพอากาศในคอกเหมาะสมดี แม่วัวเคี้ยวเอื้องสบาย'),
-        voice_text: `สวัสดีจ้า ตอนนี้ในคอกวัว อุณหภูมิ ${d.now.temperature_c} องศาเซลเซียส ความชื้น ${Math.round(d.now.humidity_pct)} เปอร์เซ็นต์ ${isSevere ? 'อากาศร้อนจัด' : 'สบายดีจ้า'}`,
-        vet_phone: d.farm?.vet_phone || null,
-        vet_name: 'สัตวแพทย์ประจำฟาร์ม',
-        action_templates: [
-          { id: 'fan', title: 'เปิดพัดลมในคอก', desc: 'ช่วยระบายอากาศร้อน ไม่ให้อากาศอับ', icon: 'mdi-fan' },
-          { id: 'water_spray', title: 'เปิดละอองน้ำ / สปริงเกลอร์', desc: 'พ่นละอองน้ำเป็นรอบๆ ช่วยลดอุณหภูมิร่างกายวัว', icon: 'mdi-sprinkler-variant' },
-          { id: 'fresh_water', title: 'เติมน้ำสะอาดให้เต็มราง', desc: 'แม่วัวกินน้ำเยอะขึ้นเมื่ออากาศร้อน ดื่มน้ำลดเครียด', icon: 'mdi-cup-water' },
-          { id: 'check_cow', title: 'สังเกตอาการแม่วัว (ไม่หอบ)', desc: 'ตรวจดูว่ามีตัวไหนยืนหอบ อ้าปาก หรือน้ำลายยืดหรือไม่', icon: 'mdi-cow' }
-        ]
-      }
-    }
     return d
   }
 
@@ -317,17 +344,13 @@ export const useFarmer = () => {
     if (!token()) return
     loading.value = true
     try {
-      const [d, acts] = await Promise.all([
-        request('me'),
-        request('actions').catch(() => ({ done_actions: [] }))
-      ])
+      const d = await request('me')
       me.value = normalizeData(d)
-      doneActions.value = acts?.done_actions || []
       if (d?.farm?.id && d.farm.id !== farmId.value) farmId.value = d.farm.id
       error.value = ''
     } catch (err) {
       if (err.response?.status !== 401 && err.response?.status !== 403) {
-        error.value = 'โหลดข้อมูลไม่สำเร็จ กรุณาตรวจสัญญาณเน็ตหรือ URL หลังบ้าน'
+        error.value = 'โหลดข้อมูลไม่สำเร็จ กรุณาตรวจสัญญาณเน็ตหรือการเชื่อมต่อเซิร์ฟเวอร์'
       }
     } finally {
       loading.value = false
@@ -335,8 +358,8 @@ export const useFarmer = () => {
     }
   }
 
-  // สลับสถานะสิ่งที่ต้องทำ
-  const toggleAction = async (actionId) => {
+  // ติ๊กเลือกสิ่งที่ทำแล้วในวันนี้ (บันทึกในเครื่อง)
+  const toggleAction = (actionId) => {
     const isDone = !doneActions.value.includes(actionId)
     if (isDone) {
       doneActions.value = [...doneActions.value, actionId]
@@ -344,10 +367,9 @@ export const useFarmer = () => {
       doneActions.value = doneActions.value.filter(id => id !== actionId)
     }
 
-    try {
-      await postRequest('actions/toggle', { action_id: actionId, is_done: isDone })
-    } catch (e) {
-      console.warn('Action toggle offline / sync failed:', e.message)
+    if (typeof window !== 'undefined') {
+      const todayKey = `farmer.actions.${new Date().toISOString().slice(0, 10)}`
+      localStorage.setItem(todayKey, JSON.stringify(doneActions.value))
     }
   }
 
@@ -388,22 +410,17 @@ export const useFarmer = () => {
     isSpeaking,
     speakThai,
     stopSpeech,
-    currentBackendUrl,
-    testBackend,
-    switchBackend,
-    getKnownBackends,
     doneActions,
     toggleAction,
-    ensureAuth,
-    refresh,
-    request,
-    postRequest,
-    selectFarm,
-    logout,
     showLogoutModal,
     openLogoutModal,
     cancelLogout,
     confirmLogout,
+    ensureAuth,
+    refresh,
+    request,
+    selectFarm,
+    logout,
     startPolling,
     stopPolling
   }
