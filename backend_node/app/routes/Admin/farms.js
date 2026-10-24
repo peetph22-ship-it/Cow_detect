@@ -487,7 +487,7 @@ router.get('/:id/daily-summaries', verifyToken, requireRole('admin'), async (req
 
 // -----------------------------------------------------------------
 // GET: /api/Admin/farms/dashboard-trend
-// กราฟเส้นหน้า dashboard: THI เฉลี่ยรายวัน 7 วัน (heatMetrics วิธีเดียวทั้งระบบ) + พยากรณ์ baseline 3 วัน
+// กราฟเส้นหน้า dashboard: THI เฉลี่ยรายวัน 7 วัน (heatMetrics วิธีเดียวทั้งระบบ) + พยากรณ์ 3 วัน (forecastService)
 // แยกจาก dashboard-stats เพราะหน้านั้นดึงซ้ำทุก 12 วินาที ส่วนนี้หนักกว่าและเปลี่ยนช้า
 // วันที่ข้อมูลไม่พอให้ avg_thi = null (ค่าเฉลี่ยจากไม่กี่ชั่วโมงเอียงตามช่วงเวลาที่มีข้อมูล)
 // -----------------------------------------------------------------
@@ -498,7 +498,7 @@ const TREND_MAX_FARMS = 8
 router.get('/dashboard-trend', verifyToken, requireRole('admin'), async (req, res) => {
     try {
         const { rows: farms } = await db.query(`
-            SELECT f.id_farms, f.name_farms, to_jsonb(f)->>'hf_profile' AS hf_profile
+            SELECT f.*, to_jsonb(f)->>'hf_profile' AS hf_profile
             FROM tb_farms f
             ORDER BY f.created_at ASC NULLS LAST
             LIMIT ${TREND_MAX_FARMS}
@@ -538,8 +538,10 @@ router.get('/dashboard-trend', verifyToken, requireRole('admin'), async (req, re
                     evaluation_note: forecast.evaluation_note,
                     insufficient_data: forecast.insufficient_data,
                     reason: forecast.reason || null,
+                    fallback_reason: forecast.fallback_reason || null,
+                    adjusted: forecast.adjusted ?? null,
                     points: (forecast.forecasts || []).map(f => ({
-                        date: bkkDate(new Date(Date.now() + f.horizon_days * 86400e3)),
+                        date: f.target_date || bkkDate(new Date(Date.now() + f.horizon_days * 86400e3)),
                         predicted_thi: f.predicted_thi,
                         risk_level: f.risk_level
                     }))
@@ -842,13 +844,17 @@ router.get('/:id', verifyToken, requireRole('admin'), async (req, res) => {
             console.warn('[Farm Detail API] History readings query error:', err.message)
         }
 
-        // พยากรณ์ 3 วันแบบ baseline (ค่าเฉลี่ย THI 72 ชม.) ดู services/forecastService.js
+        // พยากรณ์ 3 วัน: พยากรณ์อากาศ + ปรับตามโรงเรือน (สำรอง: ค่าเฉลี่ย 72 ชม.) ดู services/forecastService.js
         let lstm_forecast = null
         try {
             lstm_forecast = await generateBaselineForecast(farm)
         } catch (fcErr) {
-            console.warn('[Farm Detail API] Baseline forecast error:', fcErr.message)
+            console.warn('[Farm Detail API] forecast error:', fcErr.message)
         }
+        // ผลที่บันทึกตอน 20:00 ใช้ได้ถ้าเป็นเวอร์ชันปัจจุบัน แต่ถ้าตอนนั้นใช้วิธีสำรอง (API ล่ม) และตอนนี้ได้พยากรณ์อากาศแล้ว ให้ใช้ผลล่าสุด
+        const savedForecast = saved_daily_summary?.lstm_forecast
+        const useSaved = isCurrentForecast(savedForecast)
+            && !(String(lstm_forecast?.engine || '').startsWith('openmeteo') && !String(savedForecast.engine || '').startsWith('openmeteo'))
 
         // ตรวจสอบความต่อเนื่องของสัญญาณเซ็นเซอร์ (Data Continuity & Gap Alert)
         let gapAlert = null
@@ -924,9 +930,7 @@ router.get('/:id', verifyToken, requireRole('admin'), async (req, res) => {
             saved_daily_summary,
             history,
             // ผลพยากรณ์ที่บันทึกจากเวอร์ชันเก่า (มีตัวเลขความแม่นยำปลอม) จะไม่ถูกนำมาแสดง
-            lstm_forecast: isCurrentForecast(saved_daily_summary?.lstm_forecast)
-                ? saved_daily_summary.lstm_forecast
-                : lstm_forecast,
+            lstm_forecast: useSaved ? savedForecast : lstm_forecast,
             hf_profile: profile,
             thresholds,
             gap_alert: gapAlert

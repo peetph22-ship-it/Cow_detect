@@ -111,13 +111,15 @@ function buildSeniorSummary(now, today, forecast, farm) {
     const nextDay = forecast?.forecasts?.[0]
     if (nextDay) {
         if (nextDay.risk_level === 'severe') {
-            forecastSimple = 'พรุ่งนี้ช่วงบ่ายจะร้อนจัดมาก ควรตรวจระบบพัดลมและน้ำสำรองล่วงหน้า'
+            forecastSimple = 'พรุ่งนี้จะร้อนจัดมาก ควรตรวจระบบพัดลมและน้ำสำรองล่วงหน้า'
         } else if (nextDay.risk_level === 'moderate') {
-            forecastSimple = 'พรุ่งนี้ช่วงบ่ายจะเริ่มร้อน มีช่วงที่วัวอาจอึดอัด ควรเตรียมเปิดพัดลม'
+            forecastSimple = 'พรุ่งนี้จะเริ่มร้อน มีช่วงที่วัวอาจอึดอัด ควรเตรียมเปิดพัดลม'
+        } else if (nextDay.risk_level === 'mild') {
+            forecastSimple = 'พรุ่งนี้อากาศอบอ้าว เฝ้าระวัง เปิดพัดลมช่วงที่ร้อนและเตรียมน้ำให้พอ'
         } else {
             forecastSimple = 'พรุ่งนี้อากาศสบายดี ลมพัดถ่ายเทสะดวก'
         }
-        if (forecast?.peak_window?.label && ['moderate', 'severe'].includes(nextDay.risk_level)) {
+        if (forecast?.peak_window?.label && ['mild', 'moderate', 'severe'].includes(nextDay.risk_level)) {
             forecastSimple += ` ช่วงร้อนที่สุดประมาณ ${forecast.peak_window.label}`
         }
     }

@@ -268,10 +268,9 @@ const statusBadgeStyle = computed(() => {
 
 // พยากรณ์ช่วงบ่าย
 const peakText = computed(() => {
-  if (me.value?.forecast?.peak_window) {
-    return `ช่วง ${me.value.forecast.peak_window} น.`
-  }
-  return 'ช่วงบ่าย 13:00 – 15:30 น.'
+  // peak_window เป็นออบเจกต์ { label: '12:00–16:00 น.' } (ไม่มีข้อมูล = ไม่เดาเวลา)
+  const label = me.value?.forecast?.peak_window?.label
+  return label ? `ช่วง ${label}` : 'ยังไม่มีข้อมูลพอระบุช่วงเวลา'
 })
 
 const tomorrowForecast = computed(() => me.value?.forecast?.days?.[0] || null)
@@ -279,12 +278,15 @@ const tomorrowForecast = computed(() => me.value?.forecast?.days?.[0] || null)
 const tomorrowText = computed(() => {
   if (tomorrowForecast.value?.risk_level === 'severe') return 'อากาศร้อนจัดมาก'
   if (tomorrowForecast.value?.risk_level === 'moderate') return 'อากาศค่อนข้างร้อน'
-  return 'อากาศสบาย ลมพัดดี'
+  if (tomorrowForecast.value?.risk_level === 'mild') return 'อากาศอบอ้าว เฝ้าระวัง'
+  if (!tomorrowForecast.value) return 'ยังไม่มีพยากรณ์'
+  return 'อากาศสบาย'
 })
 
 const tomorrowAdvice = computed(() => {
   if (tomorrowForecast.value?.risk_level === 'severe') return 'เตรียมเปิดพัดลมและเตรียมน้ำดื่มสำรอง'
   if (tomorrowForecast.value?.risk_level === 'moderate') return 'ช่วงบ่ายเปิดพัดลมระบายอากาศ'
+  if (tomorrowForecast.value?.risk_level === 'mild') return 'เปิดพัดลมช่วงที่ร้อน เตรียมน้ำให้พอ'
   return 'สภาพอากาศดี เหมาะแก่การให้นม'
 })
 

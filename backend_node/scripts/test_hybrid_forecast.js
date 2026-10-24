@@ -48,15 +48,36 @@ for (const f of r.forecasts) {
 for (const k of ['model_name', 'version', 'engine', 'method_th', 'evaluation_note', 'thresholds', 'hf_profile', 'peak_predicted_thi']) assert.ok(r[k] != null, k)
 assert.strictEqual(r.version, fs.FORECAST_VERSION); assert.strictEqual(r.insufficient_data, false)
 assert.ok(r.peak_window && r.cool_window, 'windows from forecast hours')
-assert.strictEqual(r.engine, 'openmeteo_ecmwf_farm_bias')
+assert.strictEqual(r.engine, 'openmeteo_ecmwf_ifs025_farm_bias')
+assert.ok(/0\.69\/0\.78\/0\.88/.test(r.evaluation_note), 'farm >= 9 days -> 14-day numbers')
 
 // 2) only 2 farm days -> regional bias, adjusted false, still a forecast
 r = fs.buildHybridForecast({ farm, om, farmDays: farmDays14.slice(-2), now })
-assert.ok(r && !r.adjusted && r.engine === 'openmeteo_ecmwf_regional_bias')
+assert.ok(r && !r.adjusted && r.engine === 'openmeteo_ecmwf_ifs025_regional_bias')
+assert.ok(/0\.77\/0\.83\/0\.90/.test(r.evaluation_note), 'regional numbers')
 assert.strictEqual(r.bias_by_horizon[1].source, 'regional'); assert.ok(/ยังไม่ได้ปรับตามโรงเรือน/.test(r.method_th))
 // days with < 20 h data are ignored; today never used
 r = fs.buildHybridForecast({ farm, om, farmDays: farmDays14.map((d, i) => ({ ...d, data_hours: i < 11 ? 10 : 24 })).concat([{ date: '2026-10-24', avg_thi: 99, data_hours: 13, is_today: true }]), now })
 assert.strictEqual(r.bias_days_used, 3); assert.ok(r.adjusted)
+assert.ok(/0\.80\/0\.92\/1\.07/.test(r.evaluation_note), '3-8 days -> 3-day numbers')
+// non-north farm without data: no regional bias (only measured for Chiang Mai / ECMWF)
+r = fs.buildHybridForecast({ farm: { ...farm, province: 'สระบุรี' }, om, farmDays: [], now })
+assert.strictEqual(r.bias_by_horizon[1].source, 'none'); assert.ok(/ยังไม่มีผลวัด/.test(r.evaluation_note))
+// best_match never gets the ECMWF regional bias
+r = fs.buildHybridForecast({ farm, om, farmDays: [], now, model: 'best_match' })
+assert.strictEqual(r.bias_by_horizon[1].value, 0); assert.ok(/best_match/.test(r.method_th))
+// one broken day (sensor in the sun, +12 THI) barely moves the median bias
+const broken = farmDays14.map((d, i) => i === 13 ? { ...d, avg_thi: d.avg_thi + 12 } : d)
+const rb = fs.buildHybridForecast({ farm, om, farmDays: broken, now })
+const rg = fs.buildHybridForecast({ farm, om, farmDays: farmDays14, now })
+assert.ok(Math.abs(rb.forecasts[0].predicted_thi - rg.forecasts[0].predicted_thi) <= 0.3, 'median resists one outlier')
+// extreme bias is clamped and flagged
+const crazy = farmDays14.map(d => ({ ...d, avg_thi: d.avg_thi + 20 }))
+const rc = fs.buildHybridForecast({ farm, om, farmDays: crazy, now })
+assert.ok(rc.bias_clamped && Math.abs(rc.bias_by_horizon[1].value) === 6 && /ตรวจเซ็นเซอร์/.test(rc.method_th))
+// barn windows override forecast windows
+const bw = { peak: { start_hour: 16, end_hour: 20, label: '16:00–20:00 น.', mean_thi: 80 }, cool: null }
+assert.strictEqual(fs.buildHybridForecast({ farm, om, farmDays: farmDays14, now, barnWindows: bw }).peak_window.label, '16:00–20:00 น.')
 
 // 3) forecast hours missing for day+3 -> null (caller falls back)
 const short = JSON.parse(JSON.stringify(om)); const cut = short.hourly.time.findIndex(t => t.startsWith('2026-10-27T12'))
@@ -79,7 +100,27 @@ assert.strictEqual(fs.buildHybridForecast({ farm, om: short, farmDays: farmDays1
   r = await fs.generateBaselineForecast({ ...farm, id_farms: 'f3', latitude: 18.8, longitude: 99.0 }, now)
   Date.now = realNow
   assert.ok(calledUrl.startsWith('https://previous-runs-api.open-meteo.com/v1/forecast') && /models=ecmwf_ifs025/.test(calledUrl) && /timezone=Asia%2FBangkok/.test(calledUrl) && /past_days=15/.test(calledUrl), calledUrl)
-  assert.strictEqual(r.engine, 'openmeteo_ecmwf_regional_bias'); assert.strictEqual(r.location.source, 'farm_coordinates')
+  assert.strictEqual(r.engine, 'openmeteo_ecmwf_ifs025_regional_bias'); assert.strictEqual(r.location.source, 'farm_coordinates')
+  // ECMWF down -> best_match used; failures remembered (no second call within 5 min)
+  let calls = []
+  axiosImpl = async (url) => { calls.push(url); if (/models=ecmwf_ifs025/.test(url)) throw new Error('HTTP 503'); return { data: om } }
+  Date.now = () => now.getTime()
+  const farm4 = { ...farm, id_farms: 'f4', latitude: 18.5, longitude: 98.9 }
+  r = await fs.generateBaselineForecast(farm4, now)
+  assert.ok(r.engine.startsWith('openmeteo_best_match'), r.engine)
+  const n1 = calls.length
+  await fs.generateBaselineForecast(farm4, now)
+  assert.strictEqual(calls.length, n1, 'cached (success and failure)')
+  Date.now = realNow
+  // farmDailyFromHourly-equivalent path: barn hours missing 12-16 -> day not used for bias
+  const rowsFor = (d, skip) => Array.from({ length: 24 }, (_, h) => h).filter(h => !skip.includes(h)).map(h => ({ hour_bucket: new Date(`${d}T${String(h).padStart(2, '0')}:00:00`), avg_thi: 80, avg_hum: 70 }))
+  dbRows = [].concat(...days('2026-10-19', 5).map(d => rowsFor(d, d === '2026-10-23' ? [12, 13, 14, 15] : [])))
+  calls = []; axiosImpl = async () => ({ data: om })
+  Date.now = () => now.getTime()
+  r = await fs.generateBaselineForecast({ ...farm, id_farms: 'f5', latitude: 18.6, longitude: 98.8 }, now)
+  Date.now = realNow
+  assert.strictEqual(r.bias_days_used, 4, 'day missing afternoon hours is skipped'); assert.strictEqual(r.windows_source, 'barn_last_72h')
+  dbRows = []
   // 7) old endTime (backfill) -> baseline
   r = await fs.generateBaselineForecast(farm, new Date(Date.now() - 3 * 86400e3))
   assert.ok(/baseline/.test(r.engine))
