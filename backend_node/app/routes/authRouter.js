@@ -6,7 +6,7 @@ const jwt = require('jsonwebtoken')
 const SECRET_KEY = process.env.SECRET_KEY
 
 // POST: Login API
-router.post('/login',async (req, res) => {
+router.post('/login', async (req, res) => {
     try {
         const identifier = (req.body.email || req.body.phone || req.body.username || '').trim()
         const password = req.body.password
@@ -16,7 +16,7 @@ router.post('/login',async (req, res) => {
                 message: 'กรุณากรอกอีเมลหรือเบอร์โทรศัพท์ และรหัสผ่าน' 
             })
         }
-        const {rows} = await db.query(
+        const { rows } = await db.query(
             'SELECT * FROM tb_users WHERE email = $1 OR phone = $1 LIMIT 1', 
             [identifier]
         )
@@ -90,38 +90,53 @@ router.post('/login',async (req, res) => {
     }
 })
 
+// POST: Logout API
+router.post('/logout', async (req, res) => {
+    try {
+        return res.status(200).json({
+            success: true,
+            message: 'Logout Success!'
+        })
+    } catch (err) {
+        console.error("Logout Error:", err.message)
+        return res.status(500).json({
+            success: false,
+            message: 'Server Error during logout'
+        })
+    }
+})
 
 // POST: Register API
-router.post('/register',async(req,res) => {
-    try{
-        const { email,full_name,phone,password,role,organization,status } = req.body
-        if(!full_name || !phone || !password || !role ) return res.status(400).json({
-            success:false,
-            message:'Please Enter your [full_name,phone,password,role]'
+router.post('/register', async (req, res) => {
+    try {
+        const { email, full_name, phone, password, role, organization, status } = req.body
+        if (!full_name || !phone || !password || !role) return res.status(400).json({
+            success: false,
+            message: 'Please Enter your [full_name,phone,password,role]'
         })
 
         const userStatus = status || 'active'
-        const hash = await bcrypt.hash(password,10)
-        const {rows} = await db.query(
+        const hash = await bcrypt.hash(password, 10)
+        const { rows } = await db.query(
             `insert into tb_users (email,name_users,phone,password,role,organization,status,created_at) values($1,$2,$3,$4,$5,$6,$7,NOW()) returning id_users,email,name_users,phone,role,organization,status`,
             [email || null, full_name, phone, hash, role, organization || null, userStatus]
         )
         return res.status(200).json({
             user: rows[0],
-            success:true,
-            message:'Register Success!'
+            success: true,
+            message: 'Register Success!'
         })
-    }catch(err){
+    } catch (err) {
         if (err.code === '23505') {
             return res.status(400).json({
                 success: false,
                 message: 'This phone or email is already registered!'
             })
         }
-        console.log("Error!, Register False!",err.message)
+        console.log("Error!, Register False!", err.message)
         res.status(500).json({
-            success:false,
-            message:'Error!, Register False!'
+            success: false,
+            message: 'Error!, Register False!'
         })
     }
 })

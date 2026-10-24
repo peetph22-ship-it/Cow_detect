@@ -1,59 +1,99 @@
 <template>
-  <div>
-    <!-- ส่วนบนเขียวเข้ม: สรุป 7 วัน -->
-    <section class="bg-[#142820] text-white">
-      <div class="max-w-5xl mx-auto px-4 pb-6 pt-2">
-        <h1 class="text-lg font-bold">แจ้งเตือน</h1>
-        <p class="text-xs text-[#9FB5AA]">เหตุการณ์ใน 7 วันที่ผ่านมา</p>
-        <div class="grid grid-cols-3 gap-2.5 mt-4">
-          <div class="bg-[#24433a] rounded-2xl p-3">
-            <div class="text-[11px] text-[#9FB5AA]">วิกฤต</div>
-            <div class="text-2xl font-bold tabular-nums" :class="counts.severe ? 'text-[#F2BD7C]' : ''">{{ counts.severe }}</div>
-          </div>
-          <div class="bg-[#24433a] rounded-2xl p-3">
-            <div class="text-[11px] text-[#9FB5AA]">เครียด</div>
-            <div class="text-2xl font-bold tabular-nums">{{ counts.moderate }}</div>
-          </div>
-          <div class="bg-[#24433a] rounded-2xl p-3">
-            <div class="text-[11px] text-[#9FB5AA]">เซ็นเซอร์หลุด</div>
-            <div class="text-2xl font-bold tabular-nums">{{ counts.offline }}</div>
-          </div>
+  <div class="space-y-5">
+
+    <!-- ส่วนหัว: สรุปเหตุการณ์แจ้งเตือน 7 วัน -->
+    <section class="bg-white rounded-3xl p-5 sm:p-7 shadow-xs border border-[#E5E7EB]">
+      <div class="flex items-center gap-3 pb-3 border-b border-gray-100">
+        <div class="w-12 h-12 rounded-2xl bg-[#FEE2E2] text-[#DC2626] flex items-center justify-center text-2xl font-bold">
+          <v-icon icon="mdi-bell-alert-outline" size="26" />
+        </div>
+        <div>
+          <h1 class="text-lg sm:text-xl font-bold text-[#15221B] leading-tight">
+            ประวัติการแจ้งเตือน
+          </h1>
+          <p class="text-xs sm:text-sm text-[#64748B] mt-0.5">
+            เหตุการณ์ความร้อนและสัญญาณเซ็นเซอร์ในรอบ 7 วัน
+          </p>
+        </div>
+      </div>
+
+      <!-- สรุปตัวเลข 3 ช่องใหญ่ -->
+      <div class="grid grid-cols-3 gap-3 mt-4">
+        <div class="p-3.5 rounded-2xl bg-[#FEF2F2] border border-[#FECACA] text-center">
+          <div class="text-xs font-bold text-[#991B1B]">ร้อนวิกฤต</div>
+          <div class="text-2xl sm:text-3xl font-black text-[#DC2626] mt-1 tabular-nums">{{ counts.severe }}</div>
+        </div>
+        <div class="p-3.5 rounded-2xl bg-[#FFFBEB] border border-[#FDE68A] text-center">
+          <div class="text-xs font-bold text-[#92400E]">เริ่มร้อน</div>
+          <div class="text-2xl sm:text-3xl font-black text-[#D97706] mt-1 tabular-nums">{{ counts.moderate }}</div>
+        </div>
+        <div class="p-3.5 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] text-center">
+          <div class="text-xs font-bold text-[#475569]">สัญญาณหลุด</div>
+          <div class="text-2xl sm:text-3xl font-black text-[#64748B] mt-1 tabular-nums">{{ counts.offline }}</div>
         </div>
       </div>
     </section>
 
-    <div class="max-w-3xl mx-auto px-4 py-5 space-y-5">
-      <div v-if="loadingEvents" class="text-center text-sm text-[#718078] py-8">กำลังโหลด...</div>
-      <p v-else-if="errorMsg" class="text-sm text-[#a4521c]">{{ errorMsg }}</p>
-      <div v-else-if="!events.length" class="bg-[#e6f2e7] border border-[#cfe5d2] rounded-[22px] p-6 text-center">
-        <v-icon icon="mdi-check-circle-outline" size="32" class="text-[#3e7d4f]" />
-        <p class="text-[15px] font-semibold mt-2">ไม่มีเหตุการณ์ใน 7 วันที่ผ่านมา</p>
-      </div>
+    <!-- รายการเหตุการณ์ตามกลุ่มวัน -->
+    <div v-if="loadingEvents" class="py-12 text-center text-sm font-bold text-[#64748B]">
+      <v-icon icon="mdi-loading" class="animate-spin text-[#2D6A4F] mb-2" size="32" />
+      <p>กำลังเปิดรายการแจ้งเตือน...</p>
+    </div>
 
-      <section v-for="g in groups" :key="g.date">
-        <h2 class="text-xs font-semibold text-[#718078] mb-2 px-1">{{ g.label }}</h2>
-        <div class="bg-[#fffdf7] border border-[#EFE6D6] rounded-[22px] px-4 py-1">
-          <div v-for="(e, i) in g.items" :key="e.start + e.type" class="flex gap-3 items-start py-3" :class="i < g.items.length - 1 ? 'border-b border-[#EFE6D6]' : ''">
-            <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" :class="iconClass(e)">
-              <v-icon :icon="e.type === 'heat' ? (e.level === 'severe' ? 'mdi-fire' : 'mdi-thermometer-alert') : 'mdi-wifi-off'" size="19" />
+    <div v-else-if="!events.length" class="bg-white rounded-3xl p-8 shadow-xs border border-[#BBF7D0] text-center space-y-2">
+      <div class="w-14 h-14 rounded-2xl bg-[#E8F5E9] text-[#16A34A] flex items-center justify-center mx-auto">
+        <v-icon icon="mdi-check-circle-outline" size="36" />
+      </div>
+      <h2 class="text-base sm:text-lg font-bold text-[#15221B]">ไม่มีเหตุการณ์ความร้อนผิดปกติใน 7 วันนี้</h2>
+      <p class="text-xs sm:text-sm text-[#55695D]">สภาพอากาศในคอกวัวอยู่ในเกณฑ์ปลอดภัย แม่วัวสบายดีจ้า</p>
+    </div>
+
+    <div v-else class="space-y-4">
+      <section v-for="g in groups" :key="g.date" class="space-y-2.5">
+        <div class="text-xs sm:text-sm font-bold text-[#475569] px-2 flex items-center gap-1.5">
+          <v-icon icon="mdi-calendar-clock" size="16" />
+          <span>{{ g.label }}</span>
+        </div>
+
+        <div class="bg-white rounded-3xl p-4 sm:p-5 shadow-xs border border-[#E5E7EB] space-y-3">
+          <div 
+            v-for="(e, i) in g.items" 
+            :key="e.start + e.type" 
+            class="p-4 rounded-2xl flex items-start gap-3.5 transition-all"
+            :class="e.type === 'heat' ? (e.level === 'severe' ? 'bg-[#FEF2F2] border border-[#FECACA]' : 'bg-[#FFFBEB] border border-[#FDE68A]') : 'bg-[#F8FAFC] border border-[#E2E8F0]'">
+            
+            <!-- ไอคอน -->
+            <div 
+              class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 text-xl font-bold"
+              :class="iconClass(e)">
+              <v-icon :icon="e.type === 'heat' ? (e.level === 'severe' ? 'mdi-fire' : 'mdi-thermometer-alert') : 'mdi-wifi-off'" size="24" />
             </div>
-            <div class="flex-1 min-w-0">
+
+            <!-- ข้อความ -->
+            <div class="min-w-0 flex-1">
               <div class="flex items-center justify-between gap-2">
-                <span class="text-[15px] font-semibold">{{ title(e) }}</span>
-                <span v-if="e.ongoing" class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#fbe6d6] text-[#a4521c] shrink-0">ยังเกิดอยู่</span>
+                <span class="text-base sm:text-lg font-bold text-[#15221B] leading-tight">{{ title(e) }}</span>
+                <span v-if="e.ongoing" class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#DC2626] text-white shrink-0 animate-pulse">
+                  ยังเกิดอยู่
+                </span>
               </div>
-              <div class="text-[13px] text-[#4e6057] tabular-nums mt-0.5">
-                {{ thaiTime(e.start) }} – {{ e.end ? thaiTime(e.end) : 'ตอนนี้' }} น. · {{ durationText(e.duration_min) }}
+
+              <div class="text-xs sm:text-sm text-[#475569] font-medium mt-1">
+                เวลา: {{ thaiTime(e.start) }} – {{ e.end ? thaiTime(e.end) : 'ตอนนี้' }} น. (นาน {{ durationText(e.duration_min) }})
               </div>
-              <div v-if="e.type === 'heat' && e.peak_temp != null" class="text-xs text-[#718078] mt-0.5">ร้อนสุด {{ e.peak_temp }}°C</div>
-              <div v-else-if="e.type === 'sensor_offline'" class="text-xs text-[#718078] mt-0.5">ข้อมูลช่วงนี้ไม่ครบ ตรวจไฟและอินเทอร์เน็ตที่โรงเรือน</div>
+
+              <div v-if="e.type === 'heat' && e.peak_temp != null" class="text-xs sm:text-sm font-bold text-[#B91C1C] mt-1">
+                ร้อนที่สุด {{ e.peak_temp }}°C · ควรให้น้ำสะอาดและเปิดพัดลมระบายอากาศ
+              </div>
+              <div v-else-if="e.type === 'sensor_offline'" class="text-xs sm:text-sm text-[#64748B] mt-1">
+                กล่องขาดการส่งสัญญาณ ตรวจสอบปลั๊กไฟและสาย Wi-Fi ที่โรงเรือน
+              </div>
             </div>
           </div>
         </div>
       </section>
-
-      <p v-if="events.length" class="text-xs text-[#718078] text-center pt-1">นับเฉพาะช่วงที่เครียดต่อเนื่องอย่างน้อย 30 นาที · การแจ้งเตือนทาง LINE จะมาเร็วๆ นี้</p>
     </div>
+
   </div>
 </template>
 
@@ -61,12 +101,11 @@
 import { useFarmer, thaiDate, thaiTime } from '~/composables/useFarmer'
 
 definePageMeta({ layout: 'farmer' })
-useHead({ title: 'แจ้งเตือน | CowCare AI' })
+useHead({ title: 'แจ้งเตือน | CowCare ฟาร์มโคนม' })
 
-const { farmId, request } = useFarmer()
+const { request } = useFarmer()
 const events = ref([])
 const loadingEvents = ref(true)
-const errorMsg = ref('')
 
 const bkkKey = (iso) => new Date(new Date(iso).getTime() + 7 * 3600e3).toISOString().slice(0, 10)
 
@@ -92,23 +131,21 @@ const groups = computed(() => {
   }))
 })
 
-const title = (e) => (e.type === 'sensor_offline' ? 'กล่องเซ็นเซอร์ขาดการติดต่อ' : e.level === 'severe' ? 'ร้อนถึงระดับวิกฤต' : 'วัวเครียดจากความร้อน')
-const iconClass = (e) => (e.type === 'sensor_offline' ? 'bg-[#eef1ef] text-[#718078]' : e.level === 'severe' ? 'bg-[#c2412d] text-white' : 'bg-[#fbe6d6] text-[#a4521c]')
+const title = (e) => (e.type === 'sensor_offline' ? 'กล่องเซ็นเซอร์เงียบ ขาดการติดต่อ' : e.level === 'severe' ? 'อากาศในคอกร้อนถึงระดับวิกฤต!' : 'อากาศเริ่มร้อน แม่วัวเริ่มอึดอัด')
+const iconClass = (e) => (e.type === 'sensor_offline' ? 'bg-gray-200 text-gray-700' : e.level === 'severe' ? 'bg-[#DC2626] text-white' : 'bg-[#D97706] text-white')
 const durationText = (min) => (min >= 60 ? `${Math.floor(min / 60)} ชม.${min % 60 ? ` ${min % 60} นาที` : ''}` : `${min} นาที`)
 
 const load = async () => {
   loadingEvents.value = true
   try {
-    const d = await request('events')
-    events.value = d.events || []
-    errorMsg.value = ''
-  } catch {
-    errorMsg.value = 'โหลดประวัติแจ้งเตือนไม่สำเร็จ'
+    const res = await request('events')
+    events.value = res?.events || []
+  } catch (err) {
+    console.error('Error loading events:', err.message)
   } finally {
     loadingEvents.value = false
   }
 }
 
 onMounted(load)
-watch(farmId, (v, old) => { if (old && v !== old) load() })
 </script>

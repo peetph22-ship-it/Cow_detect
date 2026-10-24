@@ -18,10 +18,19 @@ const rawOrigins = process.env.FRONTEND_URL
     : []
 const frontendOrigins = Array.from(new Set([...rawOrigins, 'http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001']))
 
+// ตรวจสอบ origin แบบยืดหยุ่น: รองรับ localhost, IP วงแลนเดียวกันของเพื่อน, และ Cloudflare/Ngrok tunnel
+const isAllowedOrigin = (origin) => {
+    if (!origin) return true
+    if (frontendOrigins.includes(origin) || frontendOrigins.includes('*')) return true
+    if (/^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/.test(origin)) return true
+    if (/\.(trycloudflare\.com|ngrok-free\.app|ngrok\.io|loca\.lt)$/.test(origin)) return true
+    return false
+}
+
 app.use(cors({
     origin: (origin, callback) => {
-        // อนุญาตคำขอที่ไม่มี origin (เช่น ESP32-S3, Postman, Server-to-Server) หรือตรงกับ Origin ที่อนุญาต
-        if (!origin || frontendOrigins.includes(origin) || frontendOrigins.includes('*')) {
+        // อนุญาตคำขอที่ไม่มี origin (ESP32-S3, Postman) หรือตรงกับ origin ที่อนุญาต/เพื่อนในวงแลน
+        if (isAllowedOrigin(origin)) {
             return callback(null, true)
         }
         return callback(new Error(`Origin ${origin} not allowed by CORS`))
@@ -34,20 +43,28 @@ app.use(express.json())
 
 // ===== Start Route =====
 
-// test route
-app.get('/',(req,res) => {
-    res.json({message:'Connect node success!'})
+// test & ping routes สำหรับให้หน้าบ้านหรือหลังบ้านเพื่อนทดสอบเชื่อมต่อ
+app.get('/', (req, res) => {
+    res.json({ message: 'Connect node success!', status: 'online', timestamp: new Date().toISOString() })
+})
+
+app.get('/ping', (req, res) => {
+    res.json({ success: true, message: 'CowCare AI Node Backend is alive', timestamp: new Date().toISOString() })
+})
+
+app.get('/api/ping', (req, res) => {
+    res.json({ success: true, message: 'CowCare AI Node Backend is alive', timestamp: new Date().toISOString() })
 })
 
 // routerAPI ===================
 
 // auth
 const auth = require('./app/routes/authRouter')
-app.use('/api/auth',auth)
+app.use('/api/auth', auth)
 
 // users
 const users = require('./app/routes/Admin/users')
-app.use('/api/Admin/users',users)
+app.use('/api/Admin/users', users)
 
 // sensors / IoT (Admin & Global)
 const sensors = require('./app/routes/Admin/sensors')
@@ -90,17 +107,16 @@ app.use('/api/Admin/system', systemRouter)
 app.use('/api/system', systemRouter)
 app.use('/api/alerts', systemRouter)
 
-
 // =============================
 
 // 404 Check
-app.use((req,res) => res.status(404).json({message: 'Invalid Route!'}))
+app.use((req, res) => res.status(404).json({ message: 'Invalid Route!' }))
 
 // Start Daily LSTM Scheduler (Runs daily at 20:00 Bangkok Time)
 const { startDailyLstmCron } = require('./app/services/dailyLstmScheduler')
 
 // End , Listen Port;
-app.listen(PORT , () => {
+app.listen(PORT, () => {
     console.log(`Server Running On Port ${PORT}`)
     startDailyLstmCron()
     if (process.env.VISION_PRELOAD === '1') require('./app/services/visionService').warmup()
