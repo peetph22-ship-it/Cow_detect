@@ -1682,7 +1682,11 @@ const forecastEngineBadge = computed(() => {
   if (String(f.engine || '').startsWith('openmeteo')) {
     return {
       label: 'พยากรณ์อากาศ',
-      detail: f.adjusted ? `ปรับตามโรงเรือน ${f.bias_days_used} วัน` : 'ปรับตามพื้นที่ (รอข้อมูลฟาร์ม 3 วัน)'
+      detail: f.adjusted
+        ? `ปรับตามโรงเรือน ${f.bias_days_used} วัน`
+        : String(f.engine).endsWith('_none_bias')
+          ? 'ยังไม่ปรับค่าเพี้ยน (รอข้อมูลฟาร์ม 3 วัน)'
+          : 'ปรับตามพื้นที่ (รอข้อมูลฟาร์ม 3 วัน)'
     }
   }
   return { label: 'สำรอง', detail: 'ค่าเฉลี่ย 72 ชม.' }

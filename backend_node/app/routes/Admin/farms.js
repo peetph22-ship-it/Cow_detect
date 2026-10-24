@@ -503,17 +503,20 @@ router.get('/dashboard-trend', verifyToken, requireRole('admin'), async (req, re
             ORDER BY f.created_at ASC NULLS LAST
             LIMIT ${TREND_MAX_FARMS}
         `)
-        const out = []
-        for (const farm of farms) {
+        // ทุกฟาร์มพร้อมกัน: ตอนพยากรณ์อากาศล่ม จะรอแค่ timeout เดียว ไม่ใช่ timeout x จำนวนฟาร์ม
+        const perFarm = await Promise.all(farms.map(async (farm) => {
             const profile = getFarmProfile(farm)
             const days = await dailySeries(farm.id_farms, profile, TREND_DAYS)
-            if (!days.some(d => d.has_data)) continue
-            let forecast = null
-            try {
-                forecast = await generateBaselineForecast(farm)
-            } catch (fcErr) {
+            if (!days.some(d => d.has_data)) return null
+            const forecast = await generateBaselineForecast(farm).catch(fcErr => {
                 console.warn('[Dashboard Trend] forecast error:', fcErr.message)
-            }
+                return null
+            })
+            return { farm, profile, days, forecast }
+        }))
+        const out = []
+        for (const item of perFarm.filter(Boolean)) {
+            const { farm, profile, days, forecast } = item
             out.push({
                 id: farm.id_farms,
                 name: farm.name_farms || 'ฟาร์ม',

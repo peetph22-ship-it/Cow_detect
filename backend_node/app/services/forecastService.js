@@ -31,6 +31,7 @@ const MIN_BIAS_DAYS = 3
 const MIN_DAY_HOURS = 20               // วันที่ใช้เรียนค่าเพี้ยนต้องมีข้อมูลเซ็นเซอร์อย่างน้อย 20 ชม.
 const OM_CACHE_MS = 60 * 60 * 1000
 const OM_FAIL_MS = 5 * 60 * 1000       // เรียกพลาดแล้ว ไม่ลองซ้ำภายใน 5 นาที (หน้าเว็บจะไม่ต้องรอ timeout ทุกครั้ง)
+const MIN_READINGS_PER_HOUR = 60     // กล่องส่งทุก ~15 วินาที: 60 ค่า = มีข้อมูลอย่างน้อย ~15 นาทีในชั่วโมงนั้น
 const MAX_ABS_BIAS = 6                 // ค่าเพี้ยนเกินนี้น่าจะมาจากเซ็นเซอร์ผิดปกติ: จำกัดไว้และติดธง
 const DAYTIME_HOURS = [10, 11, 12, 13, 14, 15, 16, 17]  // วันที่ใช้เรียนค่าเพี้ยนต้องมีช่วงนี้ (ขาดได้ไม่เกิน 1 ชม.)
 const OM_TIMEOUT_MS = 5000
@@ -126,7 +127,8 @@ const fetchHourlyThi = async (farmId, endTime = new Date(), hours = LOOKBACK_HOU
         SELECT
             date_trunc('hour', sr.recorded_at AT TIME ZONE 'Asia/Bangkok') AS hour_bucket,
             AVG(${thiSql('sr')})::float AS avg_thi,
-            AVG(sr.humidity_pct)::float AS avg_hum
+            AVG(sr.humidity_pct)::float AS avg_hum,
+            COUNT(*)::int AS n
         FROM tb_sensor_readings sr
         LEFT JOIN tb_devices d ON d.id_devices = sr.id_devices
         WHERE (d.id_farms = $1 OR sr.id_farms = $1)
@@ -223,12 +225,15 @@ const fetchPreviousRuns = async (lat, lon, model = OM_MODEL, dayKey = bkkDate(ne
     const url = 'https://previous-runs-api.open-meteo.com/v1/forecast'
         + `?latitude=${Number(lat).toFixed(4)}&longitude=${Number(lon).toFixed(4)}&hourly=${hourly}`
         + `&models=${model}&past_days=15&forecast_days=4&timezone=Asia%2FBangkok`
-    const job = (async () => {
+    let job
+    job = (async () => {
+        await null  // ให้ omInflight.set ด้านล่างทำก่อนเสมอ แม้มีอะไร throw ทันที
         try {
             // timeout = เวลารวมทั้งคำขอ (axios timeout บน Node นับแค่ช่วงที่ socket เงียบ)
             const { data } = await axios.get(url, { timeout: OM_TIMEOUT_MS, signal: AbortSignal.timeout(OM_TIMEOUT_MS) })
             if (!data?.hourly?.time?.length) throw new Error('Open-Meteo previous-runs: empty response')
-            for (const k of omCache.keys()) if (!k.endsWith(`_${dayKey}`)) omCache.delete(k)  // ทิ้งของวันก่อน
+            // ทิ้งของวันที่เก่ากว่า dayKey (ไม่ลบของวันอื่นที่ใหม่กว่า เช่น สรุปเมื่อวานที่รันหลังเที่ยงคืน)
+            for (const m of [omCache, omFail]) for (const k of m.keys()) if (k.slice(-10) < dayKey) m.delete(k)
             omCache.set(key, { data, at: Date.now() })
             omFail.delete(key)
             return data
@@ -236,7 +241,7 @@ const fetchPreviousRuns = async (lat, lon, model = OM_MODEL, dayKey = bkkDate(ne
             omFail.set(key, { error: err, at: Date.now() })
             throw err
         } finally {
-            omInflight.delete(key)
+            if (omInflight.get(key) === job) omInflight.delete(key)
         }
     })()
     omInflight.set(key, job)
@@ -271,6 +276,7 @@ const farmDailyFromHourly = (rows) => {
     for (const r of rows) {
         const thi = Number(r.avg_thi)
         if (!Number.isFinite(thi) || !r.hour_bucket) continue
+        if (r.n != null && Number(r.n) < MIN_READINGS_PER_HOUR) continue
         const t = new Date(r.hour_bucket)
         const d = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`
         if (!by.has(d)) by.set(d, new Map())
@@ -330,7 +336,9 @@ const buildHybridForecast = ({ farm, om, farmObs = null, farmDays = [], barnWind
         }
     }
     const adjusted = HORIZONS.every(h => bias[h.offset].source === 'farm')
-    const source = adjusted ? 'farm' : bias[1].source
+    // ข้อความยึดแหล่งที่อ่อนที่สุดของทั้ง 3 ระยะ (farm > regional > none)
+    const RANK = { farm: 2, regional: 1, none: 0 }
+    const source = HORIZONS.map(h => bias[h.offset].source).reduce((a, b) => (RANK[b] < RANK[a] ? b : a))
     const daysUsed = Math.min(...HORIZONS.map(h => bias[h.offset].days))
     const biasClamped = HORIZONS.some(h => bias[h.offset].clamped)
 
@@ -430,6 +438,8 @@ const generateBaselineForecast = async (farm, endTime = new Date()) => {
         } catch (err) {
             apiError = err
             console.warn(`[Forecast] Open-Meteo ${model} unavailable:`, err.message)
+            // timeout/เครือข่ายล่ม = แบบจำลองอื่นจากเซิร์ฟเวอร์เดียวกันก็น่าจะล่มด้วย ไม่ต้องรอซ้ำ
+            if (/timeout|abort|ENOTFOUND|ECONNREFUSED|ECONNRESET|EAI_AGAIN|network/i.test(`${err.code || ''} ${err.name || ''} ${err.message || ''}`)) break
         }
     }
     return baselineWithReason(farm, endTime, apiError
