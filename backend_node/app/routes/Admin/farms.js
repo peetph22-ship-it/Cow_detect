@@ -165,7 +165,7 @@ router.get('/user_farms', verifyToken, requireRole('admin'), async (req, res) =>
 // -----------------------------------------------------------------
 router.get('/devices', verifyToken, requireRole('admin'), async (req, res) => {
     try {
-        let { rows } = await db.query(`
+        const { rows } = await db.query(`
             SELECT d.id_devices, d.name_devices, d.serial_no, d.status, d.type, d.id_farms,
                    f.name_farms
             FROM tb_devices d
@@ -173,17 +173,7 @@ router.get('/devices', verifyToken, requireRole('admin'), async (req, res) => {
             ORDER BY d.created_at DESC
         `)
 
-        // ถ้ายังไม่มีอุปกรณ์ใน tb_devices เลย ให้สร้างตัวเริ่มต้นอย่างปลอดภัย
-        if (rows.length === 0) {
-            const insertDev = await db.query(`
-                INSERT INTO tb_devices (name_devices, serial_no, type, status, last_seen_at)
-                VALUES ('ESP32 SHT20 (ESP32-S3-01)', 'ESP32-S3-01', 'env_sensor', 'online', NOW())
-                ON CONFLICT (serial_no) DO UPDATE SET status = 'online'
-                RETURNING id_devices, name_devices, serial_no, status, type, id_farms
-            `)
-            rows = insertDev.rows
-        }
-
+        // ไม่มีอุปกรณ์ = คืนรายการว่าง (เดิมสร้างบอร์ด ESP32-S3-01 สถานะ online ปลอมให้เอง)
         res.json({
             success: true,
             devices: rows
@@ -258,18 +248,18 @@ router.post('/', verifyToken, requireRole('admin'), async (req, res) => {
             )
         }
 
-        // 3. ผูกอุปกรณ์กับฟาร์ม
+        // 3. ผูกอุปกรณ์กับฟาร์ม (ไม่แตะ status/last_seen_at: สถานะมาจากข้อมูลที่บอร์ดส่งจริงเท่านั้น)
         let assignedDevice = null
         if (id_devices) {
             if (isUUID(id_devices)) {
                 const devUpdate = await client.query(
-                    `UPDATE tb_devices SET id_farms = $1, status = 'online', last_seen_at = NOW() WHERE id_devices = $2 RETURNING *`,
+                    `UPDATE tb_devices SET id_farms = $1 WHERE id_devices = $2 RETURNING *`,
                     [farmId, id_devices]
                 )
                 if (devUpdate.rows.length > 0) assignedDevice = devUpdate.rows[0]
             } else {
                 const devUpdate = await client.query(
-                    `UPDATE tb_devices SET id_farms = $1, status = 'online', last_seen_at = NOW() WHERE serial_no = $2 RETURNING *`,
+                    `UPDATE tb_devices SET id_farms = $1 WHERE serial_no = $2 RETURNING *`,
                     [farmId, String(id_devices).trim()]
                 )
                 if (devUpdate.rows.length > 0) assignedDevice = devUpdate.rows[0]
@@ -278,8 +268,9 @@ router.post('/', verifyToken, requireRole('admin'), async (req, res) => {
             const serial = device_serial.trim()
             const devName = new_device_name ? new_device_name.trim() : `ESP32 SHT20 (${serial})`
             const devRes = await client.query(
-                `INSERT INTO tb_devices (id_farms, type, name_devices, serial_no, status, last_seen_at, created_at, updated_at)
-                 VALUES ($1, 'env_sensor', $2, $3, 'online', NOW(), NOW(), NOW())
+                // admin ลงทะเบียนบอร์ดใหม่: เริ่มเป็น offline จนกว่าบอร์ดจะส่งข้อมูลจริง
+                `INSERT INTO tb_devices (id_farms, type, name_devices, serial_no, status, created_at, updated_at)
+                 VALUES ($1, 'env_sensor', $2, $3, 'offline', NOW(), NOW())
                  ON CONFLICT (serial_no) DO UPDATE SET id_farms = $1, name_devices = EXCLUDED.name_devices
                  RETURNING *`,
                 [farmId, devName, serial]

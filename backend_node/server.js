@@ -11,6 +11,9 @@ process.on('unhandledRejection', (reason) => {
 })
 
 const app = express()
+// Render (และ Cloudflare Tunnel) อยู่หน้าเซิร์ฟเวอร์ 1 ชั้น: ให้ req.ip เป็น IP จริงของผู้ใช้/บอร์ด แทน IP ของ proxy
+// (ใช้ใน log ของ device auth) ไว้ 1 ชั้นพอ ถ้าเชื่อทุกชั้น ใครก็ปลอม X-Forwarded-For ได้
+app.set('trust proxy', 1)
 const PORT = process.env.PORT || 4001
 
 const rawOrigins = process.env.FRONTEND_URL 
