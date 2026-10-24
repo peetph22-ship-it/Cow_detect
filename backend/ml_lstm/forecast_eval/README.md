@@ -7,6 +7,7 @@
 sh fetch_station_data.sh ~/cowcare_forecast_data
 ../../venv/bin/python -I verify_openmeteo.py ~/cowcare_forecast_data   # 3 แบบจำลอง + ปรับค่าเพี้ยนจาก N วัน
 ../../venv/bin/python -I eval_strict.py ~/cowcare_forecast_data        # แบบเข้มงวด + GRU + ค่าเพี้ยนพื้นที่
+node eval_barn_live.js                                                 # วัดความแม่นในโรงเรือนจริงจาก DB (SELECT อย่างเดียว)
 ```
 
 ผลหลัก (eval_strict.py, ทดสอบ 2024-12-19..2025-12-07 (354 วันที่มีข้อมูลครบ), MAE ของ THI เฉลี่ยรายวัน):
