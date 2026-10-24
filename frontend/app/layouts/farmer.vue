@@ -1,55 +1,55 @@
 <template>
   <div 
-    class="min-h-screen bg-[#F6F8F5] text-[#132A1F] font-sans selection:bg-[#2D6A4F]/20 flex flex-col transition-all duration-200"
+    class="min-h-screen bg-[#F7F9F6] text-[#0F291E] font-sans selection:bg-[#2D6A4F]/20 flex flex-col transition-all duration-200 antialiased"
     :class="fontSizeClass">
 
-    <!-- แถบด้านบนสุด: ทันสมัย คลีน สบายตา สีเขียวธรรมชาติพรีเมียม -->
-    <header class="bg-[#143225] text-white sticky top-0 z-40 border-b border-white/10 shadow-sm backdrop-blur-md">
-      <div class="max-w-4xl mx-auto px-4 h-16 sm:h-20 flex items-center justify-between gap-3">
+    <!-- แถบด้านบนสุด: Deep Forest Glassmorphic Header สวยงาม พรีเมียม ทันสมัย -->
+    <header class="bg-gradient-to-r from-[#0D241A] via-[#133324] to-[#1A4230] text-white sticky top-0 z-40 border-b border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.12)]">
+      <div class="max-w-3xl mx-auto px-4 h-16 sm:h-20 flex items-center justify-between gap-3">
         
-        <!-- ซ้าย: โลโก้ฟาร์ม + ชื่อโรงเรือน + สถานะกล่องออนไลน์ -->
+        <!-- ซ้าย: โลโก้ฟาร์มโมเดิร์น + ชื่อโรงเรือน -->
         <div class="flex items-center gap-3 min-w-0">
-          <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-[#204E3B] border border-white/15 flex items-center justify-center shrink-0 shadow-inner">
-            <v-icon icon="mdi-barn" size="24" class="text-[#B7E4C7]" />
+          <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-[#2D6A4F] to-[#1B4332] border border-white/20 flex items-center justify-center shrink-0 shadow-[0_4px_12px_rgba(0,0,0,0.15)]">
+            <v-icon icon="mdi-barn" size="24" class="text-[#D8F3DC]" />
           </div>
           <div class="min-w-0">
             <div class="flex items-center gap-2">
               <h1 class="text-base sm:text-lg font-black leading-tight truncate text-white tracking-wide">
                 {{ farm?.name || 'CowCare ฟาร์มโคนม' }}
               </h1>
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#204E3B] text-[#B7E4C7] shrink-0 border border-white/10">
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-white/10 backdrop-blur-md text-[#95D5B2] shrink-0 border border-white/15 shadow-2xs">
                 <span class="w-1.5 h-1.5 rounded-full bg-[#52B788] animate-pulse"></span>
                 <span>ออนไลน์</span>
               </span>
             </div>
-            <div class="text-xs sm:text-sm text-[#95D5B2] truncate mt-0.5 font-medium">
-              {{ farm?.barn_unit || 'โรงเรือนโคนม' }} · {{ farm?.province || 'ภาคกลาง' }}
+            <div class="text-xs sm:text-sm text-[#95D5B2]/90 truncate mt-0.5 font-medium">
+              {{ farm?.barn_unit || 'โรงเรือนโคนม' }} · {{ farm?.province || 'ระบบตรวจจับความเครียด' }}
             </div>
           </div>
         </div>
 
-        <!-- ขวา: เครื่องมือช่วยเหลือผู้สูงอายุ (ฟังเสียง + ปรับขนาดตัวหนังสือ + ออกจากระบบ) -->
+        <!-- ขวา: แถบเครื่องมือช่วยผู้สูงอายุ (ฟังเสียง + ปรับขนาดตัวหนังสือ + ออกจากระบบ) -->
         <div class="flex items-center gap-2 shrink-0">
-          <!-- ปุ่มอ่านออกเสียง -->
+          <!-- ปุ่มฟังเสียงด่วนบน Header -->
           <button
             type="button"
             @click="handleVoiceToggle"
-            class="px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95"
-            :class="isSpeaking ? 'bg-[#E07A5F] text-white animate-pulse' : 'bg-[#204E3B] hover:bg-[#2D6A4F] text-white border border-white/15'"
+            class="px-3 py-2 rounded-xl text-xs sm:text-sm font-extrabold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
+            :class="isSpeaking ? 'bg-[#E07A5F] text-white animate-pulse' : 'bg-white/10 hover:bg-white/15 text-white border border-white/15'"
             :title="isSpeaking ? 'กดเพื่อหยุดพูด' : 'กดเพื่อให้ระบบอ่านออกเสียงสรุป'">
             <v-icon :icon="isSpeaking ? 'mdi-volume-high' : 'mdi-volume-medium'" size="18" />
             <span class="hidden sm:inline">{{ isSpeaking ? 'หยุดพูด' : 'ฟังเสียง' }}</span>
           </button>
 
           <!-- ปุ่มขยายตัวหนังสือ (ก / ก+ / ก++) -->
-          <div class="flex items-center bg-[#0D241A] p-1 rounded-xl border border-white/10">
+          <div class="flex items-center bg-black/25 backdrop-blur-md p-1 rounded-xl border border-white/10">
             <button
               v-for="s in fontOptions"
               :key="s.key"
               type="button"
               @click="setFontSize(s.key)"
-              class="px-2 py-1 sm:px-2.5 sm:py-1 rounded-lg text-xs sm:text-sm font-extrabold transition-all cursor-pointer"
-              :class="fontSize === s.key ? 'bg-[#2D6A4F] text-[#F8F9F5] shadow-xs' : 'text-[#8EA89D] hover:text-white'">
+              class="px-2 py-1 sm:px-2.5 sm:py-1 rounded-lg text-xs sm:text-sm font-black transition-all cursor-pointer"
+              :class="fontSize === s.key ? 'bg-[#2D6A4F] text-[#F8F9F5] shadow-xs' : 'text-[#95D5B2] hover:text-white'">
               {{ s.label }}
             </button>
           </div>
@@ -58,7 +58,7 @@
           <button
             type="button"
             @click="openLogoutModal"
-            class="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-xs sm:text-sm font-bold bg-[#B91C1C]/25 hover:bg-[#B91C1C] text-[#FCA5A5] hover:text-white border border-[#B91C1C]/40 flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs active:scale-95"
+            class="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-xs sm:text-sm font-black bg-[#EF4444]/20 hover:bg-[#DC2626] text-[#FCA5A5] hover:text-white border border-[#EF4444]/40 flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs active:scale-95"
             title="ออกจากระบบ">
             <v-icon icon="mdi-logout" size="17" />
             <span class="inline">ออก</span>
@@ -66,38 +66,38 @@
         </div>
       </div>
 
-      <!-- สลับฟาร์ม (กรณีเกษตรกรมีหลายฟาร์ม) -->
-      <div v-if="farms.length > 1" class="max-w-4xl mx-auto px-4 pb-3">
+      <!-- สลับฟาร์ม (กรณีมีหลายฟาร์ม) -->
+      <div v-if="farms.length > 1" class="max-w-3xl mx-auto px-4 pb-3">
         <select
           :value="farmId"
           @change="selectFarm($event.target.value)"
-          class="w-full sm:w-80 bg-[#0D241A] text-white rounded-xl px-3 py-2 text-sm border border-white/15 outline-none font-bold">
+          class="w-full sm:w-80 bg-black/30 text-white rounded-xl px-3.5 py-2 text-sm border border-white/15 outline-none font-bold backdrop-blur-md">
           <option v-for="f in farms" :key="f.id" :value="f.id" class="text-black">{{ f.name }}</option>
         </select>
       </div>
 
-      <!-- แถบแจ้งเตือนอุปกรณ์ (เมื่อเซ็นเซอร์มีปัญหา) -->
+      <!-- แถบแจ้งเตือนเมื่อเซ็นเซอร์หลุด -->
       <div v-if="deviceAlert" class="bg-[#B45309] text-white text-xs sm:text-sm font-bold px-4 py-2 border-t border-black/10">
-        <div class="max-w-4xl mx-auto flex items-center gap-2">
+        <div class="max-w-3xl mx-auto flex items-center gap-2">
           <v-icon :icon="deviceAlert.icon" size="18" class="shrink-0" />
           <span>{{ deviceAlert.text }}</span>
         </div>
       </div>
     </header>
 
-    <!-- เนื้อหาหลัก -->
-    <main class="flex-1 max-w-4xl w-full mx-auto px-4 py-5 pb-28 md:pb-12">
-      <!-- Loading State -->
-      <div v-if="!loaded" class="py-24 text-center space-y-3">
-        <div class="w-14 h-14 rounded-2xl bg-white text-[#2D6A4F] mx-auto flex items-center justify-center shadow-xs border border-gray-100">
-          <v-icon icon="mdi-loading" class="animate-spin" size="32" />
+    <!-- เนื้อหาหลักของแต่ละหน้า -->
+    <main class="flex-1 max-w-3xl w-full mx-auto px-4 py-5 pb-32">
+      <!-- Loading State สวยงาม -->
+      <div v-if="!loaded" class="py-24 text-center space-y-4">
+        <div class="w-16 h-16 rounded-3xl bg-white text-[#2D6A4F] mx-auto flex items-center justify-center shadow-md border border-[#E5ECE7]">
+          <v-icon icon="mdi-loading" class="animate-spin" size="36" />
         </div>
         <p class="text-base font-bold text-[#55695D]">กำลังโหลดข้อมูลฟาร์มของคุณตาคุณยาย...</p>
       </div>
 
       <!-- Error State -->
       <div v-else-if="error && !me" class="max-w-md mx-auto py-16 text-center space-y-4">
-        <div class="w-16 h-16 rounded-3xl bg-[#FEF2F2] text-[#DC2626] mx-auto flex items-center justify-center border border-[#FECACA]">
+        <div class="w-16 h-16 rounded-3xl bg-[#FEF2F2] text-[#DC2626] mx-auto flex items-center justify-center border border-[#FECACA] shadow-sm">
           <v-icon icon="mdi-wifi-off" size="36" />
         </div>
         <h2 class="text-lg font-bold text-[#15221B]">{{ error }}</h2>
@@ -111,7 +111,7 @@
 
       <!-- Unbound Farm State -->
       <div v-else-if="!farm" class="max-w-md mx-auto py-16 text-center space-y-3">
-        <div class="w-16 h-16 rounded-3xl bg-[#FEF3C7] text-[#D97706] mx-auto flex items-center justify-center border border-[#FDE68A]">
+        <div class="w-16 h-16 rounded-3xl bg-[#FEF3C7] text-[#D97706] mx-auto flex items-center justify-center border border-[#FDE68A] shadow-sm">
           <v-icon icon="mdi-barn" size="36" />
         </div>
         <h2 class="text-lg font-bold text-[#15221B]">{{ me?.message || 'ยังไม่พบข้อมูลฟาร์มของคุณ' }}</h2>
@@ -127,30 +127,32 @@
       </template>
     </main>
 
-    <!-- แถบเมนูด้านล่างสุด: สไตล์ Floating Card ทันสมัย ปุ่มใหญ่ ไม่หลง -->
-    <nav class="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#E5E9E5] shadow-[0_-8px_30px_rgba(0,0,0,0.05)] px-3 pt-2 pb-[max(0.7rem,env(safe-area-inset-bottom))]">
-      <div class="grid grid-cols-4 gap-2 max-w-lg mx-auto">
-        <NuxtLink
-          v-for="item in navItems"
-          :key="item.to"
-          :to="item.to"
-          class="flex flex-col items-center justify-center py-2 px-1 rounded-2xl transition-all text-decoration-none min-h-[58px] select-none active:scale-95"
-          :class="isActive(item.to) 
-            ? 'bg-[#EBF6EE] text-[#1B4332] font-black shadow-2xs border border-[#CDE8D5]' 
-            : 'text-[#64748B] hover:text-[#15221B] font-semibold border border-transparent'">
-          <div class="relative">
-            <v-icon :icon="item.icon" size="24" :class="isActive(item.to) ? 'text-[#1B4332]' : 'text-[#64748B]'" />
-            <span v-if="item.badge" class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#E07A5F] ring-2 ring-white"></span>
-          </div>
-          <span class="text-xs leading-none mt-1 tracking-tight text-center">{{ item.label }}</span>
-        </NuxtLink>
-      </div>
-    </nav>
+    <!-- Floating Navigation Bar เกาะลอยด้านล่างสไตล์โมเดิร์น สวยมากและแตะง่าย -->
+    <div class="fixed bottom-0 inset-x-0 z-40 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pointer-events-none">
+      <nav class="max-w-md mx-auto bg-white/95 backdrop-blur-xl border border-white/80 shadow-[0_16px_40px_rgba(15,41,30,0.12)] rounded-3xl p-1.5 pointer-events-auto">
+        <div class="grid grid-cols-4 gap-1.5">
+          <NuxtLink
+            v-for="item in navItems"
+            :key="item.to"
+            :to="item.to"
+            class="flex flex-col items-center justify-center py-2 px-1 rounded-2xl transition-all duration-200 text-decoration-none min-h-[58px] select-none active:scale-95"
+            :class="isActive(item.to) 
+              ? 'bg-[#143225] text-white font-black shadow-md' 
+              : 'text-[#64748B] hover:text-[#15221B] font-bold hover:bg-gray-50'">
+            <div class="relative">
+              <v-icon :icon="item.icon" size="24" :class="isActive(item.to) ? 'text-[#B7E4C7]' : 'text-[#64748B]'" />
+              <span v-if="item.badge" class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#E07A5F] ring-2 ring-white"></span>
+            </div>
+            <span class="text-xs leading-none mt-1 tracking-tight text-center">{{ item.label }}</span>
+          </NuxtLink>
+        </div>
+      </nav>
+    </div>
 
-    <!-- Modal ยืนยันออกจากระบบสำหรับผู้สูงอายุ (Modern Senior-Friendly Modal) -->
+    <!-- Modal ยืนยันออกจากระบบ (Senior-Friendly Modern Confirmation Dialog) -->
     <div 
       v-if="showLogoutModal" 
-      class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+      class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl border border-gray-100 text-center space-y-4 animate-in fade-in zoom-in-95 duration-150">
         <div class="w-16 h-16 rounded-full bg-[#FEF2F2] text-[#DC2626] mx-auto flex items-center justify-center shadow-inner border border-[#FECACA]">
           <v-icon icon="mdi-logout-variant" size="32" />
@@ -202,7 +204,6 @@ const {
   isSpeaking,
   speakThai,
   stopSpeech,
-  currentBackendUrl,
   showLogoutModal,
   openLogoutModal,
   cancelLogout,
