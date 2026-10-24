@@ -1,5 +1,6 @@
 # import zone
 import os
+import re
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,6 +12,21 @@ class HealthCheckFilter(logging.Filter):
         return "GET / " not in message and "GET / HTTP" not in message
 
 logging.getLogger("uvicorn.access").addFilter(HealthCheckFilter())
+
+
+# access log ของ uvicorn พิมพ์ query string เต็ม: ซ่อนค่า rtsp_url (มี user:password ของกล้อง)
+class MaskCameraCredentialsFilter(logging.Filter):
+    _RTSP_QUERY_RE = re.compile(r"(rtsp_url=)[^&\s]*", re.IGNORECASE)
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if isinstance(record.args, tuple) and len(record.args) >= 3:
+            args = list(record.args)
+            args[2] = self._RTSP_QUERY_RE.sub(r"\1<hidden>", str(args[2]))
+            record.args = tuple(args)
+        return True
+
+
+logging.getLogger("uvicorn.access").addFilter(MaskCameraCredentialsFilter())
 
 # import api zone
 from app.api.detect import router as detect_router

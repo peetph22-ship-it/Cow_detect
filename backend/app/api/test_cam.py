@@ -1,4 +1,5 @@
 import json
+import re
 import threading
 from datetime import datetime, timezone
 import cv2
@@ -10,6 +11,13 @@ from typing import Optional, Dict, Any, List
 from fastapi import APIRouter, Query
 from fastapi.responses import StreamingResponse
 from ultralytics import YOLO
+
+# ซ่อน user:password ใน RTSP URL ก่อนพิมพ์ log / เขียนบนภาพ / บันทึกลงไฟล์ตัวอย่าง
+_RTSP_CRED_RE = re.compile(r"(rtsps?://)[^@/\s]*@", re.IGNORECASE)
+
+
+def mask_source(source: str) -> str:
+    return _RTSP_CRED_RE.sub(r"\1***@", str(source))
 from app.services.behavior_engine import CowStateTracker
 
 router = APIRouter()
@@ -163,6 +171,7 @@ def generate_frames(
 ):
     tracker = get_or_create_tracker(farm_id=farm_id, camera_id=camera_id)
     str_source = str(source).strip()
+    safe_source = mask_source(str_source)
     is_simulation = False
     is_rtsp = False
 
@@ -178,7 +187,7 @@ def generate_frames(
         is_rtsp = True
         cap = cv2.VideoCapture(str_source, cv2.CAP_FFMPEG)
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Low-latency RTSP
-        print(f"[Camera API] 📡 Connecting Hikvision RTSP Stream: {str_source[:30]}...")
+        print(f"[Camera API] 📡 Connecting RTSP stream: {safe_source}")
     else:
         # USB / Local Webcam index
         try:
@@ -191,9 +200,9 @@ def generate_frames(
         print(f"[Camera API] 🎥 Camera index {cam_idx} opened via AVFoundation.")
 
     if not cap.isOpened():
-        print(f"[Camera API] ❌ Video source '{str_source}' cannot be opened!")
+        print(f"[Camera API] ❌ Video source '{safe_source}' cannot be opened!")
         err_frame = np.zeros((480, 640, 3), dtype=np.uint8)
-        cv2.putText(err_frame, f"Source Not Available: {str_source[:35]}", (40, 210), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+        cv2.putText(err_frame, f"Source Not Available: {safe_source[:35]}", (40, 210), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
         cv2.putText(err_frame, "Please check RTSP URL, USB connection or select Simulation.", (30, 260), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1)
         ret, buffer = cv2.imencode(".jpg", err_frame)
         if ret:
@@ -310,13 +319,13 @@ def generate_frames(
                 avg_conf = float(np.mean(confs))
                 if 0.20 <= avg_conf < 0.40:
                     now_t = time.time()
-                    cam_k = camera_id or ("simulation" if is_simulation else str_source.replace("/", "_"))
+                    cam_k = camera_id or ("simulation" if is_simulation else safe_source.replace("/", "_").replace(":", "_"))
                     last_save = getattr(tracker, "_last_al_save_time", 0.0)
                     if (now_t - last_save) >= 10.0:  # Sample at most once every 10 seconds per camera
                         tracker._last_al_save_time = now_t
                         al_meta = {
                             "timestamp": datetime.now(timezone.utc).isoformat(),
-                            "camera_id": camera_id or str_source,
+                            "camera_id": camera_id or safe_source,
                             "farm_id": farm_id,
                             "thi": current_thi,
                             "avg_conf": round(avg_conf, 3),
@@ -358,7 +367,7 @@ def generate_frames(
             )
     finally:
         cap.release()
-        print(f"[Camera API] 🛑 Camera stream source '{str_source}' closed.")
+        print(f"[Camera API] 🛑 Camera stream source '{safe_source}' closed.")
 
 
 # ตรวจสอบรายการกล้องทั้งหมดที่เชื่อมต่ออยู่
@@ -396,12 +405,17 @@ def get_camera_status():
 async def video_feed(
     source: str = Query("0", description="Camera index (0, 1), RTSP URL, or 'simulation'"),
     cam_id: Optional[str] = Query(None, description="Alias for source"),
+    rtsp_url: Optional[str] = Query(None, description="RTSP URL (ใช้คู่กับ cam_id=rtsp ตามที่หน้าเว็บส่งมา)"),
     farm_id: Optional[str] = Query(None, description="Farm UUID for telemetry binding"),
     camera_id: Optional[str] = Query(None, description="Camera UUID"),
     thi: Optional[float] = Query(None, description="Current ambient THI"),
     flip: bool = Query(False, description="Mirror image horizontally")
 ):
-    selected_source = cam_id if cam_id is not None else source
+    # หน้าเว็บส่ง cam_id=rtsp&rtsp_url=... ถ้าไม่อ่าน rtsp_url ค่า "rtsp" จะถูกตีความเป็นกล้อง USB
+    if rtsp_url and cam_id in (None, "rtsp"):
+        selected_source = rtsp_url
+    else:
+        selected_source = cam_id if cam_id is not None else source
     return StreamingResponse(
         generate_frames(
             source=selected_source,
