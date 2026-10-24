@@ -1,195 +1,333 @@
 <template>
-  <div>
-    <!-- ส่วนบนเขียวเข้ม: สภาพในโรงเรือนตอนนี้ -->
-    <section class="bg-[#142820] text-white">
-      <div class="max-w-5xl mx-auto px-4 pb-6 pt-2">
-        <div class="bg-[#24433a] rounded-[24px] p-5 md:p-6 md:grid md:grid-cols-[1.2fr_1fr] md:gap-8 md:items-center">
-          <div>
-            <div class="flex items-center justify-between text-xs text-[#9FB5AA]">
-              <span>ตอนนี้ในโรงเรือน</span>
-              <span v-if="now">อัปเดต {{ agoText(now.minutes_ago) }}</span>
+  <div class="space-y-4 sm:space-y-6">
+
+    <!-- 1. การ์ดสภาพอากาศในคอกตอนนี้ (Minimal, ตัวเลขใหญ่สะใจ คนแก่เห็นชัดเจน) -->
+    <section 
+      class="rounded-3xl p-5 sm:p-7 shadow-xs border transition-all duration-300"
+      :class="statusCardStyle">
+      
+      <!-- หัวการ์ด: ป้ายสถานะ + เวลาอัปเดต + ป้ายหลังบ้านเพื่อน -->
+      <div class="flex items-center justify-between gap-2 pb-3">
+        <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full font-bold text-sm sm:text-base border shadow-2xs"
+          :class="statusBadgeStyle">
+          <v-icon :icon="statusIcon" size="20" />
+          <span>{{ statusTitle }}</span>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <NuxtLink
+            v-if="isCustomBackend"
+            to="/Farmer/me"
+            class="hidden sm:inline-flex text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A] text-decoration-none">
+            🤝 หลังบ้านเพื่อน
+          </NuxtLink>
+          <span class="text-xs sm:text-sm text-[#55695D] font-medium">
+            อัปเดต {{ agoText(now?.minutes_ago) || 'เมื่อสักครู่' }}
+          </span>
+        </div>
+      </div>
+
+      <!-- ตัวเลขอุณหภูมิและความชื้น (ใหญ่มาก สำหรับผู้สูงอายุ) -->
+      <div class="grid grid-cols-2 gap-4 my-4 py-2 border-y border-black/5">
+        <!-- อุณหภูมิ -->
+        <div class="flex flex-col">
+          <span class="text-xs sm:text-sm text-[#55695D] font-bold">อุณหภูมิในคอก</span>
+          <div class="flex items-baseline gap-1 mt-1">
+            <span class="text-4xl sm:text-6xl font-black tracking-tight tabular-nums text-[#15221B]">
+              {{ now ? Number(now.temperature_c).toFixed(1) : '—' }}
+            </span>
+            <span class="text-lg sm:text-2xl font-bold text-[#55695D]">°C</span>
+          </div>
+        </div>
+
+        <!-- ความชื้น -->
+        <div class="flex flex-col border-l border-black/5 pl-4">
+          <span class="text-xs sm:text-sm text-[#55695D] font-bold">ความชื้นในอากาศ</span>
+          <div class="flex items-baseline gap-1 mt-1">
+            <span class="text-4xl sm:text-6xl font-black tracking-tight tabular-nums text-[#15221B]">
+              {{ now ? Math.round(now.humidity_pct) : '—' }}
+            </span>
+            <span class="text-lg sm:text-2xl font-bold text-[#55695D]">%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- คำแนะนำภาษาชาวบ้านเข้าใจง่าย 1 ประโยค -->
+      <p class="text-sm sm:text-base font-semibold leading-relaxed text-[#2C3E35]">
+        {{ statusMessage }}
+      </p>
+
+      <!-- ปุ่มฟังเสียงสรุปประจำวัน -->
+      <button
+        type="button"
+        @click="playVoice"
+        class="mt-4 w-full h-13 sm:h-14 rounded-2xl bg-white border border-[#CBD5E1] hover:border-[#2D6A4F] text-[#1B4332] font-bold text-sm sm:text-base flex items-center justify-center gap-2.5 transition-all shadow-2xs cursor-pointer active:scale-[0.99]">
+        <v-icon :icon="isSpeaking ? 'mdi-stop-circle' : 'mdi-volume-high'" size="24" :class="isSpeaking ? 'text-[#DC2626]' : 'text-[#2D6A4F]'" />
+        <span>{{ isSpeaking ? 'กดเพื่อหยุดเสียงอ่าน' : '🔊 กดเพื่อฟังเสียงอ่านสรุป' }}</span>
+      </button>
+    </section>
+
+
+    <!-- 2. สิ่งที่ควรทำตอนนี้ (Checklist 4 ข้อใหญ่ กดแล้วเปลี่ยนเป็นสีเขียวทันที) -->
+    <section class="bg-white rounded-3xl p-5 sm:p-7 shadow-xs border border-[#E5E7EB]">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-base sm:text-lg font-bold text-[#15221B] flex items-center gap-2">
+            <v-icon icon="mdi-checkbox-marked-circle-outline" class="text-[#2D6A4F]" size="22" />
+            สิ่งที่ควรทำในคอกตอนนี้
+          </h2>
+          <p class="text-xs sm:text-sm text-[#64748B] mt-0.5">กดที่การ์ดเพื่อติ๊กเครื่องหมายว่าทำแล้ว</p>
+        </div>
+        <span class="text-xs sm:text-sm font-bold px-3 py-1 rounded-full bg-[#E8F5E9] text-[#1B4332]">
+          ทำแล้ว {{ doneCount }}/{{ actionList.length }}
+        </span>
+      </div>
+
+      <!-- รายการสิ่งที่ต้องทำ -->
+      <div class="space-y-3">
+        <button
+          v-for="act in actionList"
+          :key="act.id"
+          type="button"
+          @click="toggleAction(act.id)"
+          class="w-full text-left p-4 rounded-2xl border-2 transition-all flex items-center justify-between gap-3 cursor-pointer select-none active:scale-[0.99]"
+          :class="isDone(act.id) 
+            ? 'bg-[#E8F5E9] border-[#2D6A4F] text-[#1B4332]' 
+            : 'bg-[#F9FAFB] border-[#E5E7EB] hover:border-[#CBD5E1] text-[#334155]'">
+          
+          <div class="flex items-center gap-3.5 min-w-0">
+            <!-- ไอคอนประจำการกระทำ -->
+            <div 
+              class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 text-xl font-bold transition-colors"
+              :class="isDone(act.id) ? 'bg-[#2D6A4F] text-white shadow-xs' : 'bg-white border border-[#E2E8F0] text-[#64748B]'">
+              <v-icon :icon="act.icon" size="24" />
             </div>
-            <div class="mt-3">
-              <span class="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1 rounded-full" :class="now ? riskStyle(level).solid : 'bg-[#36584d] text-white'">
-                <v-icon :icon="statusIcon" size="16" />
-                {{ now ? riskLabel(level) : 'ยังไม่มีข้อมูล' }}
-              </span>
+
+            <!-- ข้อความ -->
+            <div class="min-w-0">
+              <div class="text-base sm:text-lg font-bold leading-tight" :class="isDone(act.id) ? 'line-through text-[#2D6A4F]/80' : ''">
+                {{ act.title }}
+              </div>
+              <div class="text-xs sm:text-sm mt-1 leading-snug" :class="isDone(act.id) ? 'text-[#2D6A4F]/80' : 'text-[#64748B]'">
+                {{ act.desc }}
+              </div>
             </div>
-            <p class="text-[15px] text-[#d5e2db] mt-3 leading-relaxed">{{ statusText }}</p>
           </div>
 
-          <div class="mt-5 md:mt-0">
-            <div class="flex gap-8 items-end">
-              <div>
-                <div class="text-[40px] font-bold leading-none tabular-nums">{{ now ? Number(now.temperature_c).toFixed(1) : '—' }}<span class="text-lg text-[#9FB5AA] font-semibold">°C</span></div>
-                <div class="text-xs text-[#9FB5AA] mt-1.5">อุณหภูมิ</div>
-              </div>
-              <div>
-                <div class="text-[40px] font-bold leading-none tabular-nums">{{ now ? Math.round(now.humidity_pct) : '—' }}<span class="text-lg text-[#9FB5AA] font-semibold">%</span></div>
-                <div class="text-xs text-[#9FB5AA] mt-1.5">ความชื้น</div>
-              </div>
-            </div>
-            <!-- แถบระดับความร้อน: ช่วงสบาย / เฝ้าระวัง / เครียด / วิกฤต -->
-            <div class="mt-5">
-              <div class="flex gap-1">
-                <div v-for="seg in scale" :key="seg.key" class="h-1.5 rounded-full" :style="{ flex: seg.flex, background: seg.key === level ? riskStyle(seg.key).bar : '#36584d' }"></div>
-              </div>
-              <div class="flex justify-between text-[11px] mt-1.5 text-[#9FB5AA]">
-                <span v-for="seg in scale" :key="seg.key" :class="seg.key === level ? 'text-[#F2BD7C] font-semibold' : ''">{{ seg.label }}</span>
-              </div>
-            </div>
+          <!-- เครื่องหมายถูกหรือปุ่มกด -->
+          <div 
+            class="w-9 h-9 rounded-full flex items-center justify-center shrink-0 border-2 transition-all"
+            :class="isDone(act.id) ? 'bg-[#2D6A4F] border-[#2D6A4F] text-white' : 'border-[#CBD5E1] bg-white text-transparent'">
+            <v-icon icon="mdi-check" size="20" />
+          </div>
+        </button>
+      </div>
+    </section>
+
+
+    <!-- 3. คาดการณ์สภาพอากาศช่วงบ่าย & พรุ่งนี้ (เข้าใจง่าย ไม่ต้องดูกราฟ) -->
+    <section class="bg-white rounded-3xl p-5 sm:p-7 shadow-xs border border-[#E5E7EB]">
+      <h2 class="text-base sm:text-lg font-bold text-[#15221B] flex items-center gap-2 mb-3">
+        <v-icon icon="mdi-weather-cloudy-clock" class="text-[#D97706]" size="22" />
+        คาดการณ์ล่วงหน้า (ไม่ต้องดูกราฟ)
+      </h2>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+        <!-- บ่ายนี้ -->
+        <div class="p-4 rounded-2xl bg-[#FFFBEB] border border-[#FDE68A] flex flex-col justify-between">
+          <div class="text-xs sm:text-sm font-bold text-[#B45309] flex items-center gap-1.5">
+            <v-icon icon="mdi-weather-sunny" size="18" />
+            <span>ช่วงที่ร้อนที่สุดวันนี้</span>
+          </div>
+          <div class="text-base sm:text-lg font-bold text-[#78350F] mt-2 leading-snug">
+            {{ peakText }}
+          </div>
+          <div class="text-xs sm:text-sm text-[#92400E] mt-1">
+            เตรียมเปิดพัดลมและสเปรย์น้ำล่วงหน้า
+          </div>
+        </div>
+
+        <!-- พรุ่งนี้ -->
+        <div class="p-4 rounded-2xl bg-[#F0FDF4] border border-[#BBF7D0] flex flex-col justify-between">
+          <div class="text-xs sm:text-sm font-bold text-[#15803D] flex items-center gap-1.5">
+            <v-icon icon="mdi-calendar-arrow-right" size="18" />
+            <span>สภาพอากาศพรุ่งนี้</span>
+          </div>
+          <div class="text-base sm:text-lg font-bold text-[#14532D] mt-2 leading-snug">
+            {{ tomorrowText }}
+          </div>
+          <div class="text-xs sm:text-sm text-[#166534] mt-1">
+            {{ tomorrowAdvice }}
           </div>
         </div>
       </div>
     </section>
 
-    <div class="max-w-5xl mx-auto px-4 py-5 md:grid md:grid-cols-2 md:gap-4 space-y-4 md:space-y-0">
-      <!-- สิ่งที่ควรทำ -->
-      <section class="bg-[#fffdf7] border border-[#EFE6D6] rounded-[22px] px-4 py-2 md:row-span-3 self-start">
-        <h2 class="text-xs font-semibold text-[#718078] pt-2 pb-1">สิ่งที่ควรทำตอนนี้</h2>
-        <div v-for="(a, i) in actions" :key="a.key" class="flex gap-3 items-start py-3" :class="i < actions.length - 1 ? 'border-b border-[#EFE6D6]' : ''">
-          <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" :class="i === 0 && hot ? 'bg-[#D87939] text-white' : 'bg-[#e6f2e7] text-[#3e7d4f]'">
-            <v-icon :icon="a.icon" size="20" />
-          </div>
-          <div>
-            <div class="text-[15px] font-semibold leading-snug">{{ a.title }}</div>
-            <div class="text-[13px] text-[#718078] mt-0.5">{{ a.detail }}</div>
-          </div>
-        </div>
-      </section>
 
-      <div class="grid grid-cols-2 gap-3">
-        <!-- 24 ชม. -->
-        <section class="bg-[#e6f2e7] border border-[#cfe5d2] rounded-[22px] p-4">
-          <div class="text-xs text-[#3e7d4f] font-semibold">24 ชม. ที่ผ่านมา</div>
-          <template v-if="today">
-            <div class="mt-1 tabular-nums"><span class="text-[26px] font-bold">{{ Math.round(today.stress_hours) }}</span> <span class="text-xs text-[#3e7d4f]">ชม. เครียด</span></div>
-            <div class="text-xs text-[#4e6b59] mt-1">สูงสุด {{ Number(today.max_temp).toFixed(1) }}°C</div>
-            <div v-if="today.coverage_pct < 90" class="text-[11px] text-[#a4521c] mt-1">มีข้อมูล {{ today.data_hours }} จาก 24 ชม.</div>
-          </template>
-          <div v-else class="text-sm text-[#4e6b59] mt-2">ยังไม่มีข้อมูล</div>
-        </section>
-        <!-- พรุ่งนี้ -->
-        <section class="rounded-[22px] p-4" :class="tomorrow ? riskStyle(tomorrow.risk_level).solid : 'bg-[#36584d] text-white'">
-          <div class="text-xs font-semibold opacity-90">พรุ่งนี้</div>
-          <template v-if="tomorrow">
-            <div class="text-[17px] font-bold mt-1 flex items-center gap-1.5"><v-icon :icon="tomorrow.risk_level === 'normal' ? 'mdi-weather-partly-cloudy' : 'mdi-white-balance-sunny'" size="18" />{{ riskShort(tomorrow.risk_level) }}</div>
-            <div class="text-xs opacity-90 mt-1">{{ tomorrow.risk_level === 'normal' ? 'อากาศสบาย' : 'เตรียมพัดลมและน้ำ' }}</div>
-          </template>
-          <div v-else class="text-xs opacity-90 mt-2">{{ me?.forecast?.insufficient_data ? 'ข้อมูลยังไม่พอคาดการณ์' : 'ยังไม่มีคาดการณ์' }}</div>
-        </section>
+    <!-- 4. ปุ่มโทรด่วนหาสัตวแพทย์ (ปุ่มใหญ่พิเศษ คนแก่แตะโทรได้ทันที) -->
+    <section>
+      <a
+        v-if="vetPhoneDisplay"
+        :href="`tel:${vetPhoneClean}`"
+        class="w-full h-16 sm:h-20 rounded-3xl bg-[#E07A5F] hover:bg-[#d46a4e] text-white flex items-center justify-center gap-3 font-black text-base sm:text-lg shadow-sm transition-all text-decoration-none active:scale-[0.98]">
+        <div class="w-11 h-11 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
+          <v-icon icon="mdi-phone-in-talk" size="26" />
+        </div>
+        <div class="text-left">
+          <div class="text-xs sm:text-sm text-white/90 font-medium">เมื่อแม่วัวมีปัญหาหรือผิดปกติ</div>
+          <div class="leading-tight">โทรหาสัตวแพทย์: {{ vetPhoneDisplay }}</div>
+        </div>
+      </a>
+    </section>
+
+
+    <!-- 5. รายละเอียดเชิงลึก (ซ่อนไว้เป็นปุ่มกดขยาย ไม่กวนสายตาคนแก่) -->
+    <section class="bg-white rounded-3xl border border-[#E5E7EB] overflow-hidden">
+      <button 
+        type="button" 
+        @click="showDetails = !showDetails" 
+        class="w-full px-5 py-4 flex items-center justify-between text-xs sm:text-sm font-bold text-[#64748B] hover:text-[#15221B] cursor-pointer">
+        <span>รายละเอียดทางเทคนิค (สำหรับเจ้าหน้าที่)</span>
+        <v-icon :icon="showDetails ? 'mdi-chevron-up' : 'mdi-chevron-down'" size="20" />
+      </button>
+
+      <div v-if="showDetails" class="px-5 pb-5 pt-1 border-t border-gray-100 text-xs sm:text-sm space-y-2 text-[#475569]">
+        <div class="flex justify-between">
+          <span>ดัชนีความร้อนชื้น (THI ตอนนี้)</span>
+          <span class="font-bold text-[#15221B] tabular-nums">{{ now?.thi ?? '—' }}</span>
+        </div>
+        <div class="flex justify-between">
+          <span>THI เฉลี่ยรอบ 24 ชั่วโมง</span>
+          <span class="font-bold tabular-nums">{{ today?.avg_thi ?? '—' }}</span>
+        </div>
+        <div class="flex justify-between">
+          <span>เกณฑ์ความร้อน (เฝ้าระวัง / เครียด / วิกฤต)</span>
+          <span class="tabular-nums">{{ thresholds?.mild }} / {{ thresholds?.moderate }} / {{ thresholds?.severe }}</span>
+        </div>
+        <div class="flex justify-between">
+          <span>การพักฟื้นตอนกลางคืน</span>
+          <span class="tabular-nums font-bold" :class="(today?.night_relief_hours ?? 0) >= 3 ? 'text-[#16A34A]' : 'text-[#D97706]'">
+            {{ today?.night_relief_hours ?? 0 }} ชั่วโมง
+          </span>
+        </div>
       </div>
+    </section>
 
-      <!-- พักกลางคืน + เครียดติดต่อกัน -->
-      <div v-if="today" class="grid grid-cols-2 gap-3">
-        <section class="bg-[#fffdf7] border border-[#EFE6D6] rounded-[22px] p-4">
-          <div class="text-xs text-[#718078] font-semibold flex items-center gap-1"><v-icon icon="mdi-weather-night" size="15" />พักกลางคืน</div>
-          <div class="mt-1 tabular-nums"><span class="text-[24px] font-bold" :class="(today.night_relief_hours ?? 0) >= 3 ? 'text-[#3e7d4f]' : 'text-[#a4521c]'">{{ today.night_relief_hours ?? 0 }}</span> <span class="text-xs text-[#718078]">ชม.</span></div>
-          <div class="text-[11px] text-[#718078] mt-1">{{ (today.night_relief_hours ?? 0) >= 3 ? 'วัวได้พักจากความร้อน' : 'กลางคืนยังร้อน วัวพักไม่ได้' }}</div>
-        </section>
-        <section class="bg-[#fffdf7] border border-[#EFE6D6] rounded-[22px] p-4">
-          <div class="text-xs text-[#718078] font-semibold flex items-center gap-1"><v-icon icon="mdi-calendar-alert" size="15" />เครียดติดต่อกัน</div>
-          <div class="mt-1 tabular-nums"><span class="text-[24px] font-bold" :class="(streak?.days ?? 0) >= 3 ? 'text-[#c2412d]' : 'text-[#142820]'">{{ streak?.days ?? 0 }}</span> <span class="text-xs text-[#718078]">วัน</span></div>
-          <div class="text-[11px] text-[#718078] mt-1">{{ (streak?.days ?? 0) >= 3 ? 'สะสมหลายวัน เฝ้าดูการกินและน้ำนม' : 'นับจากค่าเฉลี่ยทั้งวัน' }}</div>
-        </section>
-      </div>
-
-      <!-- กล้อง -->
-      <section v-if="camera" class="bg-[#fffdf7] border border-[#EFE6D6] rounded-[22px] p-4 flex items-center gap-3">
-        <div class="w-9 h-9 rounded-xl bg-[#142820] text-[#F2BD7C] flex items-center justify-center shrink-0"><v-icon icon="mdi-cctv" size="20" /></div>
-        <div class="flex-1 min-w-0">
-          <div class="text-[15px] font-semibold">
-            <template v-if="camera.total > 0">เห็นวัว {{ camera.total }} ตัว · นอนพัก {{ Math.round(camera.lying_pct ?? 0) }}%</template>
-            <template v-else>ไม่เห็นวัวในภาพล่าสุด</template>
-          </div>
-          <div class="text-xs mt-0.5" :class="camera.status === 'online' ? 'text-[#718078]' : 'text-[#a4521c] font-semibold'">
-            {{ camera.status === 'online' ? `ภาพจากกล้อง ${agoText(camera.minutes_ago)}` : `กล้องไม่ได้ส่งภาพ ${agoText(camera.minutes_ago)}` }}
-          </div>
-        </div>
-      </section>
-
-      <!-- รายละเอียด -->
-      <section class="bg-[#fffdf7] border border-[#EFE6D6] rounded-[22px] overflow-hidden">
-        <button type="button" @click="showDetails = !showDetails" class="w-full px-4 py-3.5 flex items-center justify-between text-sm font-semibold cursor-pointer">
-          <span>รายละเอียด</span>
-          <v-icon :icon="showDetails ? 'mdi-chevron-up' : 'mdi-chevron-down'" size="20" class="text-[#718078]" />
-        </button>
-        <div v-if="showDetails" class="px-4 pb-4 text-[13px] text-[#4e6057] space-y-1.5 border-t border-[#EFE6D6] pt-3">
-          <div class="flex justify-between gap-3"><span>ดัชนีความร้อนชื้น (THI)</span><span class="font-semibold text-[#142820] tabular-nums">{{ now?.thi ?? '—' }}</span></div>
-          <div class="flex justify-between gap-3"><span>THI เฉลี่ย 24 ชม.</span><span class="tabular-nums">{{ today?.avg_thi ?? '—' }}<template v-if="today?.daily_mean_level"> ({{ riskShort(today.daily_mean_level) }})</template></span></div>
-          <div class="flex justify-between gap-3"><span>เกณฑ์ เฝ้าระวัง / เครียด / วิกฤต</span><span class="tabular-nums">{{ thresholds.mild }} / {{ thresholds.moderate }} / {{ thresholds.severe }}</span></div>
-          <div class="flex justify-between gap-3"><span>เกณฑ์ที่ใช้</span><span class="text-right">{{ PROFILE_LABELS[farm?.profile] }}</span></div>
-          <div v-if="camera?.cci != null" class="flex justify-between gap-3"><span>ดัชนีความสบายจากกล้อง</span><span class="tabular-nums">{{ camera.cci }}%</span></div>
-          <HeatMethodNote :method="me?.method" tone="farmer" class="mt-3" />
-        </div>
-      </section>
-    </div>
   </div>
 </template>
 
 <script setup>
-import { useFarmer, riskStyle, riskLabel, riskShort, agoText } from '~/composables/useFarmer'
-import { PROFILE_LABELS } from '~/utils/heatStress'
-import HeatMethodNote from '~/components/common/HeatMethodNote.vue'
+import { useFarmer, agoText } from '~/composables/useFarmer'
+import { getCustomNodeApi } from '~/API/baseAPI'
 
 definePageMeta({ layout: 'farmer' })
-useHead({ title: 'ตอนนี้ | CowCare AI' })
+useHead({ title: 'สภาพในคอกตอนนี้ | CowCare ฟาร์มโคนม' })
 
-const { me, farm, now, thresholds } = useFarmer()
+const {
+  me,
+  farm,
+  now,
+  thresholds,
+  senior,
+  isSpeaking,
+  speakThai,
+  stopSpeech,
+  doneActions,
+  toggleAction
+} = useFarmer()
+
 const showDetails = ref(false)
+const isCustomBackend = computed(() => Boolean(getCustomNodeApi()))
 
-const level = computed(() => now.value?.risk_level || null)
-const hot = computed(() => level.value === 'moderate' || level.value === 'severe')
 const today = computed(() => me.value?.today || null)
-const camera = computed(() => me.value?.camera || null)
-const streak = computed(() => me.value?.streak || null)
-const tomorrow = computed(() => me.value?.forecast?.days?.find(d => d.horizon_days === 1) || null)
 
-// ความกว้างแต่ละช่วงตามเกณฑ์ของฟาร์ม (ช่วงเครียดกว้างสุด เพราะเป็นช่วงที่พบบ่อยในโรงเรือนไทย)
-const scale = computed(() => {
-  const t = thresholds.value
+// ข้อมูลหมอวัว
+const vetPhoneDisplay = computed(() => farm.value?.vet_phone || '080-000-0000')
+const vetPhoneClean = computed(() => vetPhoneDisplay.value.replace(/[^0-9+]/g, ''))
+
+// รายการสิ่งที่ควรทำ (ดึงจาก senior หรือเทมเพลตมาตรฐาน)
+const actionList = computed(() => {
+  if (senior.value?.action_templates?.length) {
+    return senior.value.action_templates
+  }
   return [
-    { key: 'normal', label: 'สบาย', flex: 3 },
-    { key: 'mild', label: 'เฝ้าระวัง', flex: Math.max(1, t.moderate - t.mild) },
-    { key: 'moderate', label: 'เครียด', flex: Math.max(1, t.severe - t.moderate) / 2 },
-    { key: 'severe', label: 'วิกฤต', flex: 2 }
+    { id: 'fan', title: 'เปิดพัดลมในคอก', desc: 'ช่วยระบายอากาศร้อน ไม่ให้อากาศอับ', icon: 'mdi-fan' },
+    { id: 'water_spray', title: 'เปิดละอองน้ำ / สปริงเกลอร์', desc: 'ฉีดพ่นละอองน้ำเป็นรอบๆ ช่วยลดอุณหภูมิร่างกายวัว', icon: 'mdi-sprinkler-variant' },
+    { id: 'fresh_water', title: 'เติมน้ำสะอาดให้เต็มราง', desc: 'แม่วัวกินน้ำเยอะขึ้นเมื่ออากาศร้อน ดื่มน้ำลดเครียด', icon: 'mdi-cup-water' },
+    { id: 'check_cow', title: 'สังเกตอาการแม่วัว (ไม่หอบ)', desc: 'ตรวจดูว่ามีตัวไหนยืนหอบ อ้าปาก หรือน้ำลายยืดหรือไม่', icon: 'mdi-cow' }
   ]
 })
 
-const statusIcon = computed(() => ({ severe: 'mdi-fire', moderate: 'mdi-thermometer-alert', mild: 'mdi-weather-sunny' }[level.value] || 'mdi-check-circle-outline'))
+const isDone = (id) => doneActions.value.includes(id)
+const doneCount = computed(() => actionList.value.filter(a => isDone(a.id)).length)
 
-const statusText = computed(() => ({
-  severe: 'แม่โคเสี่ยงหอบและหยุดกินอาหาร ช่วยระบายความร้อนทันที',
-  moderate: 'น้ำนมอาจเริ่มลด ควรเปิดพัดลมช่วยระบายความร้อน',
-  mild: 'อากาศเริ่มอบอ้าว เปิดพัดลมให้อากาศถ่ายเท',
-  normal: 'อากาศในโรงเรือนเหมาะกับแม่โค'
-}[level.value] || 'ตรวจว่ากล่องเซ็นเซอร์เสียบไฟและต่ออินเทอร์เน็ตอยู่'))
+// สไตล์และข้อความระดับความร้อน
+const riskLevel = computed(() => now.value?.risk_level || 'normal')
 
-const actions = computed(() => {
-  const lvl = level.value
-  const peak = me.value?.forecast?.peak_window
-  const cool = me.value?.forecast?.cool_window
-  const cooling = me.value?.cooling
-  const list = [{
-    key: 'fan', icon: 'mdi-fan',
-    title: hot.value ? 'เปิดพัดลมเต็มกำลังทุกตัว' : lvl === 'mild' ? 'เปิดพัดลมระบายอากาศ' : 'เปิดพัดลมตามปกติ',
-    // ช่วงร้อนที่สุดจริงของโรงเรือนนี้ (3 วันล่าสุด) แทนเวลาตายตัว
-    detail: peak && (hot.value || lvl === 'mild') ? `โรงเรือนนี้ร้อนที่สุดช่วง ${peak.label} เปิดให้แรงที่สุดช่วงนี้` : 'ลมช่วยไล่ความร้อนและความชื้นออกจากตัวแม่โค'
-  }]
-  if (cooling && (hot.value || lvl === 'mild')) {
-    list.push({ key: 'water-cool', icon: cooling.humid ? 'mdi-water-off' : 'mdi-weather-fog', title: cooling.title, detail: cooling.detail })
-  }
-  list.push({
-    key: 'water', icon: 'mdi-cup-water',
-    title: hot.value ? 'เติมน้ำให้เต็มราง ตรวจบ่อยขึ้น' : 'ตรวจน้ำในรางให้สะอาดและมีตลอด',
-    detail: hot.value ? 'แม่โคที่ร้อนจะกินน้ำมากขึ้นมาก' : 'แม่โคต้องมีน้ำสะอาดกินได้ตลอดเวลา'
-  })
-  if (hot.value && cool) {
-    list.push({ key: 'feed', icon: 'mdi-clock-outline', title: `ให้อาหารช่วง ${cool.label}`, detail: 'ช่วงที่โรงเรือนนี้เย็นที่สุดในเวลากลางวัน วัวจะกินได้มากขึ้น' })
-  }
-  if (lvl === 'severe') {
-    list.push({ key: 'vet', icon: 'mdi-stethoscope', title: 'สังเกตแม่โคที่หอบหนักหรือไม่ลุก', detail: 'ถ้าพบอาการผิดปกติ ควรให้สัตวแพทย์ตรวจ' })
-  }
-  return list
+const statusTitle = computed(() => {
+  if (riskLevel.value === 'severe') return 'อากาศร้อนจัดมาก แม่วัวกำลังเครียด!'
+  if (riskLevel.value === 'moderate') return 'อากาศเริ่มร้อน แม่วัวเริ่มอึดอัด'
+  if (riskLevel.value === 'mild') return 'อากาศเริ่มอุ่น ควรเฝ้าระวัง'
+  return 'อากาศสบายดี แม่วัวไม่เครียด'
 })
+
+const statusMessage = computed(() => {
+  if (riskLevel.value === 'severe') {
+    return 'อุณหภูมิและความชื้นสูงมาก เสี่ยงน้ำนมดิ่ง รีบเปิดพัดลมและสเปรย์น้ำระบายความร้อนทันที'
+  }
+  if (riskLevel.value === 'moderate' || riskLevel.value === 'mild') {
+    return 'ความร้อนสะสมเริ่มเพิ่มขึ้น แนะนำให้เปิดพัดลมระบายอากาศ และเตรียมน้ำสะอาดให้พร้อม'
+  }
+  return 'สภาพอากาศในคอกเหมาะสมดี แม่วัวเคี้ยวเอื้องสบาย ให้น้ำนมได้เต็มที่'
+})
+
+const statusIcon = computed(() => {
+  if (riskLevel.value === 'severe') return 'mdi-alert-octagon'
+  if (riskLevel.value === 'moderate' || riskLevel.value === 'mild') return 'mdi-weather-sunny-alert'
+  return 'mdi-emoticon-happy'
+})
+
+const statusCardStyle = computed(() => {
+  if (riskLevel.value === 'severe') return 'bg-[#FEF2F2] border-[#FECACA]'
+  if (riskLevel.value === 'moderate' || riskLevel.value === 'mild') return 'bg-[#FFFBEB] border-[#FDE68A]'
+  return 'bg-[#F0FDF4] border-[#BBF7D0]'
+})
+
+const statusBadgeStyle = computed(() => {
+  if (riskLevel.value === 'severe') return 'bg-[#DC2626] text-white border-[#B91C1C]'
+  if (riskLevel.value === 'moderate' || riskLevel.value === 'mild') return 'bg-[#D97706] text-white border-[#B45309]'
+  return 'bg-[#2D6A4F] text-white border-[#1B4332]'
+})
+
+// พยากรณ์ช่วงบ่าย
+const peakText = computed(() => {
+  if (me.value?.forecast?.peak_window) {
+    return `ช่วง ${me.value.forecast.peak_window} น.`
+  }
+  return 'ช่วงบ่าย 13:00 – 15:30 น.'
+})
+
+const tomorrowForecast = computed(() => me.value?.forecast?.days?.[0] || null)
+
+const tomorrowText = computed(() => {
+  if (tomorrowForecast.value?.risk_level === 'severe') return 'อากาศร้อนจัดมาก'
+  if (tomorrowForecast.value?.risk_level === 'moderate') return 'อากาศค่อนข้างร้อน'
+  return 'อากาศสบาย ลมพัดดี'
+})
+
+const tomorrowAdvice = computed(() => {
+  if (tomorrowForecast.value?.risk_level === 'severe') return 'เตรียมเปิดพัดลมและเตรียมน้ำดื่มสำรอง'
+  if (tomorrowForecast.value?.risk_level === 'moderate') return 'ช่วงบ่ายเปิดพัดลมระบายอากาศ'
+  return 'สภาพอากาศดี เหมาะแก่การให้นม'
+})
+
+const playVoice = () => {
+  if (isSpeaking.value) {
+    stopSpeech()
+  } else {
+    const text = senior.value?.voice_text || 
+      `สภาพอากาศในคอกวัวตอนนี้ อุณหภูมิ ${now.value ? Number(now.value.temperature_c).toFixed(1) : '31'} องศาเซลเซียส ความชื้น ${now.value ? Math.round(now.value.humidity_pct) : '70'} เปอร์เซ็นต์ ${statusTitle.value} ${statusMessage.value} อย่าลืมดูแลแม่วัวนะจ๊ะ`
+    speakThai(text)
+  }
+}
 </script>

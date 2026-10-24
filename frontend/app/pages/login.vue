@@ -52,6 +52,24 @@
               </p>
             </div>
 
+            <!-- Logout Success Banner -->
+            <Transition name="fade">
+              <div 
+                v-if="logoutSuccess" 
+                class="mb-5 p-3.5 rounded-2xl bg-emerald-50/90 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2.5">
+                  <v-icon icon="mdi-check-circle-outline" size="18" class="text-emerald-600 shrink-0" />
+                  <span>ออกจากระบบเรียบร้อยแล้ว หากต้องการใช้งานใหม่ กรุณาเข้าสู่ระบบอีกครั้ง</span>
+                </div>
+                <button 
+                  type="button" 
+                  @click="logoutSuccess = false" 
+                  class="w-6 h-6 rounded-lg hover:bg-emerald-100 flex items-center justify-center text-emerald-600 cursor-pointer">
+                  <v-icon icon="mdi-close" size="15" />
+                </button>
+              </div>
+            </Transition>
+
             <!-- Error Alert Box -->
             <Transition name="fade">
               <div 
@@ -227,6 +245,8 @@ definePageMeta({
   layout: false
 })
 
+const route = useRoute()
+const logoutSuccess = ref(route.query.logout === 'success')
 const email = ref('')
 const password = ref('')
 const showPassword = ref(false)
