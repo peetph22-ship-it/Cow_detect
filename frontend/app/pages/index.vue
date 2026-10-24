@@ -256,10 +256,12 @@
             <div v-if="activeLayer === 0" class="bg-[#142820] text-white rounded-3xl p-6 space-y-4">
               <div class="flex items-center justify-between text-xs text-white/70 pb-3 border-b border-white/10">
                 <span class="flex items-center gap-2 font-mono">
-                  <span class="w-2 h-2 rounded-full bg-[#10B981] animate-ping"></span>
+                  <span class="w-2 h-2 rounded-full bg-[#10B981]"></span>
                   YOLO26m Vision + SHT20 Sensor
                 </span>
-                <span class="px-2 py-0.5 rounded bg-white/10 text-[10px] font-mono">RS485 Modbus</span>
+                <span class="px-2.5 py-0.5 rounded-full bg-white/10 text-[10px] font-semibold text-white/80">
+                  ตัวอย่างการแสดงผล (ข้อมูลจำลอง)
+                </span>
               </div>
 
               <div class="grid grid-cols-2 gap-3">
@@ -269,7 +271,7 @@
                   class="p-3.5 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
                   <div class="flex justify-between items-center text-[11px] text-white/60 font-mono mb-1">
                     <span>{{ cow.id }}</span>
-                    <span class="text-[#10B981]">{{ cow.conf }}</span>
+                    <span class="text-[#F2BD7C]">{{ cow.conf }}</span>
                   </div>
                   <div class="text-sm font-bold text-white">{{ cow.label }}</div>
                   <div class="text-[11px] text-white/60 mt-0.5">{{ cow.sub }}</div>
@@ -313,7 +315,7 @@
                   <div class="text-xs text-[#6E7E76]">รายงานความยั่งยืนและสุขภาพโคนมรายสัปดาห์</div>
                 </div>
                 <span class="px-3 py-1 rounded-full text-xs font-bold bg-[#ECFDF5] text-[#047857]">
-                  ตัวอย่างหน้าจอ
+                  ตัวอย่างหน้าจอ (ข้อมูลจำลอง)
                 </span>
               </div>
 
@@ -602,46 +604,46 @@ const archLayers = [
     badge: 'LAYER 01 • EDGE & IOT SENSING',
     icon: 'mdi-access-point',
     title: 'เก็บข้อมูลแม่นยำโดยไม่ต้องติดอุปกรณ์บนตัววัว',
-    desc: 'ลดต้นทุนให้เกษตรกรรายย่อยด้วยการใช้กล้องวงจรปิดร่วมกับโมเดล YOLO26m ตรวจจับพฤติกรรมโคนม (อยู่ระหว่างทดสอบกับกล้องจริง) และใช้เซนเซอร์ SHT20 ราคาประหยัด (โมดูล RS485 ประมาณ 280 บาท) วัดอุณหภูมิ-ความชื้นผ่านสาย RS485',
+    desc: 'ลดต้นทุนให้เกษตรกรรายย่อยด้วยการใช้กล้องวงจรปิด Dahua ร่วมกับโมเดล YOLO26m นับวัวแยกตามท่า และใช้เซ็นเซอร์ SHT20 (ตระกูล XY-MD02 RS485, ±0.3°C / ±3% RH) วัดอุณหภูมิ-ความชื้นผ่านสาย RS485',
     points: [
-      'ตรวจจับ 4 พฤติกรรมหลัก: ยืน, นอนพัก, กินน้ำ, กินอาหาร แบบเรียลไทม์',
+      'บอร์ดดึงภาพจากกล้องทุก 10 นาที นับวัวแยกตาม 4 ท่า: นอนพัก, ยืน, กินอาหาร, ดื่มน้ำ',
       'ไม่ต้องซื้อปลอกคออัจฉริยะราคาแพง ไม่ทำให้วัวเครียด',
-      'ออกแบบให้ทนความชื้นในโรงเรือน (อยู่ระหว่างทดสอบภาคสนาม)'
+      'เก็บข้อมูลไว้ในบอร์ดเมื่อเน็ตหลุด แล้วทยอยส่งเมื่อเน็ตกลับมา พร้อมรายงานสถานะกล่องทุก 5 นาที'
     ]
   },
   {
     id: 'recommend',
     tabTitle: 'วิเคราะห์และเตือนล่วงหน้า (Recommend)',
-    badge: 'LAYER 02 • PREDICTIVE AI & LINE BOT',
+    badge: 'LAYER 02 • THERMAL METRICS & ADVISORY',
     icon: 'mdi-brain',
-    title: 'แปลงข้อมูลซับซ้อนเป็นคำแนะนำภาษาไทยส่งตรงถึง LINE',
-    desc: 'วิเคราะห์ความร้อนสะสมย้อนหลัง 72 ชั่วโมงเพื่อบอกแนวโน้มล่วงหน้า 3 วัน ตามเกณฑ์งานวิจัยโคนมลูกผสมไทย (โมเดลพยากรณ์ด้วยข้อมูลจริงอยู่ระหว่างพัฒนา และมีแผนใช้ Gemini AI สรุปคำแนะนำ)',
+    title: 'แปลงข้อมูลเป็นคำแนะนำตามบริบทโรงเรือนไทย',
+    desc: 'วิเคราะห์ความร้อนสะสมย้อนหลัง 72 ชั่วโมงตามเกณฑ์งานวิจัยโคนมลูกผสมไทย (THI 74 / 76 / 82) พร้อมคำนวณช่วงร้อนที่สุดและเย็นที่สุดจากข้อมูลจริงของฟาร์มเอง',
     points: [
       'เตือนก่อนผลกระทบที่มักตามมาหลายวัน (Lag Effect)',
-      'ปรับเกณฑ์ตามสายเลือดโฮลสไตน์ของแต่ละฝูง',
-      'ใช้งานง่ายผ่าน LINE เหมาะสำหรับเกษตรกรทุกวัย'
+      'ใช้เกณฑ์โคนมลูกผสมไทย (THI 74 / 76 / 82) และคำนวณช่วงร้อนสุดจากข้อมูลฟาร์มจริง',
+      'ความชื้นตั้งแต่ 75% ขึ้นไป แนะนำราดน้ำตัววัวร่วมกับพัดลม แทนการพ่นหมอก'
     ]
   },
   {
     id: 'capitalize',
     tabTitle: 'ต่อยอดมูลค่าข้อมูล (Capitalize)',
-    badge: 'LAYER 03 • DIGITAL LOGBOOK & ESG',
+    badge: 'LAYER 03 • COOPERATIVE LOGBOOK',
     icon: 'mdi-leaf-circle-outline',
-    title: 'สร้างสมุดบันทึกดิจิทัลเพื่อสินเชื่อสีเขียวและความยั่งยืน',
-    desc: 'ข้อมูลทุกจุดถูกจัดเก็บลงฐานข้อมูลคลาวด์อย่างเป็นระบบ เป็นบันทึกสภาพแวดล้อมในโรงเรือนที่ตรวจสอบย้อนหลังได้',
+    title: 'สมุดบันทึกสหกรณ์ดิจิทัลที่ตรวจสอบความครบถ้วนได้',
+    desc: 'ข้อมูลทุกจุดถูกจัดเก็บลงฐานข้อมูลคลาวด์อย่างเป็นระบบ แสดงความครบถ้วนของข้อมูลจริงและช่วงที่เซ็นเซอร์ขาดหายอย่างตรงไปตรงมา',
     points: [
-      'บันทึกชั่วโมงความเครียดจากความร้อนจากข้อมูลเซ็นเซอร์จริง',
-      'เตรียมข้อมูลสำหรับต่อยอดสินเชื่อฟาร์มยั่งยืน (ESG Finance) ในอนาคต',
-      'รองรับการเคลมประกันภัยโคนมอิงดัชนีสภาพอากาศในอนาคต'
+      'บันทึกชั่วโมงความเครียดจากความร้อนและชั่วโมงกลางคืนที่วัวได้พัก (22:00–06:00 น.)',
+      'แสดงความครบถ้วนของข้อมูลและจำนวนวันเครียดติดต่อกันในสมุดสหกรณ์',
+      'มีปุ่มโทรด่วนหาสัตวแพทย์หรือสหกรณ์ในหน้าเกษตรกรทันทีเมื่อเกิดวิกฤต'
     ]
   }
 ]
 
 const cowBehaviors = [
-  { id: 'COW #102', label: 'Standing (ยืนปกติ)', sub: 'บริเวณรางอาหาร', conf: '94.2%' },
-  { id: 'COW #105', label: 'Lying (นอนพักเคี้ยวเอื้อง)', sub: 'ซองนอนโซน B', conf: '91.8%' },
-  { id: 'COW #107', label: 'Drinking (ดื่มน้ำ)', sub: 'อ่างน้ำอัตโนมัติ', conf: '89.4%' },
-  { id: 'COW #108', label: 'Feeding (กินอาหาร)', sub: 'รางอาหารหลัก', conf: '88.5%' }
+  { id: 'CLASS 01', label: 'Lying down (นอนพัก)', sub: 'นับจำนวนวัวนอนเคี้ยวเอื้อง', conf: 'ท่าที่ 1' },
+  { id: 'CLASS 02', label: 'Standing (ยืน)', sub: 'นับจำนวนวัวยืนในคอก', conf: 'ท่าที่ 2' },
+  { id: 'CLASS 03', label: 'Eating (กินอาหาร)', sub: 'นับจำนวนวัวที่รางอาหาร', conf: 'ท่าที่ 3' },
+  { id: 'CLASS 04', label: 'Drinking (ดื่มน้ำ)', sub: 'นับจำนวนวัวที่อ่างน้ำ', conf: 'ท่าที่ 4' }
 ]
 
 // 3. Reactive vs Proactive Interactive Comparison

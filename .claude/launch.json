@@ -1,0 +1,56 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "backend-node",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "backend_node",
+        "start"
+      ],
+      "port": 4002
+    },
+    {
+      "name": "frontend",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "NUXT_PUBLIC_NODE_API_BASE=http://localhost:4001/api",
+        "npm",
+        "--prefix",
+        "frontend",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "3001"
+      ],
+      "port": 3001
+    },
+    {
+      "name": "backend-node-test",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd backend_node && PORT=5099 FRONTEND_URL=http://localhost:3002 CAMERA_SECRET_KEY=$(openssl rand -hex 32) node server.js"
+      ],
+      "port": 5099
+    },
+    {
+      "name": "frontend-test",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "NUXT_PUBLIC_NODE_API_BASE=http://localhost:5099/api",
+        "npm",
+        "--prefix",
+        "frontend",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "3002"
+      ],
+      "port": 3002
+    }
+  ]
+}

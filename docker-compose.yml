@@ -89,7 +89,10 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: cow_detect_tunnel
     restart: always
-    command: tunnel --no-autoupdate run --token eyJhIjoiZGYxMTEzZDY4ZGI4ZjA1NDQ4OWI3NDIwZjkyOGI2NzQiLCJ0IjoiNTM2MzdjYmYtM2ExMC00ODZiLWJmZTEtMGUzMDYwYTMwZmQ0IiwicyI6Ik1URmlaR1ptT0RZdFpEZG1NQzAwTTJaakxXSm1aVFl0WlRCbVlXWTBNbVExWldWbCJ9
+    command: tunnel --no-autoupdate run
+    # token อยู่ใน .env (CLOUDFLARE_TUNNEL_TOKEN) ห้ามเขียนลงไฟล์นี้
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
     networks:
       - app-network
 

@@ -201,7 +201,7 @@
           </div>
 
           <!-- Color-coded THI Risk Thresholds Bar -->
-          <div class="w-full bg-white/60 h-2.5 rounded-full overflow-hidden flex shadow-inner mb-6">
+          <div class="w-full bg-white/60 h-2.5 rounded-full overflow-hidden flex shadow-inner mb-3">
             <div
               v-for="seg in gaugeSegments"
               :key="seg.key"
@@ -209,6 +209,24 @@
               :class="seg.cls"
               :style="{ width: seg.width + '%' }"
               :title="seg.title"></div>
+          </div>
+
+          <!-- Outdoor THI Quick Strip inside Primary THI Card -->
+          <div v-if="outdoorWeather?.weather" class="mb-4 px-3.5 py-2 rounded-2xl bg-white/75 border border-black/5 flex items-center justify-between gap-2 text-xs shadow-2xs">
+            <div class="flex items-center gap-1.5 text-[#24433a] font-bold">
+              <v-icon :icon="outdoorWeather.weather.weather_icon || 'mdi-weather-partly-cloudy'" size="16" class="text-sky-600" />
+              <span>อากาศนอกโรงเรือน ({{ outdoorWeather.location?.district ? `อ.${outdoorWeather.location.district}` : 'Open-Meteo' }}):</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="font-black text-sky-900 tabular-nums">{{ outdoorWeather.weather.thi ?? '-' }} THI</span>
+              <span
+                v-if="outdoorWeather.comparison?.delta_thi != null"
+                class="text-[10.5px] font-black px-2 py-0.5 rounded-full border"
+                :class="outdoorWeather.comparison.delta_thi > 0 ? 'bg-rose-100 text-rose-800 border-rose-200' : 'bg-emerald-100 text-emerald-800 border-emerald-200'"
+              >
+                Δ {{ outdoorWeather.comparison.delta_thi > 0 ? `+${outdoorWeather.comparison.delta_thi}` : outdoorWeather.comparison.delta_thi }}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -229,16 +247,16 @@
 
       </div>
 
-      <!-- 2.2 Middle Bento Card (4 Cols): Microclimate Metrics (Temp & Humidity) -->
+      <!-- 2.2 Middle Bento Card (4 Cols): Microclimate Metrics (In-Barn vs Outdoor Temp & Humidity) -->
       <div class="lg:col-span-4 bg-white/80 backdrop-blur-xl rounded-[32px] p-6 md:p-8 border border-white/90 shadow-[0_8px_30px_rgba(36,67,58,0.04)] flex flex-col justify-between">
         <div>
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-xs font-black uppercase tracking-wider text-[#718078] flex items-center gap-1.5">
               <v-icon icon="mdi-weather-partly-cloudy" size="18" class="text-[#24433a]" />
-              <span>สภาพอากาศในโรงเรือน (Microclimate)</span>
+              <span>สภาพอากาศในโรงเรือน &amp; ภายนอก</span>
             </h3>
-            <span class="text-[10px] font-bold text-[#718078] bg-[#f0f4f2] px-2 py-0.5 rounded-[6px]">
-              IoT Telemetry
+            <span class="text-[10px] font-bold text-sky-800 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-[6px]">
+              SHT20 + Open-Meteo
             </span>
           </div>
 
@@ -254,11 +272,19 @@
               </span>
             </div>
 
-            <div class="flex items-baseline gap-2 mb-2">
-              <span class="text-4xl font-black text-[#24433a] tabular-nums tracking-tight">
-                {{ latestSensor?.temperature_c ? Number(latestSensor.temperature_c).toFixed(1) : '-' }}
-              </span>
-              <span class="text-sm font-black text-[#718078]">°C</span>
+            <div class="flex items-baseline justify-between gap-2 mb-2">
+              <div class="flex items-baseline gap-1.5">
+                <span class="text-4xl font-black text-[#24433a] tabular-nums tracking-tight">
+                  {{ latestSensor?.temperature_c ? Number(latestSensor.temperature_c).toFixed(1) : '-' }}
+                </span>
+                <span class="text-sm font-black text-[#718078]">°C (ในโรงเรือน)</span>
+              </div>
+              <div v-if="outdoorWeather?.weather?.temperature_c != null" class="text-right">
+                <span class="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg inline-flex items-center gap-1">
+                  <v-icon icon="mdi-weather-sunny" size="12" class="text-amber-500" />
+                  <span>นอก: {{ Number(outdoorWeather.weather.temperature_c).toFixed(1) }}°C</span>
+                </span>
+              </div>
             </div>
 
             <!-- Mini Intensity Bar for Temp (15°C to 45°C range) -->
@@ -282,11 +308,19 @@
               </span>
             </div>
 
-            <div class="flex items-baseline gap-2 mb-2">
-              <span class="text-4xl font-black text-sky-800 tabular-nums tracking-tight">
-                {{ latestSensor?.humidity_pct ? Number(latestSensor.humidity_pct).toFixed(1) : '-' }}
-              </span>
-              <span class="text-sm font-black text-[#718078]">%RH</span>
+            <div class="flex items-baseline justify-between gap-2 mb-2">
+              <div class="flex items-baseline gap-1.5">
+                <span class="text-4xl font-black text-sky-800 tabular-nums tracking-tight">
+                  {{ latestSensor?.humidity_pct ? Number(latestSensor.humidity_pct).toFixed(1) : '-' }}
+                </span>
+                <span class="text-sm font-black text-[#718078]">%RH (ในโรงเรือน)</span>
+              </div>
+              <div v-if="outdoorWeather?.weather?.humidity_pct != null" class="text-right">
+                <span class="text-[11px] font-bold text-sky-800 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-lg inline-flex items-center gap-1">
+                  <v-icon icon="mdi-cloud-outline" size="12" class="text-sky-600" />
+                  <span>นอก: {{ Math.round(Number(outdoorWeather.weather.humidity_pct)) }}%</span>
+                </span>
+              </div>
             </div>
 
             <!-- Mini Intensity Bar for Humidity (0% to 100%) -->
@@ -377,6 +411,268 @@
           </span>
         </div>
 
+      </div>
+
+    </div>
+
+    <!-- 🟢 2.5 COMPARISON: In-Barn vs Outdoor Weather (Open-Meteo Integration) -->
+    <div class="bg-white/90 backdrop-blur-xl rounded-[32px] p-6 md:p-8 border-2 border-sky-500/20 shadow-[0_12px_40px_rgba(36,67,58,0.06)] space-y-6 animate-fade-up delay-125 relative overflow-hidden">
+      
+      <!-- Top Ambient Glow Decor -->
+      <div class="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-sky-400/10 blur-3xl pointer-events-none"></div>
+      <div class="absolute -bottom-12 -left-12 w-48 h-48 rounded-full bg-amber-400/10 blur-3xl pointer-events-none"></div>
+
+      <!-- Header Section -->
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[#eef2f0] relative z-10">
+        <div class="flex items-start sm:items-center gap-3.5">
+          <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-sky-500/20">
+            <v-icon icon="mdi-weather-partly-cloudy" size="26" />
+          </div>
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <h3 class="text-lg md:text-xl font-black text-[#24433a] tracking-tight">
+                สภาพอากาศภายนอกโรงเรือน vs ในโรงเรือน
+              </h3>
+              <!-- Provider Badge -->
+              <span class="px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-sky-50 text-sky-700 border border-sky-200 flex items-center gap-1">
+                <v-icon icon="mdi-cloud-outline" size="13" />
+                <span>Open-Meteo API</span>
+              </span>
+              <!-- Auto Geocode Tag -->
+              <span v-if="outdoorWeather?.location?.location_name" class="px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1">
+                <v-icon icon="mdi-map-marker-radius" size="13" />
+                <span>{{ outdoorWeather.location.location_name }}</span>
+              </span>
+            </div>
+            <p class="text-xs text-[#718078] font-medium mt-0.5">
+              ดึงพิกัดจากที่อยู่ฟาร์มอัตโนมัติ (ไม่ต้องใช้ API Key) · คำนวณ THI ด้วยสูตร NRC 1971 เดียวกับเซ็นเซอร์ในโรงเรือน
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 self-start md:self-center">
+          <!-- Refresh Button -->
+          <button
+            @click="refreshOutdoorWeather"
+            :disabled="isOutdoorWeatherLoading"
+            class="px-3 py-1.5 rounded-xl bg-[#f0f4f2] hover:bg-[#e4ece8] text-[#24433a] text-xs font-bold transition-all flex items-center gap-1.5 border border-[#d6e0db] disabled:opacity-50 cursor-pointer shadow-2xs"
+            title="รีเฟรชข้อมูลสภาพอากาศภายนอกล่าสุด"
+          >
+            <v-icon icon="mdi-refresh" size="16" :class="{ 'animate-spin': isOutdoorWeatherLoading }" />
+            <span>{{ isOutdoorWeatherLoading ? 'กำลังอัปเดต...' : 'รีเฟรชอากาศภายนอก' }}</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Telemetry Cards Grid (3 Columns: THI, Temp, Humidity) -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-5 relative z-10">
+        
+        <!-- 1. THI Comparison Card -->
+        <div class="rounded-2xl p-5 border border-[#e5ece9] bg-gradient-to-b from-[#f9fbfa] to-white flex flex-col justify-between shadow-2xs">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-black uppercase tracking-wider text-[#4e6057] flex items-center gap-1.5">
+                <v-icon icon="mdi-fire" size="16" class="text-amber-600" />
+                <span>ดัชนี THI (NRC 1971)</span>
+              </span>
+              <span 
+                v-if="outdoorWeather?.comparison?.delta_thi != null" 
+                class="text-[11px] font-black px-2.5 py-0.5 rounded-full border"
+                :class="outdoorWeather.comparison.delta_thi > 0 ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'"
+              >
+                Δ {{ outdoorWeather.comparison.delta_thi > 0 ? `+${outdoorWeather.comparison.delta_thi}` : outdoorWeather.comparison.delta_thi }} THI
+              </span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 mb-3">
+              <!-- In-Barn -->
+              <div class="p-3 rounded-xl bg-white border border-[#e5ece9]">
+                <span class="text-[10px] font-bold text-[#718078] uppercase block">ในโรงเรือน (SHT20)</span>
+                <div class="flex items-baseline gap-1 mt-1">
+                  <span class="text-2xl font-black text-[#24433a] tabular-nums">
+                    {{ latestSensor?.thi ? Number(latestSensor.thi).toFixed(1) : '-' }}
+                  </span>
+                  <span class="text-xs font-bold text-[#718078]">THI</span>
+                </div>
+                <span class="text-[10px] font-bold text-[#718078] mt-0.5 block">
+                  {{ latestSensor?.stress_level ? RISK_LABELS_TH[latestSensor.stress_level] : '-' }}
+                </span>
+              </div>
+
+              <!-- Outdoor -->
+              <div class="p-3 rounded-xl bg-sky-50/50 border border-sky-100">
+                <span class="text-[10px] font-bold text-sky-800 uppercase block">ภายนอก (Open-Meteo)</span>
+                <div class="flex items-baseline gap-1 mt-1">
+                  <span class="text-2xl font-black text-sky-900 tabular-nums">
+                    {{ outdoorWeather?.weather?.thi ? Number(outdoorWeather.weather.thi).toFixed(1) : '-' }}
+                  </span>
+                  <span class="text-xs font-bold text-sky-700">THI</span>
+                </div>
+                <span class="text-[10px] font-bold text-sky-800 mt-0.5 block">
+                  {{ outdoorWeather?.weather?.risk_label_th || '-' }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <p class="text-[11px] text-[#718078] font-medium pt-2 border-t border-[#f0f4f2]">
+            <template v-if="outdoorWeather?.comparison?.delta_thi != null">
+              <span v-if="outdoorWeather.comparison.delta_thi > 0" class="text-rose-700 font-bold">
+                ⚠️ ในโรงเรือนสูงกว่าภายนอก {{ outdoorWeather.comparison.delta_thi }} จุด
+              </span>
+              <span v-else-if="outdoorWeather.comparison.delta_thi < 0" class="text-emerald-700 font-bold">
+                🍃 ในโรงเรือนต่ำกว่าภายนอก {{ Math.abs(outdoorWeather.comparison.delta_thi) }} จุด
+              </span>
+              <span v-else class="text-emerald-700 font-bold">
+                ✓ ในโรงเรือนเท่ากับภายนอก
+              </span>
+            </template>
+            <template v-else>แสดงข้อมูลอากาศภายนอก (รอค่าเซ็นเซอร์ในโรงเรือนเพื่อเปรียบเทียบ)</template>
+          </p>
+        </div>
+
+        <!-- 2. Temperature Comparison Card -->
+        <div class="rounded-2xl p-5 border border-[#e5ece9] bg-gradient-to-b from-[#f9fbfa] to-white flex flex-col justify-between shadow-2xs">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-black uppercase tracking-wider text-[#4e6057] flex items-center gap-1.5">
+                <v-icon icon="mdi-thermometer" size="16" class="text-amber-500" />
+                <span>อุณหภูมิอากาศ (Temperature)</span>
+              </span>
+              <span 
+                v-if="outdoorWeather?.comparison?.delta_temp != null" 
+                class="text-[11px] font-black px-2.5 py-0.5 rounded-full border"
+                :class="outdoorWeather.comparison.delta_temp > 0 ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-sky-50 text-sky-800 border-sky-200'"
+              >
+                Δ {{ outdoorWeather.comparison.delta_temp > 0 ? `+${outdoorWeather.comparison.delta_temp}` : outdoorWeather.comparison.delta_temp }} °C
+              </span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 mb-3">
+              <!-- In-Barn -->
+              <div class="p-3 rounded-xl bg-white border border-[#e5ece9]">
+                <span class="text-[10px] font-bold text-[#718078] uppercase block">ในโรงเรือน (SHT20)</span>
+                <div class="flex items-baseline gap-1 mt-1">
+                  <span class="text-2xl font-black text-[#24433a] tabular-nums">
+                    {{ latestSensor?.temperature_c ? Number(latestSensor.temperature_c).toFixed(1) : '-' }}
+                  </span>
+                  <span class="text-xs font-bold text-[#718078]">°C</span>
+                </div>
+              </div>
+
+              <!-- Outdoor -->
+              <div class="p-3 rounded-xl bg-amber-50/40 border border-amber-100">
+                <span class="text-[10px] font-bold text-amber-900 uppercase block">ภายนอก (Open-Meteo)</span>
+                <div class="flex items-baseline gap-1 mt-1">
+                  <span class="text-2xl font-black text-amber-900 tabular-nums">
+                    {{ outdoorWeather?.weather?.temperature_c ? Number(outdoorWeather.weather.temperature_c).toFixed(1) : '-' }}
+                  </span>
+                  <span class="text-xs font-bold text-amber-700">°C</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between text-[11px] text-[#718078] font-medium pt-2 border-t border-[#f0f4f2]">
+            <span>ช่วงอากาศนอกวันนี้:</span>
+            <span class="font-bold text-[#24433a] font-mono">
+              {{ outdoorWeather?.weather?.min_temp ?? '-' }}°C - {{ outdoorWeather?.weather?.max_temp ?? '-' }}°C
+            </span>
+          </div>
+        </div>
+
+        <!-- 3. Relative Humidity Comparison Card -->
+        <div class="rounded-2xl p-5 border border-[#e5ece9] bg-gradient-to-b from-[#f9fbfa] to-white flex flex-col justify-between shadow-2xs">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-black uppercase tracking-wider text-[#4e6057] flex items-center gap-1.5">
+                <v-icon icon="mdi-water-percent" size="16" class="text-sky-600" />
+                <span>ความชื้นสัมพัทธ์ (Humidity)</span>
+              </span>
+              <span 
+                v-if="outdoorWeather?.comparison?.delta_hum != null" 
+                class="text-[11px] font-black px-2.5 py-0.5 rounded-full border bg-slate-50 text-slate-700 border-slate-200"
+              >
+                Δ {{ outdoorWeather.comparison.delta_hum > 0 ? `+${outdoorWeather.comparison.delta_hum}` : outdoorWeather.comparison.delta_hum }} %RH
+              </span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 mb-3">
+              <!-- In-Barn -->
+              <div class="p-3 rounded-xl bg-white border border-[#e5ece9]">
+                <span class="text-[10px] font-bold text-[#718078] uppercase block">ในโรงเรือน (SHT20)</span>
+                <div class="flex items-baseline gap-1 mt-1">
+                  <span class="text-2xl font-black text-[#24433a] tabular-nums">
+                    {{ latestSensor?.humidity_pct ? Math.round(Number(latestSensor.humidity_pct)) : '-' }}
+                  </span>
+                  <span class="text-xs font-bold text-[#718078]">%RH</span>
+                </div>
+              </div>
+
+              <!-- Outdoor -->
+              <div class="p-3 rounded-xl bg-sky-50/40 border border-sky-100">
+                <span class="text-[10px] font-bold text-sky-900 uppercase block">ภายนอก (Open-Meteo)</span>
+                <div class="flex items-baseline gap-1 mt-1">
+                  <span class="text-2xl font-black text-sky-900 tabular-nums">
+                    {{ outdoorWeather?.weather?.humidity_pct != null ? Math.round(Number(outdoorWeather.weather.humidity_pct)) : '-' }}
+                  </span>
+                  <span class="text-xs font-bold text-sky-700">%RH</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between text-[11px] text-[#718078] font-medium pt-2 border-t border-[#f0f4f2]">
+            <span>ช่วงความชื้นนอกวันนี้:</span>
+            <span class="font-bold text-[#24433a] font-mono">
+              {{ outdoorWeather?.weather?.min_hum ?? '-' }}% - {{ outdoorWeather?.weather?.max_hum ?? '-' }}%
+            </span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Bottom Insight & Research-Backed Ventilation Diagnostic -->
+      <div 
+        v-if="outdoorWeather?.comparison" 
+        class="rounded-2xl p-4 md:p-5 border flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10 transition-all"
+        :class="outdoorWeather.comparison.badge_class || 'bg-[#f7faf8] border-[#e2ece6] text-[#24433a]'"
+      >
+        <div class="flex items-start gap-3">
+          <div class="w-10 h-10 rounded-xl bg-white/80 shadow-xs flex items-center justify-center shrink-0 mt-0.5">
+            <v-icon 
+              :icon="outdoorWeather.comparison.status === 'heat_trapping' ? 'mdi-alert-circle-outline' : outdoorWeather.comparison.status === 'cooler_inside' ? 'mdi-snowflake' : 'mdi-check-decagram-outline'" 
+              size="22" 
+            />
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h4 class="text-sm font-black tracking-tight">
+                {{ outdoorWeather.comparison.status_th }}
+              </h4>
+              <span class="text-[10.5px] font-mono px-2 py-0.5 rounded bg-white/70 font-bold border border-black/5">
+                Ventilation Diagnostic
+              </span>
+            </div>
+            <p class="text-xs font-medium mt-1 leading-relaxed opacity-90">
+              {{ outdoorWeather.comparison.ventilation_insight }}
+            </p>
+            <p class="text-[10.5px] opacity-75 mt-1">
+              * ข้อมูลอ้างอิง: งานวิจัยโรงเรือนโคนมไทย (ติกุล และ ประชุม, 2562) พบว่าโรงเรือนหลังคาสังกะสีที่ไม่มีฝ้าเพดานมักสะสมความร้อนสูงกว่าภายนอก 1.5–2.0°C
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3 shrink-0 self-end md:self-center">
+          <!-- Weather Condition Chip -->
+          <div v-if="outdoorWeather?.weather?.weather_desc" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/80 border border-black/5 shadow-2xs text-xs font-bold text-[#24433a]">
+            <v-icon :icon="outdoorWeather.weather.weather_icon || 'mdi-weather-cloudy'" size="16" class="text-sky-600" />
+            <span>{{ outdoorWeather.weather.weather_desc }}</span>
+            <span v-if="outdoorWeather.weather.wind_speed_kmh != null" class="text-[#718078] font-normal">
+              · ลม {{ outdoorWeather.weather.wind_speed_kmh }} km/h
+            </span>
+          </div>
+        </div>
       </div>
 
     </div>
@@ -1469,6 +1765,7 @@ import AddCameraModal from '~/components/Admin/cctv/AddCameraModal.vue'
 import SystemAccuracyModal from '~/components/Admin/cctv/SystemAccuracyModal.vue'
 import HeatMethodNote from '~/components/common/HeatMethodNote.vue'
 import { calcThi, getRiskLevel, getThresholds, normalizeProfile, RISK_LABELS_TH, PROFILE_LABELS } from '~/utils/heatStress'
+import { getFarmOutdoorWeatherClient, computeComparisonClient } from '~/utils/outdoorWeather'
 
 definePageMeta({
   layout: 'admin',
@@ -1528,6 +1825,8 @@ const gaugeSegments = computed(() => {
   ]
 })
 const gapAlert = ref(null)
+const outdoorWeather = ref(null)
+const isOutdoorWeatherLoading = ref(false)
 const registeredCameras = ref([])
 const cameraAlerts = ref([])
 
@@ -1871,6 +2170,7 @@ const fetchFarmDetail = async () => {
       cameraBehavior.value = res.data.camera_behavior || null
       farmStreak.value = res.data.streak || null
       farmMethod.value = res.data.method || null
+      outdoorWeather.value = res.data.outdoor_weather || null
 
       const rawHistory = res.data.history || []
       
@@ -1915,6 +2215,17 @@ const fetchFarmDetail = async () => {
           stress_percentage: thisList.length ? Math.round((stressCount / thisList.length) * 100) : 0
         }
       }
+      // หาก Backend (เช่น Render) ยังไม่ได้ส่ง outdoor_weather มา ให้ดึงจาก Open-Meteo โดยตรงตามอำเภอ/จังหวัดของฟาร์ม
+      if (!outdoorWeather.value || outdoorWeather.value?.weather?.temperature_c == null) {
+        try {
+          outdoorWeather.value = await getFarmOutdoorWeatherClient(farm.value, latestSensor.value)
+        } catch (owClientErr) {
+          console.warn('[Outdoor Weather] Client fallback error:', owClientErr)
+        }
+      } else if (latestSensor.value && outdoorWeather.value?.weather) {
+        outdoorWeather.value.comparison = computeComparisonClient(latestSensor.value, outdoorWeather.value.weather)
+      }
+
       await fetchMultimodalStatus()
       await fetchRegisteredCameras()
     }
@@ -1922,6 +2233,33 @@ const fetchFarmDetail = async () => {
     console.error('[Fetch Farm Detail Error]:', err)
   } finally {
     if (isLoading.value) isLoading.value = false
+  }
+}
+
+// Manual Refresh for Outdoor Weather (Open-Meteo)
+const refreshOutdoorWeather = async () => {
+  if (!farmId.value) return
+  isOutdoorWeatherLoading.value = true
+  try {
+    // ดึงตรงจาก Open-Meteo ด้วยพิกัดอำเภอ/จังหวัดของฟาร์ม (รองรับทั้งโหมด Local และ Cloud Render)
+    if (farm.value) {
+      const clientRes = await getFarmOutdoorWeatherClient(farm.value, latestSensor.value, true)
+      if (clientRes) {
+        outdoorWeather.value = clientRes
+        return
+      }
+    }
+    const token = getToken()
+    const res = await axios.get(`${Admin}/farms/${farmId.value}/outdoor-weather`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    })
+    if (res.data && res.data.success && res.data.outdoor_weather) {
+      outdoorWeather.value = res.data.outdoor_weather
+    }
+  } catch (err) {
+    console.warn('[Outdoor Weather] Manual refresh failed:', err.message)
+  } finally {
+    isOutdoorWeatherLoading.value = false
   }
 }
 
@@ -1946,6 +2284,9 @@ const pollLatestTelemetry = async () => {
       const incoming = res.data.latest_sensor
       if (incoming && incoming.id && String(incoming.id) !== String(latestSensor.value?.id)) {
         latestSensor.value = incoming
+        if (outdoorWeather.value?.weather) {
+          outdoorWeather.value.comparison = computeComparisonClient(latestSensor.value, outdoorWeather.value.weather)
+        }
 
         // กราฟเป็นค่าเฉลี่ยทุก 5 นาที: เพิ่มจุดใหม่เมื่อเข้าช่วง 5 นาทีใหม่ แล้วตัดข้อมูลที่เก่ากว่า 24 ชม.
         // (ค่าล่าสุดแบบวินาทีต่อวินาทีแสดงที่การ์ดด้านบนอยู่แล้ว)

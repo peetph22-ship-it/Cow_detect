@@ -35,13 +35,12 @@
 ```mermaid
 flowchart TD
     subgraph EdgeHardware["1. Hardware & Edge Layer"]
-        IoT["ESP32-S3 Microcontroller<br/>(SHT40 / AHT20 / BMP280)"]
-        CAM["IP Camera / CCTV<br/>(RTSP Stream โรงเรือน)"]
+        IoT["ESP32-S3 Microcontroller (v1.4.1)<br/>(SHT20 XY-MD02 RS485 + LittleFS Queue)"]
+        CAM["Dahua IP Camera / CCTV<br/>(ESP32 Snapshot every 10 min via HTTP Digest)"]
     end
 
     subgraph BackendServices["2. Backend & Core Services"]
-        NodeServer["Node.js Express Backend (Port 4001)<br/>• Telemetry Ingestion<br/>• Farm & Device Management<br/>• Daily Scheduled Job (node-cron 20:00 น.)<br/>• JWT Authentication & RBAC"]
-        PyBackend["Python FastAPI Backend (Port 8000)<br/>• YOLOv8 / YOLO26m Object Detection<br/>• Cow Behavior Tracking<br/>• Video Inference Pipeline"]
+        NodeServer["Node.js Express Backend (Port 4001)<br/>• Telemetry & Batch Store-and-Forward Ingest<br/>• 5-Min Bucketed Heat Metrics (heatMetrics.js)<br/>• YOLO26m ONNX Worker Thread (visionService.js)<br/>• Daily Scheduled Job (node-cron 20:00 น.)"]
     end
 
     subgraph DataStorage["3. Database & Cloud Services"]
@@ -69,12 +68,10 @@ flowchart TD
 ## 3. ฮาร์ดแวร์ IoT และการรับส่งข้อมูลสภาพแวดล้อม
 
 ### 3.1 คุณสมบัติฮาร์ดแวร์
-- **บอร์ดประมวลผล:** ESP32-S3 (รองรับ Wi-Fi / RS485 Modbus)
-- **เซ็นเซอร์อุณหภูมิและความชื้น:** 
-  - เซ็นเซอร์อุตสาหกรรม SHT40 หุ้มปลอกกรองฝุ่น หรือ AHT20 ความแม่นยำสูง
-  - ช่วงวัดอุณหภูมิ: $-40^\circ\text{C}$ ถึง $+125^\circ\text{C}$ (ความแม่นยำ $\pm 0.2^\circ\text{C}$)
-  - ช่วงวัดความชื้น: $0\%$ ถึง $100\%\text{ RH}$ (ความแม่นยำ $\pm 1.8\%\text{ RH}$)
-- **เซ็นเซอร์ความกดอากาศ (อุปกรณ์เสริม):** BMP280 วัดความกดอากาศ ($300$ ถึง $1100\text{ hPa}$)
+- **บอร์ดประมวลผล:** ESP32-S3 (Firmware v1.4.1 รองรับ HTTPS ตรวจใบรับรองจริง, `X-Device-Key`, คิวสำรองข้อมูล LittleFS `/q.bin` และ Heartbeat ทุก 5 นาที)
+- **เซ็นเซอร์อุณหภูมิและความชื้น:**
+  - โมดูล RS485 Modbus RTU ตระกูล **XY-MD02 ชิป SHT20** (ตรวจยืนยันด้วย `sensor_probe_scan.ino`)
+  - ความแม่นยำตามสเปก: อุณหภูมิ $\pm 0.3^\circ\text{C}$, ความชื้นสัมพัทธ์ $\pm 3\%\text{ RH}$ (ค่า THI คลาดได้ประมาณ $\pm 0.7$)
 
 ### 3.2 โครงสร้าง Payload ข้อมูลเซ็นเซอร์ (HTTP POST JSON)
 ส่งเข้ามาที่ Endpoint: `POST /api/Admin/sensors/data` (หรือ `/api/sensors/data`)
@@ -220,41 +217,30 @@ erDiagram
    $$\text{THI} = (1.8 \times T + 32) - (0.55 - 0.0055 \times RH) \times (1.8 \times T - 26)$$
    *หมายเหตุสำคัญ:* ไม่มีการบวกค่าชดเชยโรงเรือนเข้ากับค่าเซ็นเซอร์แบบ Real-time เพราะเซ็นเซอร์ติดตั้งอยู่ในโรงเรือนและบันทึกอุณหภูมิ/ความชื้นจริงอยู่แล้ว โครงสร้างโรงเรือนจะถูกใช้เป็นฟีเจอร์คงที่ (Static Features) ในโมเดลพยากรณ์อนาคตเท่านั้น
 
-2. **เกณฑ์ความเครียดความร้อนสำหรับโคนมลูกผสมไทย (Boonkum et al., 2024; Sungkhapreecha et al., 2022):**
-   - $\text{THI} < 76.0$ (หรือ $T < 27.5^\circ\text{C}$ และ $\text{THI} < 77.5$ โดยไม่มีอาการหอบ): **Normal** (สภาวะปกติ โคสบายตัว Comfort Zone)
-   - $76.0 \le \text{THI} < 80.0$: **Mild** (เริ่มเฝ้าระวัง การเคี้ยวเอื้องเริ่มลดลง)
-   - $80.0 \le \text{THI} < 84.0$: **Moderate** (เริ่มกระทบผลผลิต น้ำนมเริ่มลด เซลล์โซมาติก SCS เพิ่มขึ้น)
-   - $\text{THI} \ge 84.0$: **Severe** (วิกฤตรุนแรง แม่โคหอบ น้ำนมลดฮวบ อัตราผสมติดต่ำ)
+2. **เกณฑ์ความเครียดความร้อนสำหรับโคนมลูกผสมไทย (Boonkum et al., 2011; 2024):**
+   - $\text{THI} < 74$: **Normal** (สภาวะปกติ)
+   - $74 \le \text{THI} < 76$: **Mild** (เฝ้าระวัง — จุดที่น้ำนมเริ่มลดในแม่โคท้อง 3+ สายเลือด HF สูง)
+   - $76 \le \text{THI} < 82$: **Moderate** (เครียดจากความร้อน — เกณฑ์ระดับประชากรโคนมลูกผสมไทย)
+   - $\text{THI} \ge 82$: **Severe** (วิกฤต — ผลผลิตน้ำนมลดลงเร็วขึ้นชัดเจน)
 
-3. **ความเสี่ยงน้ำนมลดเชิงทฤษฎีและ Biological Lag Effect 5 วัน (Abdourhamane 2026; Hasan et al. 2026):**
-   - **Zero-Input Milk Loss Proxy:** ระบบคำนวณความเสี่ยงน้ำนมลดจากแบบจำลองทางฟิสิกส์และชีววิทยาโดยตรง **โดยไม่ต้องให้เกษตรกรกรอกข้อมูลปริมาณน้ำนมดิบรายวัน**
-   - เริ่มคิดผลกระทบน้ำนมเมื่อ $\text{THI} > 76.0$ (เกณฑ์เฉพาะสำหรับโคนมลูกผสมเขตร้อนของไทย):
-     $$\Delta Y_{\text{milk}} = \max\left(0, (\text{THI}_{\text{pred}} - 76.0) \times 0.45\right)\text{ kg/cow/day}$$
-   - ผลกระทบต่อผลผลิตน้ำนมมีระยะหน่วงทางชีวภาพ (Biological Lag) สูงสุดในอีก **5 วันถัดไป**
+3. **ผลกระทบตามหลัง Biological Lag Effect 5 วัน (Hasan et al. 2026):**
+   - ผลกระทบต่อผลผลิตน้ำนมมีระยะหน่วงทางชีวภาพ (Biological Lag) ชัดเจนที่ประมาณ **5 วัน** หลังเผชิญความร้อนสะสม (ระบบยังไม่ประเมินกิโลกรัมน้ำนมที่ลดลงเนื่องจากไม่มีข้อมูลบันทึกน้ำนมจริง)
 
-4. **ดัชนีการฟื้นตัวกลางคืน (Thai Night-time Thermal Recovery - Mylostyvyi 2026):**
-   - คำนวณค่าเฉลี่ย THI ช่วงเวลา 00:00 - 06:00 น.
-   - เกณฑ์สำหรับบริบทไทย: ค่า THI กลางคืนที่ปลอดภัยคือ $< 74.0$ หาก $\text{THI} \ge 74.0$ โคจะไม่สามารถคายความร้อนสะสมได้
+4. **ชั่วโมงกลางคืนที่วัวได้พักจากความร้อน (Night Relief Hours — Igono et al. 1992):**
+   - นับจำนวนชั่วโมงในช่วงเวลา **22:00 – 06:00 น.** (เวลาไทย) ที่ค่าเฉลี่ยถัง 5 นาทีมี $\text{THI} < 74$
 
-5. **บริบทฤดูกาลและการจัดการความชื้น (Maejo University Research):**
-   - ฤดูฝน/สภาวะความชื้นสูง ($RH \ge 75\%$ และ $T \le 29.5^\circ\text{C}$): แนะนำเปิดพัดลมระบายอากาศแรงสุด แต่ **งดเปิดระบบพ่นละอองน้ำ (No Misting)** เพื่อป้องกันพื้นคอกแฉะและลดความเสี่ยงโรคเต้านมอักเสบ (Mastitis)
-   - ฤดูร้อน/สภาวะแห้ง: เปิดพัดลมควบคู่กับระบบพ่นหมอกเหนือทางเดิน
+5. **การจัดการความชื้นและช่วงเวลาร้อน/เย็นของโรงเรือน (Penn State Extension & Farm History):**
+   - เมื่อความชื้นสัมพัทธ์ $\text{RH} \ge 75\%$: แนะนำ **งดพ่นหมอกฝอย** และใช้การฉีดน้ำราดตัววัวช่วงสั้นๆ ร่วมกับเปิดพัดลมแทน
+   - ช่วงเวลาร้อนที่สุด (4 ชม.) และช่วงเย็นที่สุดสำหรับให้อาหาร (3 ชม.) คำนวณจากข้อมูลจริงของโรงเรือนนั้นย้อนหลัง 72 ชั่วโมง
 
-### 5.2 ระบบ Computer Vision (YOLO)
-- โค้ดอยู่ที่ `backend/app/` รันด้วย FastAPI บนพอร์ต 8000
-- ไฟล์โมเดล: `backend/app/weights/best1.pt` และ `yolo26m.pt`
-- ตรวจจับพฤติกรรม: **ยืน (standing)**, **นอน (lying)**, **กินอาหาร (eating)**, **กินน้ำ (drinking)**, **หอบ (panting)**
-- ข้อมูลพฤติกรรมถูกดึงมารวมเป็นสัดส่วนการยืน (`standing_ratio`) และอัตราการหอบ (`panting_rate`) ส่งต่อให้โมเดล LSTM พยากรณ์
+### 5.2 ระบบ Computer Vision (YOLO26m ONNX)
+- บอร์ด ESP32-S3 ดึงภาพนิ่งจากกล้อง Dahua ทุก 10 นาทีผ่าน HTTP Digest Auth ส่งขึ้น `backend_node`
+- รันโมเดล **YOLO26m ONNX (`best.onnx`)** บน Node.js Worker Thread (เก็บไฟล์โมเดลใน Supabase Private Storage ตรวจด้วย SHA-256)
+- นับจำนวนวัวแยกตาม 4 ท่าทาง: **นอน (`lying down`)**, **ยืน (`standing`)**, **กินอาหาร (`eating`)**, **ดื่มน้ำ (`drinking`)** พร้อมตัดกรอบซ้อนโดยไม่ดูท่า (Class-Agnostic NMS: 1 ตัว = 1 กรอบ)
+- เก็บภาพตัวอย่างชั่วโมงละ 1 รูป พร้อมไฟล์ JSON ลง Private Storage เพื่อใช้นับเทียบความแม่นยำและสร้าง Dataset โรงเรือนไทย
 
-### 5.3 สถาปัตยกรรม True Deep Learning Bi-LSTM (ONNX Runtime)
-ระบบได้พัฒนาและติดตั้งโมเดล True Deep Learning สมบูรณ์:
-- **สถาปัตยกรรมโมเดล:** Multimodal Bidirectional LSTM (2 Layers, 128 Hidden Units) + Temporal Attention Mechanism + Static Feature Fusion
-- **Lookback Window 72 ชั่วโมง (3 วัน):** ปรับลดจาก 336 ชม. เพื่อตอบโจทย์ฟาร์มรายย่อยไทย ลด Cold-start Latency พร้อมระบบ **Progressive Warm-up**:
-  - $< 24$ ชั่วโมง: Heuristic Fallback อิงค่าเฉลี่ยเซ็นเซอร์จริง
-  - $24 - 71$ ชั่วโมง: Diurnal Padding เติมข้อมูลวงจรความร้อนรายวันจนครบ 72 ชั่วโมง
-  - $\ge 72$ ชั่วโมง: Full ONNX Bi-LSTM Inference
-- **ไฟล์น้ำหนักโมเดล:** [`backend/app/weights/farm_lstm.onnx`](file:///Users/phattaradanai/Desktop/testYOLO26/backend/app/weights/farm_lstm.onnx) (ขนาดเพียง 124 KB)
-- **High-Performance Inference:** รันบน Node.js ผ่านแพ็กเกจ `onnxruntime-node` ใช้เวลาประมวลผล **< 5 ms ต่อฟาร์ม** โดยไม่ต้องพึ่งพาเซิร์ฟเวอร์ GPU ขนาดใหญ่
+### 5.3 แนวโน้มความร้อนสะสม 72 ชั่วโมง (`forecastService.js`)
+- ใช้ **Baseline ค่าเฉลี่ย THI รายชั่วโมงย้อนหลัง 72 ชั่วโมง (`baseline-72h-mean-v2`)** เพื่อสะท้อนความร้อนสะสมของโรงเรือน (บนชุดข้อมูลสังเคราะห์ได้ $\text{MAE} \approx 0.45\text{ THI}$ ดีกว่า Bi-LSTM เดิมที่ได้ $\sim 0.87$ จึงปิด `ENABLE_LSTM=false` ไว้ก่อนจนกว่าจะมีข้อมูลภาคสนามจริง)
 
 ---
 

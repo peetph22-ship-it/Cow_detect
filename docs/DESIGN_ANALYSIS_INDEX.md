@@ -40,7 +40,7 @@ The primary `pages/index.vue` serves as the public-facing gateway for **CowCare 
 flowchart TD
     A["1. Hero Section (Split 1.05fr : 0.95fr)<br/>Value Proposition & Interactive THI Simulator"] --> B["2. Signal Strip<br/>4-Column Scientific Proof Points (THI 76, 5-Day Lag, 14-Day Lookback)"]
     B --> C["3. Three-Layer Architecture Matrix<br/>Sense → Recommend → Capitalize Pipeline & Bento Features"]
-    C --> D["4. Predictive Analytics & LSTM Engine<br/>Deep Forest #19362e Theme, 96.08% Benchmark, Pipeline Nodes"]
+    C --> D["4. Predictive Analytics & Thermal Trend Engine<br/>Deep Forest #19362e Theme, 72h Baseline & Lag Effect Comparison"]
     D --> E["5. Digital Logbook & Data Capitalization<br/>ESG Scoring & Micro-Finance Credit Enabling"]
     E --> F["6. Academic Foundation & Citations<br/>Peer-Reviewed Research Stack (Mulajkar 2026)"]
     F --> G["7. Action Conversion (CTA) & AppFooter"]
@@ -69,9 +69,9 @@ flowchart TD
 
 ### 4.3 Three-Layer Architecture & Bento Feature Matrix
 - **Conceptual Pipeline:** Visualizes the progression from raw IoT telemetry to structured business value:
-  - **Layer 1 (Sense):** ESP32-S3 + SHT40 + RS485 Modbus and non-invasive CCTV vision.
-  - **Layer 2 (Recommend):** LSTM predictive analytics and Gemini actionable advisory.
-  - **Layer 3 (Capitalize):** Digital logbook, ESG scoring, and index-based climate insurance.
+  - **Layer 1 (Sense):** ESP32-S3 + SHT20 (XY-MD02 RS485 Modbus) and non-invasive CCTV vision (YOLO26m ONNX).
+  - **Layer 2 (Recommend):** 72h thermal accumulation trend and context-aware Thai advisory.
+  - **Layer 3 (Capitalize):** Digital logbook and cooperative reporting.
 - **Bento Feature Grid:** Features an intentional asymmetrical visual hierarchy where Card 01 (`feature-primary`) is tinted in solid Forest Green with tag chips, while Cards 02 and 03 utilize elevated off-white glass with miniature visualizers (behavior frequency bars and status pill badges).
 
 ### 4.4 Predictive AI Section (The Inversion Section)

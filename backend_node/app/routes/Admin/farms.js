@@ -14,6 +14,7 @@ const { encryptSecret, CameraSecretError } = require('../../services/cameraSecre
 const { getCameraBehavior } = require('../../services/cameraBehavior')
 const { getFarm24h } = require('../../services/farmHistory')
 const { dailySeries, stressStreak, bkkDate } = require('../../services/heatMetrics')
+const { getFarmOutdoorWeather } = require('../../services/outdoorWeather')
 
 // คอลัมน์กล้องที่ส่งกลับให้หน้าเว็บได้ (ไม่มี password_encrypted)
 const CAMERA_PUBLIC_COLUMNS = `id, farm_id, camera_name, barn_unit, brand, model, ip_address, rtsp_port, http_port,
@@ -907,6 +908,15 @@ router.get('/:id', verifyToken, requireRole('admin'), async (req, res) => {
             console.warn('[Farm Detail API] camera behavior error:', camErr.message)
         }
 
+        // สภาพอากาศภายนอกโรงเรือนจาก Open-Meteo (ระบุพิกัดอัตโนมัติตามอำเภอ/จังหวัดของฟาร์ม)
+        let outdoor_weather = null
+        try {
+            const currentSensor = latestReading || (history.length > 0 ? history[history.length - 1] : null)
+            outdoor_weather = await getFarmOutdoorWeather(farm, currentSensor)
+        } catch (owErr) {
+            console.warn('[Farm Detail API] outdoor weather error:', owErr.message)
+        }
+
         return res.json({
             success: true,
             farm,
@@ -916,6 +926,7 @@ router.get('/:id', verifyToken, requireRole('admin'), async (req, res) => {
             streak,
             method: getMethod(profile),
             latest_sensor: latestReading || (history.length > 0 ? history[history.length - 1] : null),
+            outdoor_weather,
             daily_summary,
             saved_daily_summary,
             history,
@@ -932,6 +943,58 @@ router.get('/:id', verifyToken, requireRole('admin'), async (req, res) => {
         return res.status(500).json({
             success: false,
             message: 'Error fetching farm detail: ' + err.message
+        })
+    }
+})
+
+// 5.1 GET: /api/Admin/farms/:id/outdoor-weather
+// ดึงและคำนวณสภาพอากาศภายนอกโรงเรือน (Open-Meteo) แบบ On-demand
+router.get('/:id/outdoor-weather', verifyToken, requireRole('admin'), async (req, res) => {
+    try {
+        const { id } = req.params
+
+        let farm = null
+        if (isUUID(id)) {
+            const { rows } = await db.query(`SELECT * FROM tb_farms WHERE id_farms = $1 LIMIT 1`, [id])
+            if (rows.length > 0) farm = rows[0]
+        } else {
+            const { rows } = await db.query(`SELECT * FROM tb_farms WHERE id_farms::text = $1 LIMIT 1`, [id])
+            if (rows.length > 0) farm = rows[0]
+        }
+
+        if (!farm) {
+            return res.status(404).json({
+                success: false,
+                message: 'ไม่พบข้อมูลฟาร์ม'
+            })
+        }
+
+        let latestReading = null
+        try {
+            const resReading = await db.query(`
+                SELECT sr.*
+                FROM tb_sensor_readings sr
+                JOIN tb_devices d ON d.id_devices = sr.id_devices
+                WHERE d.id_farms = $1
+                ORDER BY sr.recorded_at DESC
+                LIMIT 1
+            `, [farm.id_farms])
+            if (resReading.rows.length > 0) latestReading = resReading.rows[0]
+        } catch (sErr) {
+            console.warn('[Outdoor Weather Route] Reading query fallback:', sErr.message)
+        }
+
+        const outdoor_weather = await getFarmOutdoorWeather(farm, latestReading)
+
+        return res.json({
+            success: true,
+            outdoor_weather
+        })
+    } catch (err) {
+        console.error('[Get Outdoor Weather Route Error]:', err.message)
+        return res.status(500).json({
+            success: false,
+            message: 'Error fetching outdoor weather: ' + err.message
         })
     }
 })

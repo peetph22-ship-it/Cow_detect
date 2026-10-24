@@ -54,9 +54,9 @@ The visual design is grounded in the **Biophilic Agritech Design System**, balan
 │    ├── 14 Days (Lookback)       └── 3–7 Days (Proactive Horizon)       │
 ├────────────────────────────────────────────────────────────────────────┤
 │ 3. 3-Layer Architecture & Bento Feature Matrix (Sense → Rec → Cap)     │
-│    ├── Card 01: SENSE (ESP32-S3 + SHT40 + YOLO26m Edge Vision Mockup)  │
-│    ├── Card 02: RECOMMEND (LSTM Time-Series + Gemini LINE Advisory)    │
-│    └── Card 03: CAPITALIZE (Digital Logbook + ESG Green Credit)        │
+│    ├── Card 01: SENSE (ESP32-S3 + SHT20 + YOLO26m ONNX Vision)          │
+│    ├── Card 02: RECOMMEND (72h Thermal Trend + Context-Aware Advisory)  │
+│    └── Card 03: CAPITALIZE (Digital Logbook + Cooperative Reporting)    │
 ├────────────────────────────────────────────────────────────────────────┤
 │ 4. Predictive Analytics & LSTM Brain Engine (Dark Night Forest #19362E)│
 │    ├── Node-Based Architecture Flow: Inputs → LSTM Brain → Outputs     │
@@ -105,23 +105,19 @@ The visual design is grounded in the **Biophilic Agritech Design System**, balan
 
 ### 4.3 Section 3: 3-Layer Architecture & Bento Matrix
 - **Sense (Card 01 — Deep Forest `#24433A`):**
-  - Details the industrial hardware spec: **ESP32-S3 (N16R8)** + **SHT40** sensor over **RS485 Modbus RTU**.
-  - **YOLO26m Edge Vision Viewfinder:** A simulated real-time camera interface running the project's actual fine-tuned `YOLO26m` model (`best1.pt`), displaying the 4 core bovine behavior classes:
-    - `standing` (94.2% confidence)
-    - `lying down` (91.8% confidence)
-    - `drinking` (89.4% confidence)
-    - `feeding` (88.5% confidence)
+  - Details the hardware spec: **ESP32-S3 (N16R8)** + **SHT20 (XY-MD02)** sensor over **RS485 Modbus RTU** ($\pm 0.3^\circ\text{C} / \pm 3\%\text{ RH}$).
+  - **YOLO26m Vision Preview:** Illustrates the `YOLO26m ONNX` model (`best.onnx`) counting the 4 core bovine behavior classes (`lying down`, `standing`, `eating`, `drinking`) with Class-Agnostic NMS.
 - **Recommend (Card 02 — Glass Card):**
-  - Highlights LSTM time-series modeling coupled with **Context-Aware Gemini GenAI** translating telemetry into farmer-friendly Thai alerts via **LINE Messaging API**.
+  - Highlights 72-hour thermal accumulation trend coupled with context-aware Thai farm recommendations.
 - **Capitalize (Card 03 — Glass Card):**
-  - Bridges technical data to financial incentives: Digital Logbooks on PostgreSQL / Supabase, ESG compliance, and parametric weather index insurance.
+  - Bridges technical data to cooperative management: Digital Logbooks on PostgreSQL / Supabase showing data completeness, night relief hours, and consecutive stress days.
 
-### 4.4 Section 4: Predictive Analytics & LSTM Brain Engine
-- **Inverted Dark Mode (`#19362E`):** Distinct aesthetic shift for deep-learning concepts.
-- **Node-Based Model Flow Diagram:**
-  - *Inputs:* SHT40 Microclimate Signals + 14-Day Accumulation + YOLO26m Behavioral Vectors.
-  - *Brain Core:* LSTM Neural Network displaying **96.08% Validation Accuracy**.
-  - *Outputs:* 3–7 Day THI Trajectory, Milk Loss Prevention, and LINE Broadcasts.
+### 4.4 Section 4: Proactive vs Reactive Management Comparison (`#19362E`)
+- **Inverted Dark Mode (`#19362E`):** Distinct aesthetic shift for analytical concepts.
+- **Model Flow Overview:**
+  - *Inputs:* SHT20 Microclimate Signals + 72-Hour Thermal Accumulation + YOLO26m Behavioral Counts.
+  - *Core Engine:* 72-Hour Baseline Thermal Trend (`baseline-72h-mean-v2`).
+  - *Outputs:* 3-Day Thermal Trend, Farm-Specific Peak/Cool Windows, and Proactive Cooling Alerts.
 - **Comparative Analysis Matrix:** Side-by-side comparison illustrating why traditional reactive responses fail due to the 5-day lag effect, contrasted with CowCare AI's proactive preemptive cooling.
 
 ### 4.5 Section 5: Digital Logbook & ESG Preview

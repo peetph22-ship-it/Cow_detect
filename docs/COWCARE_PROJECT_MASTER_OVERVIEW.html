@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CowCare AI — รายงานสรุปภาพรวมโครงการฉบับสมบูรณ์ (Master Project Overview)</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+Thai:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+
+  <!-- KaTeX for Mathematical Equations -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}]});"></script>
+
+  <style>
+    :root {
+      --primary: #163026;
+      --primary-light: #24433A;
+      --accent: #D97736;
+      --accent-soft: #FFF7ED;
+      --bg: #F4F7F5;
+      --surface: #FFFFFF;
+      --border: #E2E8E5;
+      --text: #11221B;
+      --text-muted: #5A6E65;
+      --green: #10B981;
+      --yellow: #F59E0B;
+      --orange: #EA580C;
+      --red: #EF4444;
+      --blue: #0284C7;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    body {
+      font-family: 'Inter', 'Noto Sans Thai', -apple-system, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.68;
+      padding: 36px 20px 80px;
+    }
+
+    .container {
+      max-width: 1020px;
+      margin: 0 auto;
+      background: var(--surface);
+      padding: 52px 60px;
+      border-radius: 24px;
+      box-shadow: 0 14px 44px rgba(22, 48, 38, 0.06);
+      border: 1px solid var(--border);
+    }
+
+    /* Top Action Bar */
+    .action-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 24px;
+      margin-bottom: 36px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .doc-badge {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--primary);
+      background: #E8F2ED;
+      padding: 6px 14px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-export {
+      background: var(--primary);
+      color: #FFFFFF;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      box-shadow: 0 6px 16px rgba(22, 48, 38, 0.18);
+    }
+
+    .btn-export:hover {
+      background: var(--primary-light);
+      transform: translateY(-1px);
+    }
+
+    /* Hero Banner */
+    .hero-banner {
+      background: linear-gradient(135deg, #163026 0%, #24433A 100%);
+      color: #FFFFFF;
+      padding: 36px 40px;
+      border-radius: 20px;
+      margin-bottom: 36px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-tag {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.14);
+      color: #A7F3D0;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      padding: 5px 12px;
+      border-radius: 999px;
+      margin-bottom: 14px;
+    }
+
+    .hero-banner h1 {
+      font-size: 28px;
+      font-weight: 900;
+      line-height: 1.3;
+      margin-bottom: 10px;
+      color: #FFFFFF;
+    }
+
+    .hero-banner p {
+      font-size: 15px;
+      color: #D1FAE5;
+      max-width: 820px;
+      margin-bottom: 22px;
+    }
+
+    .status-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .status-pill {
+      background: rgba(16, 185, 129, 0.2);
+      border: 1px solid rgba(167, 243, 208, 0.35);
+      color: #ECFDF5;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 5px 12px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dot-green {
+      width: 8px;
+      height: 8px;
+      background: #34D399;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    /* Headings */
+    h2 {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--primary);
+      margin: 40px 0 18px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #E8F2ED;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    h3 {
+      font-size: 16px;
+      font-weight: 800;
+      color: #1E3A2F;
+      margin: 22px 0 10px;
+    }
+
+    p {
+      margin-bottom: 12px;
+      font-size: 14.5px;
+    }
+
+    ul, ol {
+      padding-left: 22px;
+      margin-bottom: 16px;
+      font-size: 14.5px;
+    }
+
+    li {
+      margin-bottom: 6px;
+    }
+
+    /* Bento & Cards */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin: 16px 0 24px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin: 16px 0 24px;
+    }
+
+    .card {
+      background: #F9FBFA;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px 22px;
+    }
+
+    .card-white {
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 22px 24px;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.02);
+    }
+
+    .card-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--primary);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .kpi-num {
+      font-size: 26px;
+      font-weight: 900;
+      color: var(--primary);
+      line-height: 1.2;
+      margin: 6px 0;
+    }
+
+    /* Formula Box */
+    .formula-box {
+      background: #F8FAF9;
+      border-left: 4px solid var(--primary);
+      border-radius: 12px;
+      padding: 16px 22px;
+      margin: 14px 0 20px;
+    }
+
+    .formula-math {
+      font-size: 16.5px;
+      margin: 8px 0;
+      text-align: center;
+    }
+
+    .formula-note {
+      font-size: 13px;
+      color: var(--text-muted);
+      border-top: 1px dashed var(--border);
+      padding-top: 8px;
+      margin-top: 8px;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0 24px;
+      font-size: 13.5px;
+    }
+
+    th {
+      background: #EFF5F2;
+      color: var(--primary);
+      font-weight: 800;
+      text-align: left;
+      padding: 11px 14px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    td {
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    tr:nth-child(even) td {
+      background: #FCFDFD;
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 700;
+    }
+    .badge-green { background: #D1FAE5; color: #065F46; }
+    .badge-yellow { background: #FEF3C7; color: #92400E; }
+    .badge-orange { background: #FFEDD5; color: #9A3412; }
+    .badge-red { background: #FEE2E2; color: #991B1B; }
+    .badge-blue { background: #E0F2FE; color: #075985; }
+
+    /* Code / Architecture Block */
+    pre, code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+    }
+
+    .arch-box {
+      background: #0F1F18;
+      color: #E2F1EB;
+      padding: 20px 24px;
+      border-radius: 14px;
+      overflow-x: auto;
+      line-height: 1.55;
+      margin: 16px 0 24px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+    }
+
+    .footer {
+      margin-top: 48px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      font-size: 12.5px;
+      color: var(--text-muted);
+    }
+
+    /* Print Media Query for Clean PDF Export */
+    @media print {
+      @page {
+        size: A4;
+        margin: 14mm 14mm 14mm 14mm;
+      }
+      body {
+        background: #FFFFFF;
+        padding: 0;
+        font-size: 12.5px;
+      }
+      .container {
+        box-shadow: none;
+        border: none;
+        padding: 0;
+        max-width: 100%;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .hero-banner {
+        padding: 24px 28px;
+        margin-bottom: 24px;
+        page-break-inside: avoid;
+      }
+      .card, .card-white, .formula-box, .arch-box, table {
+        page-break-inside: avoid;
+      }
+      h2, h3 {
+        page-break-after: avoid;
+      }
+      .page-break {
+        page-break-before: always;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+
+    <!-- Action Bar (Hidden when printing to PDF) -->
+    <div class="action-bar no-print">
+      <div class="doc-badge">
+        🐄 CowCare AI • Master Project Report (อัปเดตล่าสุด: 24 ต.ค. 2026)
+      </div>
+      <button class="btn-export" onclick="window.print()">
+        🖨️ พิมพ์รายงาน / บันทึกเป็น PDF (Export PDF)
+      </button>
+    </div>
+
+    <!-- Hero Cover Section -->
+    <div class="hero-banner">
+      <div class="hero-tag">Smart Dairy Farming • IoT Telemetry + YOLO26m ONNX Computer Vision</div>
+      <h1>CowCare AI — สรุปภาพรวมระบบเฝ้าระวังและวิเคราะห์ความเครียดความร้อนในโคนม</h1>
+      <p>
+        ระบบเฝ้าระวังความเครียดจากความร้อนสำหรับฟาร์มโคนมรายย่อยในประเทศไทย ผสานกล่องเซ็นเซอร์สภาพแวดล้อม IoT (ESP32-S3 v1.4.1 + SHT20 RS485) และกล้องวงจรปิด Dahua ร่วมกับโมเดล YOLO26m ONNX นับท่าวัวอัตโนมัติ (ทดสอบในบ้านแล้ว พร้อมติดตั้งที่ฟาร์มจริง)
+      </p>
+      <div class="status-strip">
+        <span class="status-pill"><span class="dot-green"></span> Web Dashboard: cow-detect.pages.dev</span>
+        <span class="status-pill"><span class="dot-green"></span> Cloud API &amp; Vision Worker: Render Singapore</span>
+        <span class="status-pill"><span class="dot-green"></span> Database &amp; Private Storage: Supabase</span>
+        <span class="status-pill"><span class="dot-green"></span> IoT Box: ESP32-S3 v1.4.1 + SHT20 (ทดสอบแล้ว)</span>
+        <span class="status-pill"><span class="dot-green"></span> IP Camera: Dahua Snapshot 10-Min (ทดสอบแล้ว)</span>
+      </div>
+    </div>
+
+    <!-- 1. Executive Summary & Problem Statement -->
+    <h2>📌 1. ที่มาและความสำคัญของโครงการ (Problem &amp; Solution Overview)</h2>
+    <p>
+      เกษตรกรผู้เลี้ยงโคนมในประเทศไทยส่วนใหญ่เป็นเกษตรกรรายย่อยที่เผชิญกับปัญหา <strong>สภาวะความเครียดจากความร้อน (Heat Stress)</strong> เนื่องจากสภาพอากาศร้อนชื้นและโครงสร้างโรงเรือนที่ระบายอากาศได้ไม่เต็มที่ ส่งผลให้:
+    </p>
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-title">📉 จุดเริ่มเครียดโคนมลูกผสมไทย</div>
+        <div class="kpi-num">THI 74 / 76 / 82</div>
+        <p style="font-size: 13px; color: var(--text-muted); margin:0;">
+          อ้างอิงงานวิจัยโคนมลูกผสมไทย (Boonkum et al., 2011; 2024) น้ำนมเริ่มลดที่ THI เฉลี่ยรายวัน 74–76 และลดเร็วขึ้นเมื่อเกิน 82
+        </p>
+      </div>
+      <div class="card">
+        <div class="card-title">⏳ ผลกระทบตามหลัง (Lag Effect)</div>
+        <div class="kpi-num">~5 วัน</div>
+        <p style="font-size: 13px; color: var(--text-muted); margin:0;">
+          น้ำนมโคนมลดลงชัดเจนหลังเผชิญความร้อนสะสมประมาณ 5 วัน (Hasan et al., 2026) และต้องอาศัยช่วงเย็นกลางคืน (THI &lt; 74) เพื่อฟื้นตัว
+        </p>
+      </div>
+      <div class="card">
+        <div class="card-title">💧 ข้อจำกัดการพ่นหมอกในอากาศชื้น</div>
+        <div class="kpi-num">RH ≥ 75%</div>
+        <p style="font-size: 13px; color: var(--text-muted); margin:0;">
+          เมื่อความชื้นตั้งแต่ 75% ขึ้นไป การพ่นหมอกฝอยจะไม่ช่วยลดความร้อน ระบบจึงแนะนำให้ราดน้ำตัววัวช่วงสั้นๆ ร่วมกับเปิดพัดลมแทน
+        </p>
+      </div>
+    </div>
+
+    <!-- 2. System Architecture & Deployment Status -->
+    <h2>🏛️ 2. สถาปัตยกรรมระบบและสถานะปัจจุบัน (System Architecture)</h2>
+    <p>
+      ระบบออกแบบให้ทำงานที่ฟาร์มได้โดย <strong>ไม่ต้องตั้งคอมพิวเตอร์ทิ้งไว้ที่โรงเรือน</strong> โดยบอร์ด ESP32-S3 ทำหน้าที่ทั้งส่งค่าเซ็นเซอร์และดึงภาพนิ่งจากกล้องในวงแลนขึ้นไปประมวลผลบน Cloud:
+    </p>
+
+    <div class="arch-box">[1. ชั้นอุปกรณ์หน้างานในโรงเรือน (Barn Edge Layer)]
+ ├── 📦 กล่องเซ็นเซอร์ ESP32-S3 (Firmware v1.4.1) + หัววัด XY-MD02 (SHT20 RS485) + จอ TFT ST7789
+ │    ├── ส่งข้อมูลแบบ HTTPS ที่ตรวจใบรับรองจริง (Root CA) + บังคับใช้ X-Device-Key
+ │    ├── เก็บข้อมูลไว้ในบอร์ด (/q.bin บน LittleFS) เมื่อเน็ตหลุด แล้วทยอยส่งเมื่อเน็ตกลับมา
+ │    ├── รายงานสถานะกล่องทุก 5 นาที (Heartbeat): ปกติ / เซ็นเซอร์เสีย / ข้อมูลค้างส่ง / ออฟไลน์
+ │    └── ดึงภาพจากกล้อง Dahua ทุก 10 นาที (HTTP Digest Auth) ส่งขึ้นเซิร์ฟเวอร์
+ └── 🎥 กล้องวงจรปิด Dahua DH-IPC-HFW2231TP-ZAS-S2 (IP: 192.168.1.108)
+      └── เชื่อมต่อในวงแลนเดียวกับบอร์ด ESP32-S3 (ไม่เก็บรหัสผ่านไว้ในลิงก์ RTSP)
+
+[2. ชั้นประมวลผลคลาวด์และปัญญาประดิษฐ์ (Cloud API &amp; Vision Worker Layer)]
+ ├── ☁️ Backend Node.js API (Render Cloud Singapore — https://cow-detect-zea6.onrender.com)
+ │    ├── คำนวณตัวชี้วัดความร้อนชุดเดียวกันทั้งระบบ (เฉลี่ยทุก 5 นาที ด้วย heatMetrics.js)
+ │    ├── รันโมเดล YOLO26m ONNX (best.onnx) บน Worker Thread นับวัวแยกตามท่า (นอน / ยืน / กิน / ดื่ม)
+ │    ├── เก็บภาพตัวอย่างชั่วโมงละ 1 รูป พร้อมไฟล์ JSON ลง Supabase Storage แบบ Private
+ │    └── เข้ารหัสรหัสผ่านกล้องด้วย AES-256-GCM
+ └── 🗄️ Cloud Database &amp; Storage (Supabase PostgreSQL &amp; Private Buckets)
+      └── เก็บข้อมูลฟาร์ม, ค่าเซ็นเซอร์, โมเดล ONNX (ตรวจด้วย SHA-256) และภาพตัวอย่างรายชั่วโมง
+
+[3. ชั้นส่วนติดต่อผู้ใช้งาน (Frontend Web Application Layer)]
+ └── 🌐 Nuxt 3 + Vuetify + Tailwind CSS + ApexCharts (https://cow-detect.pages.dev)
+      ├── หน้าเกษตรกร (4 หน้า): วันนี้ / ย้อนหลัง / แจ้งเตือน / ฉัน (พร้อมปุ่มโทรหาสัตวแพทย์/สหกรณ์)
+      └── หน้า Admin: แดชบอร์ดเครือข่าย, สุขภาพกล่องเซ็นเซอร์, จัดการกล้อง, และสมุดสหกรณ์</div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>ส่วนประกอบ (Component)</th>
+          <th>เทคโนโลยี / รุ่นอุปกรณ์</th>
+          <th>รายละเอียดการเชื่อมต่อ</th>
+          <th>สถานะปัจจุบัน</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Frontend Web App</strong></td>
+          <td>Nuxt 3 (SPA Mode), Vuetify, ApexCharts</td>
+          <td><code>https://cow-detect.pages.dev</code></td>
+          <td><span class="badge badge-green">🟢 ทดสอบในบ้านแล้ว</span></td>
+        </tr>
+        <tr>
+          <td><strong>Cloud Backend API</strong></td>
+          <td>Node.js, Express 5, ONNX Runtime Worker</td>
+          <td><code>https://cow-detect-zea6.onrender.com</code></td>
+          <td><span class="badge badge-green">🟢 ทดสอบในบ้านแล้ว</span></td>
+        </tr>
+        <tr>
+          <td><strong>Cloud Database</strong></td>
+          <td>Supabase PostgreSQL + Private Storage</td>
+          <td><code>aws-0-ap-southeast-2.pooler.supabase.com</code></td>
+          <td><span class="badge badge-green">🟢 Online 24/7</span></td>
+        </tr>
+        <tr>
+          <td><strong>IoT Sensor Box</strong></td>
+          <td>ESP32-S3 (v1.4.1) + XY-MD02 (SHT20 RS485)</td>
+          <td>HTTPS (Root CA) + <code>X-Device-Key</code> + LittleFS Queue</td>
+          <td><span class="badge badge-green">🟢 ทดสอบในบ้านแล้ว</span></td>
+        </tr>
+        <tr>
+          <td><strong>IP Camera (CCTV)</strong></td>
+          <td>Dahua <code>DH-IPC-HFW2231TP-ZAS-S2</code></td>
+          <td>ESP32 ดึงภาพทุก 10 นาทีผ่าน HTTP Digest ในแลน</td>
+          <td><span class="badge badge-green">🟢 ทดสอบในบ้านแล้ว</span></td>
+        </tr>
+        <tr>
+          <td><strong>Vision AI Worker</strong></td>
+          <td>YOLO26m ONNX (<code>best.onnx</code> บน Node Worker)</td>
+          <td>ตัดกรอบซ้อนแบบ Class-Agnostic NMS (1 ตัว = 1 กรอบ)</td>
+          <td><span class="badge badge-blue">🔵 ทดสอบกับชุดภาพ 203 ภาพแล้ว</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- 3. Hardware Details -->
+    <div class="page-break"></div>
+    <h2>🔌 3. รายละเอียดอุปกรณ์ฮาร์ดแวร์ในระบบ (Hardware Specifications)</h2>
+
+    <div class="grid-2">
+      <div class="card-white">
+        <div class="card-title">
+          <span>📟 1. กล่องตรวจวัดสภาพแวดล้อม (ESP32-S3 v1.4.1)</span>
+          <span class="badge badge-green">ทดสอบในบ้านแล้ว</span>
+        </div>
+        <ul>
+          <li><strong>ความปลอดภัยการส่งข้อมูล:</strong> ส่งผ่าน HTTPS ที่ตรวจใบรับรองจริง และบังคับใช้ <code>X-Device-Key</code></li>
+          <li><strong>หัววัดอุณหภูมิ-ความชื้น:</strong> โมดูล RS485 Modbus RTU ตระกูล <strong>XY-MD02 ชิป SHT20</strong> (ตรวจยืนยันด้วยสคริปต์อ่านรีจิสเตอร์ <code>sensor_probe_scan.ino</code>) ความแม่นยำตามสเปก $\pm 0.3^\circ\text{C}$ / $\pm 3\%\text{ RH}$ (ค่า THI คลาดได้ประมาณ $\pm 0.7$)</li>
+          <li><strong>สำรองข้อมูลเมื่อเน็ตหลุด:</strong> เก็บข้อมูลไว้ในบอร์ด (<code>/q.bin</code> บน LittleFS) เมื่อเน็ตหลุด แล้วทยอยส่งเมื่อเน็ตกลับมา</li>
+          <li><strong>รายงานสุขภาพกล่อง (Heartbeat ทุก 5 นาที):</strong> แจ้งสถานะ ปกติ / เซ็นเซอร์เสีย / ข้อมูลค้างส่ง / ออฟไลน์</li>
+        </ul>
+      </div>
+
+      <div class="card-white">
+        <div class="card-title">
+          <span>🎥 2. กล้องวงจรปิด (Dahua Starlight Bullet)</span>
+          <span class="badge badge-green">ทดสอบในบ้านแล้ว</span>
+        </div>
+        <ul>
+          <li><strong>รุ่น:</strong> <code>Dahua DH-IPC-HFW2231TP-ZAS-S2</code></li>
+          <li><strong>ความละเอียดและเซ็นเซอร์:</strong> 2MP Full HD (1920×1080) เซ็นเซอร์ 1/2.8" CMOS <strong>Starlight</strong> เลนส์ซูมไฟฟ้า 2.7mm–13.5mm มาตรฐานกันน้ำกันฝุ่น IP67</li>
+          <li><strong>การทำงานร่วมกับบอร์ด:</strong> บอร์ด ESP32-S3 ดึงภาพนิ่งจากกล้องทุก 10 นาทีผ่าน HTTP Digest Auth ส่งขึ้นเซิร์ฟเวอร์</li>
+          <li><strong>ความปลอดภัยรหัสผ่านกล้อง:</strong> เข้ารหัสรหัสผ่านกล้องด้วย <strong>AES-256-GCM</strong> และไม่เก็บรหัสผ่านไว้ในลิงก์ RTSP</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- 4. Mathematical Formulations -->
+    <h2>🧮 4. สูตรการคำนวณและเกณฑ์โคนมลูกผสมไทยในระบบ</h2>
+
+    <div class="formula-box">
+      <strong>4.1 สูตรดัชนีอุณหภูมิและความชื้นมาตรฐาน (NRC, 1971)</strong>
+      <div class="formula-math">
+        $$\text{THI} = (1.8 \times T + 32) - (0.55 - 0.0055 \times \text{RH}) \times (1.8 \times T - 26)$$
+      </div>
+      <div class="formula-note">
+        โดย $T$ = อุณหภูมิอากาศ ($^\circ\text{C}$) และ $\text{RH}$ = ความชื้นสัมพัทธ์ ($\%$) ใช้สูตร NRC (1971) ชุดเดียวกันทั้งระบบ และใช้เกณฑ์โคนมลูกผสมไทย <strong>74 (เฝ้าระวัง) / 76 (เครียด) / 82 (วิกฤต)</strong> อ้างอิง Boonkum et al. (2011, 2024)
+      </div>
+    </div>
+
+    <div class="formula-box">
+      <strong>4.2 วิธีคำนวณตัวชี้วัดความร้อนชุดเดียวกันทั้งระบบ (5-Minute Bucketed Metrics)</strong>
+      <div class="formula-math">
+        $$\text{Data Hours} = N_{\text{buckets}} \times \frac{5}{60}, \qquad \text{Coverage (\%)} = \min\left(100,\; \text{round}\left(\frac{\text{Data Hours}}{\text{Window Hours}} \times 100\right)\right)$$
+      </div>
+      <div class="formula-note">
+        • <strong>ชั่วโมงเครียด:</strong> นับจำนวนช่วง 5 นาทีที่มี $\text{THI} \ge 76$ คูณ $\frac{5}{60}$ ชม. (ไม่เดาค่าในช่วงที่เซ็นเซอร์ขาดหาย)<br>
+        • <strong>ระดับความเครียดรายวัน:</strong> ประเมินจากค่าเฉลี่ย THI ทั้งวัน เพื่อเทียบตรงตามวิธีของงานวิจัย<br>
+        • <strong>ชั่วโมงกลางคืนที่ได้พัก:</strong> นับชั่วโมงในช่วง 22:00–06:00 น. ที่ $\text{THI} &lt; 74$<br>
+        • <strong>จำนวนวันเครียดติดต่อกัน:</strong> นับจำนวนวันล่าสุดที่ THI เฉลี่ยรายวัน $\ge 76$ ติดต่อกัน (เฉพาะวันที่มีข้อมูลอย่างน้อย 12 ชม.)
+      </div>
+    </div>
+
+    <!-- 5. Deep Learning & AI Models -->
+    <div class="page-break"></div>
+    <h2>🧠 5. ระบบนับท่าวัวจากกล้องและแนวโน้มความร้อนสะสม</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>โมดูล</th>
+          <th>สถาปัตยกรรม / ไฟล์</th>
+          <th>การทำงานในระบบ</th>
+          <th>ผลการทดสอบและข้อจำกัด</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>1. ระบบนับท่าวัวจากกล้อง</strong><br><span class="badge badge-blue">Computer Vision</span></td>
+          <td>
+            <strong>YOLO26m ONNX</strong><br>
+            ไฟล์: <code>best.onnx</code> (เก็บใน Supabase Private Storage ตรวจด้วย SHA-256)
+          </td>
+          <td>
+            • รันบน Node.js Worker Thread ทุก 10 นาทีเมื่อบอร์ดส่งภาพมา<br>
+            • นับวัวแยกตาม 4 ท่า: <strong>นอน, ยืน, กิน, ดื่ม</strong><br>
+            • ตัดกรอบซ้อนโดยไม่ดูท่า (Class-Agnostic NMS: 1 ตัว = 1 กรอบ)<br>
+            • เก็บภาพตัวอย่างชั่วโมงละ 1 รูป พร้อมไฟล์ JSON เพื่อทำ Dataset โรงเรือนไทย
+          </td>
+          <td>
+            ทดสอบกับภาพชุดทดสอบ 203 ภาพ:<br>
+            • วัวที่ถูกนับซ้ำลดจาก <strong>11 คู่ เหลือ 0 คู่</strong><br>
+            • จำนวนวัวนอนคลาดเฉลี่ย <strong>0.47 ตัวต่อภาพ</strong><br>
+            • พลาดวัวประมาณ <strong>21%</strong> (เทรนจากภาพต่างประเทศ ต้องวัดซ้ำในโรงเรือนไทยหลังติดตั้ง)
+          </td>
+        </tr>
+        <tr>
+          <td><strong>2. แนวโน้มความร้อนสะสม</strong><br><span class="badge badge-green">72h Baseline</span></td>
+          <td>
+            <strong>Baseline ค่าเฉลี่ย THI 72 ชม.</strong><br>
+            ไฟล์: <code>forecastService.js</code>
+          </td>
+          <td>
+            • ใช้ค่าเฉลี่ย THI รายชั่วโมงย้อนหลัง 72 ชม. สะท้อนความร้อนสะสม<br>
+            • คำนวณช่วงร้อนที่สุด (4 ชม.) และช่วงเย็นที่สุด (3 ชม.) จากข้อมูลของฟาร์มเอง<br>
+            • ความชื้น $\ge 75\%$ แนะนำราดน้ำร่วมกับพัดลม แทนการพ่นหมอก
+          </td>
+          <td>
+            • บนข้อมูลชุดทดสอบ วิธีค่าเฉลี่ย 72 ชม. ได้ MAE ~0.45 THI (ดีกว่า Bi-LSTM เดิมที่ได้ ~0.87 จึงปิด LSTM ไว้ก่อน)<br>
+            • ยังไม่ประเมินปริมาณน้ำนมที่ลดลง (ระบบไม่มีข้อมูลน้ำนม)
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- 6. Web Dashboard & Admin Features -->
+    <h2>🖥️ 6. ฟีเจอร์หลักบนหน้าเกษตรกรและหน้า Admin</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3>👨‍🌾 หน้าเกษตรกร (ออกแบบใหม่ 4 หน้า)</h3>
+        <ul>
+          <li><strong>4 หน้าหลัก:</strong> วันนี้ / ย้อนหลัง / แจ้งเตือน / ฉัน</li>
+          <li><strong>ปุ่มโทรด่วน:</strong> กดโทรหาสัตวแพทย์ประจำฟาร์มหรือสหกรณ์ได้ทันที</li>
+          <li><strong>ความโปร่งใสของข้อมูล:</strong> แสดงรายการช่วงที่วัวเครียด ช่วงที่เซ็นเซอร์ขาดหาย สูตรคำนวณ ข้อควรทราบ และงานวิจัยอ้างอิง</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>🛡️ หน้า Admin &amp; สมุดสหกรณ์</h3>
+        <ul>
+          <li><strong>การ์ดสรุปตัวชี้วัดใหม่:</strong> ความครบถ้วนของข้อมูล, ชั่วโมงกลางคืนได้พัก, และจำนวนวันเครียดติดต่อกัน</li>
+          <li><strong>สถานะสุขภาพกล่องในหน้าอุปกรณ์:</strong> แยกสถานะ ปกติ / เซ็นเซอร์เสีย / ข้อมูลค้างส่ง / ออฟไลน์</li>
+          <li><strong>การตั้งค่าฟาร์มและกล้อง:</strong> เพิ่ม/แก้ไขกล้อง, เบอร์สัตวแพทย์, ชนิดหลังคา (ไม่บังคับ), และเวลารีดนม/ให้อาหาร</li>
+          <li><strong>สมุดสหกรณ์:</strong> แสดงความครบถ้วนของข้อมูลจริงโดยไม่มีป้ายรับรองหรือตัวเลขสมมติ</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- 7. Next Steps Roadmap -->
+    <h2>🚀 7. ข้อจำกัดที่ต้องรู้และแผนงานระยะถัดไป (หลังติดตั้งที่ฟาร์มจริง)</h2>
+    <ol>
+      <li><strong>การทดสอบภาคสนาม:</strong> ปัจจุบันทุกส่วนทดสอบในบ้านแล้ว ขั้นต่อไปคือนำกล่องเซ็นเซอร์และกล้องไปติดตั้งที่โรงเรือนจริง และเทียบค่าเซ็นเซอร์กับเครื่องวัดอ้างอิง</li>
+      <li><strong>วัดความแม่นของโมเดลในโรงเรือนไทย:</strong> ใช้ภาพตัวอย่างรายชั่วโมงที่ระบบเก็บไว้หลังติดตั้ง 2–3 สัปดาห์ เพื่อทำหน้านับเทียบความแม่นยำและหน้าวิเคราะห์ <code>% วัวนอน เทียบกับค่า THI</code></li>
+      <li><strong>ฟีเจอร์ระยะถัดไปที่ตกลงไว้:</strong> เทียบ THI ในโรงเรือนกับสถานีอากาศภายนอก (Open-Meteo), แจ้งเตือนผ่าน LINE รายฟาร์ม, เชื่อมต่อ Gemini AI, และระบบสั่งเปิดพัดลมอัตโนมัติ</li>
+    </ol>
+
+    <!-- Footer -->
+    <div class="footer">
+      <span>CowCare AI Project — Smart Dairy Barn Monitoring Platform</span>
+      <span>เอกสารสรุปสถานะโครงการ | อัปเดต 24 ตุลาคม 2026</span>
+    </div>
+
+  </div>
+
+</body>
+</html>
