@@ -13,7 +13,7 @@ const { buildRtspUrls } = require('../../services/rtspUrls')
 const { encryptSecret, CameraSecretError } = require('../../services/cameraSecrets')
 const { getCameraBehavior } = require('../../services/cameraBehavior')
 const { getFarm24h } = require('../../services/farmHistory')
-const { dailySeries, stressStreak } = require('../../services/heatMetrics')
+const { dailySeries, stressStreak, bkkDate } = require('../../services/heatMetrics')
 
 // คอลัมน์กล้องที่ส่งกลับให้หน้าเว็บได้ (ไม่มี password_encrypted)
 const CAMERA_PUBLIC_COLUMNS = `id, farm_id, camera_name, barn_unit, brand, model, ip_address, rtsp_port, http_port,
@@ -480,6 +480,82 @@ router.get('/:id/daily-summaries', verifyToken, requireRole('admin'), async (req
     } catch (err) {
         console.error('[Get Farm Daily Summaries Error]:', err.message)
         return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการดึงประวัติ: ' + err.message })
+    }
+})
+
+// -----------------------------------------------------------------
+// GET: /api/Admin/farms/dashboard-trend
+// กราฟเส้นหน้า dashboard: THI เฉลี่ยรายวัน 7 วัน (heatMetrics วิธีเดียวทั้งระบบ) + พยากรณ์ baseline 3 วัน
+// แยกจาก dashboard-stats เพราะหน้านั้นดึงซ้ำทุก 12 วินาที ส่วนนี้หนักกว่าและเปลี่ยนช้า
+// วันที่ข้อมูลไม่พอให้ avg_thi = null (ค่าเฉลี่ยจากไม่กี่ชั่วโมงเอียงตามช่วงเวลาที่มีข้อมูล)
+// -----------------------------------------------------------------
+const TREND_DAYS = 7
+const TREND_MIN_DATA_H = 12      // เท่ากับเกณฑ์นับวันเครียดติดต่อกัน
+const TREND_TODAY_MIN_DATA_H = 6
+const TREND_MAX_FARMS = 8
+router.get('/dashboard-trend', verifyToken, requireRole('admin'), async (req, res) => {
+    try {
+        const { rows: farms } = await db.query(`
+            SELECT f.id_farms, f.name_farms, to_jsonb(f)->>'hf_profile' AS hf_profile
+            FROM tb_farms f
+            ORDER BY f.created_at ASC NULLS LAST
+            LIMIT ${TREND_MAX_FARMS}
+        `)
+        const out = []
+        for (const farm of farms) {
+            const profile = getFarmProfile(farm)
+            const days = await dailySeries(farm.id_farms, profile, TREND_DAYS)
+            if (!days.some(d => d.has_data)) continue
+            let forecast = null
+            try {
+                forecast = await generateBaselineForecast(farm)
+            } catch (fcErr) {
+                console.warn('[Dashboard Trend] forecast error:', fcErr.message)
+            }
+            out.push({
+                id: farm.id_farms,
+                name: farm.name_farms || 'ฟาร์ม',
+                profile,
+                thresholds: getThresholds(profile),
+                days: days.map(d => {
+                    const enough = d.data_hours >= (d.is_today ? TREND_TODAY_MIN_DATA_H : TREND_MIN_DATA_H)
+                    return {
+                        date: d.date,
+                        is_today: d.is_today,
+                        avg_thi: enough ? d.avg_thi : null,
+                        max_thi: enough ? d.max_thi : null,
+                        data_hours: d.data_hours,
+                        coverage_pct: d.coverage_pct,
+                        level: enough ? d.daily_mean_level : null
+                    }
+                }),
+                forecast: forecast ? {
+                    engine: forecast.engine,
+                    model_name: forecast.model_name,
+                    method_th: forecast.method_th,
+                    evaluation_note: forecast.evaluation_note,
+                    insufficient_data: forecast.insufficient_data,
+                    reason: forecast.reason || null,
+                    points: (forecast.forecasts || []).map(f => ({
+                        date: bkkDate(new Date(Date.now() + f.horizon_days * 86400e3)),
+                        predicted_thi: f.predicted_thi,
+                        risk_level: f.risk_level
+                    }))
+                } : null
+            })
+        }
+        return res.json({
+            success: true,
+            trend: {
+                days: TREND_DAYS,
+                min_data_hours: TREND_MIN_DATA_H,
+                today_min_data_hours: TREND_TODAY_MIN_DATA_H,
+                farms: out
+            }
+        })
+    } catch (err) {
+        console.error('[Dashboard Trend] error:', err.message)
+        return res.status(500).json({ success: false, message: 'ดึงข้อมูลแนวโน้มไม่สำเร็จ' })
     }
 })
 

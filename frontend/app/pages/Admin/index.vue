@@ -43,7 +43,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
-import { Admin } from '../../API/baseAPI'
+import { getNodeApiBase } from '../../API/baseAPI'
 import { calcThi, getRiskLevel, RISK_LABELS_TH } from '~/utils/heatStress'
 
 import AdminHeaderArea from '../../components/Admin/dashboard/HeaderArea.vue'
@@ -63,6 +63,8 @@ const isLoading = ref(false)
 const lastUpdatedStr = ref('')
 let pollTimer = null
 
+// อ่าน base ตอน setup: ใน setInterval เรียก useRuntimeConfig ไม่ได้ (จะตกไปใช้ URL production)
+const ADMIN_API = `${getNodeApiBase()}/Admin`
 const token = process.client ? localStorage.getItem('token') : null
 
 // Format current time
@@ -79,7 +81,7 @@ const updateTimestamp = () => {
 const fetchStats = async (showLoading = false) => {
   if (showLoading) isLoading.value = true
   try {
-    const res = await axios.get(`${Admin}/farms/dashboard-stats`, {
+    const res = await axios.get(`${ADMIN_API}/farms/dashboard-stats`, {
       headers: { Authorization: `Bearer ${token}` }
     })
 
@@ -91,7 +93,7 @@ const fetchStats = async (showLoading = false) => {
     console.warn('[Fetch Dashboard Stats Error, falling back to /farms/all]:', err.message)
     // Fallback: If dashboard-stats fails or returns 500, calculate from /farms/all
     try {
-      const fallbackRes = await axios.get(`${Admin}/farms/all`, {
+      const fallbackRes = await axios.get(`${ADMIN_API}/farms/all`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       if (fallbackRes.data && fallbackRes.data.rows) {
