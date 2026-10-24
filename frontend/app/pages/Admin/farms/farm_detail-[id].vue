@@ -650,7 +650,7 @@
       <HeatMethodNote :method="farmMethod" class="md:col-span-3" />
     </div>
 
-    <!-- 🟢 4. HERO SECTION: Baseline 3-day heat stress outlook -->
+    <!-- 🟢 4. HERO SECTION: พยากรณ์ 3 วัน (services/forecastService.js) -->
     <div class="bg-gradient-to-br from-[#142820] to-[#1e3a30] text-white rounded-[32px] p-6 md:p-8 border border-[#2d5244] shadow-[0_15px_45px_rgba(20,40,32,0.3)] space-y-6 relative overflow-hidden animate-fade-up delay-200">
       
       <!-- Ambient Glow Decor -->
@@ -667,13 +667,13 @@
             <div class="flex flex-wrap items-center gap-2">
               <h3 class="text-xl md:text-2xl font-black text-white tracking-tight flex items-center gap-2">
                 <span>พยากรณ์ความร้อนสะสม 3 วัน</span>
-                <span class="text-xs font-mono font-bold bg-[#d87939] text-white px-2.5 py-0.5 rounded-full shadow-sm">
-                  BASELINE
+                <span class="text-xs font-bold bg-[#d87939] text-white px-2.5 py-0.5 rounded-full shadow-sm">
+                  {{ forecastEngineBadge.label }}
                 </span>
               </h3>
             </div>
             <p class="text-xs text-white/70 mt-1 font-medium">
-              {{ lstmForecast?.method_th || 'ใช้ค่าเฉลี่ยดัชนี THI ของ 72 ชั่วโมงที่ผ่านมาเป็นแนวโน้มความร้อนสะสม' }} · {{ lstmForecast?.evaluation_note || 'ยังไม่มีผลทดสอบกับข้อมูลภาคสนาม' }}
+              {{ lstmForecast?.method_th || 'ยังไม่มีผลพยากรณ์' }}<template v-if="lstmForecast?.fallback_reason"> ({{ lstmForecast.fallback_reason }})</template> · {{ lstmForecast?.evaluation_note || '' }}
             </p>
           </div>
         </div>
@@ -687,7 +687,7 @@
             </span>
             <span class="bg-white/10 text-amber-300 px-3 py-1.5 rounded-xl border border-amber-500/30 flex items-center gap-1.5">
               <v-icon icon="mdi-history" size="14" class="text-amber-400" />
-              <span>Lookback 72 ชม. (3 วัน)</span>
+              <span>{{ forecastEngineBadge.detail }}</span>
             </span>
             <span class="bg-white/10 text-sky-300 px-3 py-1.5 rounded-xl border border-sky-500/30 flex items-center gap-1.5">
               <v-icon icon="mdi-clock-fast" size="14" class="text-sky-400" />
@@ -848,9 +848,10 @@
         </div>
       </div>
       <ul class="list-disc pl-5 space-y-1 text-[11.5px] text-[#51635B] leading-relaxed">
-        <li><strong>Baseline (ใช้งานอยู่):</strong> ค่าเฉลี่ย THI รายชั่วโมงของ 72 ชั่วโมงล่าสุด ใช้เป็นแนวโน้มความร้อนสะสมของ 3 วันข้างหน้า ต้องมีข้อมูลอย่างน้อย 24 ชั่วโมง</li>
-        <li><strong>Bi-LSTM (ปิดไว้):</strong> เทรนจากข้อมูลสังเคราะห์ วัดผลแล้วยังแพ้ baseline จึงปิดไว้จนกว่าจะเทรนใหม่ด้วยข้อมูลจริงจากฟาร์ม</li>
-        <li><strong>ยังไม่ได้ใช้พยากรณ์อากาศ:</strong> ค่าพยากรณ์ทั้ง 3 วันจึงเท่ากัน ใช้บอกแนวโน้ม ไม่ใช่พยากรณ์อากาศรายวัน</li>
+        <li><strong>วิธีหลัก:</strong> พยากรณ์อากาศ ECMWF (Open-Meteo) ที่พิกัดฟาร์ม ลบค่าเพี้ยน (มัธยฐาน) ที่เรียนจากเซ็นเซอร์ของฟาร์มเอง 3–14 วันล่าสุด (รวมความต่างระหว่างโรงเรือนกับข้างนอก) ฟาร์มภาคเหนือที่มีข้อมูลยังไม่ถึง 3 วันใช้ค่าเพี้ยนเฉลี่ยของพื้นที่เชียงใหม่ ช่วงร้อน/เย็นใช้ข้อมูลโรงเรือนจริง 72 ชม.ล่าสุด</li>
+        <li><strong>ผลทดสอบ:</strong> ย้อนหลัง 354 วัน (19 ธ.ค. 2024 – 7 ธ.ค. 2025) เทียบสถานีอุตุฯ สนามบินเชียงใหม่ (กลางแจ้ง ไม่ใช่โรงเรือน) คลาดเฉลี่ย +1/+2/+3 วัน: ค่าเพี้ยนจาก 9–14 วัน 0.69/0.78/0.88, จาก 3–8 วัน 0.80/0.92/1.07, ค่าเพี้ยนพื้นที่ 0.77/0.83/0.90 THI วิธีเดิม (ค่าเฉลี่ย 72 ชม.) 1.10/1.38/1.56</li>
+        <li><strong>สำรอง:</strong> ไม่มีพิกัดหรือเชื่อมต่อพยากรณ์อากาศไม่ได้ ใช้ค่าเฉลี่ย THI 72 ชม.ล่าสุด</li>
+        <li><strong>โมเดลเรียนรู้เชิงลึก (ไม่ใช้):</strong> GRU ทดสอบกับข้อมูลชุดเดียวกันแล้วแพ้วิธีหลัก (คลาด 0.88/0.91/0.91) ส่วน Bi-LSTM เดิมเทรนจากข้อมูลสังเคราะห์และปิดไว้</li>
       </ul>
     </div>
 
@@ -959,7 +960,7 @@
         </span>
         <span class="flex items-center gap-1.5 font-bold text-amber-700" v-if="activeChartTab === 'lstm_forecast'">
           <span class="w-3 h-0.5 bg-[#d87939] border-t-2 border-dashed border-[#d87939]"></span>
-          <span>เส้นประสีส้ม: แนวโน้ม 3 วัน (baseline)</span>
+          <span>เส้นประสีส้ม: พยากรณ์ THI เฉลี่ยรายวัน 3 วัน</span>
         </span>
         <span class="flex items-center gap-1.5">
           <span class="w-3 h-0.5 bg-amber-400"></span>
@@ -1674,6 +1675,23 @@ const isOutdoorWeatherLoading = ref(false)
 const registeredCameras = ref([])
 const cameraAlerts = ref([])
 
+// ป้ายวิธีพยากรณ์จากผลของ backend (ไม่เขียนชื่อวิธีตายตัว)
+const forecastEngineBadge = computed(() => {
+  const f = lstmForecast.value
+  if (!f) return { label: '-', detail: 'ยังไม่มีผลพยากรณ์' }
+  if (String(f.engine || '').startsWith('openmeteo')) {
+    return {
+      label: 'พยากรณ์อากาศ',
+      detail: f.adjusted
+        ? `ปรับตามโรงเรือน ${f.bias_days_used} วัน`
+        : String(f.engine).endsWith('_none_bias')
+          ? 'ยังไม่ปรับค่าเพี้ยน (รอข้อมูลฟาร์ม 3 วัน)'
+          : 'ปรับตามพื้นที่ (รอข้อมูลฟาร์ม 3 วัน)'
+    }
+  }
+  return { label: 'สำรอง', detail: 'ค่าเฉลี่ย 72 ชม.' }
+})
+
 // วิธีพยากรณ์ที่ backend ใช้จริง
 const activeEngineInfo = computed(() => {
   const engineStr = lstmForecast.value?.engine || 'ยังไม่มีผลพยากรณ์'
@@ -1684,7 +1702,7 @@ const activeEngineInfo = computed(() => {
     isDeepLearning,
     description: isDeepLearning
       ? 'Bi-LSTM (EXPERIMENTAL) เทรนจากข้อมูลสังเคราะห์ ยังไม่ผ่านการทดสอบภาคสนาม'
-      : (lstmForecast.value?.method_th || 'ใช้ค่าเฉลี่ยดัชนี THI ของ 72 ชั่วโมงที่ผ่านมา')
+      : (lstmForecast.value?.method_th || 'ยังไม่มีผลพยากรณ์')
   }
 })
 
@@ -2323,7 +2341,7 @@ const ROW_ACCENT_CLASS = { normal: 'bg-emerald-500', mild: 'bg-amber-400', moder
 const getRowAccentBarClass = (thi) => ROW_ACCENT_CLASS[levelOf(thi)] || 'bg-gray-300'
 
 // -------------------------------------------------------------
-// 📊 ApexCharts Configuration (รวมแนวโน้ม baseline 3 วัน)
+// 📊 ApexCharts Configuration (รวมพยากรณ์ 3 วัน)
 // -------------------------------------------------------------
 const chartCategories = computed(() => {
   if (activeChartTab.value === 'lstm_forecast') {
@@ -2371,7 +2389,7 @@ const chartSeries = computed(() => {
         data: actualSeriesData
       },
       {
-        name: 'แนวโน้ม 3 วัน (baseline)',
+        name: 'พยากรณ์ 3 วัน',
         type: 'line',
         data: forecastSeriesData
       }

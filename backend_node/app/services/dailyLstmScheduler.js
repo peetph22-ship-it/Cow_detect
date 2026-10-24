@@ -140,7 +140,7 @@ const calculateFarmDailySummary = async (farmId, targetDateStr = null) => {
         }
     }
 
-    // 5. พยากรณ์ล่วงหน้า 3 วัน: baseline ค่าเฉลี่ย 72 ชม. (Bi-LSTM ใช้เฉพาะเมื่อเปิด ENABLE_LSTM=true)
+    // 5. พยากรณ์ล่วงหน้า 3 วัน: พยากรณ์อากาศ + ปรับตามโรงเรือน (services/forecastService.js) Bi-LSTM ใช้เฉพาะเมื่อเปิด ENABLE_LSTM=true
     const endOfSummaryDay = new Date(`${summaryDate}T23:59:59+07:00`)
     const forecastEnd = endOfSummaryDay < new Date() ? endOfSummaryDay : new Date()
     let lstmForecast = null

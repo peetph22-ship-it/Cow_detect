@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken')
 const SECRET_KEY = process.env.SECRET_KEY
 const db = require('../../config/db')
 const {verifyToken,requireRole} = require('../../middleware/authMiddleware')
+const { checkPassword } = require('../../services/passwordPolicy')
 
 // GET: All Users (Exclude password for security)
 router.get(['/users', '/'], verifyToken, requireRole('admin') ,async (req,res) => {
@@ -52,6 +53,9 @@ router.put(['/users/:id', '/:id'], verifyToken, requireRole('admin'), async (req
         const { email,password,full_name,name_users,organization,phone,role,status } = req.body
         const userName = name_users || full_name
         if(password && password.trim()){
+            // ตั้งรหัสใหม่ (ใช้เมื่อผู้ใช้ลืมรหัส)
+            const passwordError = checkPassword(password, phone)
+            if (passwordError) return res.status(400).json({ success: false, status: 400, message: passwordError })
             const hash = await bcrypt.hash(password,10)
             await db.query(
                 `update tb_users set email=$1,password=$2,name_users=$3,organization=$4,phone=$5,role=$6,status=COALESCE($7,status) where id_users=$8`,

@@ -165,7 +165,7 @@ router.get('/user_farms', verifyToken, requireRole('admin'), async (req, res) =>
 // -----------------------------------------------------------------
 router.get('/devices', verifyToken, requireRole('admin'), async (req, res) => {
     try {
-        let { rows } = await db.query(`
+        const { rows } = await db.query(`
             SELECT d.id_devices, d.name_devices, d.serial_no, d.status, d.type, d.id_farms,
                    f.name_farms
             FROM tb_devices d
@@ -173,17 +173,7 @@ router.get('/devices', verifyToken, requireRole('admin'), async (req, res) => {
             ORDER BY d.created_at DESC
         `)
 
-        // ถ้ายังไม่มีอุปกรณ์ใน tb_devices เลย ให้สร้างตัวเริ่มต้นอย่างปลอดภัย
-        if (rows.length === 0) {
-            const insertDev = await db.query(`
-                INSERT INTO tb_devices (name_devices, serial_no, type, status, last_seen_at)
-                VALUES ('ESP32 SHT20 (ESP32-S3-01)', 'ESP32-S3-01', 'env_sensor', 'online', NOW())
-                ON CONFLICT (serial_no) DO UPDATE SET status = 'online'
-                RETURNING id_devices, name_devices, serial_no, status, type, id_farms
-            `)
-            rows = insertDev.rows
-        }
-
+        // ไม่มีอุปกรณ์ = คืนรายการว่าง (เดิมสร้างบอร์ด ESP32-S3-01 สถานะ online ปลอมให้เอง)
         res.json({
             success: true,
             devices: rows
@@ -258,18 +248,18 @@ router.post('/', verifyToken, requireRole('admin'), async (req, res) => {
             )
         }
 
-        // 3. ผูกอุปกรณ์กับฟาร์ม
+        // 3. ผูกอุปกรณ์กับฟาร์ม (ไม่แตะ status/last_seen_at: สถานะมาจากข้อมูลที่บอร์ดส่งจริงเท่านั้น)
         let assignedDevice = null
         if (id_devices) {
             if (isUUID(id_devices)) {
                 const devUpdate = await client.query(
-                    `UPDATE tb_devices SET id_farms = $1, status = 'online', last_seen_at = NOW() WHERE id_devices = $2 RETURNING *`,
+                    `UPDATE tb_devices SET id_farms = $1 WHERE id_devices = $2 RETURNING *`,
                     [farmId, id_devices]
                 )
                 if (devUpdate.rows.length > 0) assignedDevice = devUpdate.rows[0]
             } else {
                 const devUpdate = await client.query(
-                    `UPDATE tb_devices SET id_farms = $1, status = 'online', last_seen_at = NOW() WHERE serial_no = $2 RETURNING *`,
+                    `UPDATE tb_devices SET id_farms = $1 WHERE serial_no = $2 RETURNING *`,
                     [farmId, String(id_devices).trim()]
                 )
                 if (devUpdate.rows.length > 0) assignedDevice = devUpdate.rows[0]
@@ -278,8 +268,9 @@ router.post('/', verifyToken, requireRole('admin'), async (req, res) => {
             const serial = device_serial.trim()
             const devName = new_device_name ? new_device_name.trim() : `ESP32 SHT20 (${serial})`
             const devRes = await client.query(
-                `INSERT INTO tb_devices (id_farms, type, name_devices, serial_no, status, last_seen_at, created_at, updated_at)
-                 VALUES ($1, 'env_sensor', $2, $3, 'online', NOW(), NOW(), NOW())
+                // admin ลงทะเบียนบอร์ดใหม่: เริ่มเป็น offline จนกว่าบอร์ดจะส่งข้อมูลจริง
+                `INSERT INTO tb_devices (id_farms, type, name_devices, serial_no, status, created_at, updated_at)
+                 VALUES ($1, 'env_sensor', $2, $3, 'offline', NOW(), NOW())
                  ON CONFLICT (serial_no) DO UPDATE SET id_farms = $1, name_devices = EXCLUDED.name_devices
                  RETURNING *`,
                 [farmId, devName, serial]
@@ -496,7 +487,7 @@ router.get('/:id/daily-summaries', verifyToken, requireRole('admin'), async (req
 
 // -----------------------------------------------------------------
 // GET: /api/Admin/farms/dashboard-trend
-// กราฟเส้นหน้า dashboard: THI เฉลี่ยรายวัน 7 วัน (heatMetrics วิธีเดียวทั้งระบบ) + พยากรณ์ baseline 3 วัน
+// กราฟเส้นหน้า dashboard: THI เฉลี่ยรายวัน 7 วัน (heatMetrics วิธีเดียวทั้งระบบ) + พยากรณ์ 3 วัน (forecastService)
 // แยกจาก dashboard-stats เพราะหน้านั้นดึงซ้ำทุก 12 วินาที ส่วนนี้หนักกว่าและเปลี่ยนช้า
 // วันที่ข้อมูลไม่พอให้ avg_thi = null (ค่าเฉลี่ยจากไม่กี่ชั่วโมงเอียงตามช่วงเวลาที่มีข้อมูล)
 // -----------------------------------------------------------------
@@ -507,22 +498,25 @@ const TREND_MAX_FARMS = 8
 router.get('/dashboard-trend', verifyToken, requireRole('admin'), async (req, res) => {
     try {
         const { rows: farms } = await db.query(`
-            SELECT f.id_farms, f.name_farms, to_jsonb(f)->>'hf_profile' AS hf_profile
+            SELECT f.*, to_jsonb(f)->>'hf_profile' AS hf_profile
             FROM tb_farms f
             ORDER BY f.created_at ASC NULLS LAST
             LIMIT ${TREND_MAX_FARMS}
         `)
-        const out = []
-        for (const farm of farms) {
+        // ทุกฟาร์มพร้อมกัน: ตอนพยากรณ์อากาศล่ม จะรอแค่ timeout เดียว ไม่ใช่ timeout x จำนวนฟาร์ม
+        const perFarm = await Promise.all(farms.map(async (farm) => {
             const profile = getFarmProfile(farm)
             const days = await dailySeries(farm.id_farms, profile, TREND_DAYS)
-            if (!days.some(d => d.has_data)) continue
-            let forecast = null
-            try {
-                forecast = await generateBaselineForecast(farm)
-            } catch (fcErr) {
+            if (!days.some(d => d.has_data)) return null
+            const forecast = await generateBaselineForecast(farm).catch(fcErr => {
                 console.warn('[Dashboard Trend] forecast error:', fcErr.message)
-            }
+                return null
+            })
+            return { farm, profile, days, forecast }
+        }))
+        const out = []
+        for (const item of perFarm.filter(Boolean)) {
+            const { farm, profile, days, forecast } = item
             out.push({
                 id: farm.id_farms,
                 name: farm.name_farms || 'ฟาร์ม',
@@ -547,8 +541,10 @@ router.get('/dashboard-trend', verifyToken, requireRole('admin'), async (req, re
                     evaluation_note: forecast.evaluation_note,
                     insufficient_data: forecast.insufficient_data,
                     reason: forecast.reason || null,
+                    fallback_reason: forecast.fallback_reason || null,
+                    adjusted: forecast.adjusted ?? null,
                     points: (forecast.forecasts || []).map(f => ({
-                        date: bkkDate(new Date(Date.now() + f.horizon_days * 86400e3)),
+                        date: f.target_date || bkkDate(new Date(Date.now() + f.horizon_days * 86400e3)),
                         predicted_thi: f.predicted_thi,
                         risk_level: f.risk_level
                     }))
@@ -851,13 +847,17 @@ router.get('/:id', verifyToken, requireRole('admin'), async (req, res) => {
             console.warn('[Farm Detail API] History readings query error:', err.message)
         }
 
-        // พยากรณ์ 3 วันแบบ baseline (ค่าเฉลี่ย THI 72 ชม.) ดู services/forecastService.js
+        // พยากรณ์ 3 วัน: พยากรณ์อากาศ + ปรับตามโรงเรือน (สำรอง: ค่าเฉลี่ย 72 ชม.) ดู services/forecastService.js
         let lstm_forecast = null
         try {
             lstm_forecast = await generateBaselineForecast(farm)
         } catch (fcErr) {
-            console.warn('[Farm Detail API] Baseline forecast error:', fcErr.message)
+            console.warn('[Farm Detail API] forecast error:', fcErr.message)
         }
+        // ผลที่บันทึกตอน 20:00 ใช้ได้ถ้าเป็นเวอร์ชันปัจจุบัน แต่ถ้าตอนนั้นใช้วิธีสำรอง (API ล่ม) และตอนนี้ได้พยากรณ์อากาศแล้ว ให้ใช้ผลล่าสุด
+        const savedForecast = saved_daily_summary?.lstm_forecast
+        const useSaved = isCurrentForecast(savedForecast)
+            && !(String(lstm_forecast?.engine || '').startsWith('openmeteo') && !String(savedForecast.engine || '').startsWith('openmeteo'))
 
         // ตรวจสอบความต่อเนื่องของสัญญาณเซ็นเซอร์ (Data Continuity & Gap Alert)
         let gapAlert = null
@@ -933,9 +933,7 @@ router.get('/:id', verifyToken, requireRole('admin'), async (req, res) => {
             saved_daily_summary,
             history,
             // ผลพยากรณ์ที่บันทึกจากเวอร์ชันเก่า (มีตัวเลขความแม่นยำปลอม) จะไม่ถูกนำมาแสดง
-            lstm_forecast: isCurrentForecast(saved_daily_summary?.lstm_forecast)
-                ? saved_daily_summary.lstm_forecast
-                : lstm_forecast,
+            lstm_forecast: useSaved ? savedForecast : lstm_forecast,
             hf_profile: profile,
             thresholds,
             gap_alert: gapAlert

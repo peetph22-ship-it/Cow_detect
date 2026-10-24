@@ -166,9 +166,9 @@
           <div class="flex items-center justify-between mb-2">
             <label class="text-xs font-black text-[#4e6057] uppercase tracking-wider flex items-center gap-1.5">
               <v-icon icon="mdi-key-variant" size="15" class="text-[#d87939]" />
-              <span>รหัสผ่านใหม่</span>
+              <span>ตั้งรหัสผ่านใหม่</span>
             </label>
-            <span class="text-[11px] text-[#718078] font-medium">เว้นว่างไว้หากใช้รหัสผ่านเดิม</span>
+            <span class="text-[11px] text-[#718078] font-medium">ใช้เมื่อผู้ใช้ลืมรหัส เว้นว่าง = ใช้รหัสเดิม</span>
           </div>
           <div class="relative">
             <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#718078]">
@@ -177,7 +177,8 @@
             <input 
               v-model="form.password" 
               :type="showPassword ? 'text' : 'password'" 
-              placeholder="กรอกรหัสผ่านใหม่หากต้องการรีเซ็ต"
+              autocomplete="new-password"
+              placeholder="อย่างน้อย 6 ตัวอักษร ห้ามใช้เบอร์โทร"
               class="w-full bg-[#f8faf9] border border-[#e5ece9] rounded-[14px] pl-10 pr-10 py-2.5 text-sm font-medium text-[#1f3d34] placeholder-[#a6b5aa] focus:outline-none focus:border-[#24433a] focus:bg-white transition-all" />
             <button 
               type="button" 
@@ -218,7 +219,10 @@
 <script setup>
 import { ref, reactive, computed, watch } from 'vue'
 import axios from 'axios'
-import { api } from '../../../API/baseAPI'
+import { getNodeApiBase } from '../../../API/baseAPI'
+import { checkPassword } from '~/utils/password'
+// อ่าน base ตอน setup (ค่าคงที่ api ชี้ production เสมอในเบราว์เซอร์ แม้รันในเครื่อง)
+const api = getNodeApiBase()
 
 const props = defineProps({
   modelValue: {
@@ -285,6 +289,14 @@ const submitForm = async () => {
   if (!form.name_users.trim() || !form.phone.trim()) {
     alert('กรุณากรอกชื่อ-นามสกุล และเบอร์โทรศัพท์ให้ครบถ้วน')
     return
+  }
+
+  if (form.password && form.password.trim()) {
+    const passwordError = checkPassword(form.password.trim(), form.phone)
+    if (passwordError) {
+      alert(passwordError)
+      return
+    }
   }
 
   isLoading.value = true
