@@ -128,10 +128,17 @@ export const useFarmer = () => {
 
     const voiceText = `สวัสดีจ้า ตอนนี้ในคอกวัว อุณหภูมิ ${temp} องศาเซลเซียส ความชื้น ${hum} เปอร์เซ็นต์ ${title} ${message} อย่าลืมดูแลแม่วัวนะจ๊ะ`
 
-    // คาดการณ์ช่วงบ่าย/พรุ่งนี้ ภาษาชาวบ้าน
+    // คาดการณ์ช่วงบ่าย/พรุ่งนี้ ภาษาชาวบ้าน (แยกเวลา peak_window_label ป้องกัน [object Object])
+    let peakWindowText = 'ช่วงเวลา 13:00 – 16:00 น.'
     let forecastSimple = 'สภาพอากาศพรุ่งนี้ใกล้เคียงกับวันนี้ เตรียมน้ำสะอาดให้พร้อม'
+    
     if (f?.peak_window) {
-      forecastSimple = `ช่วง ${f.peak_window} จะเป็นช่วงที่ร้อนที่สุดของวัน แนะนำให้เปิดพัดลมล่วงหน้า`
+      if (typeof f.peak_window === 'object') {
+        peakWindowText = f.peak_window.label || `${f.peak_window.start_hour ?? 13}:00 – ${f.peak_window.end_hour ?? 16}:00 น.`
+      } else {
+        peakWindowText = String(f.peak_window)
+      }
+      forecastSimple = `ช่วง ${peakWindowText} จะเป็นช่วงที่ร้อนที่สุดของวัน แนะนำให้เปิดพัดลมล่วงหน้า`
     } else if (f?.days?.[0]) {
       const nextDay = f.days[0]
       if (nextDay.risk_level === 'severe') {
@@ -157,6 +164,7 @@ export const useFarmer = () => {
       message,
       voice_text: voiceText,
       forecast_simple: forecastSimple,
+      peak_window_label: peakWindowText,
       action_templates: actionTemplates,
       vet_phone: d.farm?.vet_phone || '080-000-0000',
       vet_name: 'สัตวแพทย์ / สหกรณ์'

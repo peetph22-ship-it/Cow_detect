@@ -202,11 +202,11 @@
             <v-icon icon="mdi-weather-sunny" size="18" />
             <span>ช่วงที่ร้อนที่สุดของวันนี้</span>
           </div>
-          <div class="text-base sm:text-lg font-black text-[#78350F] mt-2 leading-snug">
-            {{ peakText }}
+          <div class="text-xl sm:text-2xl font-black text-[#78350F] mt-2 leading-snug">
+            {{ peakTimeText }}
           </div>
           <div class="text-xs sm:text-sm text-[#92400E] mt-1 font-semibold">
-            เตรียมเปิดพัดลมและสเปรย์น้ำล่วงหน้า
+            แนะนำเปิดพัดลมและสเปรย์ละอองน้ำล่วงหน้า
           </div>
         </div>
 
@@ -383,10 +383,8 @@ const statusTitle = computed(() => {
 
 const statusMessage = computed(() => senior.value?.message || 'สภาพอากาศในคอกเหมาะสมดี แม่วัวเคี้ยวเอื้องสบาย ให้น้ำนมได้ดี')
 
-const peakText = computed(() => {
-  const f = senior.value?.forecast_simple
-  if (f) return f
-  return 'ช่วงเวลา 13:00 - 15:00 น. จะเป็นช่วงที่อากาศร้อนที่สุดของวัน'
+const peakTimeText = computed(() => {
+  return senior.value?.peak_window_label || 'ช่วง 13:00 – 16:00 น.'
 })
 
 const tomorrowText = computed(() => 'สภาพอากาศพรุ่งนี้ใกล้เคียงกับวันนี้ ลมพัดถ่ายเทดี สบายใจได้จ้า')
