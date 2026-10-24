@@ -52,7 +52,7 @@ export const RISK_STYLE = {
 
 export const riskStyle = (lvl) => RISK_STYLE[lvl] || RISK_STYLE.normal
 export const riskLabel = (lvl) => RISK_LABELS_TH[lvl] || 'ปกติ'
-export const RISK_SHORT = { normal: 'สบายดี', mild: 'เริ่มอุ่น', moderate: 'เริ่มร้อน', severe: 'ร้อนจัด' }
+export const RISK_SHORT = { normal: 'สบายดี', mild: 'เริ่มอุ่น', moderate: 'อากาศร้อน', severe: 'ร้อนจัด' }
 export const riskShort = (lvl) => RISK_SHORT[lvl] || '—'
 
 export const agoText = (min) => {
@@ -250,7 +250,7 @@ export const useFarmer = () => {
       const isMod = risk === 'moderate' || risk === 'mild'
       d.senior = {
         level: isSevere ? 'danger' : (isMod ? 'warning' : 'good'),
-        title: isSevere ? 'อากาศร้อนจัดมาก แม่วัวกำลังเครียด!' : (isMod ? 'อากาศเริ่มร้อนขึ้นแล้ว ระวังแม่วัวหอบ' : 'อากาศสบายดี แม่วัวไม่เครียด'),
+        title: isSevere ? 'อากาศร้อนจัดมาก แม่วัวกำลังเครียด!' : (isMod ? (risk === 'mild' ? 'อากาศเริ่มอุ่น เฝ้าระวังแม่วัว' : 'อากาศร้อน ระวังแม่วัวหอบ') : 'อากาศสบายดี แม่วัวไม่เครียด'),
         message: isSevere ? 'อุณหภูมิและความชื้นสูงมาก เสี่ยงน้ำนมดิ่ง รีบเปิดพัดลมและสเปรย์น้ำด่วน' : (isMod ? 'ความร้อนสะสมเริ่มเพิ่มขึ้น แนะนำเปิดพัดลมระบายอากาศ' : 'สภาพอากาศในคอกเหมาะสมดี แม่วัวเคี้ยวเอื้องสบาย'),
         vet_phone: d.farm?.vet_phone || null,
         vet_name: 'สัตวแพทย์ประจำฟาร์ม',

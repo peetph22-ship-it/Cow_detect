@@ -111,7 +111,7 @@ const statusText = computed(() => {
   if (!props.day.has_data) return 'ไม่มีข้อมูลเซ็นเซอร์'
   if (props.day.senior_status) return props.day.senior_status
   if (props.day.severe_hours > 0) return `ร้อนจัด ${props.day.severe_hours} ชั่วโมง`
-  if (props.day.stress_hours > 0) return `เริ่มร้อน ${props.day.stress_hours} ชั่วโมง`
+  if (props.day.stress_hours > 0) return `อากาศร้อน ${props.day.stress_hours} ชั่วโมง`
   return 'สบายดีตลอดวัน'
 })
 

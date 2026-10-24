@@ -120,8 +120,7 @@
 </template>
 
 <script setup>
-import { useFarmer, agoText } from '~/composables/useFarmer'
-import { thresholdLabels } from '~/utils/heatStress'
+import { useFarmer, agoText, RISK_SHORT } from '~/composables/useFarmer'
 
 const {
   farm,
@@ -178,7 +177,7 @@ const heroTheme = computed(() => {
   }
   if (riskLevel.value === 'severe') {
     return {
-      shortTag: 'ร้อนจัดวิกฤต!',
+      shortTag: 'ร้อนจัด!',
       icon: 'mdi-alert-octagon',
       card: 'bg-gradient-to-br from-[#FEF2F2] to-[#FEE2E2]/60 border-[#FCA5A5]',
       glow: 'bg-rose-400',
@@ -202,7 +201,7 @@ const heroTheme = computed(() => {
   }
   if (riskLevel.value === 'mild') {
     return {
-      shortTag: 'เริ่มอุ่น เฝ้าระวัง',
+      shortTag: 'เริ่มอุ่น',
       icon: 'mdi-weather-sunny-alert',
       card: 'bg-gradient-to-br from-[#FFFBEB] to-[#FEF3C7]/60 border-[#FDE68A]',
       glow: 'bg-amber-400',
@@ -224,7 +223,16 @@ const heroTheme = computed(() => {
   }
 })
 
-const gaugeLabels = computed(() => thresholdLabels(farm.value?.profile))
+// คำเรียกระดับชุดเดียวกับทุกหน้าของเกษตรกร (RISK_SHORT)
+const gaugeLabels = computed(() => {
+  const t = thresholds.value
+  return [
+    `${RISK_SHORT.normal} (<${t.mild})`,
+    `${RISK_SHORT.mild} (${t.mild})`,
+    `${RISK_SHORT.moderate} (${t.moderate})`,
+    `${RISK_SHORT.severe} (${t.severe}+)`
+  ]
+})
 
 const gaugePercent = computed(() => {
   const val = Number(now.value?.thi)

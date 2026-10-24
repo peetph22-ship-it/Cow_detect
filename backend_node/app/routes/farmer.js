@@ -20,6 +20,11 @@ const { getCameraBehavior } = require('../services/cameraBehavior')
 const { summarizeHealth } = require('../services/deviceHealth')
 
 const SENSOR_OFFLINE_MIN = 5  // กล่องส่งทุก 15 วินาที เงียบเกิน 5 นาที = ขาดการติดต่อ
+// ข้อความพยากรณ์จาก forecastService ขึ้นต้นด้วยชื่อระดับแบบหน้าแอดมิน (เช่น "⚠️ เครียดจากความร้อน:")
+// หน้าเกษตรกรมีป้ายระดับของตัวเองอยู่แล้ว (สบายดี/เริ่มอุ่น/อากาศร้อน/ร้อนจัด) จึงตัดคำนำหน้าออกไม่ให้เรียกชื่อซ้อนกัน
+const stripLevelPrefix = (text) => (typeof text === 'string'
+    ? text.replace(/^(?:🚨 วิกฤต|⚠️ เครียดจากความร้อน|เฝ้าระวัง):\s*/u, '')
+    : text)
 const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str || '').trim())
 
 const farmsOfUser = async (user) => {
@@ -86,8 +91,11 @@ function buildSeniorSummary(now, today, forecast, farm) {
         icon = 'mdi-alert-octagon-outline'
     } else if (risk === 'moderate' || risk === 'mild') {
         level = 'warning'
-        title = 'อากาศเริ่มร้อนขึ้นแล้ว ระวังแม่วัวหอบ'
-        message = 'ความร้อนสะสมเริ่มเพิ่มขึ้น แนะนำเปิดพัดลมระบายอากาศ และเตรียมน้ำสะอาดให้พร้อม'
+        // ชื่อระดับต้องตรงกับหน้าเกษตรกร: mild = เริ่มอุ่น, moderate = อากาศร้อน
+        title = risk === 'moderate' ? 'อากาศร้อน ระวังแม่วัวหอบ' : 'อากาศเริ่มอุ่น เฝ้าระวังแม่วัว'
+        message = risk === 'moderate'
+            ? 'แม่วัวเริ่มเครียดจากความร้อน แนะนำเปิดพัดลมระบายอากาศ และเตรียมน้ำสะอาดให้พร้อม'
+            : 'อากาศเริ่มอบอ้าว เฝ้าระวังช่วงที่ร้อนที่สุดของวัน และเตรียมน้ำสะอาดให้เต็มราง'
         color = '#D97706'
         bg = '#FEF3C7'
         icon = 'mdi-weather-sunny-alert'
@@ -101,9 +109,9 @@ function buildSeniorSummary(now, today, forecast, farm) {
         if (nextDay.risk_level === 'severe') {
             forecastSimple = 'พรุ่งนี้จะร้อนจัดมาก ควรตรวจระบบพัดลมและน้ำสำรองล่วงหน้า'
         } else if (nextDay.risk_level === 'moderate') {
-            forecastSimple = 'พรุ่งนี้จะเริ่มร้อน มีช่วงที่วัวอาจอึดอัด ควรเตรียมเปิดพัดลม'
+            forecastSimple = 'พรุ่งนี้อากาศร้อน มีช่วงที่วัวอาจอึดอัด ควรเตรียมเปิดพัดลม'
         } else if (nextDay.risk_level === 'mild') {
-            forecastSimple = 'พรุ่งนี้อากาศอบอ้าว เฝ้าระวัง เปิดพัดลมช่วงที่ร้อนและเตรียมน้ำให้พอ'
+            forecastSimple = 'พรุ่งนี้อากาศเริ่มอุ่น เปิดพัดลมช่วงที่ร้อนและเตรียมน้ำให้พอ'
         } else {
             forecastSimple = 'พรุ่งนี้อากาศสบายดี ลมพัดถ่ายเทสะดวก'
         }
@@ -269,7 +277,7 @@ router.get('/me', verifyToken, requireFarm, async (req, res) => {
                     date: f.date,
                     predicted_thi: f.predicted_thi,
                     risk_level: f.risk_level,
-                    advisory: f.advisory
+                    advisory: stripLevelPrefix(f.advisory)
                 }))
             } : null,
             camera: camera && camera.status !== 'no_data' ? {
@@ -290,7 +298,9 @@ router.get('/me', verifyToken, requireFarm, async (req, res) => {
 // สรุปรายวัน 7 วัน: พร้อมคำอธิบายภาษาชาวบ้านที่ผู้สูงอายุเข้าใจง่าย
 router.get('/history', verifyToken, requireFarm, async (req, res) => {
     try {
-        const series = await dailySeries(req.farm.id_farms, req.profile, 7)
+        // โหลด 14 วันเพื่อนับวันร้อนสะสมให้ตรงกับหน้าแรก (/me ใช้ 14 วัน) แต่แสดงการ์ดแค่ 7 วันล่าสุด
+        const series14 = await dailySeries(req.farm.id_farms, req.profile, 14)
+        const series = series14.slice(-7)
         const days = series.map(d => {
             if (!d.has_data) {
                 return {
@@ -313,7 +323,7 @@ router.get('/history', verifyToken, requireFarm, async (req, res) => {
                 seniorDesc = `มีช่วงอากาศร้อนจัดมาก สูงสุด ${round1(d.max_temp)}°C ในช่วงบ่าย ควรเฝ้าดูปริมาณน้ำนม`
                 badgeColor = '#DC2626'
             } else if (d.stress_hours > 0) {
-                seniorStatus = `เริ่มร้อน ${round1(d.stress_hours)} ชั่วโมง`
+                seniorStatus = `อากาศร้อน ${round1(d.stress_hours)} ชั่วโมง`
                 seniorDesc = `มีช่วงอุณหภูมิสูงขึ้น สูงสุด ${round1(d.max_temp)}°C แม่วัวอาจอึดอัดบ้างเล็กน้อย`
                 badgeColor = '#D97706'
             }
@@ -344,7 +354,7 @@ router.get('/history', verifyToken, requireFarm, async (req, res) => {
             farm_id: req.farm.id_farms,
             thresholds: req.thresholds,
             days,
-            streak: stressStreak(series, req.profile),
+            streak: stressStreak(series14, req.profile),
             method: getMethod(req.profile)
         })
     } catch (err) {

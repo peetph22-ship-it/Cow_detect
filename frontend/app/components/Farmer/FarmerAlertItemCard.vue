@@ -77,8 +77,8 @@ const iconName = computed(() => {
 
 const eventTitle = computed(() => {
   if (props.event.type === 'sensor_offline') return 'สัญญาณขาดหายชั่วคราว'
-  if (props.event.level === 'severe') return 'อากาศร้อนวิกฤต'
-  return 'อากาศเริ่มร้อน'
+  if (props.event.level === 'severe') return 'อากาศร้อนจัด'
+  return 'อากาศร้อน'
 })
 
 const durationText = (min) => {

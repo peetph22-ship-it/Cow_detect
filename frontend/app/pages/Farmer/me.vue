@@ -125,7 +125,7 @@
         <div class="p-4 rounded-2xl bg-[#FEF2F2] border border-[#FCA5A5] space-y-1">
           <div class="flex items-center gap-2 font-black text-[#991B1B]">
             <span class="w-3.5 h-3.5 rounded-full bg-[#DC2626] shrink-0"></span>
-            <span>สีแดง — ร้อนจัดวิกฤต (≥ {{ thresholds.severe }})</span>
+            <span>สีแดง — ร้อนจัด (≥ {{ thresholds.severe }})</span>
           </div>
           <p class="text-[#B91C1C] font-medium text-xs leading-relaxed">
             เสี่ยงน้ำนมลดลงมาก ต้องเร่งพัดลมและใช้น้ำช่วยลดความร้อนทันที

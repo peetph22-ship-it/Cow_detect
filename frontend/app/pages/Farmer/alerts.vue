@@ -52,7 +52,7 @@
           :class="activeFilter === 'severe'
             ? 'bg-[#DC2626] text-white border-[#DC2626] shadow-xs'
             : 'bg-[#FEF2F2] text-[#991B1B] border-[#FECACA] hover:bg-[#FEE2E2]'">
-          <span class="text-xs font-extrabold">ร้อนวิกฤต</span>
+          <span class="text-xs font-extrabold">ร้อนจัด</span>
           <span
             class="px-2 py-0.5 rounded-lg text-xs font-black tabular-nums"
             :class="activeFilter === 'severe' ? 'bg-white/20 text-white' : 'bg-white text-[#DC2626]'">
@@ -67,7 +67,7 @@
           :class="activeFilter === 'moderate'
             ? 'bg-[#D97706] text-white border-[#D97706] shadow-xs'
             : 'bg-[#FFFBEB] text-[#92400E] border-[#FDE68A] hover:bg-[#FEF3C7]'">
-          <span class="text-xs font-extrabold">เริ่มร้อน</span>
+          <span class="text-xs font-extrabold">อากาศร้อน</span>
           <span
             class="px-2 py-0.5 rounded-lg text-xs font-black tabular-nums"
             :class="activeFilter === 'moderate' ? 'bg-white/20 text-white' : 'bg-white text-[#D97706]'">

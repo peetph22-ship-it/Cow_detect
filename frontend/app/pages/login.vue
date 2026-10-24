@@ -255,7 +255,7 @@ const successMessage = ref('')
 
 onMounted(() => {
   if (route.query.logout === 'success') {
-    successMessage.value = 'ออกจากระบบเรียบร้อยแล้วจ้า'
+    successMessage.value = 'ออกจากระบบเรียบร้อยแล้ว'
   }
 })
 

@@ -21,7 +21,7 @@
         <div>
           <div class="text-xs font-extrabold text-[#B45309] flex items-center gap-1.5">
             <span class="w-2.5 h-2.5 rounded-full bg-[#D97706]"></span>
-            <span>วันเริ่มร้อน</span>
+            <span>วันอากาศร้อน</span>
           </div>
           <div class="text-3xl font-black text-[#142820] mt-1.5 tabular-nums">
             {{ mildDaysCount }} <span class="text-xs font-bold text-[#64766D]">วัน</span>

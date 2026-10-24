@@ -38,8 +38,9 @@
               <div class="text-base font-black text-[#142820]">
                 {{ dayTitle(d, idx) }}
               </div>
+              <!-- หลังบ้านส่ง date มาเป็นข้อความไทยแล้ว (เช่น "อา. 25 ต.ค.") ห้ามแปลงด้วย new Date ซ้ำ -->
               <div v-if="d.date" class="text-xs font-bold text-[#4E655B]">
-                {{ thaiDate(d.date, { weekday: 'short', day: 'numeric', month: 'short' }) }}
+                {{ d.date }}
               </div>
             </div>
 
@@ -75,7 +76,7 @@
 </template>
 
 <script setup>
-import { useFarmer, thaiDate } from '~/composables/useFarmer'
+import { useFarmer } from '~/composables/useFarmer'
 
 const { forecast, senior } = useFarmer()
 
