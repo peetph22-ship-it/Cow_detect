@@ -47,15 +47,6 @@
             </button>
           </div>
 
-          <!-- สถานะหลังบ้าน (ลิงก์ไปหน้าตั้งค่า) -->
-          <NuxtLink
-            to="/Farmer/me"
-            class="hidden sm:inline-flex text-[11px] font-bold px-2.5 py-1.5 rounded-full items-center gap-1.5 border text-decoration-none transition-colors"
-            :class="isCustomBackend ? 'bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]' : 'bg-[#143225] text-[#A7D7C5] border-white/10 hover:border-white/30'">
-            <v-icon icon="mdi-server-network" size="14" />
-            <span>{{ isCustomBackend ? 'หลังบ้านเพื่อน' : 'หลังบ้านหลัก' }}</span>
-          </NuxtLink>
-
           <!-- ปุ่มออกจากระบบด่วนบน Header -->
           <button
             type="button"
@@ -186,8 +177,6 @@
 
 <script setup>
 import { useFarmer, agoText } from '~/composables/useFarmer'
-import { getCustomNodeApi } from '~/API/baseAPI'
-
 const route = useRoute()
 const {
   me,
@@ -215,7 +204,6 @@ const {
   stopPolling
 } = useFarmer()
 
-const isCustomBackend = computed(() => Boolean(getCustomNodeApi()))
 const farms = computed(() => me.value?.farms || [])
 
 const fontOptions = [
