@@ -125,7 +125,6 @@
         <div>
           <label class="block text-xs font-black text-[#4e6057] uppercase tracking-wider mb-1.5 flex items-center justify-between">
             <span>เบอร์โทรศัพท์ (Username) <span class="text-rose-500">*</span></span>
-            <span class="text-[11px] text-[#718078] font-normal">* รหัสผ่านเริ่มต้นคือเบอร์โทรศัพท์</span>
           </label>
           <div class="relative">
             <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#718078]">
@@ -138,6 +137,33 @@
               placeholder="08XXXXXXXX"
               class="w-full bg-white border border-[#e5ece9] rounded-[16px] pl-10 pr-4 py-3 text-sm font-medium text-[#1f3d34] placeholder-[#a6b5aa] focus:outline-none focus:border-[#24433a] focus:ring-4 focus:ring-[#24433a]/8 transition-all" />
           </div>
+        </div>
+
+        <!-- รหัสผ่าน: admin ตั้งให้ตอนสร้างบัญชี ลืมรหัส = แก้ไขผู้ใช้แล้วตั้งรหัสใหม่ -->
+        <div>
+          <label class="block text-xs font-black text-[#4e6057] uppercase tracking-wider mb-1.5">
+            <span>รหัสผ่าน <span class="text-rose-500">*</span></span>
+          </label>
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#718078]">
+              <v-icon icon="mdi-lock-outline" size="18" class="text-[#718078]" />
+            </div>
+            <input
+              v-model="form.password"
+              :type="showPassword ? 'text' : 'password'"
+              required
+              autocomplete="new-password"
+              placeholder="อย่างน้อย 6 ตัวอักษร"
+              class="w-full bg-white border border-[#e5ece9] rounded-[16px] pl-10 pr-10 py-3 text-sm font-medium text-[#1f3d34] placeholder-[#a6b5aa] focus:outline-none focus:border-[#24433a] focus:ring-4 focus:ring-[#24433a]/8 transition-all" />
+            <button
+              type="button"
+              @click="showPassword = !showPassword"
+              class="absolute inset-y-0 right-0 pr-3 flex items-center text-[#718078] hover:text-[#24433a] cursor-pointer"
+              :aria-label="showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'">
+              <v-icon :icon="showPassword ? 'mdi-eye-off-outline' : 'mdi-eye-outline'" size="18" />
+            </button>
+          </div>
+          <p class="text-[11px] text-[#718078] mt-1">ห้ามใช้เบอร์โทรเป็นรหัส ถ้าเกษตรกรลืมรหัส ให้กดแก้ไขผู้ใช้แล้วตั้งรหัสใหม่</p>
         </div>
 
         <!-- 5. Email Input (Optional) -->
@@ -189,6 +215,7 @@
 import { ref, reactive, computed, watch } from 'vue'
 import axios from 'axios'
 import { getNodeApiBase } from '../../../API/baseAPI'
+import { checkPassword } from '~/utils/password'
 // อ่าน base ตอน setup (ค่าคงที่ api/base ชี้ production เสมอในเบราว์เซอร์ แม้รันในเครื่อง)
 const API = getNodeApiBase()
 
@@ -214,8 +241,10 @@ const form = reactive({
   name: '',
   org: '',
   phone: '',
+  password: '',
   email: ''
 })
+const showPassword = ref(false)
 
 const orgLabel = computed(() => {
   if (form.role === 'farmer') return 'ชื่อฟาร์ม'
@@ -235,6 +264,8 @@ watch(() => props.modelValue, (isOpen) => {
     form.name = ''
     form.org = ''
     form.phone = ''
+    form.password = ''
+    showPassword.value = false
     form.email = ''
     form.role = 'farmer'
     form.status = 'active'
@@ -246,13 +277,19 @@ const closeModal = () => {
 }
 
 const submitForm = async () => {
-  if (!form.name.trim() || !form.phone.trim() || !form.org.trim()) {
+  if (!form.name.trim() || !form.phone.trim() || !form.org.trim() || !form.password) {
     alert('กรุณากรอกข้อมูลให้ครบถ้วนทุกช่องที่มีเครื่องหมาย *')
     return
   }
 
   if (!/^[0-9]{9,10}$/.test(form.phone.trim())) {
     alert('รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง (กรุณากรอกตัวเลข 9-10 หลัก)')
+    return
+  }
+
+  const passwordError = checkPassword(form.password, form.phone)
+  if (passwordError) {
+    alert(passwordError)
     return
   }
 
@@ -265,7 +302,7 @@ const submitForm = async () => {
       role: form.role,
       status: form.status,
       organization: form.org.trim(),
-      password: form.phone.trim(), // Default password = phone number
+      password: form.password,
       email: form.email && form.email.trim() ? form.email.trim() : null
     }
     

@@ -8,6 +8,7 @@ const { verifyToken, requireRole } = require('../middleware/authMiddleware')
 
 const ROLES = ['admin', 'farmer', 'expert']
 const STATUSES = ['pending', 'active', 'suspended']
+const { checkPassword } = require('../services/passwordPolicy')
 
 // POST: Login API
 router.post('/login',async (req, res) => {
@@ -106,6 +107,8 @@ router.post('/register', verifyToken, requireRole('admin'), async(req,res) => {
         })
         if (!ROLES.includes(role)) return res.status(400).json({ success: false, message: `role ต้องเป็น ${ROLES.join(' / ')}` })
         if (status && !STATUSES.includes(status)) return res.status(400).json({ success: false, message: `status ต้องเป็น ${STATUSES.join(' / ')}` })
+        const passwordError = checkPassword(password, phone)
+        if (passwordError) return res.status(400).json({ success: false, message: passwordError })
 
         const userStatus = status || 'active'
         const hash = await bcrypt.hash(password,10)
