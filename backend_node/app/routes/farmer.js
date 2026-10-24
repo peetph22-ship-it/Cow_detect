@@ -7,15 +7,11 @@
  * GET  /api/farmer/me             สภาพอากาศตอนนี้ + คำแนะนำสำหรับผู้สูงอายุ + 24 ชม. + พยากรณ์
  * GET  /api/farmer/actions        เช็คลิสต์สิ่งที่ต้องทำประจำวันของฟาร์ม
  * POST /api/farmer/actions/toggle ติ๊กทำแล้ว/ยกเลิก สิ่งที่ต้องทำ
- * GET  /api/farmer/logs           สมุดจดบันทึกน้ำนมและสุขภาพแม่วัวย้อนหลัง
- * POST /api/farmer/logs           บันทึกน้ำนมและสุขภาพแม่วัววันนี้
- * POST /api/farmer/sos            ส่งสัญญาณขอความช่วยเหลือฉุกเฉิน (SOS)
  * GET  /api/farmer/history        สรุปรายวัน 7 วัน พร้อมคำอธิบายภาษาชาวบ้านเข้าใจง่าย
  * GET  /api/farmer/events         ประวัติเหตุการณ์เตือนความร้อน 7 วัน
  */
 const express = require('express')
 const router = express.Router()
-const axios = require('axios')
 const db = require('../config/db')
 const { verifyToken } = require('../middleware/authMiddleware')
 const { calcThi, getRiskLevel, getFarmProfile, getThresholds, getMethod, getCoolingAdvice } = require('../services/heatStress')
@@ -28,51 +24,9 @@ const { summarizeHealth } = require('../services/deviceHealth')
 const SENSOR_OFFLINE_MIN = 5  // กล่องส่งทุก 15 วินาที เงียบเกิน 5 นาที = ขาดการติดต่อ
 const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str || '').trim())
 
-// Fallback in-memory stores for resilience in case DB tables do not exist yet
+// สำรองในหน่วยความจำ เมื่อยังไม่ได้รัน migrations/20261027_farmer_senior_portal.sql
+// (ไม่สร้างตารางเองตอนเปิดเซิร์ฟเวอร์: ตารางต้องมาจาก migration ที่เจ้าของโปรเจกต์รันเท่านั้น)
 const inMemoryActions = new Map() // key: `${farmId}_${date}_${actionKey}` -> boolean
-const inMemoryLogs = []          // array of log items
-const inMemorySos = []           // array of SOS items
-
-// Ensure tables exist on boot (fails gracefully if DB user lacks DDL privileges)
-;(async () => {
-    try {
-        await db.query(`
-            CREATE TABLE IF NOT EXISTS tb_farmer_daily_logs (
-                id BIGSERIAL PRIMARY KEY,
-                id_farms UUID NOT NULL REFERENCES tb_farms(id_farms) ON DELETE CASCADE,
-                id_users UUID,
-                log_date DATE NOT NULL DEFAULT CURRENT_DATE,
-                milk_kg NUMERIC(8, 2) DEFAULT 0,
-                cow_health VARCHAR(50) DEFAULT 'normal',
-                note TEXT,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                CONSTRAINT tb_farmer_daily_logs_farm_date_uniq UNIQUE (id_farms, log_date)
-            );
-            CREATE TABLE IF NOT EXISTS tb_farmer_daily_actions (
-                id BIGSERIAL PRIMARY KEY,
-                id_farms UUID NOT NULL REFERENCES tb_farms(id_farms) ON DELETE CASCADE,
-                action_date DATE NOT NULL DEFAULT CURRENT_DATE,
-                action_key VARCHAR(50) NOT NULL,
-                is_done BOOLEAN NOT NULL DEFAULT TRUE,
-                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                CONSTRAINT tb_farmer_daily_actions_farm_date_key_uniq UNIQUE (id_farms, action_date, action_key)
-            );
-            CREATE TABLE IF NOT EXISTS tb_farmer_sos_alerts (
-                id BIGSERIAL PRIMARY KEY,
-                id_farms UUID NOT NULL REFERENCES tb_farms(id_farms) ON DELETE CASCADE,
-                id_users UUID,
-                sos_type VARCHAR(100) NOT NULL,
-                message TEXT,
-                status VARCHAR(50) NOT NULL DEFAULT 'pending',
-                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-            );
-        `)
-    } catch (e) {
-        // Table might already exist or DDL restricted; fallback in-memory is active
-        console.log('[Farmer API] Note: Using resilient storage for senior portal features')
-    }
-})()
 
 const farmsOfUser = async (user) => {
     if (user.role === 'admin') {
@@ -407,132 +361,6 @@ router.post('/actions/toggle', verifyToken, requireFarm, async (req, res) => {
     } catch (err) {
         console.error('[Farmer API] /actions/toggle error:', err.message)
         return res.status(500).json({ success: false, message: 'บันทึกสถานะไม่สำเร็จ' })
-    }
-})
-
-// GET /api/farmer/logs : ดึงสมุดจดบันทึกน้ำนมและตรวจสุขภาพวัว 14 วันล่าสุด
-router.get('/logs', verifyToken, requireFarm, async (req, res) => {
-    try {
-        let logs = []
-        try {
-            const { rows } = await db.query(
-                `SELECT id, log_date, milk_kg, cow_health, note, created_at, updated_at
-                 FROM tb_farmer_daily_logs
-                 WHERE id_farms = $1
-                 ORDER BY log_date DESC
-                 LIMIT 14`,
-                [req.farm.id_farms]
-            )
-            logs = rows.map(r => ({
-                id: r.id,
-                date: bkkDate(new Date(r.log_date)),
-                milk_kg: Number(r.milk_kg || 0),
-                cow_health: r.cow_health || 'normal',
-                note: r.note || '',
-                created_at: r.created_at
-            }))
-        } catch (dbErr) {
-            // fallback in-memory
-            logs = inMemoryLogs
-                .filter(l => l.farm_id === req.farm.id_farms)
-                .sort((a, b) => b.date.localeCompare(a.date))
-                .slice(0, 14)
-        }
-
-        return res.json({
-            success: true,
-            logs
-        })
-    } catch (err) {
-        console.error('[Farmer API] /logs error:', err.message)
-        return res.status(500).json({ success: false, message: 'ดึงสมุดจดไม่สำเร็จ' })
-    }
-})
-
-// POST /api/farmer/logs : บันทึกน้ำนมและตรวจสุขภาพวัววันนี้
-router.post('/logs', verifyToken, requireFarm, async (req, res) => {
-    try {
-        const { date, milk_kg, cow_health, note } = req.body
-        const logDate = date ? String(date).trim() : bkkDate(new Date())
-        const milkKgNum = Number(milk_kg) >= 0 ? Number(milk_kg) : 0
-        const healthStatus = ['normal', 'mild_concern', 'severe_concern'].includes(cow_health) ? cow_health : 'normal'
-        const cleanNote = note ? String(note).trim() : ''
-
-        let savedEntry = null
-
-        try {
-            const { rows } = await db.query(
-                `INSERT INTO tb_farmer_daily_logs (id_farms, id_users, log_date, milk_kg, cow_health, note, updated_at)
-                 VALUES ($1, $2, $3, $4, $5, $6, NOW())
-                 ON CONFLICT (id_farms, log_date)
-                 DO UPDATE SET 
-                    milk_kg = EXCLUDED.milk_kg,
-                    cow_health = EXCLUDED.cow_health,
-                    note = EXCLUDED.note,
-                    updated_at = NOW()
-                 RETURNING id, log_date, milk_kg, cow_health, note, updated_at`,
-                [req.farm.id_farms, req.user?.id || null, logDate, milkKgNum, healthStatus, cleanNote]
-            )
-            savedEntry = rows[0]
-        } catch (dbErr) {
-            // fallback in-memory
-            const existingIdx = inMemoryLogs.findIndex(l => l.farm_id === req.farm.id_farms && l.date === logDate)
-            const item = {
-                id: Date.now(),
-                farm_id: req.farm.id_farms,
-                date: logDate,
-                milk_kg: milkKgNum,
-                cow_health: healthStatus,
-                note: cleanNote,
-                updated_at: new Date()
-            }
-            if (existingIdx >= 0) inMemoryLogs[existingIdx] = item
-            else inMemoryLogs.unshift(item)
-            savedEntry = item
-        }
-
-        return res.json({
-            success: true,
-            message: 'บันทึกสมุดจดเรียบร้อยแล้ว',
-            entry: savedEntry
-        })
-    } catch (err) {
-        console.error('[Farmer API] /logs POST error:', err.message)
-        return res.status(500).json({ success: false, message: 'บันทึกข้อมูลไม่สำเร็จ' })
-    }
-})
-
-// POST /api/farmer/sos : ขอความช่วยเหลือด่วน
-router.post('/sos', verifyToken, requireFarm, async (req, res) => {
-    try {
-        const { sos_type, message } = req.body
-        const type = sos_type || 'ขอความช่วยเหลือฉุกเฉิน'
-        const note = message ? String(message).trim() : ''
-
-        try {
-            await db.query(
-                `INSERT INTO tb_farmer_sos_alerts (id_farms, id_users, sos_type, message, status)
-                 VALUES ($1, $2, $3, $4, 'pending')`,
-                [req.farm.id_farms, req.user?.id || null, type, note]
-            )
-        } catch (dbErr) {
-            inMemorySos.push({
-                farm_id: req.farm.id_farms,
-                user_id: req.user?.id,
-                sos_type: type,
-                message: note,
-                created_at: new Date()
-            })
-        }
-
-        return res.json({
-            success: true,
-            message: 'ส่งสัญญาณขอความช่วยเหลือเรียบร้อย เจ้าหน้าที่จะติดต่อกลับด่วนที่สุด',
-            vet_phone: req.farm.vet_phone || null
-        })
-    } catch (err) {
-        console.error('[Farmer API] /sos error:', err.message)
-        return res.status(500).json({ success: false, message: 'ส่งสัญญาณฉุกเฉินไม่สำเร็จ' })
     }
 })
 

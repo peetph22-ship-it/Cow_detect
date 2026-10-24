@@ -163,8 +163,9 @@
     </section>
 
 
-    <!-- 4. ปุ่มโทรด่วนหาหมอวัว & แจ้งเหตุฉุกเฉิน (ปุ่มใหญ่พิเศษ คนแก่กดง่าย) -->
-    <section class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+    <!-- 4. ปุ่มโทรหาหมอวัว (ปุ่มใหญ่ กดง่าย) ไม่มีเบอร์จริง = ไม่แสดง
+         ตัดปุ่ม SOS ออก: เดิมบอกว่าเจ้าหน้าที่จะติดต่อกลับ แต่ไม่มีใครได้รับแจ้งจริง -->
+    <section v-if="vetPhoneDisplay" class="grid grid-cols-1 gap-3.5">
       <!-- ปุ่มโทรหาหมอวัว -->
       <a
         v-if="vetPhoneDisplay"
@@ -179,87 +180,9 @@
         </div>
       </a>
 
-      <!-- ปุ่มแจ้งเหตุฉุกเฉิน SOS -->
-      <button
-        type="button"
-        @click="showSosModal = true"
-        class="h-16 sm:h-20 rounded-3xl bg-[#DC2626] hover:bg-[#b91c1c] text-white flex items-center justify-center gap-3 font-black text-base sm:text-lg shadow-sm transition-all cursor-pointer active:scale-[0.98]">
-        <div class="w-11 h-11 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
-          <v-icon icon="mdi-alarm-light-outline" size="26" />
-        </div>
-        <div class="text-left">
-          <div class="text-xs sm:text-sm text-white/90 font-medium">กดเมื่อเกิดเหตุฉุกเฉิน</div>
-          <div class="leading-tight">แจ้งเหตุฉุกเฉิน (SOS)</div>
-        </div>
-      </button>
     </section>
 
 
-    <!-- Modal ขอความช่วยเหลือฉุกเฉิน SOS -->
-    <div 
-      v-if="showSosModal" 
-      class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div class="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-gray-100 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-        <div class="flex items-center justify-between pb-2 border-b">
-          <div class="flex items-center gap-2 text-[#DC2626] font-bold text-lg">
-            <v-icon icon="mdi-alarm-light" size="26" />
-            <span>แจ้งเหตุฉุกเฉินในฟาร์ม</span>
-          </div>
-          <button 
-            type="button" 
-            @click="showSosModal = false" 
-            class="text-gray-400 hover:text-gray-600 p-1 cursor-pointer">
-            <v-icon icon="mdi-close" size="24" />
-          </button>
-        </div>
-
-        <p class="text-sm text-[#475569]">
-          เลือกอาการหรือปัญหาที่เกิดขึ้น ระบบจะบันทึกแจ้งเตือนถึงเจ้าหน้าที่ทันที:
-        </p>
-
-        <!-- ตัวเลือกฉุกเฉิน -->
-        <div class="space-y-2">
-          <button
-            v-for="opt in sosOptions"
-            :key="opt"
-            type="button"
-            @click="selectedSos = opt"
-            class="w-full p-3.5 rounded-2xl border-2 text-left font-bold text-sm sm:text-base flex items-center justify-between transition-colors cursor-pointer"
-            :class="selectedSos === opt ? 'border-[#DC2626] bg-[#FEF2F2] text-[#991B1B]' : 'border-gray-200 hover:border-gray-300 text-gray-700'">
-            <span>{{ opt }}</span>
-            <v-icon v-if="selectedSos === opt" icon="mdi-check-circle" size="20" class="text-[#DC2626]" />
-          </button>
-        </div>
-
-        <!-- ข้อความเพิ่มเติม -->
-        <div>
-          <label class="block text-xs font-bold text-gray-600 mb-1">หมายเหตุเพิ่มเติม (ถ้ามี):</label>
-          <input
-            v-model="sosNote"
-            type="text"
-            placeholder="เช่น วัวตัวเมียเบอร์ 12 มีอาการล้ม"
-            class="w-full px-4 py-3 rounded-xl border border-gray-300 text-sm focus:outline-none focus:border-[#DC2626]" />
-        </div>
-
-        <!-- ปุ่มกดส่ง -->
-        <div class="pt-2 flex gap-3">
-          <button
-            type="button"
-            @click="showSosModal = false"
-            class="flex-1 h-12 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-sm cursor-pointer">
-            ยกเลิก
-          </button>
-          <button
-            type="button"
-            @click="submitSos"
-            :disabled="sendingSos"
-            class="flex-1 h-12 rounded-xl bg-[#DC2626] hover:bg-[#b91c1c] text-white font-bold text-sm flex items-center justify-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50">
-            <v-icon v-if="sendingSos" icon="mdi-loading" class="animate-spin" size="18" />
-            <span>{{ sendingSos ? 'กำลังส่ง...' : 'ส่งสัญญาณด่วน' }}</span>
-          </button>
-        </div>
-      </div>
-    </div>
 
   </div>
 </template>
@@ -280,41 +203,10 @@ const {
   speakThai,
   stopSpeech,
   doneActions,
-  toggleAction,
-  sendSos
+  toggleAction
 } = useFarmer()
 
 const isCustomBackend = computed(() => Boolean(getCustomNodeApi()))
-
-// สถานะการแจ้งเตือน SOS
-const showSosModal = ref(false)
-const sendingSos = ref(false)
-const selectedSos = ref('แม่วัวหายใจหอบรุนแรง / ล้มนอน')
-const sosNote = ref('')
-
-const sosOptions = [
-  'แม่วัวหายใจหอบรุนแรง / ล้มนอน',
-  'ระบบไฟฟ้าหรือพัดลมในโรงเรือนดับ',
-  'ระบบน้ำดื่มหรือสปริงเกลอร์ไม่ไหล',
-  'แม่วัวไม่ยอมกินอาหารหลายตัว'
-]
-
-const submitSos = async () => {
-  sendingSos.value = true
-  try {
-    await sendSos({
-      sos_type: selectedSos.value,
-      message: sosNote.value
-    })
-    alert('ส่งสัญญาณฉุกเฉินเรียบร้อยแล้ว เจ้าหน้าที่หรือสัตวแพทย์จะติดต่อกลับด่วนที่สุด')
-    showSosModal.value = false
-    sosNote.value = ''
-  } catch (err) {
-    alert('ส่งสัญญาณไม่สำเร็จ กรุณากดปุ่มโทรหาสัตวแพทย์โดยตรง')
-  } finally {
-    sendingSos.value = false
-  }
-}
 
 // ข้อมูลหมอวัว
 // ไม่มีเบอร์จริง = ไม่แสดงปุ่มโทร (ห้ามใส่เบอร์สมมติ เกษตรกรจะโทรไปเบอร์ที่ไม่มีจริง)

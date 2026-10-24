@@ -18,12 +18,11 @@ const rawOrigins = process.env.FRONTEND_URL
     : []
 const frontendOrigins = Array.from(new Set([...rawOrigins, 'http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001']))
 
-// ตรวจสอบ origin แบบยืดหยุ่น: รองรับ localhost, IP วงแลนเดียวกันของเพื่อน, และ Cloudflare/Ngrok tunnel
+// ตรวจสอบ origin: FRONTEND_URL, localhost และ IP วงแลน (ไม่เปิดให้โดเมน tunnel สาธารณะ เช่น trycloudflare/ngrok)
 const isAllowedOrigin = (origin) => {
     if (!origin) return true
     if (frontendOrigins.includes(origin) || frontendOrigins.includes('*')) return true
     if (/^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/.test(origin)) return true
-    if (/\.(trycloudflare\.com|ngrok-free\.app|ngrok\.io|loca\.lt)$/.test(origin)) return true
     return false
 }
 

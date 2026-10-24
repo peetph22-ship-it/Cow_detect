@@ -4,8 +4,6 @@
  * - รองรับการเชื่อมต่อไปยังหลังบ้านของเพื่อน (Custom Backend URL / Localhost / Cloud)
  * - ระบบตรวจและแปลงข้อมูลยืดหยุ่น (Tolerant Data Parser) ไม่พังแม้หลังบ้านเพื่อนส่งฟอร์แมตต่างกัน
  * - ระบบเช็คลิสต์สิ่งที่ต้องทำประจำวัน /actions
- * - ระบบสมุดจดน้ำนม & สุขภาพวัว /logs
- * - ระบบโทรด่วน & ขอความช่วยเหลือฉุกเฉิน /sos
  */
 import axios from 'axios'
 import { getNodeApiBase, setCustomNodeApi, getCustomNodeApi, getKnownBackends } from '~/API/baseAPI'
@@ -90,7 +88,6 @@ export const useFarmer = () => {
 
   // รายการเช็คลิสต์ที่ทำแล้ววันนี้
   const doneActions = useState('farmer.doneActions', () => [])
-  const dailyLogs = useState('farmer.dailyLogs', () => [])
 
   const farm = computed(() => me.value?.farm || null)
   const now = computed(() => me.value?.now || null)
@@ -174,7 +171,6 @@ export const useFarmer = () => {
     user.value = null
     farmId.value = ''
     doneActions.value = []
-    dailyLogs.value = []
     loaded.value = false
     await navigateTo('/login?logout=success')
   }
@@ -355,29 +351,6 @@ export const useFarmer = () => {
     }
   }
 
-  // โหลดประวัติสมุดจด
-  const loadLogs = async () => {
-    try {
-      const res = await request('logs')
-      dailyLogs.value = res?.logs || []
-      return dailyLogs.value
-    } catch (e) {
-      return []
-    }
-  }
-
-  // บันทึกสมุดจด
-  const saveLog = async (entry) => {
-    const res = await postRequest('logs', entry)
-    await loadLogs()
-    return res
-  }
-
-  // ส่งสัญญาณขอความช่วยเหลือ SOS
-  const sendSos = async (sosData) => {
-    return await postRequest('sos', sosData)
-  }
-
   const selectFarm = async (id) => {
     farmId.value = id
     localStorage.setItem(FARM_KEY, id)
@@ -421,10 +394,6 @@ export const useFarmer = () => {
     getKnownBackends,
     doneActions,
     toggleAction,
-    dailyLogs,
-    loadLogs,
-    saveLog,
-    sendSos,
     ensureAuth,
     refresh,
     request,

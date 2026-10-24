@@ -135,7 +135,7 @@
 
     <!-- แถบเมนูด้านล่างสุด (Minimal, ปุ่มใหญ่ แตะง่าย ไม่หลง) -->
     <nav class="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#E5E7EB] shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-2 pt-1 pb-[max(0.6rem,env(safe-area-inset-bottom))]">
-      <div class="grid grid-cols-5 gap-1 max-w-xl mx-auto">
+      <div class="grid grid-cols-4 gap-1 max-w-xl mx-auto">
         <NuxtLink
           v-for="item in navItems"
           :key="item.to"
@@ -255,7 +255,6 @@ const deviceAlert = computed(() => {
 
 const navItems = computed(() => [
   { to: '/Farmer', label: 'ตอนนี้', icon: 'mdi-home-heart' },
-  { to: '/Farmer/logs', label: 'สมุดจด', icon: 'mdi-notebook-edit-outline' },
   { to: '/Farmer/history', label: 'ย้อนหลัง', icon: 'mdi-calendar-week' },
   { to: '/Farmer/alerts', label: 'แจ้งเตือน', icon: 'mdi-bell-outline', badge: ['moderate', 'severe'].includes(now.value?.risk_level) },
   { to: '/Farmer/me', label: 'ฟาร์มฉัน', icon: 'mdi-account-circle-outline' }
