@@ -117,100 +117,118 @@
       </div>
     </section>
 
-    <!-- ระบบเชื่อมต่อหลังบ้านเพื่อน (Backend Connection Switcher) -->
-    <section class="bg-white rounded-3xl p-5 border border-[#E5E7EB] shadow-xs space-y-4">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <v-icon icon="mdi-server-network" class="text-[#2D6A4F]" size="22" />
-          <h2 class="text-base sm:text-lg font-bold text-[#15221B]">เชื่อมต่อหลังบ้าน (Backend Server)</h2>
-        </div>
-        <span 
-          class="text-xs font-bold px-2.5 py-1 rounded-full"
-          :class="isCustomBackend ? 'bg-[#FEF3C7] text-[#92400E]' : 'bg-[#E8F5E9] text-[#1B4332]'">
-          {{ isCustomBackend ? 'ใช้หลังบ้านกำหนดเอง' : 'ใช้หลังบ้านหลัก' }}
-        </span>
-      </div>
-
-      <p class="text-xs sm:text-sm text-[#64748B] leading-relaxed">
-        สามารถเปลี่ยน URL ไปเชื่อมกับเครื่องคอมพิวเตอร์ของเพื่อน หรือเซิร์ฟเวอร์ทดสอบได้โดยไม่ต้องแก้โค้ด
-      </p>
-
-      <!-- URL ที่กำลังใช้งาน -->
-      <div class="p-3 bg-[#F8F9F5] rounded-2xl border border-[#E5E7EB] text-xs sm:text-sm font-mono break-all flex items-center justify-between gap-2">
-        <div>
-          <span class="text-[11px] text-[#64748B] block font-sans font-bold">URL ที่ใช้งานอยู่ขณะนี้:</span>
-          <span class="text-[#1B4332] font-bold">{{ currentBackendUrl }}</span>
-        </div>
-        <button 
-          type="button" 
-          @click="pingCurrent"
-          :disabled="testing"
-          class="shrink-0 px-3 py-1.5 rounded-xl bg-white border border-[#CBD5E1] text-[#334155] hover:bg-gray-50 text-xs font-sans font-bold cursor-pointer flex items-center gap-1">
-          <v-icon :icon="testing ? 'mdi-loading' : 'mdi-wifi-check'" :class="{ 'animate-spin': testing }" size="15" />
-          <span>ทดสอบ Ping</span>
-        </button>
-      </div>
-
-      <!-- ฟอร์มเปลี่ยน URL -->
-      <div class="space-y-3">
-        <label for="custom-backend-input" class="text-xs font-bold text-[#334155] block">
-          ระบุ URL เซิร์ฟเวอร์หลังบ้าน (เช่น หลังบ้านของเพื่อน):
-        </label>
-        <div class="flex flex-col sm:flex-row gap-2">
-          <input
-            id="custom-backend-input"
-            v-model.trim="targetUrl"
-            type="text"
-            placeholder="http://192.168.1.xxx:5000 หรือ https://..."
-            class="flex-1 px-4 py-2.5 rounded-xl border border-[#CBD5E1] text-xs sm:text-sm font-mono focus:outline-none focus:border-[#2D6A4F] focus:ring-2 focus:ring-[#2D6A4F]/20"
-          />
-          <div class="flex gap-2">
-            <button
-              type="button"
-              @click="pingTarget"
-              :disabled="testing || !targetUrl"
-              class="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-[#F1F5F9] hover:bg-[#E2E8F0] disabled:opacity-50 text-[#334155] text-xs sm:text-sm font-bold cursor-pointer transition-colors flex items-center justify-center gap-1.5">
-              <v-icon :icon="testing ? 'mdi-loading' : 'mdi-wifi'" :class="{ 'animate-spin': testing }" size="16" />
-              <span>ทดสอบ</span>
-            </button>
-            <button
-              type="button"
-              @click="applyTarget"
-              :disabled="saving || !targetUrl"
-              class="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-[#1B4332] hover:bg-[#2D6A4F] disabled:opacity-50 text-white text-xs sm:text-sm font-bold cursor-pointer transition-colors flex items-center justify-center gap-1.5 shadow-2xs">
-              <v-icon icon="mdi-content-save-check" size="16" />
-              <span>บันทึกและสลับ</span>
-            </button>
+    <!-- ระบบเชื่อมต่อหลังบ้านเพื่อน (ซ่อน/พับเก็บไว้เป็นค่าเริ่มต้น เพื่อให้หน้าจอมินิมอลไม่รบกวนคนแก่) -->
+    <section class="bg-white rounded-3xl border border-[#E5E7EB] shadow-xs overflow-hidden">
+      <button
+        type="button"
+        @click="showBackendSettings = !showBackendSettings"
+        class="w-full p-4 sm:p-5 flex items-center justify-between hover:bg-gray-50/80 transition-colors cursor-pointer text-left">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-[#F1F5F9] text-[#2D6A4F] flex items-center justify-center shrink-0">
+            <v-icon icon="mdi-server-network" size="20" />
+          </div>
+          <div>
+            <h2 class="text-sm sm:text-base font-bold text-[#15221B]">
+              ตั้งค่าเชื่อมต่อหลังบ้าน (สำหรับเพื่อนหรือเจ้าหน้าที่)
+            </h2>
+            <p class="text-xs text-[#64748B]">
+              {{ showBackendSettings ? 'กดเพื่อซ่อนปิดกล่องนี้' : 'กดเพื่อเปิดเปลี่ยน URL เชื่อมต่อกับเครื่องเพื่อน' }}
+            </p>
           </div>
         </div>
-
-        <!-- รายการ Preset ด่วน -->
-        <div class="flex flex-wrap items-center gap-2 pt-1 text-xs">
-          <span class="text-[#64748B] font-semibold">ตัวเลือกด่วน:</span>
-          <button
-            v-for="preset in knownList"
-            :key="preset.url"
-            type="button"
-            @click="targetUrl = preset.url"
-            class="px-2.5 py-1 rounded-lg bg-[#F8F9F5] hover:bg-gray-200 border border-[#E5E7EB] text-[#334155] font-semibold cursor-pointer">
-            {{ preset.label }}
-          </button>
-          <button
+        <div class="flex items-center gap-2">
+          <span 
             v-if="isCustomBackend"
-            type="button"
-            @click="resetToDefault"
-            class="px-2.5 py-1 rounded-lg bg-[#FEE2E2] hover:bg-[#FCA5A5] text-[#991B1B] font-bold cursor-pointer ml-auto">
-            คืนค่าเริ่มต้น
+            class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#FEF3C7] text-[#92400E]">
+            ใช้หลังบ้านเพื่อน
+          </span>
+          <v-icon :icon="showBackendSettings ? 'mdi-chevron-up' : 'mdi-chevron-down'" class="text-[#64748B]" size="22" />
+        </div>
+      </button>
+
+      <!-- ส่วนเนื้อหาตั้งค่าหลังบ้าน (แสดงเฉพาะเวลากดเปิด) -->
+      <div v-if="showBackendSettings" class="p-5 pt-0 border-t border-[#F1F5F9] space-y-4 mt-2">
+        <p class="text-xs sm:text-sm text-[#64748B] leading-relaxed pt-2">
+          สามารถเปลี่ยน URL ไปเชื่อมกับเครื่องคอมพิวเตอร์ของเพื่อน หรือเซิร์ฟเวอร์ทดสอบได้โดยไม่ต้องแก้โค้ด
+        </p>
+
+        <!-- URL ที่กำลังใช้งาน -->
+        <div class="p-3 bg-[#F8F9F5] rounded-2xl border border-[#E5E7EB] text-xs sm:text-sm font-mono break-all flex items-center justify-between gap-2">
+          <div>
+            <span class="text-[11px] text-[#64748B] block font-sans font-bold">URL ที่ใช้งานอยู่ขณะนี้:</span>
+            <span class="text-[#1B4332] font-bold">{{ currentBackendUrl }}</span>
+          </div>
+          <button 
+            type="button" 
+            @click="pingCurrent"
+            :disabled="testing"
+            class="shrink-0 px-3 py-1.5 rounded-xl bg-white border border-[#CBD5E1] text-[#334155] hover:bg-gray-50 text-xs font-sans font-bold cursor-pointer flex items-center gap-1">
+            <v-icon :icon="testing ? 'mdi-loading' : 'mdi-wifi-check'" :class="{ 'animate-spin': testing }" size="15" />
+            <span>ทดสอบ Ping</span>
           </button>
         </div>
 
-        <!-- กล่องผลลัพธ์การทดสอบ Ping -->
-        <div 
-          v-if="testResult" 
-          class="p-3 rounded-2xl text-xs sm:text-sm flex items-center gap-2"
-          :class="testResult.success ? 'bg-[#E8F5E9] text-[#1B4332] border border-[#C8E6C9]' : 'bg-[#FEE2E2] text-[#991B1B] border border-[#FECACA]'">
-          <v-icon :icon="testResult.success ? 'mdi-check-circle' : 'mdi-alert-circle'" size="18" />
-          <span>{{ testResult.message }}</span>
+        <!-- ฟอร์มเปลี่ยน URL -->
+        <div class="space-y-3">
+          <label for="custom-backend-input" class="text-xs font-bold text-[#334155] block">
+            ระบุ URL เซิร์ฟเวอร์หลังบ้าน (เช่น หลังบ้านของเพื่อน):
+          </label>
+          <div class="flex flex-col sm:flex-row gap-2">
+            <input
+              id="custom-backend-input"
+              v-model.trim="targetUrl"
+              type="text"
+              placeholder="http://192.168.1.xxx:5000 หรือ https://..."
+              class="flex-1 px-4 py-2.5 rounded-xl border border-[#CBD5E1] text-xs sm:text-sm font-mono focus:outline-none focus:border-[#2D6A4F] focus:ring-2 focus:ring-[#2D6A4F]/20"
+            />
+            <div class="flex gap-2">
+              <button
+                type="button"
+                @click="pingTarget"
+                :disabled="testing || !targetUrl"
+                class="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-[#F1F5F9] hover:bg-[#E2E8F0] disabled:opacity-50 text-[#334155] text-xs sm:text-sm font-bold cursor-pointer transition-colors flex items-center justify-center gap-1.5">
+                <v-icon :icon="testing ? 'mdi-loading' : 'mdi-wifi'" :class="{ 'animate-spin': testing }" size="16" />
+                <span>ทดสอบ</span>
+              </button>
+              <button
+                type="button"
+                @click="applyTarget"
+                :disabled="saving || !targetUrl"
+                class="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-[#1B4332] hover:bg-[#2D6A4F] disabled:opacity-50 text-white text-xs sm:text-sm font-bold cursor-pointer transition-colors flex items-center justify-center gap-1.5 shadow-2xs">
+                <v-icon icon="mdi-content-save-check" size="16" />
+                <span>บันทึกและสลับ</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- รายการ Preset ด่วน -->
+          <div class="flex flex-wrap items-center gap-2 pt-1 text-xs">
+            <span class="text-[#64748B] font-semibold">ตัวเลือกด่วน:</span>
+            <button
+              v-for="preset in knownList"
+              :key="preset.url"
+              type="button"
+              @click="targetUrl = preset.url"
+              class="px-2.5 py-1 rounded-lg bg-[#F8F9F5] hover:bg-gray-200 border border-[#E5E7EB] text-[#334155] font-semibold cursor-pointer">
+              {{ preset.label }}
+            </button>
+            <button
+              v-if="isCustomBackend"
+              type="button"
+              @click="resetToDefault"
+              class="px-2.5 py-1 rounded-lg bg-[#FEE2E2] hover:bg-[#FCA5A5] text-[#991B1B] font-bold cursor-pointer ml-auto">
+              คืนค่าเริ่มต้น
+            </button>
+          </div>
+
+          <!-- กล่องผลลัพธ์การทดสอบ Ping -->
+          <div 
+            v-if="testResult" 
+            class="p-3 rounded-2xl text-xs sm:text-sm flex items-center gap-2"
+            :class="testResult.success ? 'bg-[#E8F5E9] text-[#1B4332] border border-[#C8E6C9]' : 'bg-[#FEE2E2] text-[#991B1B] border border-[#FECACA]'">
+            <v-icon :icon="testResult.success ? 'mdi-check-circle' : 'mdi-alert-circle'" size="18" />
+            <span>{{ testResult.message }}</span>
+          </div>
         </div>
       </div>
     </section>
@@ -310,7 +328,8 @@ const testVoice = () => {
   speakThai('สวัสดีค่ะ ระบบช่วยเหลือด้วยเสียงของ CowCare AI พร้อมดูแลคุณตาคุณยายแล้วค่ะ')
 }
 
-// Backend Switcher State
+// Backend Switcher State (พับเก็บไว้เป็นค่าเริ่มต้น ไม่ให้รบกวนคนแก่)
+const showBackendSettings = ref(false)
 const targetUrl = ref(currentBackendUrl.value || '')
 const testing = ref(false)
 const saving = ref(false)
