@@ -168,15 +168,6 @@
       <span>กลับหน้าแผงควบคุมหลัก (Admin Portal)</span>
     </NuxtLink>
 
-    <!-- 5. ปุ่มออกจากระบบ (ปุ่มใหญ่ คอนทราสต์สูง ปลอดภัย) -->
-    <button
-      type="button"
-      @click="openLogoutModal"
-      class="w-full h-15 sm:h-16 rounded-2xl bg-white border-2 border-[#FCA5A5] hover:bg-[#FEF2F2] text-[#DC2626] font-black text-base sm:text-lg flex items-center justify-center gap-2.5 cursor-pointer shadow-xs transition-colors active:scale-[0.99]">
-      <v-icon icon="mdi-logout" size="24" />
-      <span>ออกจากระบบ (Log Out)</span>
-    </button>
-
   </div>
 </template>
 
@@ -195,8 +186,7 @@ const {
   fontSize,
   setFontSize,
   isSpeaking,
-  speakThai,
-  openLogoutModal
+  speakThai
 } = useFarmer()
 
 const displayName = computed(() => user.value?.name_users || user.value?.full_name || user.value?.email || 'เกษตรกร')

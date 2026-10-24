@@ -54,14 +54,14 @@
             </button>
           </div>
 
-          <!-- ปุ่มออกจากระบบด่วนบน Header -->
+          <!-- ปุ่มออกจากระบบบน Header -->
           <button
             type="button"
             @click="openLogoutModal"
-            class="px-2.5 py-2 rounded-xl text-xs font-bold bg-[#0D241A] hover:bg-[#B91C1C] text-[#FCA5A5] hover:text-white border border-white/10 flex items-center gap-1 transition-all cursor-pointer shadow-2xs active:scale-95"
+            class="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-xs sm:text-sm font-bold bg-[#B91C1C]/25 hover:bg-[#B91C1C] text-[#FCA5A5] hover:text-white border border-[#B91C1C]/40 flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs active:scale-95"
             title="ออกจากระบบ">
-            <v-icon icon="mdi-logout" size="16" />
-            <span class="hidden sm:inline">ออก</span>
+            <v-icon icon="mdi-logout" size="17" />
+            <span class="inline">ออก</span>
           </button>
         </div>
       </div>
