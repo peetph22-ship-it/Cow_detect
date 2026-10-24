@@ -3,7 +3,6 @@
  * - รองรับระบบผู้สูงอายุ (ขยายขนาดตัวหนังสือ, สังเคราะห์เสียงพูดภาษาไทย Web Speech API)
  * - รองรับการเชื่อมต่อไปยังหลังบ้านของเพื่อน (Custom Backend URL / Localhost / Cloud)
  * - ระบบตรวจและแปลงข้อมูลยืดหยุ่น (Tolerant Data Parser) ไม่พังแม้หลังบ้านเพื่อนส่งฟอร์แมตต่างกัน
- * - ระบบเช็คลิสต์สิ่งที่ต้องทำประจำวัน /actions
  */
 import axios from 'axios'
 import { getNodeApiBase, setCustomNodeApi, getCustomNodeApi, getKnownBackends } from '~/API/baseAPI'
@@ -82,9 +81,6 @@ export const useFarmer = () => {
 
   // URL หลังบ้านที่กำลังเชื่อมต่ออยู่
   const currentBackendUrl = useState('farmer.backendUrl', () => getNodeApiBase())
-
-  // รายการเช็คลิสต์ที่ทำแล้ววันนี้
-  const doneActions = useState('farmer.doneActions', () => [])
 
   const farm = computed(() => me.value?.farm || null)
   const farms = computed(() => me.value?.farms || [])
@@ -168,7 +164,6 @@ export const useFarmer = () => {
     me.value = null
     user.value = null
     farmId.value = ''
-    doneActions.value = []
     loaded.value = false
     await navigateTo('/login?logout=success')
   }
@@ -322,12 +317,8 @@ export const useFarmer = () => {
     if (!token()) return
     loading.value = true
     try {
-      const [d, acts] = await Promise.all([
-        request('me'),
-        request('actions').catch(() => ({ done_actions: [] }))
-      ])
+      const d = await request('me')
       me.value = normalizeData(d)
-      doneActions.value = acts?.done_actions || []
       if (d?.farm?.id && d.farm.id !== farmId.value) farmId.value = d.farm.id
       error.value = ''
     } catch (err) {
@@ -337,22 +328,6 @@ export const useFarmer = () => {
     } finally {
       loading.value = false
       loaded.value = true
-    }
-  }
-
-  // สลับสถานะสิ่งที่ต้องทำ
-  const toggleAction = async (actionId) => {
-    const isDone = !doneActions.value.includes(actionId)
-    if (isDone) {
-      doneActions.value = [...doneActions.value, actionId]
-    } else {
-      doneActions.value = doneActions.value.filter(id => id !== actionId)
-    }
-
-    try {
-      await postRequest('actions/toggle', { action_id: actionId, is_done: isDone })
-    } catch (e) {
-      console.warn('Action toggle offline / sync failed:', e.message)
     }
   }
 
@@ -402,8 +377,6 @@ export const useFarmer = () => {
     testBackend,
     switchBackend,
     getKnownBackends,
-    doneActions,
-    toggleAction,
     ensureAuth,
     refresh,
     request,

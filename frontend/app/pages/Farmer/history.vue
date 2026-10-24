@@ -1,94 +1,88 @@
 <template>
-  <div class="space-y-5">
-    <!-- ส่วนหัว: สรุปประวัติย้อนหลัง 7 วัน -->
-    <section class="bg-[#FFFDF7] rounded-3xl p-5 sm:p-7 shadow-xs border border-[#E6DEC8]">
-      <div class="flex items-center justify-between gap-3 pb-4 border-b border-[#E6DEC8]">
-        <div class="flex items-center gap-3.5">
-          <div class="w-12 h-12 rounded-2xl bg-[#1B342D] text-[#F3C68F] flex items-center justify-center shrink-0">
-            <v-icon icon="mdi-calendar-week" size="26" />
-          </div>
-          <div>
-            <h1 class="text-lg sm:text-xl font-black text-[#1B342D] leading-tight">
-              ประวัติอากาศย้อนหลัง 7 วัน
-            </h1>
-            <p class="text-xs sm:text-sm text-[#4E655B] font-medium mt-0.5">
-              ดูภาพรวมว่าแม่วัวสบายดีหรือเจออากาศร้อนในแต่ละวัน
-            </p>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          @click="loadHistory"
-          :disabled="loadingDays"
-          class="w-10 h-10 rounded-xl bg-white hover:bg-[#F4EFE4] border border-[#E6DEC8] flex items-center justify-center text-[#1B342D] cursor-pointer shrink-0"
-          title="โหลดข้อมูลใหม่">
-          <v-icon icon="mdi-refresh" size="20" :class="loadingDays ? 'animate-spin' : ''" />
-        </button>
-      </div>
-
-      <!-- สรุป 4 ช่องสำหรับผู้สูงอายุ -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
-        <div class="p-3.5 rounded-2xl bg-[#ECFDF5] border border-[#A7F3D0]">
+  <div class="space-y-5 sm:space-y-6">
+    <!-- ส่วนหัว: สรุปประวัติย้อนหลัง 7 วัน (4 Bento KPI Cards) -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-white rounded-[24px] p-5 border border-[#E4E8E5] shadow-[0_8px_24px_rgba(20,40,32,0.04)] flex items-center justify-between gap-3">
+        <div>
           <div class="text-xs font-extrabold text-[#15803D] flex items-center gap-1.5">
             <span class="w-2.5 h-2.5 rounded-full bg-[#16A34A]"></span>
             <span>วันสบายดี</span>
           </div>
-          <div class="text-2xl sm:text-3xl font-black text-[#14532D] mt-1 tabular-nums">
-            {{ goodDaysCount }} <span class="text-xs sm:text-sm font-bold">วัน</span>
+          <div class="text-3xl font-black text-[#142820] mt-1.5 tabular-nums">
+            {{ goodDaysCount }} <span class="text-xs font-bold text-[#64766D]">วัน</span>
           </div>
         </div>
+        <div class="w-11 h-11 rounded-2xl bg-[#ECFDF5] text-[#16A34A] flex items-center justify-center shrink-0">
+          <v-icon icon="mdi-emoticon-happy-outline" size="24" />
+        </div>
+      </div>
 
-        <div class="p-3.5 rounded-2xl bg-[#FFFBEB] border border-[#FDE68A]">
+      <div class="bg-white rounded-[24px] p-5 border border-[#E4E8E5] shadow-[0_8px_24px_rgba(20,40,32,0.04)] flex items-center justify-between gap-3">
+        <div>
           <div class="text-xs font-extrabold text-[#B45309] flex items-center gap-1.5">
             <span class="w-2.5 h-2.5 rounded-full bg-[#D97706]"></span>
             <span>วันเริ่มร้อน</span>
           </div>
-          <div class="text-2xl sm:text-3xl font-black text-[#78350F] mt-1 tabular-nums">
-            {{ mildDaysCount }} <span class="text-xs sm:text-sm font-bold">วัน</span>
+          <div class="text-3xl font-black text-[#142820] mt-1.5 tabular-nums">
+            {{ mildDaysCount }} <span class="text-xs font-bold text-[#64766D]">วัน</span>
           </div>
         </div>
+        <div class="w-11 h-11 rounded-2xl bg-[#FFFBEB] text-[#D97706] flex items-center justify-center shrink-0">
+          <v-icon icon="mdi-weather-sunny-alert" size="24" />
+        </div>
+      </div>
 
-        <div class="p-3.5 rounded-2xl bg-[#FEF2F2] border border-[#FECACA]">
+      <div class="bg-white rounded-[24px] p-5 border border-[#E4E8E5] shadow-[0_8px_24px_rgba(20,40,32,0.04)] flex items-center justify-between gap-3">
+        <div>
           <div class="text-xs font-extrabold text-[#B91C1C] flex items-center gap-1.5">
             <span class="w-2.5 h-2.5 rounded-full bg-[#DC2626]"></span>
             <span>วันร้อนจัด</span>
           </div>
-          <div class="text-2xl sm:text-3xl font-black text-[#991B1B] mt-1 tabular-nums">
-            {{ severeDaysCount }} <span class="text-xs sm:text-sm font-bold">วัน</span>
+          <div class="text-3xl font-black text-[#142820] mt-1.5 tabular-nums">
+            {{ severeDaysCount }} <span class="text-xs font-bold text-[#64766D]">วัน</span>
           </div>
         </div>
-
-        <div class="p-3.5 rounded-2xl bg-[#FFF7ED] border border-[#FED7AA]">
-          <div class="text-xs font-extrabold text-[#C2410C] flex items-center gap-1.5">
-            <v-icon icon="mdi-fire" size="16" />
-            <span>ร้อนสะสมติดกัน</span>
-          </div>
-          <div class="text-2xl sm:text-3xl font-black text-[#7C2D12] mt-1 tabular-nums">
-            {{ streakDays }} <span class="text-xs sm:text-sm font-bold">วันติด</span>
-          </div>
+        <div class="w-11 h-11 rounded-2xl bg-[#FEF2F2] text-[#DC2626] flex items-center justify-center shrink-0">
+          <v-icon icon="mdi-alert-octagon-outline" size="24" />
         </div>
       </div>
-    </section>
 
-    <!-- รายการการ์ดรายวัน -->
+      <div class="bg-white rounded-[24px] p-5 border border-[#E4E8E5] shadow-[0_8px_24px_rgba(20,40,32,0.04)] flex items-center justify-between gap-3">
+        <div>
+          <div class="text-xs font-extrabold text-[#C2410C] flex items-center gap-1.5">
+            <v-icon icon="mdi-fire" size="15" />
+            <span>ร้อนสะสมติดกัน</span>
+          </div>
+          <div class="text-3xl font-black text-[#142820] mt-1.5 tabular-nums">
+            {{ streakDays }} <span class="text-xs font-bold text-[#64766D]">วันติด</span>
+          </div>
+        </div>
+        <div class="w-11 h-11 rounded-2xl bg-[#FFF7ED] text-[#EA580C] flex items-center justify-center shrink-0">
+          <v-icon icon="mdi-calendar-alert" size="24" />
+        </div>
+      </div>
+    </div>
+
+    <!-- รายการการ์ดรายวัน (Grid 2 คอลัมน์บนจอใหญ่) -->
     <div v-if="loadingDays" class="py-14 text-center text-sm font-extrabold text-[#4E655B]">
       <v-icon icon="mdi-loading" class="animate-spin text-[#2D6A4F] mb-2" size="36" />
       <p>กำลังเปิดข้อมูลย้อนหลัง 7 วัน...</p>
     </div>
 
-    <div v-else-if="loadError" class="bg-[#FFFDF7] rounded-3xl p-8 shadow-xs border-2 border-[#FCA5A5] text-center space-y-3">
+    <div v-else-if="loadError" class="bg-white rounded-[28px] p-8 shadow-xs border-2 border-[#FCA5A5] text-center space-y-3">
       <v-icon icon="mdi-cloud-off-outline" size="40" class="text-[#B91C1C]" />
       <p class="text-base font-extrabold text-[#7F1D1D]">โหลดข้อมูลย้อนหลังไม่สำเร็จ</p>
       <p class="text-sm text-[#4E655B]">ตรวจสัญญาณอินเทอร์เน็ตแล้วลองใหม่</p>
-      <button type="button" class="px-5 py-2.5 rounded-2xl bg-[#1B4332] text-white font-bold" @click="loadHistory">ลองใหม่</button>
+      <button type="button" class="px-5 py-2.5 rounded-2xl bg-[#142820] text-white font-bold cursor-pointer" @click="loadHistory">
+        ลองใหม่
+      </button>
     </div>
 
-    <div v-else-if="!days.length" class="bg-[#FFFDF7] rounded-3xl p-8 shadow-xs border border-[#E6DEC8] text-center text-sm font-bold text-[#4E655B]">
+    <div v-else-if="!days.length" class="bg-white rounded-[28px] p-8 shadow-xs border border-[#E4E8E5] text-center text-sm font-bold text-[#4E655B]">
       ยังไม่มีข้อมูลย้อนหลัง เมื่อกล่องเซ็นเซอร์ส่งข้อมูลครบวัน หน้านี้จะแสดงให้อัตโนมัติ
     </div>
 
-    <div v-else class="space-y-3.5">
+    <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <FarmerHistoryDayCard
         v-for="d in days"
         :key="d.date"
@@ -107,8 +101,8 @@ const { request, farmId } = useFarmer()
 const days = ref([])
 const streakDays = ref(0)
 const loadingDays = ref(true)
-
 const loadError = ref(false)
+
 const loadHistory = async () => {
   loadingDays.value = true
   loadError.value = false

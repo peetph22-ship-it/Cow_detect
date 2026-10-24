@@ -1,21 +1,27 @@
 <template>
-  <div class="space-y-4 sm:space-y-6">
-    <!-- 1. การ์ดหลัก: สถานะความร้อนในคอกตอนนี้ อุณหภูมิ ความชื้น มาตรวัด THI และปุ่มฟังเสียง -->
-    <FarmerHeroStatusCard @play-voice="playVoice" />
+  <div class="space-y-5 sm:space-y-6">
+    <!-- แถวที่ 1 (Bento Row 1): การ์ดสถานะคอกตอนนี้ (7 คอลัมน์) + คำแนะนำคลายร้อนและช่วงเวลาสำคัญ (5 คอลัมน์) -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-stretch">
+      <div class="lg:col-span-7">
+        <FarmerHeroStatusCard @play-voice="playVoice" />
+      </div>
+      <div class="lg:col-span-5">
+        <FarmerCoolingAdviceCard />
+      </div>
+    </div>
 
-    <!-- 2. คำแนะนำวิธีคลายร้อนตามความชื้นจริง (พ่นหมอก vs ฉีดน้ำตัววัว) & ช่วงเวลาร้อนสุด/เย็นสุดของคอก -->
-    <FarmerCoolingAdviceCard />
+    <!-- แถวที่ 2 (Bento Row 2): คำแนะนำการดูแลแม่วัวในคอก (6 คอลัมน์) + สรุป 24 ชม. และกล้อง AI (6 คอลัมน์) -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-stretch">
+      <div class="lg:col-span-6">
+        <FarmerActionChecklist />
+      </div>
+      <div class="lg:col-span-6">
+        <FarmerBarnSnapshotCard />
+      </div>
+    </div>
 
-    <!-- 3. เช็กลิสต์ดูแลแม่วัวประจำวัน 4 ข้อ (กดติ๊กง่าย ซิงค์กับระบบ) -->
-    <FarmerActionChecklist />
-
-    <!-- 4. สรุปภาพรวมวันนี้ (ชั่วโมงร้อน / พักกลางคืน / สะสมกี่วัน) & พฤติกรรมวัวจากกล้อง AI -->
-    <FarmerBarnSnapshotCard />
-
-    <!-- 5. พยากรณ์อากาศในคอกล่วงหน้า 3 วัน -->
+    <!-- แถวที่ 3 (Bento Row 3): พยากรณ์ล่วงหน้า 3 วัน + ปุ่มโทรด่วนหาสัตวแพทย์ -->
     <FarmerForecastStrip />
-
-    <!-- 6. ปุ่มโทรด่วนหาสัตวแพทย์ประจำฟาร์ม (แสดงเฉพาะเมื่อมีเบอร์จริงในระบบ) -->
     <FarmerVetCallButton />
   </div>
 </template>
@@ -24,7 +30,7 @@
 import { useFarmer } from '~/composables/useFarmer'
 
 definePageMeta({ layout: 'farmer' })
-useHead({ title: 'สภาพในคอกตอนนี้ | CowCare ฟาร์มโคนม' })
+useHead({ title: 'แดชบอร์ดดูแลโคนมประจำวัน | CowCare ฟาร์มโคนม' })
 
 const {
   now,
@@ -40,8 +46,13 @@ const playVoice = () => {
     stopSpeech()
     return
   }
+  const hasFresh = now.value && now.value.sensor_status === 'online'
+  if (!hasFresh) {
+    speakThai('ขณะนี้กล่องเซ็นเซอร์ไม่ได้ส่งข้อมูลล่าสุด กรุณาตรวจสอบปลั๊กไฟและสัญญาณอินเทอร์เน็ตที่โรงเรือนจ้า')
+    return
+  }
   const baseText = senior.value?.voice_text ||
-    `สภาพอากาศในคอกวัวตอนนี้ อุณหภูมิ ${now.value ? Number(now.value.temperature_c).toFixed(1) : '31'} องศาเซลเซียส ความชื้น ${now.value ? Math.round(now.value.humidity_pct) : '70'} เปอร์เซ็นต์`
+    `สภาพอากาศในคอกวัวตอนนี้ อุณหภูมิ ${Number(now.value.temperature_c).toFixed(1)} องศาเซลเซียส ความชื้น ${Math.round(now.value.humidity_pct)} เปอร์เซ็นต์`
   const coolingNote = cooling.value?.short ? ` คำแนะนำการคลายร้อนคือ ${cooling.value.short}` : ''
   speakThai(`${baseText}${coolingNote}`)
 }

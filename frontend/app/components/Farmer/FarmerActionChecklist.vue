@@ -1,85 +1,62 @@
 <template>
-  <section class="bg-[#FFFDF7] rounded-3xl p-5 sm:p-7 shadow-xs border border-[#E6DEC8]">
-    <!-- หัวข้อเช็กลิสต์ + ความคืบหน้า -->
-    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-      <div>
-        <h2 class="text-base sm:text-lg font-black text-[#1B342D] flex items-center gap-2">
-          <v-icon icon="mdi-checkbox-marked-circle-outline" class="text-[#2D6A4F]" size="24" />
-          <span>เช็กลิสต์ดูแลแม่วัววันนี้</span>
-        </h2>
-        <p class="text-xs sm:text-sm text-[#4E655B] font-medium mt-0.5">
-          กดที่รายการเพื่อติ๊กช่วยจำเมื่อทำเสร็จแล้ว (บันทึกอัตโนมัติ)
-        </p>
+  <section class="h-full bg-white rounded-[28px] p-5 sm:p-7 shadow-[0_12px_36px_rgba(20,40,32,0.04)] border border-[#E4E8E5] flex flex-col justify-between space-y-4">
+    <!-- หัวข้อคำแนะนำ (อ่านอย่างเดียว ไม่ต้องกดติ๊กเช็กลิสต์) -->
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <div class="flex items-center gap-2.5">
+        <div class="w-10 h-10 rounded-2xl bg-[#ECFDF5] text-[#15803D] border border-[#A7F3D0] flex items-center justify-center shrink-0">
+          <v-icon icon="mdi-lightbulb-on-outline" size="22" />
+        </div>
+        <div>
+          <h2 class="text-base sm:text-lg font-black text-[#142820] leading-tight">
+            คำแนะนำการดูแลแม่วัวในคอก
+          </h2>
+          <p class="text-xs text-[#64766D] font-medium">
+            แนวทางปฏิบัติตามสภาพอุณหภูมิและความชื้นของโรงเรือน
+          </p>
+        </div>
       </div>
 
       <span
-        class="text-xs sm:text-sm font-black px-3.5 py-1.5 rounded-full border"
-        :class="doneCount === actionList.length
-          ? 'bg-[#1B342D] text-[#FFFDF7] border-[#1B342D]'
-          : 'bg-[#E8F5E9] text-[#1B4332] border-[#BBF7D0]'">
-        ทำแล้ว {{ doneCount }}/{{ actionList.length }} ข้อ
+        class="text-xs font-extrabold px-3 py-1 rounded-full bg-[#F4F6F4] text-[#24433A] border border-[#E4E8E5]">
+        คำแนะนำอัตโนมัติ
       </span>
     </div>
 
-    <!-- แถบความคืบหน้า -->
-    <div class="h-2.5 w-full rounded-full bg-[#ECE6D8] overflow-hidden mb-4">
-      <div
-        class="h-full bg-[#2D6A4F] transition-all duration-300 rounded-full"
-        :style="{ width: `${progressPct}%` }"></div>
-    </div>
-
-    <!-- รายการสิ่งที่ควรทำ 4 ข้อ -->
+    <!-- รายการคำแนะนำ 4 ข้อ (Read-only Cards) -->
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      <button
-        v-for="act in actionList"
+      <div
+        v-for="act in adviceList"
         :key="act.id"
-        type="button"
-        @click="toggleAction(act.id)"
-        class="w-full text-left p-4 rounded-2xl border-2 transition-all flex items-center justify-between gap-3 cursor-pointer select-none active:scale-[0.99]"
-        :class="isDone(act.id)
-          ? 'bg-[#ECFDF5] border-[#2D6A4F] text-[#1B342D]'
-          : 'bg-white border-[#E6DEC8] hover:border-[#2D6A4F]/50 text-[#1B342D]'">
-        <div class="flex items-start gap-3.5 min-w-0">
-          <!-- ไอคอน -->
-          <div
-            class="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-colors mt-0.5"
-            :class="isDone(act.id)
-              ? 'bg-[#2D6A4F] text-white shadow-2xs'
-              : 'bg-[#F4EFE4] border border-[#E6DEC8] text-[#1B342D]'">
-            <v-icon :icon="act.icon" size="24" />
-          </div>
-
-          <!-- ข้อความ -->
-          <div class="min-w-0">
-            <div class="flex flex-wrap items-center gap-1.5">
-              <span
-                class="text-base font-black leading-snug"
-                :class="isDone(act.id) ? 'line-through text-[#2D6A4F]' : 'text-[#1B342D]'">
-                {{ act.title }}
-              </span>
-              <span
-                v-if="act.recommended && !isDone(act.id)"
-                class="text-[11px] font-extrabold px-2 py-0.5 rounded-full bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A]">
-                แนะนำตอนนี้
-              </span>
-            </div>
-            <p
-              class="text-xs sm:text-sm mt-1 leading-snug font-medium"
-              :class="isDone(act.id) ? 'text-[#2D6A4F]/80' : 'text-[#4E655B]'">
-              {{ act.desc }}
-            </p>
-          </div>
-        </div>
-
-        <!-- วงกลมเครื่องหมายถูก -->
+        class="p-3.5 sm:p-4 rounded-2xl border transition-all flex items-start gap-3"
+        :class="act.highlight
+          ? 'bg-[#FFFBEB] border-[#FDE68A]'
+          : 'bg-[#F8FAF9] border-[#E4E8E5]'">
+        <!-- ไอคอน -->
         <div
-          class="w-9 h-9 rounded-full flex items-center justify-center shrink-0 border-2 transition-all"
-          :class="isDone(act.id)
-            ? 'bg-[#2D6A4F] border-[#2D6A4F] text-white'
-            : 'border-[#CBD5E1] bg-white text-transparent'">
-          <v-icon icon="mdi-check-bold" size="18" />
+          class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+          :class="act.highlight
+            ? 'bg-[#D97706] text-white shadow-2xs'
+            : 'bg-white border border-[#E4E8E5] text-[#142820]'">
+          <v-icon :icon="act.icon" size="22" />
         </div>
-      </button>
+
+        <!-- ข้อความคำแนะนำ -->
+        <div class="min-w-0 flex-1">
+          <div class="flex flex-wrap items-center gap-1.5">
+            <h3 class="text-sm sm:text-base font-black text-[#142820] leading-snug">
+              {{ act.title }}
+            </h3>
+            <span
+              v-if="act.highlight"
+              class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A]">
+              เน้นย้ำตอนนี้
+            </span>
+          </div>
+          <p class="text-xs text-[#5A6B63] mt-1 leading-relaxed font-medium">
+            {{ act.desc }}
+          </p>
+        </div>
+      </div>
     </div>
   </section>
 </template>
@@ -87,37 +64,35 @@
 <script setup>
 import { useFarmer } from '~/composables/useFarmer'
 
-const { senior, cooling, doneActions, toggleAction } = useFarmer()
+const { now, senior, cooling } = useFarmer()
 
-const actionList = computed(() => {
+const hasFreshHeat = computed(() =>
+  now.value?.sensor_status === 'online' && ['mild', 'moderate', 'severe'].includes(now.value?.risk_level)
+)
+
+const adviceList = computed(() => {
   const base = senior.value?.action_templates?.length
     ? senior.value.action_templates
     : [
-        { id: 'fan', title: 'เปิดพัดลมในคอก', desc: 'ช่วยระบายอากาศร้อน ไม่ให้อากาศอับ', icon: 'mdi-fan', recommended: true },
-        { id: 'water_spray', title: 'เปิดละอองน้ำ / สปริงเกลอร์', desc: 'ฉีดพ่นน้ำเป็นรอบๆ ช่วยลดอุณหภูมิร่างกายวัว', icon: 'mdi-sprinkler-variant', recommended: false },
-        { id: 'fresh_water', title: 'เติมน้ำสะอาดให้เต็มราง', desc: 'แม่วัวกินน้ำเยอะขึ้นเมื่ออากาศร้อน ดื่มน้ำลดเครียด', icon: 'mdi-cup-water', recommended: true },
-        { id: 'check_cow', title: 'สังเกตอาการแม่วัว (ไม่หอบ)', desc: 'ตรวจดูว่ามีตัวไหนยืนหอบ อ้าปาก หรือน้ำลายยืดหรือไม่', icon: 'mdi-cow', recommended: true }
+        { id: 'fan', title: 'เปิดพัดลมระบายอากาศ', desc: 'ช่วยพัดไอร้อนออกจากตัววัวและลดความอับชื้นในโรงเรือน', icon: 'mdi-fan', recommended: true },
+        { id: 'water_spray', title: 'ใช้น้ำลดความร้อนตามความชื้น', desc: 'พ่นน้ำหรือฉีดน้ำรดตัววัวเป็นรอบๆ สลับกับการเป่าพัดลม', icon: 'mdi-sprinkler-variant', recommended: false },
+        { id: 'fresh_water', title: 'เตรียมน้ำสะอาดให้เต็มรางเสมอ', desc: 'แม่วัวดื่มน้ำมากขึ้นเมื่ออากาศร้อน น้ำเย็นสะอาดช่วยลดอุณหภูมิร่างกาย', icon: 'mdi-cup-water', recommended: true },
+        { id: 'check_cow', title: 'สังเกตอาการหอบและการกินอาหาร', desc: 'ดูว่ามีแม่วัวยืนหอบ อ้าปาก น้ำลายยืด หรือกินอาหารลดลงผิดปกติหรือไม่', icon: 'mdi-cow', recommended: true }
       ]
 
-  if (cooling.value?.humid) {
-    return base.map(act => {
-      if (act.id === 'water_spray') {
-        return {
-          ...act,
-          title: 'ฉีดน้ำรดตัววัวสลับพัดลม (งดหมอกฝอย)',
-          desc: 'อากาศชื้นสูง งดพ่นหมอกฝอย ให้ฉีดน้ำรดหลังและไหล่วัวช่วงสั้นๆ แล้วเป่าพัดลมให้แห้ง'
-        }
-      }
-      return act
-    })
-  }
-  return base
-})
-
-const isDone = (id) => doneActions.value.includes(id)
-const doneCount = computed(() => actionList.value.filter(a => isDone(a.id)).length)
-const progressPct = computed(() => {
-  if (!actionList.value.length) return 0
-  return Math.round((doneCount.value / actionList.value.length) * 100)
+  return base.map(act => {
+    let title = act.title
+    let desc = act.desc
+    if (act.id === 'water_spray' && cooling.value?.humid) {
+      title = 'ฉีดน้ำรดตัววัวสลับพัดลม (งดหมอกฝอย)'
+      desc = 'เมื่อความชื้นสูง (≥75%) งดพ่นหมอกฝอย ให้ฉีดน้ำรดหลังและไหล่วัวช่วงสั้นๆ แล้วเป่าพัดลมให้แห้ง'
+    }
+    return {
+      ...act,
+      title,
+      desc,
+      highlight: Boolean(hasFreshHeat.value && act.recommended)
+    }
+  })
 })
 </script>
