@@ -1,7 +1,7 @@
 <template>
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-up delay-200">
 
-    <!-- 🟢 1. Left Bento Card: THI เฉลี่ยรายวัน 7 วัน (จริง) + พยากรณ์ baseline 3 วัน (2/3 width) -->
+    <!-- 🟢 1. Left Bento Card: THI เฉลี่ยรายวัน 7 วัน (จริง) + พยากรณ์ 3 วัน (2/3 width) -->
     <div class="lg:col-span-2 bg-white/80 backdrop-blur-xl rounded-[32px] border border-white/90 shadow-[0_8px_30px_rgba(36,67,58,0.04)] p-6 md:p-8 flex flex-col justify-between">
       <div>
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
@@ -21,7 +21,7 @@
           <div class="flex items-center gap-2 self-start sm:self-auto">
             <span class="px-3 py-1 rounded-[10px] bg-[#163026]/5 text-[#163026] text-xs font-black border border-[#163026]/10 flex items-center gap-1.5">
               <v-icon icon="mdi-chart-timeline-variant" size="14" class="text-[#D97736]" />
-              <span>ข้อมูลจริง + baseline</span>
+              <span>ข้อมูลจริง + พยากรณ์</span>
             </span>
           </div>
         </div>
@@ -34,7 +34,7 @@
           </span>
           <span class="flex items-center gap-2">
             <span class="w-4 h-0 border-t-2 border-dashed border-[#D97736]"></span>
-            <span>เส้นประ: พยากรณ์ 3 วัน (ค่าเฉลี่ย THI 72 ชม. ยังไม่ใช้พยากรณ์อากาศ)</span>
+            <span>เส้นประ: พยากรณ์ THI เฉลี่ยรายวัน 3 วัน (วิธีดูด้านล่างกราฟ)</span>
           </span>
           <span class="flex items-center gap-1.5 text-[#718078] text-[11px] ml-auto">
             <span class="w-2 h-2 rounded-full bg-amber-400"></span>
@@ -131,7 +131,7 @@ import { getNodeApiBase } from '~/API/baseAPI'
 import { getThresholds } from '~/utils/heatStress'
 
 const T = getThresholds('default')
-// ข้อมูลจริง: THI เฉลี่ยรายวัน 7 วัน + พยากรณ์ baseline 3 วัน จาก /farms/dashboard-trend
+// ข้อมูลจริง: THI เฉลี่ยรายวัน 7 วัน + พยากรณ์ 3 วัน (services/forecastService.js) จาก /farms/dashboard-trend
 // โหลดตอนเปิดหน้าและทุก 10 นาที (ค่ารายวันเปลี่ยนช้า ไม่ต้องดึงทุก 12 วินาทีแบบการ์ดอื่น)
 // อ่าน base ตอน setup: ใน setInterval เรียก useRuntimeConfig ไม่ได้ (จะตกไปใช้ URL production)
 const ADMIN_API = `${getNodeApiBase()}/Admin`

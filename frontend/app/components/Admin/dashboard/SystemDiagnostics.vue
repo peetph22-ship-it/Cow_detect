@@ -59,9 +59,9 @@
 
         <!-- Metric 3: Forecast Engine -->
         <div class="pt-2 border-t border-white/10 flex items-center justify-between text-xs">
-          <span class="text-white/75">โมเดลแนวโน้มความร้อนสะสม</span>
-          <span class="font-mono font-bold text-[#F2BD7C] bg-white/10 px-2.5 py-0.5 rounded-[8px]">
-            Baseline 72h Mean
+          <span class="text-white/75">วิธีพยากรณ์ 3 วัน</span>
+          <span class="font-bold text-[#F2BD7C] bg-white/10 px-2.5 py-0.5 rounded-[8px]">
+            พยากรณ์อากาศ + ปรับตามโรงเรือน
           </span>
         </div>
 

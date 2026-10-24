@@ -107,16 +107,18 @@ function buildSeniorSummary(now, today, forecast, farm) {
 
     // พยากรณ์ช่วงบ่าย/พรุ่งนี้ ภาษาชาวบ้าน
     let forecastSimple = 'สภาพอากาศพรุ่งนี้ใกล้เคียงกับวันนี้ เตรียมน้ำสะอาดให้พร้อม'
-    if (forecast?.peak_window) {
-        forecastSimple = `ช่วง ${forecast.peak_window} จะเป็นช่วงที่ร้อนที่สุดของวัน แนะนำให้เปิดพัดลมล่วงหน้า`
-    } else if (forecast?.days?.[0]) {
-        const nextDay = forecast.days[0]
+    // forecast = ผลจาก forecastService (รายการวันอยู่ใน forecasts, peak_window เป็นออบเจกต์ที่มี label)
+    const nextDay = forecast?.forecasts?.[0]
+    if (nextDay) {
         if (nextDay.risk_level === 'severe') {
             forecastSimple = 'พรุ่งนี้ช่วงบ่ายจะร้อนจัดมาก ควรตรวจระบบพัดลมและน้ำสำรองล่วงหน้า'
         } else if (nextDay.risk_level === 'moderate') {
             forecastSimple = 'พรุ่งนี้ช่วงบ่ายจะเริ่มร้อน มีช่วงที่วัวอาจอึดอัด ควรเตรียมเปิดพัดลม'
         } else {
             forecastSimple = 'พรุ่งนี้อากาศสบายดี ลมพัดถ่ายเทสะดวก'
+        }
+        if (forecast?.peak_window?.label && ['moderate', 'severe'].includes(nextDay.risk_level)) {
+            forecastSimple += ` ช่วงร้อนที่สุดประมาณ ${forecast.peak_window.label}`
         }
     }
 
@@ -268,6 +270,8 @@ router.get('/me', verifyToken, requireFarm, async (req, res) => {
             forecast: forecast ? {
                 insufficient_data: Boolean(forecast.insufficient_data),
                 reason: forecast.reason || null,
+                method_th: forecast.method_th || null,
+                adjusted: forecast.adjusted ?? null,
                 peak_window: forecast.peak_window || null,
                 cool_window: forecast.cool_window || null,
                 days: (forecast.forecasts || []).map(f => ({

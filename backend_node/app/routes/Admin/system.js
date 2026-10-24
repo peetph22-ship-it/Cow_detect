@@ -8,7 +8,7 @@ const router = express.Router()
 const db = require('../../config/db')
 const { evaluateMultimodalStatus } = require('../../services/multimodalValidationService')
 const { PROFILES, PROFILE_LABELS } = require('../../services/heatStress')
-const { FORECAST_VERSION } = require('../../services/forecastService')
+const { FORECAST_VERSION, EVALUATION } = require('../../services/forecastService')
 const { verifyToken, requireRole } = require('../../middleware/authMiddleware')
 const adminOnly = [verifyToken, requireRole('admin')]
 
@@ -31,7 +31,8 @@ router.get('/accuracy-benchmarks', adminOnly, (req, res) => {
             thresholds: Object.fromEntries(Object.entries(PROFILES).map(([k, v]) => [k, { ...v, label_th: PROFILE_LABELS[k] }])),
             forecast: {
                 version: FORECAST_VERSION,
-                method_th: 'ค่าเฉลี่ย THI 72 ชั่วโมงล่าสุด',
+                method_th: 'พยากรณ์อากาศ ECMWF (Open-Meteo) ที่พิกัดฟาร์ม ปรับด้วยค่าเพี้ยนที่เรียนจากเซ็นเซอร์ของฟาร์ม 3-14 วันล่าสุด (สำรอง: ค่าเฉลี่ย THI 72 ชม.)',
+                evaluation: EVALUATION,
                 lstm_enabled: String(process.env.ENABLE_LSTM || '').toLowerCase() === 'true'
             },
             computer_vision: {
