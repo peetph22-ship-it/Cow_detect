@@ -120,6 +120,12 @@ const { startDailyLstmCron } = require('./app/services/dailyLstmScheduler')
 // End , Listen Port;
 app.listen(PORT, () => {
     console.log(`Server Running On Port ${PORT}`)
-    startDailyLstmCron()
+    // งาน 20:00 เขียนลง DB จริง: รันเฉพาะบน Render (Render ตั้ง RENDER=true ให้เอง) หรือเมื่อสั่ง ENABLE_DAILY_CRON=1
+    // เครื่อง dev ต่อ DB ตัวเดียวกับ production จึงต้องไม่รันเองโดยไม่ตั้งใจ
+    if (process.env.RENDER === 'true' || process.env.ENABLE_DAILY_CRON === '1') {
+        startDailyLstmCron()
+    } else {
+        console.log('[Daily Summary Job] skipped on this machine (set ENABLE_DAILY_CRON=1 to run)')
+    }
     if (process.env.VISION_PRELOAD === '1') require('./app/services/visionService').warmup()
 })
