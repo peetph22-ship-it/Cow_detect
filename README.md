@@ -218,6 +218,8 @@ testYOLO26/
 
 ## 🚀 การติดตั้งและการรันระบบ (Getting Started)
 
+> คนใหม่ที่เพิ่ง clone โปรเจกต์: เริ่มจาก [docs/DEV_SETUP.md](docs/DEV_SETUP.md) (ตั้งค่า `.env` และค่าลับที่ต้องขอ)
+
 ### 1. รันผ่าน Docker Compose (แนะนำ)
 ```bash
 docker compose up --build -d
