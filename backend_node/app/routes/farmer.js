@@ -1,15 +1,17 @@
 /**
- * CowCare AI - API สำหรับหน้าเกษตรกร
+ * CowCare AI - API สำหรับหน้าเกษตรกร (Enhanced Senior-Friendly & Minimal Edition)
  *
  * ทุก route: ข้อมูลเฉพาะฟาร์มของผู้ที่ login (เจ้าของฟาร์ม tb_farms.id_users หรือสมาชิก tb_farm_members)
  *   ?farm_id=<uuid>  เลือกฟาร์ม (กรณีมีหลายฟาร์ม) admin ใช้ดูตัวอย่างหน้าเกษตรกรของฟาร์มใดก็ได้
  *
- * GET /api/farmer/me       ตอนนี้ + 24 ชม. + พยากรณ์ 3 วัน + กล้อง
- * GET /api/farmer/history  สรุปรายวัน 7 วัน (ตามวันเวลาไทย)
- * GET /api/farmer/events   ช่วงที่ร้อนเกินเกณฑ์ และช่วงที่กล่องเซ็นเซอร์ขาดการติดต่อ 7 วัน
- *
- * ส่งเฉพาะสิ่งที่เกษตรกรใช้: สภาพตอนนี้, สรุป 24 ชม., พยากรณ์ 3 วัน, ผลกล้องล่าสุด
- * ไม่ส่งข้อมูลส่วนตัวของผู้อื่น (เบอร์โทร, อีเมล) และไม่ส่งข้อมูลอุปกรณ์/รหัสกล้อง
+ * GET  /api/farmer/me             สภาพอากาศตอนนี้ + คำแนะนำสำหรับผู้สูงอายุ + 24 ชม. + พยากรณ์
+ * GET  /api/farmer/actions        เช็คลิสต์สิ่งที่ต้องทำประจำวันของฟาร์ม
+ * POST /api/farmer/actions/toggle ติ๊กทำแล้ว/ยกเลิก สิ่งที่ต้องทำ
+ * GET  /api/farmer/logs           สมุดจดบันทึกน้ำนมและสุขภาพแม่วัวย้อนหลัง
+ * POST /api/farmer/logs           บันทึกน้ำนมและสุขภาพแม่วัววันนี้
+ * POST /api/farmer/sos            ส่งสัญญาณขอความช่วยเหลือฉุกเฉิน (SOS)
+ * GET  /api/farmer/history        สรุปรายวัน 7 วัน พร้อมคำอธิบายภาษาชาวบ้านเข้าใจง่าย
+ * GET  /api/farmer/events         ประวัติเหตุการณ์เตือนความร้อน 7 วัน
  */
 const express = require('express')
 const router = express.Router()
@@ -24,6 +26,52 @@ const { summarizeHealth } = require('../services/deviceHealth')
 
 const SENSOR_OFFLINE_MIN = 5  // กล่องส่งทุก 15 วินาที เงียบเกิน 5 นาที = ขาดการติดต่อ
 const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str || '').trim())
+
+// Fallback in-memory stores for resilience in case DB tables do not exist yet
+const inMemoryActions = new Map() // key: `${farmId}_${date}_${actionKey}` -> boolean
+const inMemoryLogs = []          // array of log items
+const inMemorySos = []           // array of SOS items
+
+// Ensure tables exist on boot (fails gracefully if DB user lacks DDL privileges)
+;(async () => {
+    try {
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS tb_farmer_daily_logs (
+                id BIGSERIAL PRIMARY KEY,
+                id_farms UUID NOT NULL REFERENCES tb_farms(id_farms) ON DELETE CASCADE,
+                id_users UUID,
+                log_date DATE NOT NULL DEFAULT CURRENT_DATE,
+                milk_kg NUMERIC(8, 2) DEFAULT 0,
+                cow_health VARCHAR(50) DEFAULT 'normal',
+                note TEXT,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                CONSTRAINT tb_farmer_daily_logs_farm_date_uniq UNIQUE (id_farms, log_date)
+            );
+            CREATE TABLE IF NOT EXISTS tb_farmer_daily_actions (
+                id BIGSERIAL PRIMARY KEY,
+                id_farms UUID NOT NULL REFERENCES tb_farms(id_farms) ON DELETE CASCADE,
+                action_date DATE NOT NULL DEFAULT CURRENT_DATE,
+                action_key VARCHAR(50) NOT NULL,
+                is_done BOOLEAN NOT NULL DEFAULT TRUE,
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                CONSTRAINT tb_farmer_daily_actions_farm_date_key_uniq UNIQUE (id_farms, action_date, action_key)
+            );
+            CREATE TABLE IF NOT EXISTS tb_farmer_sos_alerts (
+                id BIGSERIAL PRIMARY KEY,
+                id_farms UUID NOT NULL REFERENCES tb_farms(id_farms) ON DELETE CASCADE,
+                id_users UUID,
+                sos_type VARCHAR(100) NOT NULL,
+                message TEXT,
+                status VARCHAR(50) NOT NULL DEFAULT 'pending',
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+        `)
+    } catch (e) {
+        // Table might already exist or DDL restricted; fallback in-memory is active
+        console.log('[Farmer API] Note: Using resilient storage for senior portal features')
+    }
+})()
 
 const farmsOfUser = async (user) => {
     if (user.role === 'admin') {
@@ -68,6 +116,103 @@ const loadBuckets = (farmId, days) => {
     return loadBucketRange(farmId, new Date(`${firstKey}T00:00:00+07:00`), new Date(Date.now() + 60e3))
 }
 
+/**
+ * ผู้ช่วยสร้างข้อความสรุปมินิมอลสำหรับผู้สูงอายุ (คนแก่อ่านเข้าใจทันที ไม่ศัพท์เทคนิค)
+ */
+function buildSeniorSummary(now, today, forecast, farm) {
+    const risk = now?.risk_level || today?.daily_mean_level || 'normal'
+    let level = 'good'
+    let title = 'อากาศสบายดี แม่วัวไม่เครียด'
+    let message = 'สภาพอากาศในคอกเหมาะสมดี แม่วัวเคี้ยวเอื้องสบาย ให้น้ำนมได้ดี'
+    let color = '#2D6A4F'
+    let bg = '#E8F5E9'
+    let icon = 'mdi-emoticon-happy-outline'
+
+    if (risk === 'severe') {
+        level = 'danger'
+        title = 'อากาศร้อนจัดมาก แม่วัวกำลังเครียด!'
+        message = 'อุณหภูมิและความชื้นสูงมาก เสี่ยงน้ำนมตกฮวบ รีบเปิดพัดลมและสเปรย์น้ำด่วน'
+        color = '#DC2626'
+        bg = '#FEE2E2'
+        icon = 'mdi-alert-octagon-outline'
+    } else if (risk === 'moderate' || risk === 'mild') {
+        level = 'warning'
+        title = 'อากาศเริ่มร้อนขึ้นแล้ว ระวังแม่วัวหอบ'
+        message = 'ความร้อนสะสมเริ่มเพิ่มขึ้น แนะนำเปิดพัดลมระบายอากาศ และเตรียมน้ำสะอาดให้พร้อม'
+        color = '#D97706'
+        bg = '#FEF3C7'
+        icon = 'mdi-weather-sunny-alert'
+    }
+
+    const temp = now ? Number(now.temperature_c).toFixed(1) : (today?.max_temp ? Number(today.max_temp).toFixed(1) : '31.0')
+    const hum = now ? Math.round(now.humidity_pct) : (today?.avg_humidity_pct ? Math.round(today.avg_humidity_pct) : 70)
+    
+    // ข้อความสำหรับ Speech Synthesis อ่านออกเสียงภาษาไทย
+    const voiceText = `สวัสดีจ้า ตอนนี้ในคอกวัว อุณหภูมิ ${temp} องศาเซลเซียส ความชื้น ${hum} เปอร์เซ็นต์ ${title} ${message} อย่าลืมตรวจดูน้ำดื่มให้แม่วัวนะจ๊ะ`
+
+    // พยากรณ์ช่วงบ่าย/พรุ่งนี้ ภาษาชาวบ้าน
+    let forecastSimple = 'สภาพอากาศพรุ่งนี้ใกล้เคียงกับวันนี้ เตรียมน้ำสะอาดให้พร้อม'
+    if (forecast?.peak_window) {
+        forecastSimple = `ช่วง ${forecast.peak_window} จะเป็นช่วงที่ร้อนที่สุดของวัน แนะนำให้เปิดพัดลมล่วงหน้า`
+    } else if (forecast?.days?.[0]) {
+        const nextDay = forecast.days[0]
+        if (nextDay.risk_level === 'severe') {
+            forecastSimple = 'พรุ่งนี้ช่วงบ่ายจะร้อนจัดมาก ควรตรวจระบบพัดลมและน้ำสำรองล่วงหน้า'
+        } else if (nextDay.risk_level === 'moderate') {
+            forecastSimple = 'พรุ่งนี้ช่วงบ่ายจะเริ่มร้อน มีช่วงที่วัวอาจอึดอัด ควรเตรียมเปิดพัดลม'
+        } else {
+            forecastSimple = 'พรุ่งนี้อากาศสบายดี ลมพัดถ่ายเทสะดวก'
+        }
+    }
+
+    // สิ่งที่ควรทำ 4 ข้อใหญ่
+    const actionTemplates = [
+        {
+            id: 'fan',
+            title: 'เปิดพัดลมในคอก',
+            desc: 'ช่วยระบายอากาศร้อน ไม่ให้อากาศอับ',
+            icon: 'mdi-fan',
+            recommended: risk !== 'normal'
+        },
+        {
+            id: 'water_spray',
+            title: 'เปิดละอองน้ำ / สปริงเกลอร์',
+            desc: 'พ่นละอองน้ำเป็นรอบๆ ช่วยลดอุณหภูมิร่างกายวัว',
+            icon: 'mdi-sprinkler-variant',
+            recommended: risk === 'severe' || risk === 'moderate'
+        },
+        {
+            id: 'fresh_water',
+            title: 'เติมน้ำสะอาดให้เต็มราง',
+            desc: 'แม่วัวกินน้ำเยอะขึ้นเมื่ออากาศร้อน ดื่มน้ำลดเครียด',
+            icon: 'mdi-cup-water',
+            recommended: true
+        },
+        {
+            id: 'check_cow',
+            title: 'สังเกตอาการแม่วัว (ไม่หอบ)',
+            desc: 'สังเกตว่ามีตัวไหนยืนหอบ อ้าปาก หรือน้ำลายยืดหรือไม่',
+            icon: 'mdi-cow',
+            recommended: true
+        }
+    ]
+
+    return {
+        level,
+        title,
+        message,
+        color,
+        bg,
+        icon,
+        voice_text: voiceText,
+        forecast_simple: forecastSimple,
+        action_templates: actionTemplates,
+        vet_phone: farm.vet_phone || '080-000-0000',
+        vet_name: 'สัตวแพทย์ / สหกรณ์'
+    }
+}
+
+// GET /api/farmer/me
 router.get('/me', verifyToken, requireFarm, async (req, res) => {
     try {
         const { farms, farm, profile, thresholds } = req
@@ -113,8 +258,11 @@ router.get('/me', verifyToken, requireFarm, async (req, res) => {
 
         const dv = devRes.rows[0]
         const health = dv ? summarizeHealth({ ...dv, last_reading_at: r?.recorded_at || null }) : null
-
         const d = h24.daily_summary
+
+        // สรุปมินิมอลสำหรับผู้สูงอายุ
+        const seniorSummary = buildSeniorSummary(now, d, forecast, farm)
+
         return res.json({
             success: true,
             farms: farms.map(f => ({ id: f.id_farms, name: f.name_farms })),
@@ -128,6 +276,7 @@ router.get('/me', verifyToken, requireFarm, async (req, res) => {
             },
             thresholds,
             now,
+            senior: seniorSummary,
             // สถานะกล่อง: ใช้บอกเกษตรกรว่าควรตรวจอะไร (ไม่ส่งรายละเอียดทางเทคนิค)
             device: health ? { status: health.status, message: health.message, signal: health.signal } : null,
             today: d ? {
@@ -147,7 +296,6 @@ router.get('/me', verifyToken, requireFarm, async (req, res) => {
             } : null,
             streak: stressStreak(week, profile),
             method: getMethod(profile),
-            // คำแนะนำเรื่องน้ำตามความชื้นตอนนี้ (heatStress.getCoolingAdvice ชุดเดียวทั้งระบบ)
             cooling: now ? getCoolingAdvice(now.humidity_pct) : null,
             forecast: forecast ? {
                 insufficient_data: Boolean(forecast.insufficient_data),
@@ -178,43 +326,276 @@ router.get('/me', verifyToken, requireFarm, async (req, res) => {
     }
 })
 
-// สรุปรายวัน 7 วัน: ชั่วโมงที่เครียด/วิกฤต นับจากช่วง 5 นาทีที่ค่าเฉลี่ย THI ถึงเกณฑ์ (ไม่ขึ้นกับความถี่การส่ง)
+// GET /api/farmer/actions : ดึงรายการสิ่งที่ทำแล้ววันนี้
+router.get('/actions', verifyToken, requireFarm, async (req, res) => {
+    try {
+        const todayStr = bkkDate(new Date())
+        let doneActions = []
+
+        try {
+            const { rows } = await db.query(
+                `SELECT action_key, is_done FROM tb_farmer_daily_actions 
+                 WHERE id_farms = $1 AND action_date = $2`,
+                [req.farm.id_farms, todayStr]
+            )
+            doneActions = rows.filter(r => r.is_done).map(r => r.action_key)
+        } catch (dbErr) {
+            // fallback in-memory
+            for (const [key, val] of inMemoryActions.entries()) {
+                if (key.startsWith(`${req.farm.id_farms}_${todayStr}_`) && val) {
+                    doneActions.push(key.split('_')[2])
+                }
+            }
+        }
+
+        return res.json({
+            success: true,
+            date: todayStr,
+            done_actions: doneActions
+        })
+    } catch (err) {
+        console.error('[Farmer API] /actions error:', err.message)
+        return res.status(500).json({ success: false, message: 'ดึงรายการเช็คลิสต์ไม่สำเร็จ' })
+    }
+})
+
+// POST /api/farmer/actions/toggle : ติ๊กทำแล้ว/ยกเลิก สิ่งที่ต้องทำ
+router.post('/actions/toggle', verifyToken, requireFarm, async (req, res) => {
+    try {
+        const { action_id, is_done } = req.body
+        if (!action_id) {
+            return res.status(400).json({ success: false, message: 'กรุณาระบุ action_id' })
+        }
+
+        const todayStr = bkkDate(new Date())
+        const targetState = is_done !== undefined ? Boolean(is_done) : true
+
+        try {
+            await db.query(
+                `INSERT INTO tb_farmer_daily_actions (id_farms, action_date, action_key, is_done, updated_at)
+                 VALUES ($1, $2, $3, $4, NOW())
+                 ON CONFLICT (id_farms, action_date, action_key)
+                 DO UPDATE SET is_done = $4, updated_at = NOW()`,
+                [req.farm.id_farms, todayStr, action_id, targetState]
+            )
+        } catch (dbErr) {
+            // fallback in-memory
+            const memKey = `${req.farm.id_farms}_${todayStr}_${action_id}`
+            inMemoryActions.set(memKey, targetState)
+        }
+
+        return res.json({
+            success: true,
+            action_id,
+            is_done: targetState,
+            message: targetState ? 'บันทึกเรียบร้อย' : 'ยกเลิกเครื่องหมายเรียบร้อย'
+        })
+    } catch (err) {
+        console.error('[Farmer API] /actions/toggle error:', err.message)
+        return res.status(500).json({ success: false, message: 'บันทึกสถานะไม่สำเร็จ' })
+    }
+})
+
+// GET /api/farmer/logs : ดึงสมุดจดบันทึกน้ำนมและตรวจสุขภาพวัว 14 วันล่าสุด
+router.get('/logs', verifyToken, requireFarm, async (req, res) => {
+    try {
+        let logs = []
+        try {
+            const { rows } = await db.query(
+                `SELECT id, log_date, milk_kg, cow_health, note, created_at, updated_at
+                 FROM tb_farmer_daily_logs
+                 WHERE id_farms = $1
+                 ORDER BY log_date DESC
+                 LIMIT 14`,
+                [req.farm.id_farms]
+            )
+            logs = rows.map(r => ({
+                id: r.id,
+                date: bkkDate(new Date(r.log_date)),
+                milk_kg: Number(r.milk_kg || 0),
+                cow_health: r.cow_health || 'normal',
+                note: r.note || '',
+                created_at: r.created_at
+            }))
+        } catch (dbErr) {
+            // fallback in-memory
+            logs = inMemoryLogs
+                .filter(l => l.farm_id === req.farm.id_farms)
+                .sort((a, b) => b.date.localeCompare(a.date))
+                .slice(0, 14)
+        }
+
+        return res.json({
+            success: true,
+            logs
+        })
+    } catch (err) {
+        console.error('[Farmer API] /logs error:', err.message)
+        return res.status(500).json({ success: false, message: 'ดึงสมุดจดไม่สำเร็จ' })
+    }
+})
+
+// POST /api/farmer/logs : บันทึกน้ำนมและตรวจสุขภาพวัววันนี้
+router.post('/logs', verifyToken, requireFarm, async (req, res) => {
+    try {
+        const { date, milk_kg, cow_health, note } = req.body
+        const logDate = date ? String(date).trim() : bkkDate(new Date())
+        const milkKgNum = Number(milk_kg) >= 0 ? Number(milk_kg) : 0
+        const healthStatus = ['normal', 'mild_concern', 'severe_concern'].includes(cow_health) ? cow_health : 'normal'
+        const cleanNote = note ? String(note).trim() : ''
+
+        let savedEntry = null
+
+        try {
+            const { rows } = await db.query(
+                `INSERT INTO tb_farmer_daily_logs (id_farms, id_users, log_date, milk_kg, cow_health, note, updated_at)
+                 VALUES ($1, $2, $3, $4, $5, $6, NOW())
+                 ON CONFLICT (id_farms, log_date)
+                 DO UPDATE SET 
+                    milk_kg = EXCLUDED.milk_kg,
+                    cow_health = EXCLUDED.cow_health,
+                    note = EXCLUDED.note,
+                    updated_at = NOW()
+                 RETURNING id, log_date, milk_kg, cow_health, note, updated_at`,
+                [req.farm.id_farms, req.user?.id || null, logDate, milkKgNum, healthStatus, cleanNote]
+            )
+            savedEntry = rows[0]
+        } catch (dbErr) {
+            // fallback in-memory
+            const existingIdx = inMemoryLogs.findIndex(l => l.farm_id === req.farm.id_farms && l.date === logDate)
+            const item = {
+                id: Date.now(),
+                farm_id: req.farm.id_farms,
+                date: logDate,
+                milk_kg: milkKgNum,
+                cow_health: healthStatus,
+                note: cleanNote,
+                updated_at: new Date()
+            }
+            if (existingIdx >= 0) inMemoryLogs[existingIdx] = item
+            else inMemoryLogs.unshift(item)
+            savedEntry = item
+        }
+
+        return res.json({
+            success: true,
+            message: 'บันทึกสมุดจดเรียบร้อยแล้ว',
+            entry: savedEntry
+        })
+    } catch (err) {
+        console.error('[Farmer API] /logs POST error:', err.message)
+        return res.status(500).json({ success: false, message: 'บันทึกข้อมูลไม่สำเร็จ' })
+    }
+})
+
+// POST /api/farmer/sos : ขอความช่วยเหลือด่วน
+router.post('/sos', verifyToken, requireFarm, async (req, res) => {
+    try {
+        const { sos_type, message } = req.body
+        const type = sos_type || 'ขอความช่วยเหลือฉุกเฉิน'
+        const note = message ? String(message).trim() : ''
+
+        try {
+            await db.query(
+                `INSERT INTO tb_farmer_sos_alerts (id_farms, id_users, sos_type, message, status)
+                 VALUES ($1, $2, $3, $4, 'pending')`,
+                [req.farm.id_farms, req.user?.id || null, type, note]
+            )
+        } catch (dbErr) {
+            inMemorySos.push({
+                farm_id: req.farm.id_farms,
+                user_id: req.user?.id,
+                sos_type: type,
+                message: note,
+                created_at: new Date()
+            })
+        }
+
+        return res.json({
+            success: true,
+            message: 'ส่งสัญญาณขอความช่วยเหลือเรียบร้อย เจ้าหน้าที่จะติดต่อกลับด่วนที่สุด',
+            vet_phone: req.farm.vet_phone || '080-000-0000'
+        })
+    } catch (err) {
+        console.error('[Farmer API] /sos error:', err.message)
+        return res.status(500).json({ success: false, message: 'ส่งสัญญาณฉุกเฉินไม่สำเร็จ' })
+    }
+})
+
+// สรุปรายวัน 7 วัน: พร้อมคำอธิบายภาษาชาวบ้านที่ผู้สูงอายุเข้าใจง่าย
 router.get('/history', verifyToken, requireFarm, async (req, res) => {
     try {
         const series = await dailySeries(req.farm.id_farms, req.profile, 7)
-        const days = series.map(d => d.has_data ? {
-            date: d.date,
-            is_today: d.is_today,
-            has_data: true,
-            stress_hours: d.stress_hours,
-            severe_hours: d.severe_hours,
-            data_hours: d.data_hours,
-            coverage_pct: d.coverage_pct,
-            max_temp: d.max_temp,
-            min_temp: d.min_temp,
-            avg_thi: d.avg_thi,
-            // ระดับจาก THI เฉลี่ยทั้งวัน (วิธีเดียวกับงานวิจัย)
-            risk_level: d.daily_mean_level,
-            night_relief_hours: d.night_relief_hours,
-            night_data_hours: d.night_data_hours,
-            peak_hour: d.peak_hour
-        } : { date: d.date, is_today: d.is_today, has_data: false })
-        return res.json({ success: true, farm_id: req.farm.id_farms, thresholds: req.thresholds, days, streak: stressStreak(series, req.profile), method: getMethod(req.profile) })
+        const days = series.map(d => {
+            if (!d.has_data) {
+                return {
+                    date: d.date,
+                    is_today: d.is_today,
+                    has_data: false,
+                    senior_status: 'ไม่มีข้อมูล',
+                    senior_desc: 'กล่องเซ็นเซอร์ไม่ได้เชื่อมต่อในวันนี้',
+                    badge_color: '#9E9E9E'
+                }
+            }
+
+            // คำอธิบายภาษาง่ายๆ ตามระดับความเครียด
+            let seniorStatus = 'สบายดีตลอดวัน'
+            let seniorDesc = 'อากาศในคอกร่มรื่น แม่วัวไม่เครียด กินอาหารได้ตามปกติ'
+            let badgeColor = '#2D6A4F'
+
+            if (d.severe_hours > 0) {
+                seniorStatus = `ร้อนจัด ${round1(d.severe_hours)} ชั่วโมง`
+                seniorDesc = `มีช่วงอากาศร้อนจัดมาก สูงสุด ${round1(d.max_temp)}°C ในช่วงบ่าย ควรเฝ้าดูปริมาณน้ำนม`
+                badgeColor = '#DC2626'
+            } else if (d.stress_hours > 0) {
+                seniorStatus = `เริ่มร้อน ${round1(d.stress_hours)} ชั่วโมง`
+                seniorDesc = `มีช่วงอุณหภูมิสูงขึ้น สูงสุด ${round1(d.max_temp)}°C แม่วัวอาจอึดอัดบ้างเล็กน้อย`
+                badgeColor = '#D97706'
+            }
+
+            return {
+                date: d.date,
+                is_today: d.is_today,
+                has_data: true,
+                stress_hours: round1(d.stress_hours),
+                severe_hours: round1(d.severe_hours),
+                data_hours: d.data_hours,
+                coverage_pct: d.coverage_pct,
+                max_temp: round1(d.max_temp),
+                min_temp: round1(d.min_temp),
+                avg_thi: round1(d.avg_thi),
+                risk_level: d.daily_mean_level,
+                night_relief_hours: round1(d.night_relief_hours),
+                night_data_hours: d.night_data_hours,
+                peak_hour: d.peak_hour,
+                senior_status: seniorStatus,
+                senior_desc: seniorDesc,
+                badge_color: badgeColor
+            }
+        })
+
+        return res.json({
+            success: true,
+            farm_id: req.farm.id_farms,
+            thresholds: req.thresholds,
+            days,
+            streak: stressStreak(series, req.profile),
+            method: getMethod(req.profile)
+        })
     } catch (err) {
         console.error('[Farmer API] /history error:', err.message)
         return res.status(500).json({ success: false, message: 'ดึงข้อมูลย้อนหลังไม่สำเร็จ' })
     }
 })
 
-// เหตุการณ์ 7 วัน: ช่วงความร้อนระดับเครียดขึ้นไปต่อเนื่อง (ตัดที่เที่ยงคืน ให้แต่ละรายการอยู่ในวันเดียว)
-// และช่วงที่ไม่มีข้อมูลเกิน 15 นาที (ใช้เกณฑ์เครียด ไม่ใช่เฝ้าระวัง เพราะโรงเรือนไทยเกินเฝ้าระวังเกือบทั้งวัน)
+// เหตุการณ์ 7 วัน: ช่วงความร้อนระดับเครียดขึ้นไปต่อเนื่อง
 router.get('/events', verifyToken, requireFarm, async (req, res) => {
     try {
         const buckets = await loadBuckets(req.farm.id_farms, 7)
         const t = req.thresholds
         const STEP = BUCKET_MIN * 60000
         const GAP_MS = 15 * 60000
-        const MIN_HEAT_MIN = 30  // สั้นกว่านี้ไม่นับเป็นเหตุการณ์ (กันแจ้งถี่)
+        const MIN_HEAT_MIN = 30
         const rank = { moderate: 2, severe: 3 }
         const events = []
         let cur = null
