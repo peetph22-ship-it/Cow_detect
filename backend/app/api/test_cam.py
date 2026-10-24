@@ -341,7 +341,7 @@ def generate_frames(
 
             # Top HUD Summary Bar
             total_detected = len(boxes) if boxes is not None else 0
-            mode_tag = "[SIMULATION]" if is_simulation else ("[RTSP HIKVISION]" if is_rtsp else "[USB]")
+            mode_tag = "[SIMULATION]" if is_simulation else ("[RTSP]" if is_rtsp else "[USB]")
             hud_text = f"{mode_tag} COWS: {total_detected} | Stand: {counts['standing']} | Lie: {counts['lying down']} | Feed: {counts['feeding']} | Drink: {counts['drinking']}"
             h_h = 30
             cv2.rectangle(annotated_frame, (8, 8), (annotated_frame.shape[1] - 8, 8 + h_h), (20, 30, 25), -1)
