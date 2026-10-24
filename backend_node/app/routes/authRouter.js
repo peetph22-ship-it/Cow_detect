@@ -111,8 +111,6 @@ router.post('/logout', async (req, res) => {
     }
 })
 
-// POST: Register API
-<<<<<<< HEAD
 // POST: สร้างบัญชี (เฉพาะ admin ที่ login แล้ว) เดิมเปิดให้ทุกคนสมัครเป็น admin เองได้
 router.post('/register', verifyToken, requireRole('admin'), async(req,res) => {
     try{
@@ -120,14 +118,6 @@ router.post('/register', verifyToken, requireRole('admin'), async(req,res) => {
         if(!full_name || !phone || !password || !role ) return res.status(400).json({
             success:false,
             message:'Please Enter your [full_name,phone,password,role]'
-=======
-router.post('/register', async (req, res) => {
-    try {
-        const { email, full_name, phone, password, role, organization, status } = req.body
-        if (!full_name || !phone || !password || !role) return res.status(400).json({
-            success: false,
-            message: 'Please Enter your [full_name,phone,password,role]'
->>>>>>> 8f8547220968c64684de03e0113b2642906e76aa
         })
         if (!ROLES.includes(role)) return res.status(400).json({ success: false, message: `role ต้องเป็น ${ROLES.join(' / ')}` })
         if (status && !STATUSES.includes(status)) return res.status(400).json({ success: false, message: `status ต้องเป็น ${STATUSES.join(' / ')}` })
