@@ -1466,6 +1466,9 @@
         </div>
       </div>
 
+      <!-- ส่วนนับเทียบภาพตัวอย่าง (Model Audit) และวิเคราะห์ % วัวนอนรายชั่วโมงเทียบ THI -->
+      <CameraAuditAndThiAnalysis v-if="farmId" :farm-id="farmId" />
+
     </div>
 
     <!-- 🟢 5. 24-Hour Telemetry Audit Table (ประวัติการตรวจวัด) -->
@@ -1603,6 +1606,7 @@ import { getNodeApiBase, getFastApiBase } from '~/API/baseAPI'
 import AdminEditFarmModal from '~/components/Admin/farm/EditFarmModal.vue'
 import AddCameraModal from '~/components/Admin/cctv/AddCameraModal.vue'
 import SystemAccuracyModal from '~/components/Admin/cctv/SystemAccuracyModal.vue'
+import CameraAuditAndThiAnalysis from '~/components/Admin/cctv/CameraAuditAndThiAnalysis.vue'
 import HeatMethodNote from '~/components/common/HeatMethodNote.vue'
 import { calcThi, getRiskLevel, getThresholds, normalizeProfile, RISK_LABELS_TH, PROFILE_LABELS } from '~/utils/heatStress'
 

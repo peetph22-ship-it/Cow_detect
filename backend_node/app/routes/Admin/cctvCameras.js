@@ -4,6 +4,11 @@ const db = require('../../config/db')
 const { verifyToken, requireRole, adminOrInternal } = require('../../middleware/authMiddleware')
 const { encryptSecret, decryptSecret, isConfigured, CameraSecretError } = require('../../services/cameraSecrets')
 const { getCameraBehavior } = require('../../services/cameraBehavior')
+const {
+    getFarmSamplesWithAudits,
+    saveSampleAudit,
+    getFarmLyingThiAnalysis
+} = require('../../services/lyingThiAnalysisService')
 
 // ข้อมูลกล้อง (ที่อยู่, user, รหัส) ดูหรือแก้ได้เฉพาะ admin
 // ส่ง telemetry/alerts: admin หรือ behavior engine ฝั่ง Python ที่ส่ง X-Internal-Key (INTERNAL_API_KEY)
@@ -151,6 +156,71 @@ router.get('/behavior', adminOnly, async (req, res) => {
     } catch (err) {
         console.error('[CCTV Router] behavior error:', err.message)
         return res.status(500).json({ success: false, message: 'Database error fetching camera behavior' })
+    }
+})
+
+// -----------------------------------------------------------------
+// GET /api/Admin/farms/:farmId/cameras/samples
+// รายการภาพตัวอย่างรายชั่วโมงจาก bucket camera-samples + กรอบ YOLO + ผลนับเทียบที่ Admin กรอกไว้
+// -----------------------------------------------------------------
+router.get('/samples', adminOnly, async (req, res) => {
+    const { farmId } = req.params
+    if (!isUUID(farmId)) return res.status(400).json({ success: false, message: 'Invalid Farm UUID' })
+    const limit = Math.min(48, Math.max(1, Number(req.query.limit) || 24))
+    try {
+        const data = await getFarmSamplesWithAudits(farmId, { limit })
+        return res.json({ success: true, ...data })
+    } catch (err) {
+        console.error('[CCTV Router] GET samples error:', err.message)
+        return res.status(500).json({ success: false, message: 'ไม่สามารถดึงรายการภาพตัวอย่างได้' })
+    }
+})
+
+// -----------------------------------------------------------------
+// POST /api/Admin/farms/:farmId/cameras/samples/audit
+// บันทึกผลนับจริงจาก Admin (นอน/ยืน/กินอาหาร/ดื่มน้ำ) ลงตาราง tb_camera_sample_audits
+// -----------------------------------------------------------------
+router.post('/samples/audit', adminOnly, async (req, res) => {
+    const { farmId } = req.params
+    if (!isUUID(farmId)) return res.status(400).json({ success: false, message: 'Invalid Farm UUID' })
+    try {
+        const adminActor = req.user?.email || req.user?.name || String(req.user?.id || 'admin')
+        const saved = await saveSampleAudit(farmId, req.body || {}, adminActor)
+        const updated = await getFarmSamplesWithAudits(farmId, { limit: 24 })
+        return res.json({
+            success: true,
+            message: 'บันทึกผลการนับเทียบเรียบร้อย',
+            audit: saved,
+            summary: updated.summary
+        })
+    } catch (err) {
+        const status = err.statusCode || 500
+        if (status >= 500) console.error('[CCTV Router] POST samples/audit error:', err.message)
+        return res.status(status).json({
+            success: false,
+            message: err.message || 'เกิดข้อผิดพลาดในการบันทึกผลนับเทียบ'
+        })
+    }
+})
+
+// -----------------------------------------------------------------
+// GET /api/Admin/farms/:farmId/cameras/lying-thi-analysis
+// วิเคราะห์ % วัวนอนรายชั่วโมงเทียบ THI (ตัดช่วงรีดนม/ให้อาหาร, ควบคุมชั่วโมงของวัน, broken-line regression)
+// -----------------------------------------------------------------
+router.get('/lying-thi-analysis', adminOnly, async (req, res) => {
+    const { farmId } = req.params
+    if (!isUUID(farmId)) return res.status(400).json({ success: false, message: 'Invalid Farm UUID' })
+    const days = Math.min(90, Math.max(7, Number(req.query.days) || 30))
+    try {
+        const analysis = await getFarmLyingThiAnalysis(farmId, { days })
+        return res.json({ success: true, analysis })
+    } catch (err) {
+        const status = err.statusCode || 500
+        if (status >= 500) console.error('[CCTV Router] GET lying-thi-analysis error:', err.message)
+        return res.status(status).json({
+            success: false,
+            message: err.message || 'ไม่สามารถวิเคราะห์ข้อมูล % วัวนอนเทียบ THI ได้'
+        })
     }
 })
 
