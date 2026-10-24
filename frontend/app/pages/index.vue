@@ -30,7 +30,7 @@
 
           <!-- Easy-to-read Subtitle -->
           <p class="text-base sm:text-lg text-[#5A6B63] leading-relaxed max-w-xl font-normal">
-            ผสานเซนเซอร์ <span class="text-[#142820] font-semibold">IoT (SHT20 RS485)</span>, กล้องตรวจจับพฤติกรรม <span class="text-[#142820] font-semibold">YOLO26m</span> และระบบติดตามความร้อนสะสม เพื่อเตือนให้ลดความร้อนก่อนผลกระทบที่มักตามมาหลายวัน (Lag Effect) <span class="text-[#142820] font-semibold">· ต้นแบบ อยู่ระหว่างทดสอบภาคสนาม</span>
+            ผสานเซนเซอร์ <span class="text-[#142820] font-semibold">IoT (SHT20 RS485)</span>, กล้องตรวจจับพฤติกรรม <span class="text-[#142820] font-semibold">YOLO26m ONNX</span> และระบบพยากรณ์ THI ล่วงหน้า 3 วัน (Open-Meteo ECMWF + ปรับค่าเพี้ยนจากเซ็นเซอร์ฟาร์ม) <span class="text-[#142820] font-semibold">· ต้นแบบ ทดสอบในบ้านแล้ว</span>
           </p>
 
           <!-- Clean Inline Highlights instead of Heavy Boxes -->
@@ -76,10 +76,10 @@
             <div class="flex items-center justify-between mb-5">
               <div>
                 <h2 class="text-base font-extrabold text-[#142820]">เครื่องจำลองดัชนีความร้อน (THI)</h2>
-                <p class="text-xs text-[#6E7E76]">ปรับค่าหรือเลือกสภาพอากาศเพื่อดูคำแนะนำทันที</p>
+                <p class="text-xs text-[#6E7E76]">ปรับค่าหรือเลือกสภาพอากาศตัวอย่างเพื่อทดลองคำนวณ (ข้อมูลจำลอง)</p>
               </div>
               <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#F2F4F2] text-[#142820]">
-                NRC 1971
+                NRC 1971 · ตัวอย่าง
               </span>
             </div>
 
@@ -288,18 +288,18 @@
                   </div>
                   <div>
                     <div class="text-xs font-extrabold text-[#142820]">CowCare AI Assistant</div>
-                    <div class="text-[11px] text-[#6E7E76]">ส่งแจ้งเตือนล่วงหน้าอัตโนมัติ</div>
+                    <div class="text-[11px] text-[#6E7E76]">แผนงานแจ้งเตือนผ่าน LINE (ตัวอย่างข้อความ)</div>
                   </div>
                 </div>
                 <span class="text-[11px] font-bold text-[#D87939] bg-[#FFF7ED] px-2.5 py-1 rounded-full">
-                  ล่วงหน้า 3 วัน
+                  ตัวอย่าง (แผนงาน LINE)
                 </span>
               </div>
 
               <div class="p-4 rounded-2xl bg-white border border-[#142820]/6 text-xs text-[#142820] leading-relaxed shadow-sm space-y-2">
-                <div class="font-bold text-[#D87939]">⚠️ ตัวอย่างข้อความแจ้งเตือน: ความร้อนสะสมสูง</div>
+                <div class="font-bold text-[#D87939]">⚠️ ตัวอย่างข้อความแจ้งเตือน (ข้อมูลจำลอง — แผนงานส่งผ่าน LINE)</div>
                 <p class="text-[#4A5A52]">
-                  ค่า THI เฉลี่ยในโรงเรือน 3 วันที่ผ่านมาอยู่ที่ <strong>78.5 (เครียดจากความร้อน)</strong> แนวโน้มยังร้อนต่อเนื่อง
+                  พยากรณ์ THI เฉลี่ยรายวันล่วงหน้าอยู่ที่ <strong>78.5 (เครียดจากความร้อน)</strong> แนวโน้มยังร้อนต่อเนื่อง
                 </p>
                 <div class="p-2.5 rounded-xl bg-[#FAF9F5] text-[11.5px] font-medium text-[#142820]">
                   ✅ <strong>สิ่งที่ควรทำดักล่วงหน้า:</strong> เปิดพัดลมระบายอากาศช่วง 11:00–15:00 น. (งดพ่นหมอกถ้าความชื้นเกิน 75%) เพื่อลดความร้อนสะสม
@@ -375,12 +375,12 @@
           
           <!-- Left: Explanation & Interactive Mode Switcher (6 Cols) -->
           <div class="lg:col-span-6 space-y-6">
-            <span class="text-xs font-bold text-[#F2BD7C] uppercase tracking-widest">5-DAY LAG EFFECT PROTECTION</span>
+            <span class="text-xs font-bold text-[#F2BD7C] uppercase tracking-widest">3-DAY HYBRID THI FORECAST (ECMWF + SENSOR BIAS)</span>
             <h2 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
               ทำไมการรอดูอาการวัวหอบ ถึงสายเกินไปเสมอ?
             </h2>
             <p class="text-sm sm:text-base text-white/75 leading-relaxed">
-              งานวิจัย (Hasan et al., 2026) พบว่าน้ำนมโคนมลดลงชัดเจนหลังเผชิญความร้อนประมาณ <strong>5 วัน</strong> ระบบจึงติดตามความร้อนสะสม 72 ชั่วโมงในโรงเรือน เพื่อเตือนให้คุณเปิดพัดลมดักไว้ก่อน <span class="text-white/50">(ภาพจำลองสถานการณ์)</span>
+              ระบบพยากรณ์ THI เฉลี่ยรายวันล่วงหน้า <strong>3 วัน</strong> ด้วยข้อมูลพยากรณ์อากาศ Open-Meteo ECMWF ร่วมกับการปรับค่าเพี้ยนจากเซ็นเซอร์จริงของฟาร์มย้อนหลัง 3–14 วัน และติดตามชั่วโมงพักกลางคืน (22:00–06:00 น. ที่ THI &lt; 74 — Igono et al., 1992) เพื่อช่วยวางแผนเปิดพัดลมระบายอากาศดักไว้ก่อน <span class="text-white/50">(ตัวอย่างเปรียบเทียบแนวทางการจัดการ)</span>
             </p>
 
             <!-- Toggle Switch: Reactive vs Proactive -->
@@ -464,7 +464,7 @@
           </h2>
         </div>
         <p class="text-xs sm:text-sm text-[#5A6B63] max-w-md">
-          ทุกตัวแปรในระบบถูกออกแบบตามหลักสรีรวิทยาของโคนมลูกผสมไทยและงานวิจัยล่าสุดปี 2024–2026
+          ทุกตัวแปรในระบบอ้างอิงตามหลักสรีรวิทยาของโคนมลูกผสมไทยและงานวิจัยที่ตรวจสอบได้
         </p>
       </div>
 
@@ -614,12 +614,12 @@ const archLayers = [
   {
     id: 'recommend',
     tabTitle: 'วิเคราะห์และเตือนล่วงหน้า (Recommend)',
-    badge: 'LAYER 02 • THERMAL METRICS & ADVISORY',
+    badge: 'LAYER 02 • 3-DAY FORECAST & ADVISORY',
     icon: 'mdi-brain',
-    title: 'แปลงข้อมูลเป็นคำแนะนำตามบริบทโรงเรือนไทย',
-    desc: 'วิเคราะห์ความร้อนสะสมย้อนหลัง 72 ชั่วโมงตามเกณฑ์งานวิจัยโคนมลูกผสมไทย (THI 74 / 76 / 82) พร้อมคำนวณช่วงร้อนที่สุดและเย็นที่สุดจากข้อมูลจริงของฟาร์มเอง',
+    title: 'พยากรณ์ล่วงหน้า 3 วันและแนะนำตามบริบทโรงเรือนไทย',
+    desc: 'พยากรณ์ THI เฉลี่ยรายวันล่วงหน้า 3 วันจาก Open-Meteo ECMWF ร่วมกับการหักลบค่าเพี้ยนจากเซ็นเซอร์จริงของฟาร์มย้อนหลัง 3–14 วัน ตามเกณฑ์โคนมลูกผสมไทย (THI 74 / 76 / 82) พร้อมคำนวณช่วงร้อนที่สุดและเย็นที่สุดจากข้อมูลจริงของฟาร์ม',
     points: [
-      'เตือนก่อนผลกระทบที่มักตามมาหลายวัน (Lag Effect)',
+      'พยากรณ์ THI ล่วงหน้า 3 วัน (ECMWF + ปรับค่าเพี้ยนจากเซ็นเซอร์ฟาร์ม 3–14 วัน)',
       'ใช้เกณฑ์โคนมลูกผสมไทย (THI 74 / 76 / 82) และคำนวณช่วงร้อนสุดจากข้อมูลฟาร์มจริง',
       'ความชื้นตั้งแต่ 75% ขึ้นไป แนะนำราดน้ำตัววัวร่วมกับพัดลม แทนการพ่นหมอก'
     ]
@@ -642,7 +642,7 @@ const archLayers = [
 const cowBehaviors = [
   { id: 'CLASS 01', label: 'Lying down (นอนพัก)', sub: 'นับจำนวนวัวนอนเคี้ยวเอื้อง', conf: 'ท่าที่ 1' },
   { id: 'CLASS 02', label: 'Standing (ยืน)', sub: 'นับจำนวนวัวยืนในคอก', conf: 'ท่าที่ 2' },
-  { id: 'CLASS 03', label: 'Eating (กินอาหาร)', sub: 'นับจำนวนวัวที่รางอาหาร', conf: 'ท่าที่ 3' },
+  { id: 'CLASS 03', label: 'Feeding (กินอาหาร)', sub: 'นับจำนวนวัวที่รางอาหาร', conf: 'ท่าที่ 3' },
   { id: 'CLASS 04', label: 'Drinking (ดื่มน้ำ)', sub: 'นับจำนวนวัวที่อ่างน้ำ', conf: 'ท่าที่ 4' }
 ]
 
@@ -651,15 +651,15 @@ const comparisonMode = ref('proactive')
 const activeComparisonSteps = computed(() => {
   if (comparisonMode.value === 'proactive') {
     return [
-      { day: 'ล่วงหน้า', event: 'ระบบแจ้งเตือนผ่าน LINE ว่าความร้อนสะสมในโรงเรือนสูงขึ้น', outcome: 'เตรียมพร้อมทันที', statusClass: 'text-[#10B981]' },
-      { day: 'วันที่อากาศร้อน', event: 'เปิดพัดลมดักไว้ก่อนตามคำแนะนำ', outcome: 'ลดความเครียดสะสม', statusClass: 'text-[#10B981]' },
-      { day: 'หลายวันถัดมา', event: 'โคนมมีโอกาสกินอาหารและให้น้ำนมได้ใกล้เคียงปกติ', outcome: 'ลดความเสี่ยงน้ำนมลด', statusClass: 'text-[#F2BD7C]' }
+      { day: 'ล่วงหน้า', event: 'ดูพยากรณ์ THI ล่วงหน้า 3 วันบนเว็บ (แผนงานแจ้งเตือนผ่าน LINE)', outcome: 'เตรียมพร้อมทันที', statusClass: 'text-[#10B981]' },
+      { day: 'วันที่อากาศร้อน', event: 'เปิดพัดลมดักไว้ก่อนตามคำแนะนำช่วงเวลาร้อนสุดของฟาร์ม', outcome: 'ลดความเครียดสะสม', statusClass: 'text-[#10B981]' },
+      { day: 'หลายวันถัดมา', event: 'โคนมมีโอกาสกินอาหารและพักผ่อนได้ใกล้เคียงปกติ', outcome: 'ลดความเสี่ยงน้ำนมลด', statusClass: 'text-[#F2BD7C]' }
     ]
   }
   return [
     { day: 'ล่วงหน้า', event: 'ไม่มีข้อมูลความร้อนสะสม เกษตรกรไม่ทราบล่วงหน้า', outcome: 'ไม่ได้เตรียมการ', statusClass: 'text-white/50' },
     { day: 'วันที่อากาศร้อน', event: 'รอจนวัวยืนหอบและไม่กินอาหารจึงเพิ่งเปิดพัดลม', outcome: 'เกิดความเครียดสะสม', statusClass: 'text-rose-400' },
-    { day: 'หลายวันถัดมา', event: 'เกิด Lag Effect น้ำนมลดลงตามมา', outcome: 'เสี่ยงสูญเสียรายได้', statusClass: 'text-rose-400' }
+    { day: 'หลายวันถัดมา', event: 'ความร้อนสะสมต่อเนื่องกระทบการกินอาหารและน้ำนม', outcome: 'เสี่ยงสูญเสียรายได้', statusClass: 'text-rose-400' }
   ]
 })
 
@@ -668,26 +668,26 @@ const citations = [
   {
     journal: 'J. of Dairy Science (2011)',
     metric: 'เริ่มเครียดที่ THI 74',
-    summary: 'ข้อมูลโคนมลูกผสมไทยกว่า 400,000 รายการ: แม่โคท้องที่ 3 ขึ้นไปที่มีสายเลือดโฮลสไตน์ ≥87.5% น้ำนมเริ่มลดที่ THI 74 และลดเร็วขึ้นเมื่อเกิน 82',
+    summary: 'ศึกษาโคนมลูกผสมไทย: แม่โคท้องที่ 3 ขึ้นไปที่มีสายเลือดโฮลสไตน์ ≥87.5% น้ำนมเริ่มลดที่ THI เฉลี่ยรายวัน 74 และลดเร็วขึ้นเมื่อเกิน 82',
     authors: 'Boonkum et al. (2011)'
   },
   {
     journal: 'Animals (MDPI, 2024)',
-    metric: 'เกณฑ์ THI 76',
-    summary: 'โคนมลูกผสมไทย 168,124 รายการ พบจุดเริ่มเครียดระดับประชากรที่ THI 76 ซึ่งน้ำนม สัดส่วนไขมันต่อโปรตีน และอัตราผสมติดเริ่มลดลง',
+    metric: 'เกณฑ์ประชากร THI 76',
+    summary: 'ศึกษาโคนมลูกผสมไทยระดับประชากร พบจุดเริ่มเครียดที่ THI เฉลี่ยรายวัน 76 ซึ่งผลผลิตน้ำนม สัดส่วนไขมันต่อโปรตีน และอัตราผสมติดเริ่มลดลง',
     authors: 'Boonkum et al. (2024)'
   },
   {
-    journal: 'Comp. & Elec. in Agr. (2026)',
-    metric: 'Lag Effect 5 วัน',
-    summary: 'ข้อมูล 7 ปี (โคเนื้อ 82,026 ตัว และโคนมราว 300 ตัว) พบว่าน้ำนมโคนมลดลงชัดเจนที่ lag 5 วันหลังเผชิญความร้อน',
-    authors: 'Hasan et al. (2026)'
+    journal: 'Int. J. of Biometeorology (1992)',
+    metric: 'การพักฟื้นตอนกลางคืน',
+    summary: 'ความเย็นในช่วงเวลากลางคืนช่วยให้แม่โคระบายความร้อนสะสมจากช่วงกลางวันได้ ระบบจึงนับชั่วโมงช่วง 22:00–06:00 น. ที่ THI ต่ำกว่า 74',
+    authors: 'Igono et al. (1992)'
   },
   {
-    journal: 'Acta Veterinaria-Beograd (2026)',
-    metric: 'LSTM (งานจำลอง)',
-    summary: 'LSTM บนข้อมูลจำลองโคโฮลสไตน์ 500 ตัว ทำนายน้ำนมได้ RMSE 1.48 กก./วัน (R² 0.81) ผู้วิจัยระบุว่ายังต้องทดสอบกับฟาร์มจริง',
-    authors: 'Abdourhamane (2026)'
+    journal: 'NRC (1971) & LRRD 31(12) (2019)',
+    metric: 'สมการมาตรฐาน THI',
+    summary: 'ใช้สมการดัชนีอุณหภูมิและความชื้นของ NRC (1971) ตัวเดียวกับที่งานวิจัยโคนมในประเทศไทยใช้อ้างอิง โดยปรับใช้ที่ค่าเกณฑ์ของโคนมลูกผสมไทย',
+    authors: 'NRC (1971); Sae-tiao et al. (2019)'
   }
 ]
 

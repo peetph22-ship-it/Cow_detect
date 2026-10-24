@@ -58,7 +58,7 @@
           @click="openTestModal"
           class="px-4 py-2.5 rounded-xl bg-[#06C755] hover:bg-[#05b34c] text-white text-xs font-bold transition-all flex items-center gap-2 shadow-xs cursor-pointer">
           <v-icon icon="mdi-chat" size="16" />
-          <span>ทดสอบยิง LINE แจ้งเตือนฟาร์มนี้</span>
+          <span>ดูตัวอย่างข้อความ LINE (แผนงาน)</span>
         </button>
 
         <!-- Manual Refresh Button -->
@@ -166,9 +166,9 @@
         </div>
 
         <div class="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 text-center shrink-0 min-w-[200px]">
-          <div class="text-[10px] text-white/70 font-bold uppercase tracking-wider">รอบการส่ง LINE รายวัน</div>
+          <div class="text-[10px] text-white/70 font-bold uppercase tracking-wider">รอบสรุปผลรายวัน (แผนงานส่ง LINE)</div>
           <div class="text-2xl font-black text-[#F2BD7C] mt-0.5">20:00 น.</div>
-          <div class="text-[10px] text-white/60">สรุปดัชนี THI & การฟื้นตัว</div>
+          <div class="text-[10px] text-white/60">สรุปดัชนี THI &amp; การฟื้นตัว (ยังไม่ได้ส่ง LINE จริง)</div>
         </div>
       </div>
     </div>
@@ -423,8 +423,8 @@
                 <v-icon icon="mdi-chat" size="22" />
               </div>
               <div>
-                <h3 class="text-lg font-black text-[#142820]">ส่งการแจ้งเตือน LINE สำหรับฟาร์มนี้</h3>
-                <p class="text-xs text-[#718078]">จำลองส่ง Flex Message สู่ LINE เกษตรกร</p>
+                <h3 class="text-lg font-black text-[#142820]">ตัวอย่างการแจ้งเตือน LINE (แผนงาน)</h3>
+                <p class="text-xs text-[#718078]">จำลองข้อความตัวอย่างสำหรับแผนงานเชื่อมต่อ LINE รายฟาร์ม (ยังไม่ได้ส่งจริง)</p>
               </div>
             </div>
             <button 

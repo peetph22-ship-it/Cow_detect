@@ -192,7 +192,7 @@
                 ดูแลโคนมเชิงรุกด้วย Multimodal AI
               </h2>
               <p class="text-xs text-white/75 leading-relaxed">
-                เชื่อมโยงเซนเซอร์อุณหภูมิ-ความชื้น RS485 (SHT20), กล้องตรวจจับพฤติกรรม YOLO26m และการติดตามความร้อนสะสม 72 ชั่วโมง (ต้นแบบ อยู่ระหว่างทดสอบภาคสนาม)
+                เชื่อมโยงเซนเซอร์อุณหภูมิ-ความชื้น RS485 (SHT20), กล้องตรวจจับพฤติกรรม YOLO26m ONNX และการพยากรณ์ THI ล่วงหน้า 3 วัน (ต้นแบบ ทดสอบในบ้านแล้ว)
               </p>
             </div>
 
@@ -205,7 +205,7 @@
                 </div>
                 <div class="flex items-baseline justify-between">
                   <span class="text-2xl font-black text-white tabular-nums">THI 74–76</span>
-                  <span class="text-xs text-[#F2BD7C] font-bold">ป้องกัน 5-Day Lag Effect</span>
+                  <span class="text-xs text-[#F2BD7C] font-bold">Boonkum et al. (2011; 2024)</span>
                 </div>
               </div>
 

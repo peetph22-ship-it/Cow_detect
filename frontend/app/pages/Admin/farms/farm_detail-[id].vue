@@ -689,10 +689,6 @@
               <v-icon icon="mdi-history" size="14" class="text-amber-400" />
               <span>{{ forecastEngineBadge.detail }}</span>
             </span>
-            <span class="bg-white/10 text-sky-300 px-3 py-1.5 rounded-xl border border-sky-500/30 flex items-center gap-1.5">
-              <v-icon icon="mdi-clock-fast" size="14" class="text-sky-400" />
-              <span>Lag Effect 5 วัน (Hasan 2026)</span>
-            </span>
             <!-- Active Engine Badge (Always Shown) -->
             <span 
               class="px-3 py-1.5 rounded-xl border flex items-center gap-1.5 transition-all shadow-2xs font-mono font-bold"
