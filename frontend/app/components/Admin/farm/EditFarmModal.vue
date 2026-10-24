@@ -654,9 +654,12 @@ const fetchDevices = async () => {
     })
     if (res.data && res.data.devices) {
       devicesList.value = res.data.devices
-      // ถ้าฟอร์มยังไม่ได้ตั้ง id_devices และมีอุปกรณ์ในฟาร์มเดิม
-      if (!form.value.id_devices && props.farm?.id_devices) {
-        form.value.id_devices = props.farm.id_devices
+      // ค่าเริ่มต้น = บอร์ดที่ผูกกับฟาร์มนี้อยู่แล้ว
+      // (หน้ารายละเอียดฟาร์มส่งแถว tb_farms มา ซึ่งไม่มี id_devices จึงหาจาก id_farms ของอุปกรณ์แทน)
+      if (!form.value.id_devices) {
+        const bound = props.farm?.id_devices
+          || devicesList.value.find(d => props.farm?.id_farms && String(d.id_farms) === String(props.farm.id_farms))?.id_devices
+        if (bound) form.value.id_devices = bound
       }
     }
   } catch (err) {
