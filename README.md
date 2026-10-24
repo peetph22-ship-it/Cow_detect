@@ -16,7 +16,7 @@
 1. **เกณฑ์ความเครียดความร้อนของโคนมลูกผสมไทย (Boonkum et al., 2011; 2024):**
    โคนมลูกผสมโฮลสไตน์ในประเทศไทยเริ่มได้รับผลกระทบต่อผลผลิตน้ำนมเมื่อดัชนีอุณหภูมิและความชื้น ($\text{THI}$) เฉลี่ยรายวันถึงเกณฑ์ **74** (ในแม่โคสายเลือดโฮลสไตน์สูง $\ge 87.5\%$ ท้องที่ 3 ขึ้นไป) มีเกณฑ์จุดเริ่มเครียดระดับประชากรที่ **76** และผลผลิตน้ำนมลดลงเร็วขึ้นชัดเจนเมื่อ $\text{THI} \ge 82$
 2. **การพักฟื้นจากความร้อนในเวลากลางคืน (Igono et al., 1992):**
-   หากโคนมเผชิญความร้อนสะสมต่อเนื่องในตอนกลางวัน และช่วงกลางคืน (22:00–06:00 น.) ค่า $\text{THI}$ ในโรงเรือนไม่ลดต่ำกว่า **74** แม่โคจะไม่สามารถระบายความร้อนสะสมออกจากตัวได้ทัน
+   หากโคนมเผชิญความร้อนสะสมต่อเนื่องในตอนกลางวัน และช่วงกลางคืน (22:00–06:00 น.) ค่า $\text{THI}$ ในโรงเรือนไม่ลดต่ำกว่า **74** (เกณฑ์เฝ้าระวังของระบบสำหรับโคลูกผสมไทย ไม่ใช่ค่าจาก Igono ซึ่งศึกษาโฮลสไตน์ในเขตทะเลทราย) แม่โคจะระบายความร้อนสะสมออกจากตัวได้ยาก
 3. **ข้อจำกัดของการพ่นหมอกในสภาพอากาศชื้น ($\text{RH} \ge 75\%$):**
    เมื่อความชื้นสัมพัทธ์สูง การพ่นหมอกละอองฝอยทำให้อากาศอิ่มตัวแต่ไม่ช่วยลดอุณหภูมิ จึงควรเปลี่ยนไปใช้ **การฉีดน้ำเม็ดใหญ่ให้ตัววัวเปียกช่วงสั้นๆ ร่วมกับเปิดพัดลมแรง** แทน (Penn State Extension)
 4. **หลักการออกแบบสำหรับเกษตรกรรายย่อย:**
@@ -97,7 +97,7 @@ $$\text{THI} = (1.8 \times T + 32) - (0.55 - 0.0055 \times \text{RH}) \times (1.
 * **ถังเวลา 5 นาที:** เฉลี่ยค่าเซ็นเซอร์ทุก 5 นาที แล้วคำนวณ $\text{THI}$ โดยไม่เดาค่าในช่วงที่ไม่มีข้อมูล
 * **ความครบถ้วนของข้อมูล (`coverage_pct`):** ชั่วโมงที่มีข้อมูลจริง $\div$ ชั่วโมงทั้งหมดในช่วงที่สรุป $\times 100\%$
 * **ชั่วโมงเครียด (`stress_hours`):** จำนวนช่วง 5 นาทีที่มี $\text{THI} \ge 76$ คูณด้วย $\frac{5}{60}$ ชั่วโมง
-* **ชั่วโมงกลางคืนที่ได้พัก (`night_relief_hours`):** จำนวนชั่วโมงในช่วง **22:00–06:00 น.** ที่ $\text{THI} < 74$ (Igono et al., 1992)
+* **ชั่วโมงกลางคืนที่ได้พัก (`night_relief_hours`):** จำนวนชั่วโมงในช่วง **22:00–06:00 น.** ที่ $\text{THI} < 74$ (เกณฑ์เฝ้าระวัง 74 ของระบบสำหรับโคลูกผสมไทย; แนวคิดว่าความเย็นกลางคืนช่วยให้โคฟื้นตัวมาจาก Igono et al., 1992 ซึ่งศึกษาโฮลสไตน์ในเขตทะเลทราย ไม่ได้กำหนดค่า 74)
 * **จำนวนวันเครียดติดต่อกัน (`stressStreak`):** จำนวนวันล่าสุดที่ $\text{THI}$ เฉลี่ยรายวัน $\ge 76$ ติดต่อกัน (นับเฉพาะวันที่มีข้อมูลอย่างน้อย 12 ชั่วโมง)
 
 ---
@@ -202,8 +202,8 @@ NUXT_PUBLIC_NODE_API_BASE=http://localhost:5099/api npm run dev
 
 1. **NRC (1971).** *A Guide to Environmental Research on Animals.* National Academy of Sciences, Washington, DC. (สมการมาตรฐานดัชนี THI)
 2. **Sae-tiao, T. et al. (2019).** *Temperature-humidity index and heat stress effects on dairy cattle in Thailand.* Livestock Research for Rural Development, 31(12). (การใช้สมการ NRC 1971 กับโคนมในประเทศไทย)
-3. **Boonkum, W. et al. (2011).** *Genetic effects of heat stress on milk yield of Thai Friesian dairy cattle.* Journal of Dairy Science, 94(1), 487–492. (น้ำนมเริ่มลดที่ THI 74 ในแม่โคสายเลือดโฮลสไตน์สูง $\ge 87.5\%$ ท้องที่ 3 ขึ้นไป และลดเร็วขึ้นเมื่อ THI > 82)
+3. **Boonkum, W. et al. (2011).** *Genetic effects of heat stress on milk yield of Thai Holstein crossbreds.* Journal of Dairy Science, 94(1), 487–492. (น้ำนมเริ่มลดที่ THI 74 ในแม่โคสายเลือดโฮลสไตน์สูง $\ge 87.5\%$ ท้องที่ 3 ขึ้นไป และลดเร็วขึ้นเมื่อ THI > 82)
 4. **Boonkum, W. et al. (2024).** *Impact of Heat Stress on Milk Yield, Milk Fat-to-Protein Ratio, and Conception Rate in Thai–Holstein Dairy Cattle: A Phenotypic and Genetic Perspective.* Animals, 14(20), 3026. (เกณฑ์ความเครียดความร้อนระดับประชากรโคนมลูกผสมไทยที่ THI 76)
 5. **Duangjinda, M. et al.** *ICAR Technical Series No. 23.* (เกณฑ์ความเครียดความร้อนของโคนมในเขตร้อน: ปานกลาง > 74, รุนแรง > 80)
-6. **Igono, M. O. et al. (1992).** *Environmental profile and critical temperature effects on milk production of Holstein cows in arid climate.* International Journal of Biometeorology, 36, 77–87. (ความสำคัญของความเย็นช่วงกลางคืนต่อการฟื้นตัวจากความร้อนสะสม)
+6. **Igono, M. O. et al. (1992).** *Environmental profile and critical temperature effects on milk production of Holstein cows in desert climate.* International Journal of Biometeorology, 36, 77–87. (ความสำคัญของความเย็นช่วงกลางคืนต่อการฟื้นตัวจากความร้อนสะสม)
 7. **Penn State Extension.** *Heat Stress Abatement Techniques for Dairy Cattle.* (การฉีดน้ำตัวโคควบคู่กับการเป่าพัดลมในสภาพอากาศชื้นสูง)

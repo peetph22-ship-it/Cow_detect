@@ -158,6 +158,11 @@ router.get(['/farm/:farmId', '/:farmId'], verifyToken, requireRole('admin'), asy
 // ส่งการแจ้งเตือนทดสอบผ่าน LINE Messaging API
 // -----------------------------------------------------------------
 router.post('/send-test', verifyToken, requireRole('admin'), async (req, res) => {
+    // ปิดไว้จนกว่าจะทำ LINE รายฟาร์ม: sendLineAlert เดิม broadcast ถึงผู้ติดตามทุกคนเมื่อไม่มี LINE_USER_ID
+    // และส่งค่าตัวอย่าง (THI 84.5 วิกฤต) ที่ไม่ใช่ข้อมูลจริงของฟาร์ม
+    if (String(process.env.LINE_TEST_SEND_ENABLED || '').toLowerCase() !== 'true') {
+        return res.status(403).json({ success: false, message: 'การส่ง LINE ยังไม่เปิดใช้ (อยู่ในแผนงาน) หน้านี้แสดงตัวอย่างข้อความเท่านั้น' })
+    }
     try {
         const { farm_id, farm_name, barn_unit, thi, temp, hum, advice, level } = req.body
 

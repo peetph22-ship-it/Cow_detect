@@ -46,3 +46,6 @@ backend_node/app/weights/*.download
 # โมเดล/แคชขนาดใหญ่ (แชร์ผ่าน Drive หรือ Supabase models แทน)
 backend/app/weights/*.onnx
 **/labels.cache
+
+# prompt/แผนงานสำหรับส่งต่อให้ AI ตัวอื่น (มีรายการงานความปลอดภัยที่ยังค้าง ไม่ขึ้น repo)
+docs/prompts/

@@ -56,7 +56,7 @@ $$\text{THI} = (1.8 \times T + 32) - (0.55 - 0.0055 \times \text{RH}) \times (1.
    คำนวณจากค่าเฉลี่ย $\text{THI}$ ของทุกถัง 5 นาทีในวันนั้น ($\overline{\text{THI}}_{\text{day}} = \frac{1}{N_{\text{buckets}}} \sum \text{THI}_i$) แล้วเทียบกับเกณฑ์ $74 / 76 / 82$
 
 4. **ชั่วโมงกลางคืนที่วัวได้พักจากความร้อน (`night_relief_hours`):**
-   พิจารณาเฉพาะถังเวลา 5 นาทีที่อยู่ในช่วง **22:00–06:00 น. (เวลาไทย)** และนับจำนวนชั่วโมงที่ $\text{THI} < 74$ (อิงตาม Igono et al., 1992 ที่ชี้ว่าความเย็นช่วงกลางคืนช่วยให้โคฟื้นตัวจากความร้อนสะสมช่วงกลางวัน):
+   พิจารณาเฉพาะถังเวลา 5 นาทีที่อยู่ในช่วง **22:00–06:00 น. (เวลาไทย)** และนับจำนวนชั่วโมงที่ $\text{THI} < 74$ (เกณฑ์เฝ้าระวังของระบบ; แนวคิดจาก Igono et al., 1992 ที่ชี้ว่าความเย็นช่วงกลางคืนช่วยให้โคฟื้นตัว ศึกษาในโฮลสไตน์เขตทะเลทราย ไม่ได้กำหนดค่า 74):
    $$\text{Night Relief Hours} = N_{\text{night}(\text{THI} < 74)} \times \frac{5}{60}$$
 
 5. **จำนวนวันเครียดติดต่อกัน (`stressStreak`):**
@@ -148,8 +148,8 @@ $$S_t = \alpha \cdot X_t + (1 - \alpha) \cdot S_{t-1} \qquad (\alpha = 0.70)$$
 ## 📚 4. เอกสารและงานวิจัยอ้างอิง (Scientific References)
 1. **NRC (1971).** *A Guide to Environmental Research on Animals.* National Academy of Sciences, Washington, DC. (สมการมาตรฐานดัชนี THI)
 2. **Sae-tiao, T. et al. (2019).** *Temperature-humidity index and heat stress effects on dairy cattle in Thailand.* Livestock Research for Rural Development, 31(12). (การใช้สมการ NRC 1971 กับโคนมในประเทศไทย)
-3. **Boonkum, W. et al. (2011).** *Genetic effects of heat stress on milk yield of Thai Friesian dairy cattle.* Journal of Dairy Science, 94(1), 487–492. (จุดเริ่มลดของน้ำนมที่ THI 74 ในแม่โคท้อง 3+ สายเลือดโฮลสไตน์สูง และลดเร็วขึ้นเมื่อ THI > 82)
+3. **Boonkum, W. et al. (2011).** *Genetic effects of heat stress on milk yield of Thai Holstein crossbreds.* Journal of Dairy Science, 94(1), 487–492. (จุดเริ่มลดของน้ำนมที่ THI 74 ในแม่โคท้อง 3+ สายเลือดโฮลสไตน์สูง และลดเร็วขึ้นเมื่อ THI > 82)
 4. **Boonkum, W. et al. (2024).** *Impact of Heat Stress on Milk Yield, Milk Fat-to-Protein Ratio, and Conception Rate in Thai–Holstein Dairy Cattle: A Phenotypic and Genetic Perspective.* Animals, 14(20), 3026. (เกณฑ์ความเครียดความร้อนระดับประชากรโคนมลูกผสมไทยที่ THI 76)
 5. **Duangjinda, M. et al.** *ICAR Technical Series No. 23.* (เกณฑ์ระดับความเครียดโคนมเขตร้อน: ปานกลาง > 74, รุนแรง > 80)
-6. **Igono, M. O. et al. (1992).** *Environmental profile and critical temperature effects on milk production of Holstein cows in arid climate.* International Journal of Biometeorology, 36, 77–87. (ความสำคัญของชั่วโมงเย็นช่วงกลางคืนต่อการฟื้นตัวจากความร้อน)
+6. **Igono, M. O. et al. (1992).** *Environmental profile and critical temperature effects on milk production of Holstein cows in desert climate.* International Journal of Biometeorology, 36, 77–87. (ความสำคัญของชั่วโมงเย็นช่วงกลางคืนต่อการฟื้นตัวจากความร้อน)
 7. **Penn State Extension.** *Heat Stress Abatement Techniques for Dairy Cattle.* (หลักการระบายความร้อนด้วยการฉีดน้ำตัวโคควบคู่กับการเป่าพัดลมในสภาพอากาศชื้น)

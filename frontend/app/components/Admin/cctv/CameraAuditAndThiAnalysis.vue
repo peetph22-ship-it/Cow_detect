@@ -5,7 +5,7 @@
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
       <div class="flex items-center gap-2.5">
         <div class="w-9 h-9 rounded-xl bg-[#24433a]/10 text-[#24433a] flex items-center justify-center">
-          <v-icon icon="mdi-ClipboardCheckOutline" size="20" />
+          <v-icon icon="mdi-clipboard-check-outline" size="20" />
         </div>
         <div>
           <h4 class="text-sm font-black text-[#24433a]">
@@ -109,7 +109,7 @@
                   v-for="s in samplesData.samples"
                   :key="s.sample_path"
                   :value="s.sample_path">
-                  {{ s.hour_label }} · โมเดลนับได้ {{ s.model_counts?.total ?? 0 }} ตัว {{ s.audit ? '✓ (ตรวจแล้ว)' : '' }}
+                  {{ s.hour_label }}{{ s.has_json ? '' : ' · ไม่มีผลของโมเดล' }} {{ s.audit ? '✓ (ตรวจแล้ว)' : '' }}
                 </option>
               </select>
             </div>
@@ -195,7 +195,7 @@
 
           <div class="grid grid-cols-3 gap-2 text-xs font-bold text-[#4e6057] bg-[#f8faf9] p-2 rounded-xl text-center">
             <span class="text-left pl-1">ท่าทาง</span>
-            <span>YOLO นับได้</span>
+            <span>YOLO นับได้<span v-if="!revealModel" class="block text-[10px] font-normal">(แสดงหลังบันทึก)</span></span>
             <span>เห็นจริง (ตัว)</span>
           </div>
 
@@ -203,7 +203,7 @@
           <div class="grid grid-cols-3 gap-2 items-center text-xs">
             <span class="font-bold text-blue-800">นอนพัก (Lying) *</span>
             <span class="text-center font-mono font-black text-blue-700 bg-blue-50 py-1.5 rounded-lg">
-              {{ currentSample.model_counts?.lying ?? 0 }}
+              {{ revealModel ? (currentSample.model_counts?.lying ?? '—') : '•' }}
             </span>
             <input
               v-model.number="auditForm.human_lying"
@@ -218,7 +218,7 @@
           <div class="grid grid-cols-3 gap-2 items-center text-xs">
             <span class="font-bold text-orange-800">ยืน (Standing) *</span>
             <span class="text-center font-mono font-black text-orange-700 bg-orange-50 py-1.5 rounded-lg">
-              {{ currentSample.model_counts?.standing ?? 0 }}
+              {{ revealModel ? (currentSample.model_counts?.standing ?? '—') : '•' }}
             </span>
             <input
               v-model.number="auditForm.human_standing"
@@ -233,7 +233,7 @@
           <div class="grid grid-cols-3 gap-2 items-center text-xs">
             <span class="font-bold text-emerald-800">กินอาหาร (Feeding)</span>
             <span class="text-center font-mono font-black text-emerald-700 bg-emerald-50 py-1.5 rounded-lg">
-              {{ currentSample.model_counts?.feeding ?? 0 }}
+              {{ revealModel ? (currentSample.model_counts?.feeding ?? '—') : '•' }}
             </span>
             <input
               v-model.number="auditForm.human_feeding"
@@ -248,7 +248,7 @@
           <div class="grid grid-cols-3 gap-2 items-center text-xs">
             <span class="font-bold text-cyan-800">ดื่มน้ำ (Drinking)</span>
             <span class="text-center font-mono font-black text-cyan-700 bg-cyan-50 py-1.5 rounded-lg">
-              {{ currentSample.model_counts?.drinking ?? 0 }}
+              {{ revealModel ? (currentSample.model_counts?.drinking ?? '—') : '•' }}
             </span>
             <input
               v-model.number="auditForm.human_drinking"
@@ -270,6 +270,10 @@
             />
           </div>
 
+          <div v-if="currentSample && !currentSample.has_json" class="text-xs font-bold px-3 py-2 rounded-xl bg-amber-50 text-amber-800">
+            ภาพนี้ไม่มีไฟล์ผลของโมเดล (.json) จึงนับเทียบไม่ได้ เลือกภาพชั่วโมงอื่น
+          </div>
+
           <div v-if="auditMessage" class="text-xs font-bold px-3 py-2 rounded-xl" :class="auditSuccess ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'">
             {{ auditMessage }}
           </div>
@@ -277,7 +281,7 @@
           <button
             type="button"
             @click="submitAudit"
-            :disabled="isSavingAudit"
+            :disabled="isSavingAudit || !currentSample?.has_json || auditForm.human_lying === '' || auditForm.human_standing === ''"
             class="w-full py-2.5 rounded-xl bg-[#24433a] hover:bg-[#1b342d] text-white text-xs font-black transition-all cursor-pointer disabled:opacity-50">
             {{ isSavingAudit ? 'กำลังบันทึก...' : 'บันทึกผลการนับเทียบภาพนี้' }}
           </button>
@@ -288,7 +292,10 @@
       <!-- กรณีไม่มีภาพตัวอย่างใน bucket camera-samples -->
       <div v-else class="p-6 rounded-2xl bg-[#fafcfb] border border-[#e5ece9] text-center space-y-1.5">
         <v-icon icon="mdi-image-off-outline" size="28" class="text-[#718078] mx-auto" />
-        <p class="text-xs font-bold text-[#24433a]">ยังไม่มีภาพตัวอย่างรายชั่วโมงใน bucket <code class="font-mono">camera-samples</code> สำหรับฟาร์มนี้</p>
+        <p v-if="samplesError" class="text-xs font-bold text-rose-700">โหลดภาพตัวอย่างไม่สำเร็จ: {{ samplesError }}</p>
+        <p v-else-if="!samplesData.storage_configured" class="text-xs font-bold text-amber-800">ยังไม่ได้ตั้งค่า Supabase Storage บนเซิร์ฟเวอร์ (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY) จึงดึงภาพตัวอย่างไม่ได้</p>
+        <p v-else-if="samplesData.error" class="text-xs font-bold text-rose-700">อ่านรายการภาพจาก Storage ไม่สำเร็จ: {{ samplesData.error }}</p>
+        <p v-else class="text-xs font-bold text-[#24433a]">ยังไม่มีภาพตัวอย่างรายชั่วโมงใน bucket <code class="font-mono">camera-samples</code> สำหรับฟาร์มนี้</p>
         <p class="text-[11px] text-[#718078]">
           เมื่อ ESP32 ส่งภาพจากกล้องเข้ามา ระบบจะเก็บภาพตัวอย่างชั่วโมงละ 1 รูปพร้อมไฟล์ <code class="font-mono">HH.json</code> ให้อัตโนมัติ
         </p>
@@ -356,7 +363,8 @@
       </div>
 
       <!-- กรณีข้อมูลพอ: แสดงผล Broken-line Regression พร้อม 95% CI และกราฟ -->
-      <div v-if="analysisData?.sufficient_data && analysisData?.broken_line" class="p-5 rounded-2xl bg-white border border-[#e5ece9] space-y-4">
+      <p v-if="analysisData?.camera_accuracy_note_th" class="text-[11px] font-bold px-3 py-2 rounded-xl bg-amber-50 text-amber-800">{{ analysisData.camera_accuracy_note_th }}</p>
+      <div v-if="analysisData?.breakpoint_found && analysisData?.broken_line" class="p-5 rounded-2xl bg-white border border-[#e5ece9] space-y-4">
         <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
           <div class="p-3.5 rounded-xl bg-[#f8faf9] border border-[#e5ece9]">
             <span class="text-[11px] text-[#718078] block">จุดหัก (Breakpoint THI)</span>
@@ -378,9 +386,9 @@
             </span>
           </div>
           <div class="p-3.5 rounded-xl bg-[#f8faf9] border border-[#e5ece9]">
-            <span class="text-[11px] text-[#718078] block">ความสอดคล้อง (R²)</span>
-            <span class="text-base font-black font-mono text-[#24433a]">{{ analysisData.broken_line.r_squared }}</span>
-            <span class="text-[10px] text-[#718078] block">ควบคุมอิทธิพลชั่วโมงของวันแล้ว</span>
+            <span class="text-[11px] text-[#718078] block">ความสอดคล้อง (R² ภายในชั่วโมง)</span>
+            <span class="text-base font-black font-mono text-[#24433a]">{{ analysisData.broken_line.r_squared_within_hour }}</span>
+            <span class="text-[10px] text-[#718078] block">{{ analysisData.analyzed_days }} วัน · {{ analysisData.broken_line.bootstrap_method }}</span>
           </div>
         </div>
 
@@ -396,13 +404,6 @@
               stroke="#d87939"
               stroke-width="2"
               stroke-dasharray="4 4"
-            />
-            <!-- เส้น Broken-line -->
-            <polyline
-              :points="brokenLinePolyline"
-              fill="none"
-              stroke="#24433a"
-              stroke-width="2.5"
             />
             <!-- จุดข้อมูลรายชั่วโมง (ปรับตามชั่วโมงของวันแล้ว) -->
             <circle
@@ -431,12 +432,13 @@
       <!-- กรณีข้อมูลยังไม่พอ: แสดงเหตุผลตามจริง ไม่แสดงกราฟสมมติ -->
       <div v-else class="p-6 rounded-2xl bg-[#fafcfb] border border-[#e5ece9] text-center space-y-2">
         <v-icon icon="mdi-chart-timeline-variant" size="28" class="text-[#718078] mx-auto" />
-        <p class="text-xs font-bold text-[#24433a]">
-          {{ analysisData?.reason_th || 'ยังไม่มีข้อมูลรายชั่วโมงเพียงพอสำหรับการวิเคราะห์จุดหัก (Broken-line Regression)' }}
+        <p v-if="analysisError" class="text-xs font-bold text-rose-700">โหลดผลวิเคราะห์ไม่สำเร็จ: {{ analysisError }}</p>
+        <p v-else class="text-xs font-bold text-[#24433a]">
+          {{ analysisData?.reason_th || analysisData?.broken_line?.interpretation_th || 'ยังไม่มีข้อมูลรายชั่วโมงเพียงพอสำหรับการวิเคราะห์จุดหัก (Broken-line Regression)' }}
         </p>
         <p class="text-[11px] text-[#718078] max-w-xl mx-auto">
-          ระบบจะแสดงเส้นวิเคราะห์และจุดหักเฉพาะเมื่อมีข้อมูลจริงหลังตัดช่วงรีดนม/ให้อาหารอย่างน้อย {{ analysisData?.min_required_hours || 48 }} ชั่วโมง
-          และมีช่วงค่า THI กว้างอย่างน้อย {{ analysisData?.min_required_thi_span || 6 }} หน่วย (แนะนำให้ดูผลหลังติดตั้งและเก็บข้อมูลครบ 2–3 สัปดาห์)
+          ระบบแสดงจุดหักเฉพาะเมื่อมีข้อมูลจริงอย่างน้อย {{ analysisData?.min_required_days || 14 }} วัน ({{ analysisData?.min_required_hours || 150 }} ชั่วโมงหลังตัดช่วงรีดนม/ให้อาหาร)
+          ช่วงค่า THI กว้างอย่างน้อย {{ analysisData?.min_required_thi_span || 6 }} หน่วย และผลทดสอบ block bootstrap รายวันยืนยันว่าความชันเปลี่ยนจริง
         </p>
       </div>
 
@@ -461,7 +463,8 @@ const props = defineProps({
 const Admin = `${getNodeApiBase()}/Admin`
 
 const activeTab = ref('audit')
-const showBoxes = ref(true)
+// ซ่อนกรอบ YOLO เป็นค่าเริ่มต้น: ผู้ตรวจต้องนับเองก่อน (ไม่งั้นผลนับเทียบจะลอกตามโมเดล)
+const showBoxes = ref(false)
 
 // State สำหรับแท็บ 1 (Model Audit)
 const isLoadingSamples = ref(false)
@@ -474,13 +477,13 @@ const samplesData = ref({
   samples: []
 })
 const selectedSamplePath = ref('')
-const auditForm = ref({
-  human_lying: 0,
-  human_standing: 0,
-  human_feeding: 0,
-  human_drinking: 0,
-  note: ''
-})
+// ค่าเริ่มต้นว่าง: ผู้ตรวจต้องพิมพ์จำนวนที่เห็นเอง (ห้ามเติมค่าที่โมเดลนับให้ล่วงหน้า)
+const emptyForm = () => ({ human_lying: '', human_standing: '', human_feeding: '', human_drinking: '', note: '' })
+const auditForm = ref(emptyForm())
+const samplesError = ref('')
+const analysisError = ref('')
+// เปิดเผยจำนวนที่โมเดลนับ หลังบันทึกภาพนั้นแล้ว หรือเมื่อผู้ตรวจกดแสดงกรอบเอง
+const revealModel = computed(() => Boolean(currentSample.value?.audit) || showBoxes.value)
 const auditMessage = ref('')
 const auditSuccess = ref(false)
 
@@ -503,23 +506,16 @@ const currentSample = computed(() => {
 watch(currentSample, (s) => {
   auditMessage.value = ''
   if (!s) return
-  if (s.audit) {
-    auditForm.value = {
-      human_lying: s.audit.human_lying ?? 0,
-      human_standing: s.audit.human_standing ?? 0,
-      human_feeding: s.audit.human_feeding ?? (s.model_counts?.feeding ?? 0),
-      human_drinking: s.audit.human_drinking ?? (s.model_counts?.drinking ?? 0),
-      note: s.audit.note || ''
-    }
-  } else {
-    auditForm.value = {
-      human_lying: s.model_counts?.lying ?? 0,
-      human_standing: s.model_counts?.standing ?? 0,
-      human_feeding: s.model_counts?.feeding ?? 0,
-      human_drinking: s.model_counts?.drinking ?? 0,
-      note: ''
-    }
-  }
+  showBoxes.value = false
+  auditForm.value = s.audit
+    ? {
+        human_lying: s.audit.human_lying ?? '',
+        human_standing: s.audit.human_standing ?? '',
+        human_feeding: s.audit.human_feeding ?? '',
+        human_drinking: s.audit.human_drinking ?? '',
+        note: s.audit.note || ''
+      }
+    : emptyForm()
 })
 
 const boxColor = (cls) => {
@@ -541,6 +537,7 @@ const boxLabelTh = (cls) => {
 const loadSamples = async () => {
   if (!props.farmId) return
   isLoadingSamples.value = true
+  samplesError.value = ''
   try {
     const res = await axios.get(`${Admin}/farms/${props.farmId}/cameras/samples`, {
       headers: getAuthHeaders()
@@ -552,7 +549,7 @@ const loadSamples = async () => {
       }
     }
   } catch (err) {
-    console.warn('[Model Audit] Could not load camera samples:', err.response?.data?.message || err.message)
+    samplesError.value = err.response?.data?.message || err.message
   } finally {
     isLoadingSamples.value = false
   }
@@ -564,18 +561,14 @@ const submitAudit = async () => {
   isSavingAudit.value = true
   auditMessage.value = ''
   try {
+    // จำนวนที่โมเดลนับ server อ่านจาก HH.json เอง ไม่ส่งจาก client
+    const opt = (v) => (v === '' || v == null ? null : Number(v))
     const payload = {
       sample_path: s.sample_path,
-      captured_at: s.captured_at,
-      model_lying: s.model_counts?.lying ?? 0,
-      model_standing: s.model_counts?.standing ?? 0,
-      model_feeding: s.model_counts?.feeding ?? 0,
-      model_drinking: s.model_counts?.drinking ?? 0,
-      model_total: s.model_counts?.total ?? 0,
       human_lying: Number(auditForm.value.human_lying),
       human_standing: Number(auditForm.value.human_standing),
-      human_feeding: Number(auditForm.value.human_feeding || 0),
-      human_drinking: Number(auditForm.value.human_drinking || 0),
+      human_feeding: opt(auditForm.value.human_feeding),
+      human_drinking: opt(auditForm.value.human_drinking),
       note: auditForm.value.note
     }
     const res = await axios.post(`${Admin}/farms/${props.farmId}/cameras/samples/audit`, payload, {
@@ -597,6 +590,7 @@ const submitAudit = async () => {
 const loadAnalysis = async () => {
   if (!props.farmId) return
   isLoadingAnalysis.value = true
+  analysisError.value = ''
   try {
     const res = await axios.get(`${Admin}/farms/${props.farmId}/cameras/lying-thi-analysis?days=${analysisDays.value}`, {
       headers: getAuthHeaders()
@@ -605,7 +599,7 @@ const loadAnalysis = async () => {
       analysisData.value = res.data.analysis
     }
   } catch (err) {
-    console.warn('[Lying-THI Analysis] Could not load analysis:', err.response?.data?.message || err.message)
+    analysisError.value = err.response?.data?.message || err.message
   } finally {
     isLoadingAnalysis.value = false
   }
@@ -622,20 +616,6 @@ const pctToY = (pct) => {
   const clamped = Math.max(0, Math.min(100, Number(pct) || 0))
   return 195 - (clamped / 100) * 180
 }
-
-const brokenLinePolyline = computed(() => {
-  const bl = analysisData.value?.broken_line
-  const range = analysisData.value?.thi_range
-  if (!bl || !range || range.min == null || range.max == null) return ''
-  const tau = bl.breakpoint_thi
-  const b0 = bl.intercept_at_breakpoint
-  const yMin = b0 + bl.slopeBefore * (range.min - tau)
-  const yTau = b0
-  const yMax = b0 + bl.slopeAfter * (range.max - tau)
-  const y1 = bl.slope_before_per_thi != null ? b0 + bl.slope_before_per_thi * (range.min - tau) : yMin
-  const y2 = bl.slope_after_per_thi != null ? b0 + bl.slope_after_per_thi * (range.max - tau) : yMax
-  return `${thiToX(range.min)},${pctToY(y1)} ${thiToX(tau)},${pctToY(yTau)} ${thiToX(range.max)},${pctToY(y2)}`
-})
 
 watch(() => props.farmId, (id) => {
   if (id) {

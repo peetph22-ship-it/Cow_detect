@@ -4,20 +4,25 @@
  * 1) สรุปความคลาดเคลื่อนของโมเดล YOLO26m เทียบกับจำนวนที่ Admin นับเห็นจริงจากภาพตัวอย่างรายชั่วโมง
  * 2) วิเคราะห์ความสัมพันธ์ระหว่าง THI กับ % วัวนอนรายชั่วโมง:
  *    - ตัดช่วงเวลารีดนม/ให้อาหารของฟาร์ม (tb_farms.milking_times, feeding_times)
- *    - ควบคุมอิทธิพลของชั่วโมงของวัน (hour-of-day fixed effects centered at overall mean)
- *    - หาจุดหัก (broken-line regression) พร้อมช่วงความเชื่อมั่น 95% (bootstrap CI)
- *    - แสดงผลเฉพาะเมื่อมีข้อมูลจริงเพียงพอ และระบุชัดเจนว่าเป็น "ผลนำร่องในฟาร์มเดียว" ไม่ใช่เกณฑ์ใหม่ของโคนมไทย
+ *    - ควบคุมชั่วโมงของวัน: ตัดค่าเฉลี่ยรายชั่วโมงออกจากทั้ง % วัวนอน และตัวแปรของเส้นหัก (hour fixed effects แบบ Frisch-Waugh)
+ *    - หาจุดหัก (broken-line regression) ช่วงความเชื่อมั่น 95% ด้วย block bootstrap รายวัน (ข้อมูลรายชั่วโมงในวันเดียวกันสัมพันธ์กัน)
+ *    - แสดงจุดหักเฉพาะเมื่อ: ข้อมูล >= 14 วัน, ความชันก่อน/หลังต่างกันจริง (CI ของผลต่างไม่คร่อม 0)
+ *      และความชันหลังจุดหักไม่คร่อม 0 ไม่งั้นรายงานว่า "ยังไม่พบจุดเปลี่ยนที่ชัดเจน"
+ *    - ระบุชัดเจนว่าเป็น "ผลนำร่องในฟาร์มเดียว" ไม่ใช่เกณฑ์ใหม่ของโคนมไทย
  */
 
 const db = require('../config/db')
 const { thiSql, getFarmProfile, getThresholds } = require('./heatStress')
-const { listFarmSamples } = require('./cameraSamples')
+const { listFarmSamples, readSampleResult, countsFromMeta } = require('./cameraSamples')
 
-const MIN_PAIRED_HOURS = 48
-const MIN_SIDE_POINTS = 10
+const MIN_DAYS = 14                 // ตรงกับคำแนะนำบนหน้าเว็บ "2–3 สัปดาห์"
+const MIN_PAIRED_HOURS = 150
+const MIN_SIDE_POINTS = 20
 const MIN_THI_SPAN = 6.0
 const MIN_SENSOR_READINGS_PER_HOUR = 12
-const BOOTSTRAP_ITERATIONS = 400
+const BOOTSTRAP_ITERATIONS = 200
+const MIN_AUDITS_FOR_TRUST = 30     // ก่อนนับเทียบภาพครบ ให้ติดป้ายว่ายังไม่รู้ความแม่นของกล้อง
+const CACHE_MS = 10 * 60 * 1000
 
 const SCOPE_LABEL_TH = 'ผลนำร่องในฟาร์มเดียว (Single-Farm Pilot Analysis) — ไม่ใช่เกณฑ์มาตรฐานใหม่ของโคนมไทย'
 
@@ -99,219 +104,167 @@ const parseRoutineExcludedHours = (milkingTimes = [], feedingTimes = []) => {
 }
 
 /**
- * ควบคุมอิทธิพลของชั่วโมงของวัน (Within-hour centering):
- * Y*_i = Y_i - (mean(Y_h) - mean(Y))
+ * % วัวนอนหลังหักค่าเฉลี่ยของชั่วโมงนั้น (ไว้แสดงกราฟ) ค่าในการคำนวณจริงใช้ demeanByHour ด้านล่าง
  */
 const adjustForHourOfDay = (points) => {
     if (!points.length) return []
     const grandMean = mean(points.map(p => p.lying_pct))
-    const byHour = new Map()
+    const hourMean = groupMean(points, p => p.lying_pct)
+    return points.map(p => ({ ...p, adjusted_lying_pct: r2(p.lying_pct - (hourMean.get(p.hour_of_day) - grandMean)) }))
+}
+
+const groupMean = (points, f) => {
+    const acc = new Map()
     for (const p of points) {
-        if (!byHour.has(p.hour_of_day)) byHour.set(p.hour_of_day, [])
-        byHour.get(p.hour_of_day).push(p.lying_pct)
+        const v = acc.get(p.hour_of_day) || { s: 0, n: 0 }
+        v.s += f(p); v.n++
+        acc.set(p.hour_of_day, v)
     }
-    const hourMean = new Map()
-    for (const [h, vals] of byHour) hourMean.set(h, mean(vals))
+    const out = new Map()
+    for (const [h, v] of acc) out.set(h, v.s / v.n)
+    return out
+}
 
-    return points.map(p => {
-        const adj = p.lying_pct - (hourMean.get(p.hour_of_day) - grandMean)
-        return {
-            ...p,
-            adjusted_lying_pct: r2(Math.max(0, Math.min(100, adj)))
-        }
+// ตัดค่าเฉลี่ยรายชั่วโมงออก (hour fixed effects)
+const demeanByHour = (points, values) => {
+    const acc = new Map()
+    points.forEach((p, i) => {
+        const v = acc.get(p.hour_of_day) || { s: 0, n: 0 }
+        v.s += values[i]; v.n++
+        acc.set(p.hour_of_day, v)
     })
+    return values.map((x, i) => { const v = acc.get(points[i].hour_of_day); return x - v.s / v.n })
 }
 
 /**
- * แก้สมการ OLS สำหรับโมเดลเส้นหัก 2 ช่วง (Two-phase broken-line regression) ที่จุดหัก tau:
- * y = b0 + b1 * min(0, x - tau) + b2 * max(0, x - tau)
+ * OLS ไม่มีค่าคงที่ (ตัวแปรถูก demean ตามชั่วโมงแล้ว) y ~ b1*h1 + b2*h2 คืน { b1, b2, rss }
  */
-const fitAtBreakpoint = (pts, tau) => {
-    const n = pts.length
-    let s1 = 0, sX1 = 0, sX2 = 0, sY = 0
-    let sX1X1 = 0, sX1X2 = 0, sX2X2 = 0
-    let sX1Y = 0, sX2Y = 0
-
-    for (let i = 0; i < n; i++) {
-        const x = pts[i].thi
-        const y = pts[i].adjusted_lying_pct
-        const x1 = x < tau ? x - tau : 0
-        const x2 = x > tau ? x - tau : 0
-        s1 += 1
-        sX1 += x1
-        sX2 += x2
-        sY += y
-        sX1X1 += x1 * x1
-        sX1X2 += x1 * x2
-        sX2X2 += x2 * x2
-        sX1Y += x1 * y
-        sX2Y += x2 * y
+const ols2 = (y, h1, h2) => {
+    let a11 = 0, a12 = 0, a22 = 0, c1 = 0, c2 = 0
+    for (let i = 0; i < y.length; i++) {
+        a11 += h1[i] * h1[i]; a12 += h1[i] * h2[i]; a22 += h2[i] * h2[i]
+        c1 += h1[i] * y[i]; c2 += h2[i] * y[i]
     }
-
-    // แก้ระบบสมการ 3x3 ด้วย Gaussian elimination
-    const A = [
-        [s1, sX1, sX2, sY],
-        [sX1, sX1X1, sX1X2, sX1Y],
-        [sX2, sX1X2, sX2X2, sX2Y]
-    ]
-
-    for (let col = 0; col < 3; col++) {
-        let pivot = col
-        for (let row = col + 1; row < 3; row++) {
-            if (Math.abs(A[row][col]) > Math.abs(A[pivot][col])) pivot = row
-        }
-        if (Math.abs(A[pivot][col]) < 1e-9) return null
-        if (pivot !== col) {
-            const tmp = A[col]
-            A[col] = A[pivot]
-            A[pivot] = tmp
-        }
-        const div = A[col][col]
-        for (let j = col; j < 4; j++) A[col][j] /= div
-        for (let row = 0; row < 3; row++) {
-            if (row === col) continue
-            const factor = A[row][col]
-            for (let j = col; j < 4; j++) A[row][j] -= factor * A[col][j]
-        }
-    }
-
-    const b0 = A[0][3]
-    const slopeBefore = A[1][3]
-    const slopeAfter = A[2][3]
-
+    const det = a11 * a22 - a12 * a12
+    if (Math.abs(det) < 1e-9) return null
+    const b1 = (c1 * a22 - c2 * a12) / det
+    const b2 = (a11 * c2 - a12 * c1) / det
     let rss = 0
-    for (let i = 0; i < n; i++) {
-        const x = pts[i].thi
-        const y = pts[i].adjusted_lying_pct
-        const x1 = x < tau ? x - tau : 0
-        const x2 = x > tau ? x - tau : 0
-        const yHat = b0 + slopeBefore * x1 + slopeAfter * x2
-        const err = y - yHat
-        rss += err * err
-    }
-
-    return { tau, b0, slopeBefore, slopeAfter, rss }
-}
-
-const findBestBrokenLine = (pts, minSide = MIN_SIDE_POINTS) => {
-    const sortedThi = pts.map(p => p.thi).sort((a, b) => a - b)
-    if (sortedThi.length < minSide * 2) return null
-
-    const lowThi = Math.ceil(sortedThi[minSide] * 5) / 5
-    const highThi = Math.floor(sortedThi[sortedThi.length - 1 - minSide] * 5) / 5
-    if (highThi <= lowThi) return null
-
-    let best = null
-    for (let t = lowThi; t <= highThi + 1e-6; t = Math.round((t + 0.2) * 10) / 10) {
-        const leftCount = pts.filter(p => p.thi < t).length
-        const rightCount = pts.filter(p => p.thi >= t).length
-        if (leftCount < minSide || rightCount < minSide) continue
-        const fit = fitAtBreakpoint(pts, t)
-        if (fit && (!best || fit.rss < best.rss)) best = fit
-    }
-    return best
+    for (let i = 0; i < y.length; i++) { const e = y[i] - b1 * h1[i] - b2 * h2[i]; rss += e * e }
+    return { b1, b2, rss }
 }
 
 /**
- * วิเคราะห์ Broken-line Regression พร้อม 95% Bootstrap CI (pure function)
+ * หาจุดหักที่ดีที่สุด: % วัวนอน = ผลของชั่วโมง + b1*min(0, THI-tau) + b2*max(0, THI-tau)
+ * ชั่วโมงของวันถูกควบคุมทั้งฝั่ง y และฝั่งตัวแปรเส้นหัก ความชันจึงไม่หดเพราะ THI กับชั่วโมงสัมพันธ์กัน
  */
-const runBrokenLineAnalysis = (rawPoints, { excludedHours = [], routineLabels = [], thresholds = null } = {}) => {
+const findBestBrokenLine = (pts, minSide = MIN_SIDE_POINTS) => {
+    const n = pts.length
+    if (n < minSide * 2) return null
+    const sorted = pts.map(p => p.thi).sort((a, b) => a - b)
+    const lo = Math.ceil(sorted[minSide] * 5) / 5
+    const hi = Math.floor(sorted[n - 1 - minSide] * 5) / 5
+    if (hi <= lo) return null
+    const y = demeanByHour(pts, pts.map(p => p.lying_pct))
+    let best = null
+    for (let t = lo; t <= hi + 1e-6; t = Math.round((t + 0.2) * 10) / 10) {
+        const h1 = pts.map(p => (p.thi < t ? p.thi - t : 0))
+        const h2 = pts.map(p => (p.thi > t ? p.thi - t : 0))
+        const fit = ols2(y, demeanByHour(pts, h1), demeanByHour(pts, h2))
+        if (fit && (!best || fit.rss < best.rss)) best = { tau: t, slopeBefore: fit.b1, slopeAfter: fit.b2, rss: fit.rss }
+    }
+    if (!best) return null
+    const tss = y.reduce((s2, v) => s2 + v * v, 0)
+    return { ...best, r2_within_hour: tss > 0 ? Math.max(0, 1 - best.rss / tss) : 0 }
+}
+
+const pct = (sortedArr, q) => sortedArr[Math.min(sortedArr.length - 1, Math.max(0, Math.floor(sortedArr.length * q)))]
+
+/**
+ * วิเคราะห์ Broken-line Regression (pure function)
+ * แต่ละจุดต้องมี day_key (วันเวลาไทย) สำหรับ block bootstrap รายวัน
+ */
+const runBrokenLineAnalysis = (rawPoints, { excludedHours = [], routineLabels = [], thresholds = null, auditedCount = null } = {}) => {
     const excludedSet = new Set(excludedHours)
     const filtered = rawPoints.filter(p => !excludedSet.has(p.hour_of_day))
     const excludedCount = rawPoints.length - filtered.length
+    const dayKeys = [...new Set(filtered.map(p => p.day_key || String(p.hour_key || '').slice(0, 10)))]
 
     const thiVals = filtered.map(p => p.thi).filter(Number.isFinite)
     const thiMin = thiVals.length ? r1(Math.min(...thiVals)) : null
     const thiMax = thiVals.length ? r1(Math.max(...thiVals)) : null
     const thiSpan = thiMin != null && thiMax != null ? r1(thiMax - thiMin) : 0
 
+    const cameraNote = auditedCount != null && auditedCount < MIN_AUDITS_FOR_TRUST
+        ? `ยังนับเทียบภาพกล้องแล้ว ${auditedCount} ภาพ (ควรอย่างน้อย ${MIN_AUDITS_FOR_TRUST} ภาพ) จึงยังไม่รู้ว่ากล้องนับวัวนอนแม่นแค่ไหนในโรงเรือนนี้`
+        : null
     const baseInfo = {
         scope_label_th: SCOPE_LABEL_TH,
         total_paired_hours: rawPoints.length,
         excluded_routine_hours_count: excludedCount,
         analyzed_hours: filtered.length,
+        analyzed_days: dayKeys.length,
+        min_required_days: MIN_DAYS,
         min_required_hours: MIN_PAIRED_HOURS,
         min_required_thi_span: MIN_THI_SPAN,
         excluded_hours_of_day: excludedHours,
         routine_labels: routineLabels,
         thi_range: { min: thiMin, max: thiMax, span: thiSpan },
-        thresholds
+        thresholds,
+        camera_accuracy_note_th: cameraNote
     }
+    const points = adjustForHourOfDay(filtered)
+    const notEnough = (reason) => ({ ...baseInfo, sufficient_data: false, breakpoint_found: false, reason_th: reason, broken_line: null, points })
 
-    if (filtered.length < MIN_PAIRED_HOURS) {
-        return {
-            ...baseInfo,
-            sufficient_data: false,
-            reason_th: `มีข้อมูลรายชั่วโมงหลังตัดช่วงรีดนม/ให้อาหาร ${filtered.length} ชั่วโมง (ต้องการอย่างน้อย ${MIN_PAIRED_HOURS} ชั่วโมง เพื่อวิเคราะห์จุดหักอย่างน่าเชื่อถือ)`,
-            broken_line: null,
-            points: adjustForHourOfDay(filtered)
-        }
-    }
+    if (dayKeys.length < MIN_DAYS) return notEnough(`มีข้อมูล ${dayKeys.length} วัน ต้องการอย่างน้อย ${MIN_DAYS} วัน (ข้อมูลไม่กี่วันมักได้จุดหักที่เกิดจากความบังเอิญ)`)
+    if (filtered.length < MIN_PAIRED_HOURS) return notEnough(`มีข้อมูลรายชั่วโมงหลังตัดช่วงรีดนม/ให้อาหาร ${filtered.length} ชั่วโมง (ต้องการอย่างน้อย ${MIN_PAIRED_HOURS} ชั่วโมง)`)
+    if (thiSpan < MIN_THI_SPAN) return notEnough(`ช่วงค่า THI ที่วัดได้แคบเกินไป (${thiMin}–${thiMax}, ต่างกัน ${thiSpan} หน่วย ต้องการอย่างน้อย ${MIN_THI_SPAN} หน่วย)`)
 
-    if (thiSpan < MIN_THI_SPAN) {
-        return {
-            ...baseInfo,
-            sufficient_data: false,
-            reason_th: `ช่วงค่า THI ที่วัดได้แคบเกินไป (${thiMin}–${thiMax}, ต่างกัน ${thiSpan} หน่วย ต้องการอย่างน้อย ${MIN_THI_SPAN} หน่วย เพื่อหาจุดหัก)`,
-            broken_line: null,
-            points: adjustForHourOfDay(filtered)
-        }
-    }
+    const best = findBestBrokenLine(filtered, MIN_SIDE_POINTS)
+    if (!best) return notEnough(`ข้อมูลฝั่งซ้ายหรือขวาของจุดหักไม่พอ (ต้องการอย่างน้อยฝั่งละ ${MIN_SIDE_POINTS} ชั่วโมง)`)
 
-    const adjusted = adjustForHourOfDay(filtered)
-    const best = findBestBrokenLine(adjusted, MIN_SIDE_POINTS)
-    if (!best) {
-        return {
-            ...baseInfo,
-            sufficient_data: false,
-            reason_th: 'จำนวนข้อมูลฝั่งซ้ายหรือขวาของจุดหักยังไม่เพียงพอ (ต้องการอย่างน้อยฝั่งละ 10 ชั่วโมง)',
-            broken_line: null,
-            points: adjusted
-        }
-    }
-
-    // คำนวณ R^2
-    const yMean = mean(adjusted.map(p => p.adjusted_lying_pct))
-    const tss = adjusted.reduce((s, p) => s + (p.adjusted_lying_pct - yMean) ** 2, 0)
-    const rSquared = tss > 0 ? Math.max(0, 1 - best.rss / tss) : 0
-
-    // Deterministic Bootstrap (LCG seed คงที่) สำหรับคำนวณ 95% CI ของจุดหัก
+    // block bootstrap รายวัน (seed คงที่ ผลซ้ำได้)
     let seed = 20261028
-    const rand = () => {
-        seed = (seed * 1664525 + 1013904223) >>> 0
-        return seed / 4294967296
+    const rand = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296 }
+    const byDay = new Map()
+    for (const p of filtered) {
+        const k = p.day_key || String(p.hour_key || '').slice(0, 10)
+        if (!byDay.has(k)) byDay.set(k, [])
+        byDay.get(k).push(p)
     }
-
-    const bootTaus = []
-    const n = adjusted.length
+    const days = [...byDay.values()]
+    const taus = [], afters = [], diffs = []
     for (let b = 0; b < BOOTSTRAP_ITERATIONS; b++) {
-        const sample = Array.from({ length: n }, () => adjusted[Math.floor(rand() * n)])
-        const bFit = findBestBrokenLine(sample, Math.max(6, Math.floor(MIN_SIDE_POINTS * 0.8)))
-        if (bFit) bootTaus.push(bFit.tau)
+        const sample = []
+        for (let d = 0; d < days.length; d++) sample.push(...days[Math.floor(rand() * days.length)])
+        const f = findBestBrokenLine(sample, Math.floor(MIN_SIDE_POINTS * 0.8))
+        if (!f) continue
+        taus.push(f.tau); afters.push(f.slopeAfter); diffs.push(f.slopeAfter - f.slopeBefore)
     }
-    bootTaus.sort((a, b) => a - b)
-    const ciLow = bootTaus.length >= 20 ? r1(bootTaus[Math.floor(bootTaus.length * 0.025)]) : null
-    const ciHigh = bootTaus.length >= 20 ? r1(bootTaus[Math.floor(bootTaus.length * 0.975)]) : null
+    if (taus.length < 50) return notEnough('คำนวณช่วงความเชื่อมั่นไม่ได้ (ข้อมูลกระจายไม่พอ)')
+    for (const arr of [taus, afters, diffs]) arr.sort((x, y2) => x - y2)
+    const ci = (arr) => [r2(pct(arr, 0.025)), r2(pct(arr, 0.975))]
+    const [tauLo, tauHi] = ci(taus), [aftLo, aftHi] = ci(afters), [dLo, dHi] = ci(diffs)
+    const slopeChangeReal = dLo > 0 || dHi < 0           // เส้นหักต่างจากเส้นตรงจริง
+    const afterNonZero = aftLo > 0 || aftHi < 0          // หลังจุดหักมีแนวโน้มจริง
+    const found = slopeChangeReal && afterNonZero && best.slopeAfter < 0
 
-    return {
-        ...baseInfo,
-        sufficient_data: true,
-        reason_th: null,
-        broken_line: {
-            breakpoint_thi: r1(best.tau),
-            ci95_low: ciLow,
-            ci95_high: ciHigh,
-            intercept_at_breakpoint: r2(best.b0),
-            slope_before_per_thi: r2(best.slopeBefore),
-            slope_after_per_thi: r2(best.slopeAfter),
-            r_squared: r2(rSquared),
-            bootstrap_samples: bootTaus.length,
-            interpretation_th: best.slopeAfter < 0
-                ? `เมื่อ THI สูงเกินประมาณ ${r1(best.tau)} (95% CI: ${ciLow ?? '—'}–${ciHigh ?? '—'}) สัดส่วนวัวนอน (ปรับตามชั่วโมงของวันแล้ว) เปลี่ยนแปลง ${r2(best.slopeAfter)}% ต่อ +1 THI (ผลนำร่องเฉพาะโรงเรือนนี้)`
-                : `จุดเปลี่ยนความชันอยู่ที่ THI ประมาณ ${r1(best.tau)} (95% CI: ${ciLow ?? '—'}–${ciHigh ?? '—'}) แต่ยังไม่พบการลดลงของ % วัวนอนหลังจุดหักอย่างชัดเจนในชุดข้อมูลนำร่องนี้`
-        },
-        points: adjusted
+    const brokenLine = {
+        breakpoint_thi: r1(best.tau),
+        ci95_low: r1(tauLo),
+        ci95_high: r1(tauHi),
+        slope_before_per_thi: r2(best.slopeBefore),
+        slope_after_per_thi: r2(best.slopeAfter),
+        slope_after_ci95: [aftLo, aftHi],
+        slope_change_ci95: [dLo, dHi],
+        r_squared_within_hour: r2(best.r2_within_hour),
+        bootstrap_samples: taus.length,
+        bootstrap_method: 'block bootstrap รายวัน',
+        interpretation_th: found
+            ? `ผลนำร่อง: เมื่อ THI สูงเกินประมาณ ${r1(best.tau)} (95% CI ${r1(tauLo)}–${r1(tauHi)}) % วัวนอน (หลังควบคุมชั่วโมงของวัน) ลดลง ${Math.abs(r2(best.slopeAfter))}% ต่อ +1 THI (95% CI ${aftLo}–${aftHi}) เฉพาะโรงเรือนนี้ ${dayKeys.length} วัน`
+            : `ยังไม่พบจุดเปลี่ยนที่ชัดเจน: เส้นหักไม่ต่างจากเส้นตรงอย่างมีนัยสำคัญ หรือหลังจุดหักไม่มีแนวโน้มลดลงที่ชัด (ข้อมูล ${dayKeys.length} วัน) จึงไม่รายงานค่า THI ของจุดหัก`
     }
+    return { ...baseInfo, sufficient_data: true, breakpoint_found: found, reason_th: null, broken_line: found ? brokenLine : { ...brokenLine, breakpoint_thi: null, ci95_low: null, ci95_high: null }, points }
 }
 
 /**
@@ -402,15 +355,17 @@ const saveSampleAudit = async (farmId, payload, adminEmail = null) => {
         ? parseNonNegInt(payload.human_total, true)
         : humanLying + humanStanding + (humanFeeding || 0) + (humanDrinking || 0)
 
-    const modelLying = parseNonNegInt(payload.model_lying ?? 0, false) ?? 0
-    const modelStanding = parseNonNegInt(payload.model_standing ?? 0, false) ?? 0
-    const modelFeeding = parseNonNegInt(payload.model_feeding ?? 0, false) ?? 0
-    const modelDrinking = parseNonNegInt(payload.model_drinking ?? 0, false) ?? 0
-    const modelTotal = payload.model_total != null
-        ? (parseNonNegInt(payload.model_total, false) ?? 0)
-        : modelLying + modelStanding + modelFeeding + modelDrinking
+    // จำนวนที่โมเดลนับ: อ่านจาก <HH>.json ฝั่ง server เท่านั้น (ไม่เชื่อค่าจาก client) ไม่มีไฟล์ = บันทึกไม่ได้
+    const meta = await readSampleResult(samplePath)
+    const modelCounts = countsFromMeta(meta)
+    if (!modelCounts) {
+        const err = new Error('ภาพนี้ไม่มีผลของโมเดล (ไม่มีไฟล์ .json ข้างภาพ) จึงนับเทียบไม่ได้')
+        err.statusCode = 400
+        throw err
+    }
+    const { lying: modelLying, standing: modelStanding, feeding: modelFeeding, drinking: modelDrinking, total: modelTotal } = modelCounts
 
-    const capturedAt = payload.captured_at ? new Date(payload.captured_at) : null
+    const capturedAt = meta?.captured_at ? new Date(meta.captured_at) : null
     const validCapturedAt = capturedAt && !Number.isNaN(capturedAt.getTime()) ? capturedAt.toISOString() : null
     const note = payload.note ? String(payload.note).trim().slice(0, 500) : null
 
@@ -464,28 +419,28 @@ const saveSampleAudit = async (farmId, payload, adminEmail = null) => {
 /**
  * วิเคราะห์ % วัวนอนรายชั่วโมงเทียบกับ THI ของฟาร์ม (ดึงข้อมูลจริงจาก DB)
  */
+const analysisCache = new Map() // `${farmId}_${days}` -> { at, data } bootstrap ใช้ CPU จึงไม่คำนวณซ้ำทุกคำขอ
 const getFarmLyingThiAnalysis = async (farmId, { days = 30 } = {}) => {
     const lookbackDays = Math.min(90, Math.max(7, Number(days) || 30))
+    const cacheKey = `${farmId}_${lookbackDays}`
+    const hit = analysisCache.get(cacheKey)
+    if (hit && Date.now() - hit.at < CACHE_MS) return hit.data
+    const data = await computeFarmLyingThiAnalysis(farmId, lookbackDays)
+    analysisCache.set(cacheKey, { at: Date.now(), data })
+    if (analysisCache.size > 200) analysisCache.clear()
+    return data
+}
 
-    let farm = null
-    try {
-        const { rows } = await db.query(
-            `SELECT id_farms, name_farms, hf_profile, milking_times, feeding_times
-             FROM tb_farms WHERE id_farms = $1 LIMIT 1`,
-            [farmId]
-        )
-        farm = rows[0] || null
-    } catch (err) {
-        if (err.code === '42703') {
-            const { rows } = await db.query(
-                `SELECT id_farms, name_farms, hf_profile FROM tb_farms WHERE id_farms = $1 LIMIT 1`,
-                [farmId]
-            )
-            farm = rows[0] ? { ...rows[0], milking_times: [], feeding_times: [] } : null
-        } else {
-            throw err
-        }
-    }
+const computeFarmLyingThiAnalysis = async (farmId, lookbackDays) => {
+
+    // to_jsonb ใช้ได้ทั้งก่อนและหลังรัน migration ของ hf_profile / milking_times / feeding_times
+    const { rows: farmRows } = await db.query(
+        `SELECT f.id_farms, f.name_farms, to_jsonb(f)->>'hf_profile' AS hf_profile,
+                to_jsonb(f)->'milking_times' AS milking_times, to_jsonb(f)->'feeding_times' AS feeding_times
+         FROM tb_farms f WHERE f.id_farms = $1 LIMIT 1`,
+        [farmId]
+    )
+    const farm = farmRows[0] || null
 
     if (!farm) {
         const err = new Error('ไม่พบฟาร์มที่ระบุ')
@@ -541,7 +496,7 @@ const getFarmLyingThiAnalysis = async (farmId, { days = 30 } = {}) => {
         const mm = String(t.getMonth() + 1).padStart(2, '0')
         const dd = String(t.getDate()).padStart(2, '0')
         const hh = String(t.getHours()).padStart(2, '0')
-        return { key: `${yyyy}-${mm}-${dd} ${hh}:00`, hour: t.getHours() }
+        return { key: `${yyyy}-${mm}-${dd} ${hh}:00`, day: `${yyyy}-${mm}-${dd}`, hour: t.getHours() }
     }
 
     const sensorMap = new Map()
@@ -552,7 +507,7 @@ const getFarmLyingThiAnalysis = async (farmId, { days = 30 } = {}) => {
 
     const paired = []
     for (const c of camRes.rows) {
-        const { key, hour } = toKey(c.hour_bkk)
+        const { key, day, hour } = toKey(c.hour_bkk)
         const s = sensorMap.get(key)
         if (!s) continue
         const thi = Number(s.avg_thi)
@@ -560,6 +515,7 @@ const getFarmLyingThiAnalysis = async (farmId, { days = 30 } = {}) => {
         if (!Number.isFinite(thi) || !Number.isFinite(lyingPct)) continue
         paired.push({
             hour_key: key,
+            day_key: day,
             hour_of_day: hour,
             thi: r1(thi),
             temp_c: r1(Number(s.avg_temp)),
@@ -572,10 +528,17 @@ const getFarmLyingThiAnalysis = async (farmId, { days = 30 } = {}) => {
         })
     }
 
+    let auditedCount = null
+    try {
+        const { rows: [c] } = await db.query(`SELECT COUNT(*)::int AS n FROM tb_camera_sample_audits WHERE id_farms = $1`, [farmId])
+        auditedCount = c.n
+    } catch (e) { auditedCount = 0 }
+
     const analysis = runBrokenLineAnalysis(paired, {
         excludedHours: excluded_hours,
         routineLabels: routine_labels,
-        thresholds
+        thresholds,
+        auditedCount
     })
 
     return {
@@ -592,6 +555,7 @@ const getFarmLyingThiAnalysis = async (farmId, { days = 30 } = {}) => {
 module.exports = {
     SCOPE_LABEL_TH,
     MIN_PAIRED_HOURS,
+    MIN_DAYS,
     summarizeAudits,
     parseRoutineExcludedHours,
     adjustForHourOfDay,

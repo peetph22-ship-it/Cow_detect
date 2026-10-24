@@ -77,6 +77,31 @@ const maybeSaveSample = async (farmId, capturedAt, jpeg, result = null, imgsz = 
     }
 }
 
+// จำนวนที่โมเดลนับได้จาก HH.json (null = ไม่มีผลของโมเดลสำหรับภาพนี้)
+const countsFromMeta = (meta) => {
+    const c = meta?.counts
+    if (!c) return null
+    const n = (v) => Number(v || 0)
+    const total = meta.total != null ? Number(meta.total) : n(c.lying) + n(c.standing) + n(c.feeding) + n(c.drinking)
+    return { lying: n(c.lying), standing: n(c.standing), feeding: n(c.feeding), drinking: n(c.drinking), total }
+}
+
+/**
+ * อ่านผลของโมเดลของภาพเดียวจาก <HH>.json ฝั่ง server (ใช้ตอนบันทึกผลนับเทียบ ไม่เชื่อค่าที่ client ส่งมา)
+ * คืน null ถ้าไม่มีไฟล์หรืออ่านไม่ได้
+ */
+const readSampleResult = async (samplePath) => {
+    const supabase = getClient()
+    if (!supabase || !/^[^/]+\/\d{4}-\d{2}-\d{2}\/\d{2}\.jpg$/.test(samplePath)) return null
+    try {
+        const { data: blob, error } = await supabase.storage.from(BUCKET).download(samplePath.replace(/\.jpg$/, '.json'))
+        if (error || !blob) return null
+        return JSON.parse(await blob.text())
+    } catch (e) {
+        return null
+    }
+}
+
 /**
  * ดึงรายการภาพตัวอย่างของฟาร์มจาก bucket camera-samples พร้อม Signed URL และไฟล์ผลลัพธ์ .json ข้างกัน
  * ใช้ในหน้า Admin นับเทียบความแม่นยำของโมเดล
@@ -152,10 +177,8 @@ const listFarmSamples = async (farmId, { limit = 24, maxDays = 14 } = {}) => {
                     // ถ้าอ่าน json ไม่สำเร็จ ยังแสดงภาพได้
                 }
             }
-            const counts = meta?.counts || { lying: 0, standing: 0, feeding: 0, drinking: 0 }
-            const total = meta?.total != null
-                ? Number(meta.total)
-                : Number(counts.lying || 0) + Number(counts.standing || 0) + Number(counts.feeding || 0) + Number(counts.drinking || 0)
+            // ไม่มี HH.json = ไม่รู้ว่าโมเดลนับได้เท่าไร (ห้ามแสดงเป็น 0)
+            const counts = meta?.counts || null
 
             return {
                 sample_path: item.sample_path,
@@ -166,13 +189,7 @@ const listFarmSamples = async (farmId, { limit = 24, maxDays = 14 } = {}) => {
                 image_url: signedMap.get(item.sample_path) || null,
                 model: meta?.model || MODEL_FILE,
                 image_size: meta?.image || null,
-                model_counts: {
-                    lying: Number(counts.lying || 0),
-                    standing: Number(counts.standing || 0),
-                    feeding: Number(counts.feeding || 0),
-                    drinking: Number(counts.drinking || 0),
-                    total
-                },
+                model_counts: countsFromMeta(meta),
                 boxes: Array.isArray(meta?.boxes) ? meta.boxes : [],
                 has_json: Boolean(meta)
             }
@@ -185,4 +202,4 @@ const listFarmSamples = async (farmId, { limit = 24, maxDays = 14 } = {}) => {
     }
 }
 
-module.exports = { maybeSaveSample, samplePath, buildSampleJson, listFarmSamples }
+module.exports = { maybeSaveSample, samplePath, buildSampleJson, listFarmSamples, readSampleResult, countsFromMeta }

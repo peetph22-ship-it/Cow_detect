@@ -100,7 +100,7 @@ The visual design is grounded in the **Biophilic Agritech Design System**, balan
 ### 4.2 Section 2: Scientific Signal Strip
 - Anchors the platform's methodology with 4 key parameters:
   - **THI 74 / 76 / 82:** Daily-mean thresholds for Thai crossbred dairy cattle (Boonkum et al., 2011; 2024).
-  - **22:00–06:00:** Night relief window where $\text{THI} < 74$ allows cows to dissipate accumulated heat (Igono et al., 1992).
+  - **22:00–06:00:** Night relief window where $\text{THI} < 74$ (the system's Thai-crossbred watch threshold) lets cows dissipate accumulated heat. The night-cooling idea is from Igono et al., 1992 (Holsteins, desert climate), which did not set the value 74.
   - **5-Min Buckets:** Unified sensor aggregation interval without gap interpolation (`heatMetrics.js`).
   - **3-Day Forecast:** Daily-mean THI forecast using Open-Meteo ECMWF adjusted by 3–14 day farm sensor median bias (`forecastService.js`).
 
@@ -133,7 +133,7 @@ The visual design is grounded in the **Biophilic Agritech Design System**, balan
   1. **NRC (1971):** Standard Temperature-Humidity Index (THI) equation.
   2. **Sae-tiao et al. (2019, LRRD 31(12)):** Application of the NRC (1971) equation in Thai dairy cattle studies.
   3. **Boonkum et al. (2011, J. Dairy Sci. 94:487; 2024, Animals 14(20):3026):** Thai-Holstein daily-mean THI thresholds (`74 / 76 / 82`) and effects on milk yield and conception rate.
-  4. **Igono et al. (1992, Int. J. Biometeorol. 36:77–87) & Penn State Extension:** Importance of nighttime cooling ($\text{THI} < 74$) and direct wetting + fan ventilation under high humidity.
+  4. **Igono et al. (1992, Int. J. Biometeorol. 36:77–87) & Penn State Extension:** Importance of nighttime cooling (74 is the system threshold, not from Igono) and direct wetting + fan ventilation under high humidity.
 
 ### 4.7 Section 7: Final Conversion CTA & Footer
 - A clean closing block driving visitors to `/login` or internal documentation anchors (`#solution`), completed with `<AppFooter />`.

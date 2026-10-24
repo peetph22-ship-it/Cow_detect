@@ -457,16 +457,9 @@
               type="button"
               @click="showTestModal = false"
               class="px-4 py-2.5 rounded-xl text-xs font-bold text-[#718078] hover:bg-[#F2F4F2] cursor-pointer">
-              ยกเลิก
+              ปิด
             </button>
-            <button
-              type="button"
-              @click="sendTestAlert"
-              :disabled="isSending"
-              class="px-6 py-2.5 rounded-xl text-xs font-bold bg-[#06C755] hover:bg-[#05b34c] text-white flex items-center gap-2 cursor-pointer disabled:opacity-50">
-              <v-icon v-if="!isSending" icon="mdi-send" size="16" />
-              <span>{{ isSending ? 'กำลังส่งแจ้งเตือน...' : 'ส่งแจ้งเตือนทดสอบ' }}</span>
-            </button>
+            <!-- ไม่มีปุ่มส่ง: ระบบ LINE ยังไม่เปิดใช้ (backend ปิด /alerts/send-test ไว้) -->
           </div>
         </div>
       </div>
@@ -566,33 +559,6 @@ const fetchFarmAlerts = async () => {
 
 const openTestModal = () => {
   showTestModal.value = true
-}
-
-const sendTestAlert = async () => {
-  isSending.value = true
-  try {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
-    const headers = token ? { Authorization: `Bearer ${token}` } : {}
-
-    await axios.post(`${Admin}/alerts/send-test`, {
-      farm_id: farmId.value,
-      farm_name: farm.value?.name_farms || 'ฟาร์มสมาชิก',
-      barn_unit: farm.value?.barn_unit || 'โรงเรือน 1',
-      thi: 84.5,
-      temp: 33.2,
-      hum: 78.0,
-      advice: '🚨 วิกฤตรุนแรง! เปิดพัดลมระบายอากาศทันที งดพ่นหมอกเนื่องจากความชื้นสูงเกิน 75%',
-      level: 'critical'
-    }, { headers })
-
-    showTestModal.value = false
-    alert(`ส่งการแจ้งเตือนทดสอบสำหรับฟาร์ม "${farm.value?.name_farms}" สำเร็จ!`)
-    await fetchFarmAlerts()
-  } catch (err) {
-    alert(err.response?.data?.message || 'เกิดข้อผิดพลาดในการส่งแจ้งเตือน')
-  } finally {
-    isSending.value = false
-  }
 }
 
 const markResolved = async (alertItem) => {

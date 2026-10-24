@@ -118,7 +118,10 @@ async function main() {
     console.log(`ตรวจสอบความแม่นยำการพยากรณ์ในโรงเรือนจริง (เฉพาะ version = ${FORECAST_VERSION}, วันที่มีข้อมูลจริง >= ${MIN_EVAL_DATA_HOURS} ชม.)`)
     console.log(`จำนวนฟาร์มที่ตรวจ: ${farms.length} ฟาร์ม`)
 
-    const overall = initBuckets()
+    // แยกผลตามแหล่งค่าเพี้ยน (farm = ปรับตามโรงเรือน, regional = ค่าเพี้ยนพื้นที่, none = ไม่ปรับ)
+    // นับเฉพาะผลจากพยากรณ์อากาศจริง (engine openmeteo_*) ผลจากวิธีสำรองค่าเฉลี่ย 72 ชม. ไม่นับรวม
+    const overallBySource = {}
+    const skipped = { not_hybrid: 0, not_created_on_issue_day: 0, no_base72: 0 }
 
     for (const farm of farms) {
         const profile = getFarmProfile(farm)
@@ -162,12 +165,19 @@ async function main() {
             continue
         }
 
-        const farmBuckets = initBuckets()
+        const farmBySource = {}
 
         for (const row of validSummaries) {
             const issueDate = toDateStr(row.summary_date)
             const fcObj = row.lstm_forecast
             const issueTime = new Date(`${issueDate}T20:00:00+07:00`)
+            const engine = String(fcObj.engine || '')
+            if (!engine.startsWith('openmeteo_')) { skipped.not_hybrid++; continue }
+            // พยากรณ์ต้องถูกสร้างในวันออกพยากรณ์ (เวลาไทย) ไม่ใช่สรุปย้อนหลังที่สร้างทีหลัง
+            if (!row.created_at || bkkDate(new Date(row.created_at)) !== issueDate) { skipped.not_created_on_issue_day++; continue }
+            const source = (engine.match(/_(farm|regional|none)_bias$/) || [])[1] || 'unknown'
+            if (!farmBySource[source]) farmBySource[source] = initBuckets()
+            if (!overallBySource[source]) overallBySource[source] = initBuckets()
 
             // คำนวณค่าเฉลี่ย 72 ชม. ย้อนหลัง ณ เวลา 20:00 น. ของวันออกพยากรณ์เพื่อเทียบบนวันเดียวกัน
             const hourly72 = await fetchHourlyThi(farm.id_farms, issueTime, 72)
@@ -183,6 +193,8 @@ async function main() {
 
                 const predThi = Number(item.predicted_thi)
                 if (!Number.isFinite(predThi)) continue
+                // เทียบกับค่าเฉลี่ย 72 ชม. บนวันเดียวกันเท่านั้น (ชุดวันเดียวกันทั้งสองวิธี)
+                if (base72Thi == null || !Number.isFinite(Number(base72Thi))) { skipped.no_base72++; continue }
 
                 const actualThi = Number(actual.avg_thi)
                 const actualLevel = actual.daily_mean_level || getRiskLevel(actualThi, profile)
@@ -192,18 +204,15 @@ async function main() {
                 const signedErr = predThi - actualThi
                 const levelMatch = predLevel === actualLevel
 
-                for (const target of [farmBuckets[h], overall[h]]) {
+                for (const target of [farmBySource[source][h], overallBySource[source][h]]) {
                     target.hybridAbs.push(absErr)
                     target.hybridSigned.push(signedErr)
                     target.hybridLevelMatch.push(levelMatch)
                     if (item.raw_forecast_thi != null && Number.isFinite(Number(item.raw_forecast_thi))) {
                         target.rawAbs.push(Math.abs(Number(item.raw_forecast_thi) - actualThi))
                     }
-                    if (base72Thi != null && Number.isFinite(Number(base72Thi))) {
-                        const baseLevel = getRiskLevel(base72Thi, profile)
-                        target.base72Abs.push(Math.abs(base72Thi - actualThi))
-                        target.base72LevelMatch.push(baseLevel === actualLevel)
-                    }
+                    target.base72Abs.push(Math.abs(base72Thi - actualThi))
+                    target.base72LevelMatch.push(getRiskLevel(base72Thi, profile) === actualLevel)
                     target.pairs.push({
                         issue_date: issueDate,
                         target_date: targetDate,
@@ -217,19 +226,23 @@ async function main() {
             }
         }
 
-        const totalMatched = HORIZONS.reduce((s, h) => s + farmBuckets[h].hybridAbs.length, 0)
+        const sources = Object.keys(farmBySource)
+        const totalMatched = sources.reduce((acc, src) => acc + HORIZONS.reduce((s2, h) => s2 + farmBySource[src][h].hybridAbs.length, 0), 0)
         if (!totalMatched) {
             console.log(`  -> ยังไม่มีคู่ (target_date) ที่ตรงกับวันที่มีข้อมูลจริง >= ${MIN_EVAL_DATA_HOURS} ชม. (ต้องรอให้วันพยากรณ์มาถึงและมีข้อมูลครบวัน)`)
         } else {
-            printTable(`ผลวัดรายฟาร์ม: ${farm.name_farms}`, farmBuckets)
+            for (const src of sources) printTable(`ผลวัดรายฟาร์ม: ${farm.name_farms} (ค่าเพี้ยนแบบ ${src})`, farmBySource[src])
         }
     }
 
-    const overallMatched = HORIZONS.reduce((s, h) => s + overall[h].hybridAbs.length, 0)
+    console.log(`\nไม่นับ: ผลจากวิธีสำรอง ${skipped.not_hybrid} แถว, สร้างย้อนหลัง (ไม่ใช่วันออกพยากรณ์) ${skipped.not_created_on_issue_day} แถว, ไม่มีค่าเฉลี่ย 72 ชม. ให้เทียบ ${skipped.no_base72} คู่`)
+    const farmSrc = overallBySource.farm
+    const overallMatched = farmSrc ? HORIZONS.reduce((s2, h) => s2 + farmSrc[h].hybridAbs.length, 0) : 0
+    for (const src of Object.keys(overallBySource)) printTable(`สรุปรวมทุกฟาร์ม (ค่าเพี้ยนแบบ ${src})`, overallBySource[src])
     if (overallMatched > 0) {
-        printTable('สรุปรวมทุกฟาร์มในโรงเรือนจริง', overall)
+        // เทียบกับผลทดสอบสถานี เฉพาะกรณีปรับตามโรงเรือน (farm) ซึ่งเป็นกรณีเดียวกับ EVALUATION.mae
         for (const h of HORIZONS) {
-            const s = summarizeHorizon(overall[h])
+            const s = summarizeHorizon(farmSrc[h])
             if (s.n > 0 && Math.abs(s.hybrid_mae - EVALUATION.mae[h]) >= 0.3) {
                 console.log(
                     `[หมายเหตุ +${h} วัน]: MAE ในโรงเรือนจริง (${fmt(s.hybrid_mae)}) ต่างจากผลทดสอบสถานีสนามบินเชียงใหม่ (${fmt(EVALUATION.mae[h])}) ` +

@@ -132,7 +132,7 @@ const getMethod = (profile = 'default') => {
             'Boonkum et al. (2011). Journal of Dairy Science 94:487. (น้ำนมเริ่มลดที่ THI 74 ในโคสายเลือด HF สูง)',
             'Boonkum et al. (2024). Animals 14(20):3026. (เกณฑ์ระดับประชากรที่ THI 76)',
             'Duangjinda et al. ICAR Technical Series 23. (moderate > 74, severe > 80)',
-            'Igono et al. (1992). International Journal of Biometeorology 36:77–87. (ช่วงเย็นกลางคืนช่วยให้โคฟื้นจากความร้อน)',
+            'Igono et al. (1992). Environmental profile and critical temperature effects on milk production of Holstein cows in desert climate. International Journal of Biometeorology 36:77–87. (แนวคิดว่าความเย็นกลางคืนช่วยให้โคฟื้นตัว ค่า 74 เป็นเกณฑ์ของระบบ)',
             'Penn State Extension. Heat Stress Abatement Techniques for Dairy Cattle. (การฉีดน้ำตัวโคต้องคู่กับการระบายอากาศ)'
         ]
     }
