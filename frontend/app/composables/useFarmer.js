@@ -90,10 +90,17 @@ export const useFarmer = () => {
   const doneActions = useState('farmer.doneActions', () => [])
 
   const farm = computed(() => me.value?.farm || null)
+  const farms = computed(() => me.value?.farms || [])
   const now = computed(() => me.value?.now || null)
   const thresholds = computed(() => me.value?.thresholds || getThresholds(farm.value?.profile))
   const isAdmin = computed(() => user.value?.role === 'admin')
   const senior = computed(() => me.value?.senior || null)
+  const cooling = computed(() => me.value?.cooling || null)
+  const forecast = computed(() => me.value?.forecast || null)
+  const today = computed(() => me.value?.today || null)
+  const streak = computed(() => me.value?.streak || null)
+  const camera = computed(() => me.value?.camera || null)
+  const device = computed(() => me.value?.device || null)
 
   const token = () => (typeof window !== 'undefined' ? localStorage.getItem('token') : null)
 
@@ -310,6 +317,20 @@ export const useFarmer = () => {
         ]
       }
     }
+
+    // ปรับข้อความเช็กลิสต์ข้อสเปรย์น้ำให้สอดคล้องกับคำแนะนำความชื้นจริง (ไม่ให้ขัดแย้งกับ me.cooling)
+    if (d.senior?.action_templates && d.cooling?.humid) {
+      d.senior.action_templates = d.senior.action_templates.map(act => {
+        if (act.id === 'water_spray') {
+          return {
+            ...act,
+            title: 'ฉีดน้ำรดตัววัวสลับพัดลม (งดหมอกฝอย)',
+            desc: 'อากาศชื้นสูง งดพ่นหมอกฝอย ให้ฉีดน้ำรดหลังและไหล่วัวช่วงสั้นๆ แล้วเป่าพัดลมให้แห้ง'
+          }
+        }
+        return act
+      })
+    }
     return d
   }
 
@@ -375,10 +396,17 @@ export const useFarmer = () => {
     me,
     user,
     farm,
+    farms,
     now,
     thresholds,
     isAdmin,
     senior,
+    cooling,
+    forecast,
+    today,
+    streak,
+    camera,
+    device,
     loading,
     loaded,
     error,

@@ -43,6 +43,10 @@ export default defineNuxtConfig({
       pathPrefix: false,
     },
     {
+      path: '~/components/Farmer',
+      pathPrefix: false,
+    },
+    {
       path: '~/components/common',
       pathPrefix: false,
     },
