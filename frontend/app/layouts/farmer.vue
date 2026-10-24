@@ -70,6 +70,16 @@
             class="hidden lg:inline-flex text-xs font-bold text-[#A7D7C5] hover:text-white px-2.5 py-1.5 rounded-xl bg-[#2D6A4F] text-decoration-none">
             กลับแอดมิน
           </NuxtLink>
+
+          <!-- ปุ่มออกจากระบบด่วนบน Header -->
+          <button
+            type="button"
+            @click="openLogoutModal"
+            class="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-[#143225] hover:bg-[#B91C1C] text-[#FCA5A5] hover:text-white border border-white/10 flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+            title="ออกจากระบบ">
+            <v-icon icon="mdi-logout" size="16" />
+            <span class="hidden sm:inline">ออกจากระบบ</span>
+          </button>
         </div>
       </div>
 
@@ -141,6 +151,40 @@
         </NuxtLink>
       </div>
     </nav>
+
+    <!-- Modal ยืนยันออกจากระบบสำหรับผู้สูงอายุ (Senior-Friendly) -->
+    <div 
+      v-if="showLogoutModal" 
+      class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+      <div class="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl border border-gray-100 text-center space-y-4 animate-in fade-in zoom-in-95 duration-150">
+        <div class="w-16 h-16 rounded-full bg-[#FEF2F2] text-[#DC2626] mx-auto flex items-center justify-center shadow-inner">
+          <v-icon icon="mdi-logout-variant" size="32" />
+        </div>
+        <div class="space-y-1.5">
+          <h2 class="text-lg sm:text-xl font-black text-[#15221B]">
+            ต้องการออกจากระบบใช่หรือไม่?
+          </h2>
+          <p class="text-xs sm:text-sm text-[#64748B] leading-relaxed">
+            เมื่อออกจากระบบแล้ว ท่านจะต้องกรอกเบอร์โทรหรือรหัสผ่านเพื่อเข้าสู่ระบบใหม่อีกครั้ง
+          </p>
+        </div>
+        <div class="pt-2 flex flex-col gap-2.5">
+          <button
+            type="button"
+            @click="confirmLogout"
+            class="w-full h-13 rounded-2xl bg-[#DC2626] hover:bg-[#b91c1c] text-white font-black text-base flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-[0.99]">
+            <v-icon icon="mdi-logout" size="20" />
+            <span>ออกจากระบบทันที</span>
+          </button>
+          <button
+            type="button"
+            @click="cancelLogout"
+            class="w-full h-12 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-sm cursor-pointer">
+            ยกเลิก (อยู่หน้านี้ต่อ)
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -166,6 +210,10 @@ const {
   ensureAuth,
   refresh,
   logout,
+  showLogoutModal,
+  openLogoutModal,
+  cancelLogout,
+  confirmLogout,
   startPolling,
   stopPolling
 } = useFarmer()

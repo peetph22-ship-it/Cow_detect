@@ -135,13 +135,48 @@ export const useFarmer = () => {
     isSpeaking.value = false
   }
 
-  const logout = () => {
+  // หน้าต่างยืนยันการออกจากระบบ (Senior Modal)
+  const showLogoutModal = useState('farmer.showLogoutModal', () => false)
+
+  const openLogoutModal = () => {
+    showLogoutModal.value = true
+  }
+
+  const cancelLogout = () => {
+    showLogoutModal.value = false
+  }
+
+  const confirmLogout = async () => {
+    showLogoutModal.value = false
+    await logout()
+  }
+
+  const logout = async () => {
     stopSpeech()
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
+    
+    // แจ้งหลังบ้านว่าออกจากระบบ (Fire & forget)
+    try {
+      const apiBase = getNodeApiBase()
+      await axios.post(`${apiBase}/auth/logout`, {}, {
+        headers: token() ? { Authorization: `Bearer ${token()}` } : {},
+        timeout: 2000
+      }).catch(() => {})
+    } catch (e) {}
+
+    // ล้างข้อมูลและ Session ทั้งหมดในเครื่อง
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      localStorage.removeItem(FARM_KEY)
+      sessionStorage.clear()
+    }
     me.value = null
+    user.value = null
+    farmId.value = ''
+    doneActions.value = []
+    dailyLogs.value = []
     loaded.value = false
-    navigateTo('/login')
+    await navigateTo('/login?logout=success')
   }
 
   const ensureAuth = () => {
@@ -396,6 +431,10 @@ export const useFarmer = () => {
     postRequest,
     selectFarm,
     logout,
+    showLogoutModal,
+    openLogoutModal,
+    cancelLogout,
+    confirmLogout,
     startPolling,
     stopPolling
   }

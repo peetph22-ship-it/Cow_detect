@@ -254,7 +254,7 @@
 
       <button
         type="button"
-        @click="logout"
+        @click="openLogoutModal"
         class="w-full h-14 rounded-2xl border border-[#FECACA] bg-[#FEF2F2] hover:bg-[#FEE2E2] text-[#DC2626] text-base font-bold flex items-center justify-center gap-2 cursor-pointer shadow-2xs active:scale-[0.99]">
         <v-icon icon="mdi-logout" size="22" />
         <span>ออกจากระบบ</span>
@@ -281,7 +281,8 @@ const {
   currentBackendUrl, 
   testBackend, 
   switchBackend, 
-  logout 
+  logout,
+  openLogoutModal 
 } = useFarmer()
 
 const displayName = computed(() => user.value?.name_users || user.value?.full_name || user.value?.name || user.value?.email || 'เกษตรกร')
