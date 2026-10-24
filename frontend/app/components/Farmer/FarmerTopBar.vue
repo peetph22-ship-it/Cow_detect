@@ -70,21 +70,6 @@
             <span class="hidden sm:inline">{{ isSpeaking ? 'หยุดพูด' : 'ฟังเสียง' }}</span>
           </button>
 
-          <!-- ปุ่มปรับขนาดตัวอักษร ก / ก+ -->
-          <div class="flex items-center bg-[#12241F] p-1 rounded-xl border border-white/15" role="group" aria-label="ขนาดตัวอักษร">
-            <button
-              v-for="s in fontOptions"
-              :key="s.key"
-              type="button"
-              @click="setFontSize(s.key)"
-              class="px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg text-xs sm:text-sm font-black transition-all cursor-pointer"
-              :class="fontSize === s.key
-                ? 'bg-[#D87939] text-white shadow-2xs'
-                : 'text-[#A3C1B7] hover:text-white'">
-              {{ s.label }}
-            </button>
-          </div>
-
           <!-- ป้ายบอกเมื่อเชื่อมหลังบ้านเพื่อน (เฉพาะโหมดพัฒนา) -->
           <NuxtLink
             v-if="showBackendSwitch && isCustomBackend"
@@ -137,8 +122,6 @@ const {
   farms,
   now,
   isAdmin,
-  fontSize,
-  setFontSize,
   isSpeaking,
   selectFarm
 } = useFarmer()
@@ -149,10 +132,6 @@ onMounted(() => {
   showBackendSwitch.value = canSwitchBackend()
 })
 
-const fontOptions = [
-  { key: 'normal', label: 'ก' },
-  { key: 'large', label: 'ก+' }
-]
 
 const onSelectFarm = (event) => {
   const targetId = event.target?.value

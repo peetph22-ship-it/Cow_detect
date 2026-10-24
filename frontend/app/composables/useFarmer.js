@@ -11,7 +11,6 @@ import { getThresholds, RISK_LABELS_TH } from '~/utils/heatStress'
 
 const REFRESH_MS = 60 * 1000
 const FARM_KEY = 'farmer.farm_id'
-const FONT_KEY = 'farmer.font_size'
 
 let timer = null
 let listening = false
@@ -79,8 +78,6 @@ export const useFarmer = () => {
   const error = useState('farmer.error', () => '')
   const farmId = useState('farmer.farmId', () => '')
 
-  // ฟีเจอร์ผู้สูงอายุ: ขนาดตัวอักษร (normal = ปกติ, large = ใหญ่)
-  const fontSize = useState('farmer.fontSize', () => 'normal')
   const isSpeaking = useState('farmer.isSpeaking', () => false)
 
   // URL หลังบ้านที่กำลังเชื่อมต่ออยู่
@@ -104,12 +101,6 @@ export const useFarmer = () => {
 
   const token = () => (typeof window !== 'undefined' ? localStorage.getItem('token') : null)
 
-  const setFontSize = (size) => {
-    fontSize.value = size
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(FONT_KEY, size)
-    }
-  }
 
   // เสียงอ่านภาษาไทย (Web Speech API)
   const speakThai = (text) => {
@@ -119,7 +110,7 @@ export const useFarmer = () => {
     if (!text) return
     const utterance = new SpeechSynthesisUtterance(text)
     utterance.lang = 'th-TH'
-    utterance.rate = fontSize.value === 'large' ? 0.9 : 0.95 // อ่านช้าลงเล็กน้อยให้ผู้สูงอายุฟังทัน
+    utterance.rate = 0.9 // อ่านช้าลงเล็กน้อยให้ผู้สูงอายุฟังทัน
 
     const voices = window.speechSynthesis.getVoices()
     const thVoice = voices.find(v => v.lang && v.lang.startsWith('th'))
@@ -192,13 +183,6 @@ export const useFarmer = () => {
     user.value = u
     if (!farmId.value) farmId.value = localStorage.getItem(FARM_KEY) || ''
     
-    // โหลดขนาดตัวหนังสือที่เคยตั้งไว้
-    if (typeof window !== 'undefined') {
-      const savedFont = localStorage.getItem(FONT_KEY)
-      // 'huge' (ก++) เลิกใช้แล้ว: เครื่องที่เคยตั้งไว้ใช้ 'large' แทน
-      if (savedFont === 'huge') fontSize.value = 'large'
-      else if (savedFont && ['normal', 'large'].includes(savedFont)) fontSize.value = savedFont
-    }
     currentBackendUrl.value = getNodeApiBase()
     return true
   }
@@ -411,8 +395,6 @@ export const useFarmer = () => {
     loaded,
     error,
     farmId,
-    fontSize,
-    setFontSize,
     isSpeaking,
     speakThai,
     stopSpeech,

@@ -8,8 +8,7 @@
     <FarmerBottomNav variant="desktop" />
 
     <!-- เนื้อหาหลัก -->
-    <!-- ขยายเฉพาะเนื้อหา (แถบหัวและเมนูล่างคงขนาด ไม่ล้นจอโทรศัพท์) -->
-    <main class="flex-1 max-w-5xl w-full mx-auto px-4 py-5 pb-28 md:pb-12" :class="fontSizeClass">
+    <main class="flex-1 max-w-5xl w-full mx-auto px-4 py-5 pb-28 md:pb-12">
       <!-- สถานะกำลังโหลด -->
       <div v-if="!loaded" class="py-24 text-center space-y-3">
         <v-icon icon="mdi-loading" class="animate-spin text-[#2D6A4F]" size="44" />
@@ -73,7 +72,6 @@ const {
   cooling,
   loaded,
   error,
-  fontSize,
   isSpeaking,
   speakThai,
   stopSpeech,
@@ -84,10 +82,6 @@ const {
   stopPolling
 } = useFarmer()
 
-const fontSizeClass = computed(() => {
-  if (fontSize.value === 'large') return 'font-large'
-  return 'font-normal'
-})
 
 const handleVoiceToggle = () => {
   if (isSpeaking.value) {
@@ -111,9 +105,3 @@ onUnmounted(() => {
 })
 </script>
 
-<style>
-/* ปรับขนาดสำหรับผู้สูงอายุ: ขยายทั้งหน้าตามสัดส่วน (zoom) ตัวเลขใหญ่จึงใหญ่ขึ้นด้วย
-   เดิมบังคับทุก span เป็นขนาดเดียว ทำให้ตัวเลข text-4xl หดเหลือ ~18px เมื่อกด ก+ */
-.font-normal { zoom: 1; }
-.font-large { zoom: 1.12; }
-</style>

@@ -76,32 +76,8 @@
     <section class="bg-[#FFFDF7] rounded-3xl p-5 sm:p-7 shadow-xs border border-[#E6DEC8] space-y-4">
       <h2 class="text-base sm:text-lg font-black text-[#1B342D] flex items-center gap-2">
         <v-icon icon="mdi-eye-check-outline" class="text-[#2D6A4F]" size="24" />
-        <span>ตั้งค่าขนาดตัวอักษรและเสียงอ่าน</span>
+        <span>เสียงอ่าน</span>
       </h2>
-
-      <!-- ขนาดตัวหนังสือ -->
-      <div class="space-y-2">
-        <label class="block text-xs sm:text-sm font-extrabold text-[#4E655B]">
-          เลือกขนาดตัวอักษรที่อ่านสบายตาที่สุด:
-        </label>
-        <div class="grid grid-cols-2 gap-2.5 sm:gap-3">
-          <button
-            v-for="opt in [
-              { key: 'normal', title: 'ก ปกติ', desc: 'ขนาดมาตรฐาน' },
-              { key: 'large', title: 'ก+ ใหญ่', desc: 'อ่านง่ายขึ้น' }
-            ]"
-            :key="opt.key"
-            type="button"
-            @click="setFontSize(opt.key)"
-            class="p-3.5 rounded-2xl border-2 text-center transition-all cursor-pointer"
-            :class="fontSize === opt.key
-              ? 'border-[#1B342D] bg-[#1B342D] text-[#FFFDF7] font-black shadow-xs'
-              : 'border-[#E6DEC8] bg-white text-[#1B342D] font-bold hover:border-[#1B342D]/40'">
-            <div class="text-base sm:text-lg">{{ opt.title }}</div>
-            <div class="text-[11px] opacity-85 mt-0.5">{{ opt.desc }}</div>
-          </button>
-        </div>
-      </div>
 
       <!-- ทดสอบเสียงพูด -->
       <div class="pt-1">
@@ -295,8 +271,6 @@ const {
   thresholds,
   user,
   isAdmin,
-  fontSize,
-  setFontSize,
   speakThai,
   selectFarm,
   currentBackendUrl,
