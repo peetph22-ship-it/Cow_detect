@@ -62,7 +62,7 @@ def save_active_learning_sample(frame_copy: np.ndarray, metadata: Dict[str, Any]
         active_learning_daily_counts[count_key] = current_count + 1
 
         ts = int(time.time() * 1000)
-        clean_key = camera_key.replace(":", "_").replace("/", "_").replace(".", "_")
+        clean_key = re.sub(r"[^A-Za-z0-9_-]+", "_", camera_key).strip("_")  # ชื่อไฟล์ปลอดภัย ไม่มี ? & * :
         base_name = f"al_{clean_key}_{ts}"
         img_path = active_learning_dir / f"{base_name}.jpg"
         meta_path = active_learning_dir / f"{base_name}.json"
@@ -161,6 +161,100 @@ def get_connected_cameras():
     return cameras
 
 
+STREAM_FRAME_INTERVAL_S = 0.1   # ส่งภาพให้เบราว์เซอร์ ~10 เฟรม/วินาที
+STREAM_IDLE_TIMEOUT_S = 5.0     # ไม่มีผู้ชมดึงภาพเกิน 5 วินาที = ปิดเธรดอ่านกล้อง/YOLO
+
+
+def analyze_frame(frame, tracker, farm_id, camera_id, current_thi, is_simulation, safe_source):
+    """YOLO + ByteTrack หนึ่งเฟรม ส่งผลให้ Behavior Engine และเก็บภาพความมั่นใจต่ำ (ไม่วาดอะไรบนภาพ)"""
+    result = model.track(
+        source=frame,
+        conf=0.20,
+        persist=True,
+        tracker="bytetrack.yaml",
+        show=False,
+        verbose=False,
+    )[0]
+    boxes = result.boxes
+    counts = {"standing": 0, "lying down": 0, "feeding": 0, "drinking": 0}
+    detections = []
+    confs = []
+    if boxes is not None and len(boxes) > 0:
+        clss = boxes.cls.int().cpu().tolist()
+        confs = boxes.conf.cpu().tolist()
+        xyxy = boxes.xyxy.int().cpu().tolist()
+        track_ids = boxes.id.int().cpu().tolist() if boxes.id is not None else [None] * len(boxes)
+        for tid, c, cf, bbox in zip(track_ids, clss, confs, xyxy):
+            cname = model.names.get(c, str(c))
+            counts[cname] = counts.get(cname, 0) + 1
+            detections.append({"track_id": tid, "posture": cname, "conf": round(cf, 3), "bbox": bbox})
+
+    # ส่งข้อมูลให้ 3-Tier Behavior Engine (Layer 1 state, Layer 2 rollups, Layer 3 anomalies)
+    tracker.update_tracks(
+        detections,
+        current_thi=current_thi,
+        is_simulation=is_simulation,
+        frame_shape=frame.shape[:2]
+    )
+
+    # Active Learning Edge Collector: เก็บเฟรมความมั่นใจต่ำ (0.20 <= conf < 0.40) ไม่เกินทุก 10 วินาที
+    if confs:
+        avg_conf = float(np.mean(confs))
+        now_t = time.time()
+        if 0.20 <= avg_conf < 0.40 and now_t - getattr(tracker, "_last_al_save_time", 0.0) >= 10.0:
+            tracker._last_al_save_time = now_t
+            cam_k = camera_id or ("simulation" if is_simulation else safe_source)
+            al_meta = {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "camera_id": camera_id or safe_source,
+                "farm_id": farm_id,
+                "thi": current_thi,
+                "avg_conf": round(avg_conf, 3),
+                "num_cows": len(detections),
+                "detections": detections,
+            }
+            threading.Thread(target=save_active_learning_sample, args=(frame.copy(), al_meta, cam_k), daemon=True).start()
+
+    return {"detections": detections, "counts": counts}
+
+
+def draw_overlay(frame, analysis, mode_tag):
+    """วาดกรอบวัวจากผล YOLO ล่าสุด + แถบสรุปด้านบน (ผลอาจมาจากเฟรมก่อนหน้าไม่เกินราว 1 วินาที)"""
+    out = frame.copy()
+    detections = analysis["detections"] if analysis else []
+    counts = analysis["counts"] if analysis else {"standing": 0, "lying down": 0, "feeding": 0, "drinking": 0}
+    for d in detections:
+        x1, y1, x2, y2 = d["bbox"]
+        cname, cf, tid = d["posture"], d["conf"], d["track_id"]
+        color = BEHAVIOR_COLORS.get(cname, DEFAULT_COLOR)
+        cv2.rectangle(out, (x1, y1), (x2, y2), color, 2)
+        corner_len = min(18, max(6, (x2 - x1) // 5), max(6, (y2 - y1) // 5))
+        for (ax, ay), (bx, by) in [
+            ((x1, y1), (x1 + corner_len, y1)), ((x1, y1), (x1, y1 + corner_len)),
+            ((x2, y1), (x2 - corner_len, y1)), ((x2, y1), (x2, y1 + corner_len)),
+            ((x1, y2), (x1 + corner_len, y2)), ((x1, y2), (x1, y2 - corner_len)),
+            ((x2, y2), (x2 - corner_len, y2)), ((x2, y2), (x2, y2 - corner_len)),
+        ]:
+            cv2.line(out, (ax, ay), (bx, by), color, 3)
+        label_text = f"COW #{tid} | {cname} {int(cf * 100)}%" if tid is not None else f"{cname} {int(cf * 100)}%"
+        (tw, th), _ = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, 0.45, 1)
+        bg_y1 = max(0, y1 - th - 8)
+        bg_x2 = min(out.shape[1], x1 + tw + 10)
+        cv2.rectangle(out, (x1, bg_y1), (bg_x2, y1), color, -1)
+        cv2.putText(out, label_text, (x1 + 5, y1 - 4), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 0), 1, cv2.LINE_AA)
+
+    if analysis is None:
+        ai_text = "AI: starting..."
+    else:
+        ai_text = f"AI {time.time() - analysis['at']:.1f}s ago"
+    hud_text = (f"{mode_tag} COWS: {len(detections)} | Stand: {counts.get('standing', 0)} | Lie: {counts.get('lying down', 0)}"
+                f" | Feed: {counts.get('feeding', 0)} | Drink: {counts.get('drinking', 0)} | {ai_text}")
+    cv2.rectangle(out, (8, 8), (out.shape[1] - 8, 38), (20, 30, 25), -1)
+    cv2.rectangle(out, (8, 8), (out.shape[1] - 8, 38), (60, 90, 75), 1)
+    cv2.putText(out, hud_text, (16, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (240, 250, 245), 1, cv2.LINE_AA)
+    return out
+
+
 # ฟังก์ชัน generate สตรีมภาพรองรับ 3 แหล่ง (USB, RTSP Hikvision, Simulation MP4)
 def generate_frames(
     source: str = "0",
@@ -209,164 +303,94 @@ def generate_frames(
             yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + buffer.tobytes() + b"\r\n")
         return
 
-    frame_count = 0
+    mode_tag = "[SIMULATION]" if is_simulation else ("[RTSP]" if is_rtsp else "[USB]")
+    # วิดีโอจำลองต้องเล่นตามจังหวะของไฟล์ (กล้องจริงส่งเฟรมมาเองตามเวลาจริง)
+    file_fps = cap.get(cv2.CAP_PROP_FPS) if is_simulation else 0
+    file_interval = 1.0 / file_fps if file_fps and file_fps > 0 else (1.0 / 25 if is_simulation else 0)
 
-    try:
-        while cap.isOpened():
-            success, frame = cap.read()
+    stop = threading.Event()
+    lock = threading.Lock()
+    state = {
+        "frame": None,        # เฟรมล่าสุดจากกล้อง (ย่อ/กลับด้านแล้ว)
+        "frame_seq": 0,
+        "result": None,       # ผล YOLO ล่าสุด: detections + counts + เวลาที่วิเคราะห์เสร็จ
+        "last_pull": time.time(),
+    }
 
-            # หากเป็นวิดีโอจำลอง เมื่อเล่นถึงเฟรมสุดท้าย ให้วนลูปกลับไปเฟรม 0
-            if not success and is_simulation:
+    def prepare(frame):
+        # ย่อเหลือกว้าง 640 ลด CPU และขนาดภาพที่ส่งให้เบราว์เซอร์
+        h, w = frame.shape[:2]
+        if w > 640:
+            frame = cv2.resize(frame, (640, int(h * 640.0 / w)), interpolation=cv2.INTER_LINEAR)
+        return cv2.flip(frame, 1) if flip else frame
+
+    def viewer_gone() -> bool:
+        # starlette ไม่รับประกันว่าจะเรียก finally ของ generator ทันทีที่ผู้ชมปิดหน้า: เธรดเช็กเองด้วย
+        return time.time() - state["last_pull"] > STREAM_IDLE_TIMEOUT_S
+
+    # เธรด 1: อ่านเฟรมจากกล้องตลอดเวลา เก็บไว้แค่เฟรมล่าสุด (ไม่ให้เฟรมค้างในบัฟเฟอร์จนภาพช้ากว่าความจริง)
+    def reader():
+        while not stop.is_set() and not viewer_gone():
+            ok, frame = cap.read()
+            if not ok and is_simulation:
                 cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                success, frame = cap.read()
-
-            if not success:
+                ok, frame = cap.read()
+            if not ok:
                 if is_rtsp:
-                    # RTSP auto-reconnect delay
-                    time.sleep(0.5)
+                    time.sleep(0.5)  # สัญญาณหลุดชั่วคราว รอแล้วอ่านต่อ
                     continue
                 break
+            frame = prepare(frame)
+            with lock:
+                state["frame"] = frame
+                state["frame_seq"] += 1
+            if file_interval:
+                time.sleep(file_interval)
+        stop.set()
 
-            frame_count += 1
-            # Frame-skipping for high-fps RTSP feeds (process every 2nd frame to target 8-10 FPS)
-            if is_rtsp and (frame_count % 2 != 0):
+    # เธรด 2: YOLO + ByteTrack บนเฟรมล่าสุดเท่าที่ CPU ทำทัน (บน CPU ประมาณ 1 รูป/วินาที)
+    def inferencer():
+        last_seq = 0
+        while not stop.is_set() and not viewer_gone():
+            with lock:
+                frame, seq = state["frame"], state["frame_seq"]
+            if frame is None or seq == last_seq:
+                time.sleep(0.02)
                 continue
-
-            # Downscale high-resolution frames to 640 width to cut CPU/GPU usage by >70%
-            h, w = frame.shape[:2]
-            if w > 640:
-                scale = 640.0 / w
-                frame = cv2.resize(frame, (640, int(h * scale)), interpolation=cv2.INTER_LINEAR)
-
-            # Flip if requested
-            if flip:
-                frame = cv2.flip(frame, 1)
-
-            # 2. ให้ YOLO + ByteTrack ประมวลผลและตรวจจับ Track ID
-            result = model.track(
-                source=frame,
-                conf=0.20,
-                persist=True,
-                tracker="bytetrack.yaml",
-                show=False,
-                verbose=False,
-            )[0]
-
-            annotated_frame = frame.copy()
-            boxes = result.boxes
-            counts = {"standing": 0, "lying down": 0, "feeding": 0, "drinking": 0}
-            current_detections = []
-            confs = []  # เฟรมที่ไม่เจอวัวเลย: ต้องมีค่า ไม่งั้นบรรทัด Active Learning ด้านล่างพังแล้วสตรีมหลุด
-
-            if boxes is not None and len(boxes) > 0:
-                clss = boxes.cls.int().cpu().tolist()
-                confs = boxes.conf.cpu().tolist()
-                xyxy = boxes.xyxy.int().cpu().tolist()
-                track_ids = boxes.id.int().cpu().tolist() if boxes.id is not None else [None] * len(boxes)
-
-                for tid, c, cf, (x1, y1, x2, y2) in zip(track_ids, clss, confs, xyxy):
-                    cname = model.names.get(c, str(c))
-                    counts[cname] = counts.get(cname, 0) + 1
-                    color = BEHAVIOR_COLORS.get(cname, DEFAULT_COLOR)
-
-                    current_detections.append({
-                        "track_id": tid,
-                        "posture": cname,
-                        "conf": round(cf, 3),
-                        "bbox": [x1, y1, x2, y2]
-                    })
-
-                    # Bounding Box + Corners
-                    cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 2)
-                    corner_len = min(18, max(6, (x2 - x1) // 5), max(6, (y2 - y1) // 5))
-                    thick = 3
-                    cv2.line(annotated_frame, (x1, y1), (x1 + corner_len, y1), color, thick)
-                    cv2.line(annotated_frame, (x1, y1), (x1, y1 + corner_len), color, thick)
-                    cv2.line(annotated_frame, (x2, y1), (x2 - corner_len, y1), color, thick)
-                    cv2.line(annotated_frame, (x2, y1), (x2, y1 + corner_len), color, thick)
-                    cv2.line(annotated_frame, (x1, y2), (x1 + corner_len, y2), color, thick)
-                    cv2.line(annotated_frame, (x1, y2), (x1, y2 - corner_len), color, thick)
-                    cv2.line(annotated_frame, (x2, y2), (x2 - corner_len, y2), color, thick)
-                    cv2.line(annotated_frame, (x2, y2), (x2, y2 - corner_len), color, thick)
-
-                    # Track ID Pill Label
-                    label_text = f"COW #{tid} | {cname} {int(cf * 100)}%" if tid is not None else f"{cname} {int(cf * 100)}%"
-                    (tw, th), _ = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, 0.45, 1)
-                    bg_y1 = max(0, y1 - th - 8)
-                    bg_y2 = y1
-                    bg_x2 = min(annotated_frame.shape[1], x1 + tw + 10)
-                    cv2.rectangle(annotated_frame, (x1, bg_y1), (bg_x2, bg_y2), color, -1)
-                    cv2.putText(
-                        annotated_frame,
-                        label_text,
-                        (x1 + 5, bg_y2 - 4),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.45,
-                        (0, 0, 0),
-                        1,
-                        cv2.LINE_AA
-                    )
-
-            # 3. ส่งข้อมูลให้ 3-Tier Behavior Engine (Layer 1 state, Layer 2 rollups, Layer 3 anomalies)
-            tracker.update_tracks(
-                current_detections,
-                current_thi=current_thi,
-                is_simulation=is_simulation,
-                frame_shape=frame.shape[:2]
-            )
-
-            # 4. Active Learning Edge Collector: Save low-confidence frames (0.20 <= conf < 0.40)
-            if boxes is not None and len(confs) > 0:
-                avg_conf = float(np.mean(confs))
-                if 0.20 <= avg_conf < 0.40:
-                    now_t = time.time()
-                    cam_k = camera_id or ("simulation" if is_simulation else safe_source.replace("/", "_").replace(":", "_"))
-                    last_save = getattr(tracker, "_last_al_save_time", 0.0)
-                    if (now_t - last_save) >= 10.0:  # Sample at most once every 10 seconds per camera
-                        tracker._last_al_save_time = now_t
-                        al_meta = {
-                            "timestamp": datetime.now(timezone.utc).isoformat(),
-                            "camera_id": camera_id or safe_source,
-                            "farm_id": farm_id,
-                            "thi": current_thi,
-                            "avg_conf": round(avg_conf, 3),
-                            "num_cows": len(current_detections),
-                            "detections": current_detections,
-                        }
-                        threading.Thread(
-                            target=save_active_learning_sample,
-                            args=(frame.copy(), al_meta, cam_k),
-                            daemon=True
-                        ).start()
-
-            # Top HUD Summary Bar
-            total_detected = len(boxes) if boxes is not None else 0
-            mode_tag = "[SIMULATION]" if is_simulation else ("[RTSP]" if is_rtsp else "[USB]")
-            hud_text = f"{mode_tag} COWS: {total_detected} | Stand: {counts['standing']} | Lie: {counts['lying down']} | Feed: {counts['feeding']} | Drink: {counts['drinking']}"
-            h_h = 30
-            cv2.rectangle(annotated_frame, (8, 8), (annotated_frame.shape[1] - 8, 8 + h_h), (20, 30, 25), -1)
-            cv2.rectangle(annotated_frame, (8, 8), (annotated_frame.shape[1] - 8, 8 + h_h), (60, 90, 75), 1)
-            cv2.putText(
-                annotated_frame,
-                hud_text,
-                (16, 8 + 20),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.44,
-                (240, 250, 245),
-                1,
-                cv2.LINE_AA
-            )
-
-            # Encode JPEG
-            ret, buffer = cv2.imencode(".jpg", annotated_frame)
-            if not ret:
+            last_seq = seq
+            try:
+                analysis = analyze_frame(frame, tracker, farm_id, camera_id, current_thi, is_simulation, safe_source)
+            except Exception as e:
+                print(f"[Camera API] ⚠️ inference error: {e}")
+                time.sleep(0.5)
                 continue
-            frame_bytes = buffer.tobytes()
+            analysis["at"] = time.time()
+            with lock:
+                state["result"] = analysis
 
-            yield (
-                b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n"
-            )
+    threads = [threading.Thread(target=reader, daemon=True), threading.Thread(target=inferencer, daemon=True)]
+    for t in threads:
+        t.start()
+
+    # ส่งภาพให้เบราว์เซอร์ราว 10 เฟรม/วินาที วาดกรอบจากผล YOLO ล่าสุดทับลงไป
+    try:
+        while not stop.is_set():
+            tick = time.time()
+            state["last_pull"] = tick
+            with lock:
+                frame, analysis = state["frame"], state["result"]
+            if frame is None:
+                time.sleep(0.05)
+                continue
+            annotated = draw_overlay(frame, analysis, mode_tag)
+            ret, buffer = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 80])
+            if ret:
+                yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + buffer.tobytes() + b"\r\n")
+            time.sleep(max(0.0, STREAM_FRAME_INTERVAL_S - (time.time() - tick)))
     finally:
+        stop.set()
+        for t in threads:
+            t.join(timeout=3)
         cap.release()
         print(f"[Camera API] 🛑 Camera stream source '{safe_source}' closed.")
 
