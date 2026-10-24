@@ -13,9 +13,17 @@
           <v-icon :icon="statusIcon" size="20" />
           <span>{{ statusTitle }}</span>
         </div>
-        <span class="text-xs sm:text-sm text-[#55695D] font-medium">
-          อัปเดต {{ agoText(now?.minutes_ago) || 'เมื่อสักครู่' }}
-        </span>
+        <div class="flex items-center gap-2">
+          <NuxtLink
+            v-if="isCustomBackend"
+            to="/Farmer/me"
+            class="inline-flex text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A] text-decoration-none">
+            🤝 เชื่อมหลังบ้านเพื่อน
+          </NuxtLink>
+          <span class="text-xs sm:text-sm text-[#55695D] font-medium">
+            อัปเดต {{ agoText(now?.minutes_ago) || 'เมื่อสักครู่' }}
+          </span>
+        </div>
       </div>
 
       <!-- ตัวเลขอุณหภูมิและความชื้น (ใหญ่มาก สำหรับผู้สูงอายุ) -->
@@ -257,6 +265,7 @@
 
 <script setup>
 import { useFarmer, agoText } from '~/composables/useFarmer'
+import { getCustomNodeApi } from '~/API/baseAPI'
 
 definePageMeta({ layout: 'farmer' })
 useHead({ title: 'สภาพในคอกตอนนี้ | CowCare ฟาร์มโคนม' })
@@ -273,6 +282,8 @@ const {
   toggleAction,
   sendSos
 } = useFarmer()
+
+const isCustomBackend = computed(() => Boolean(getCustomNodeApi()))
 
 // สถานะการแจ้งเตือน SOS
 const showSosModal = ref(false)

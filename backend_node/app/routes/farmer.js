@@ -15,6 +15,7 @@
  */
 const express = require('express')
 const router = express.Router()
+const axios = require('axios')
 const db = require('../config/db')
 const { verifyToken } = require('../middleware/authMiddleware')
 const { calcThi, getRiskLevel, getFarmProfile, getThresholds, getMethod, getCoolingAdvice } = require('../services/heatStress')
@@ -211,6 +212,56 @@ function buildSeniorSummary(now, today, forecast, farm) {
         vet_name: 'สัตวแพทย์ / สหกรณ์'
     }
 }
+
+// GET /api/farmer/ping : ทดสอบการเชื่อมต่อ API (สาธารณะ ไม่ต้องใช้ token)
+router.get('/ping', (req, res) => {
+    return res.json({
+        success: true,
+        message: 'CowCare AI Farmer API is ready',
+        timestamp: new Date().toISOString(),
+        version: '3.1.0-senior'
+    })
+})
+
+// POST /api/farmer/friend-bridge/test : ทดสอบเชื่อมต่อไปยังหลังบ้านของเพื่อน
+router.post('/friend-bridge/test', async (req, res) => {
+    const { url } = req.body
+    if (!url) {
+        return res.status(400).json({ success: false, message: 'กรุณาระบุ URL ของหลังบ้านเพื่อน เช่น http://192.168.1.50:4001/api' })
+    }
+    const cleanUrl = String(url).trim().replace(/\/+$/, '')
+    const startTime = Date.now()
+
+    try {
+        let remoteData = null
+        try {
+            const resp = await axios.get(`${cleanUrl}/farmer/ping`, { timeout: 4000 })
+            remoteData = resp.data
+        } catch (e1) {
+            try {
+                const resp2 = await axios.get(`${cleanUrl}/ping`, { timeout: 4000 })
+                remoteData = resp2.data
+            } catch (e2) {
+                const resp3 = await axios.get(`${cleanUrl}/`, { timeout: 4000 })
+                remoteData = resp3.data
+            }
+        }
+        const latencyMs = Date.now() - startTime
+        return res.json({
+            success: true,
+            message: 'เชื่อมต่อไปยังหลังบ้านของเพื่อนสำเร็จ',
+            latency_ms: latencyMs,
+            target_url: cleanUrl,
+            remote_response: remoteData
+        })
+    } catch (err) {
+        return res.status(502).json({
+            success: false,
+            message: `ไม่สามารถเชื่อมต่อหลังบ้านเพื่อนได้: ${err.message}`,
+            target_url: cleanUrl
+        })
+    }
+})
 
 // GET /api/farmer/me
 router.get('/me', verifyToken, requireFarm, async (req, res) => {

@@ -47,7 +47,15 @@
             </button>
           </div>
 
-          <!-- สถานะเซ็นเซอร์ -->
+          <!-- สถานะเซ็นเซอร์ & ลิงก์เชื่อมต่อหลังบ้าน -->
+          <NuxtLink
+            to="/Farmer/me"
+            class="hidden sm:inline-flex text-[11px] font-bold px-2.5 py-1.5 rounded-full items-center gap-1.5 border text-decoration-none transition-colors"
+            :class="isCustomBackend ? 'bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]' : 'bg-[#143225] text-[#A7D7C5] border-white/10 hover:border-white/30'">
+            <v-icon icon="mdi-server-network" size="14" />
+            <span>{{ isCustomBackend ? 'หลังบ้านเพื่อน' : 'หลังบ้านหลัก' }}</span>
+          </NuxtLink>
+
           <span
             v-if="now"
             class="hidden md:inline-flex text-xs font-bold px-2.5 py-1.5 rounded-full items-center gap-1.5 border"
@@ -138,6 +146,7 @@
 
 <script setup>
 import { useFarmer, agoText } from '~/composables/useFarmer'
+import { getCustomNodeApi } from '~/API/baseAPI'
 
 const route = useRoute()
 const {
@@ -153,12 +162,15 @@ const {
   isSpeaking,
   speakThai,
   stopSpeech,
+  currentBackendUrl,
   ensureAuth,
   refresh,
   logout,
   startPolling,
   stopPolling
 } = useFarmer()
+
+const isCustomBackend = computed(() => Boolean(getCustomNodeApi()))
 
 const fontOptions = [
   { key: 'normal', label: 'ก' },

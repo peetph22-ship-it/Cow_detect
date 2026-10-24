@@ -1,13 +1,14 @@
 /**
  * CowCare AI - ข้อมูลกลางสำหรับเกษตรกร (Senior & Minimal Edition)
  * - รองรับระบบผู้สูงอายุ (ขยายขนาดตัวหนังสือ, สังเคราะห์เสียงพูดภาษาไทย Web Speech API)
- * - ดึงข้อมูลอัตโนมัติ /api/farmer/me
+ * - รองรับการเชื่อมต่อไปยังหลังบ้านของเพื่อน (Custom Backend URL / Localhost / Cloud)
+ * - ระบบตรวจและแปลงข้อมูลยืดหยุ่น (Tolerant Data Parser) ไม่พังแม้หลังบ้านเพื่อนส่งฟอร์แมตต่างกัน
  * - ระบบเช็คลิสต์สิ่งที่ต้องทำประจำวัน /actions
  * - ระบบสมุดจดน้ำนม & สุขภาพวัว /logs
  * - ระบบโทรด่วน & ขอความช่วยเหลือฉุกเฉิน /sos
  */
 import axios from 'axios'
-import { getNodeApiBase } from '~/API/baseAPI'
+import { getNodeApiBase, setCustomNodeApi, getCustomNodeApi, getKnownBackends } from '~/API/baseAPI'
 import { getThresholds, RISK_LABELS_TH } from '~/utils/heatStress'
 
 const REFRESH_MS = 60 * 1000
@@ -84,6 +85,9 @@ export const useFarmer = () => {
   const fontSize = useState('farmer.fontSize', () => 'normal')
   const isSpeaking = useState('farmer.isSpeaking', () => false)
 
+  // URL หลังบ้านที่กำลังเชื่อมต่ออยู่
+  const currentBackendUrl = useState('farmer.backendUrl', () => getNodeApiBase())
+
   // รายการเช็คลิสต์ที่ทำแล้ววันนี้
   const doneActions = useState('farmer.doneActions', () => [])
   const dailyLogs = useState('farmer.dailyLogs', () => [])
@@ -157,13 +161,55 @@ export const useFarmer = () => {
         fontSize.value = savedFont
       }
     }
+    currentBackendUrl.value = getNodeApiBase()
     return true
+  }
+
+  // ตัวทดสอบการเชื่อมต่อไปยัง URL หลังบ้าน
+  const testBackend = async (targetUrl) => {
+    const cleanUrl = String(targetUrl || '').trim().replace(/\/+$/, '')
+    if (!cleanUrl) return { success: false, message: 'กรุณากรอก URL' }
+    const startTime = Date.now()
+
+    try {
+      let res = null
+      try {
+        res = await axios.get(`${cleanUrl}/farmer/ping`, { timeout: 4000 })
+      } catch (e1) {
+        try {
+          res = await axios.get(`${cleanUrl}/ping`, { timeout: 4000 })
+        } catch (e2) {
+          res = await axios.get(`${cleanUrl}/`, { timeout: 4000 })
+        }
+      }
+      const latency = Date.now() - startTime
+      return { 
+        success: true, 
+        latency, 
+        message: `เชื่อมต่อสำเร็จ! ความเร็ว ${latency} ms`, 
+        data: res?.data 
+      }
+    } catch (err) {
+      return { 
+        success: false, 
+        latency: 0, 
+        message: `เชื่อมต่อไม่สำเร็จ: ${err.message}` 
+      }
+    }
+  }
+
+  // เปลี่ยน URL หลังบ้านที่เชื่อมต่อ
+  const switchBackend = async (newUrl) => {
+    setCustomNodeApi(newUrl)
+    currentBackendUrl.value = getNodeApiBase()
+    await refresh()
   }
 
   // GET /api/farmer/<path>
   const request = async (path, params = {}) => {
     try {
-      const res = await axios.get(`${getNodeApiBase()}/farmer/${path}`, {
+      const apiBase = getNodeApiBase()
+      const res = await axios.get(`${apiBase}/farmer/${path}`, {
         headers: { Authorization: `Bearer ${token()}` },
         params: {
           ...(farmId.value ? { farm_id: farmId.value } : {}),
@@ -181,7 +227,8 @@ export const useFarmer = () => {
   // POST /api/farmer/<path>
   const postRequest = async (path, body = {}) => {
     try {
-      const res = await axios.post(`${getNodeApiBase()}/farmer/${path}`, body, {
+      const apiBase = getNodeApiBase()
+      const res = await axios.post(`${apiBase}/farmer/${path}`, body, {
         headers: { Authorization: `Bearer ${token()}` },
         params: farmId.value ? { farm_id: farmId.value } : {}
       })
@@ -193,6 +240,48 @@ export const useFarmer = () => {
     }
   }
 
+  // ปรับข้อมูลที่ได้รับจากหลังบ้าน (รองรับทั้งระบบเราและหลังบ้านของเพื่อน)
+  const normalizeData = (d) => {
+    if (!d) return null
+    if (!d.farm && d.farm_id) d.farm = { id: d.farm_id, name: d.farm_name || 'ฟาร์มโคนม' }
+
+    // กรณีหลังบ้านเพื่อนส่งฟิลด์ชื่อ temp หรือ temperature
+    if (!d.now && (d.temperature != null || d.temperature_c != null || d.temp != null)) {
+      const t = Number(d.temperature_c ?? d.temperature ?? d.temp)
+      const h = Number(d.humidity_pct ?? d.humidity ?? d.hum ?? 70)
+      d.now = {
+        temperature_c: t,
+        humidity_pct: h,
+        thi: d.thi ?? null,
+        risk_level: d.risk_level ?? 'normal',
+        minutes_ago: d.minutes_ago ?? 0,
+        sensor_status: d.sensor_status ?? 'online'
+      }
+    }
+
+    // สังเคราะห์ senior summary อัตโนมัติหากหลังบ้านเพื่อนไม่มีฟิลด์นี้
+    if (!d.senior && d.now) {
+      const risk = d.now.risk_level || 'normal'
+      const isSevere = risk === 'severe'
+      const isMod = risk === 'moderate' || risk === 'mild'
+      d.senior = {
+        level: isSevere ? 'danger' : (isMod ? 'warning' : 'good'),
+        title: isSevere ? 'อากาศร้อนจัดมาก แม่วัวกำลังเครียด!' : (isMod ? 'อากาศเริ่มร้อนขึ้นแล้ว ระวังแม่วัวหอบ' : 'อากาศสบายดี แม่วัวไม่เครียด'),
+        message: isSevere ? 'อุณหภูมิและความชื้นสูงมาก เสี่ยงน้ำนมดิ่ง รีบเปิดพัดลมและสเปรย์น้ำด่วน' : (isMod ? 'ความร้อนสะสมเริ่มเพิ่มขึ้น แนะนำเปิดพัดลมระบายอากาศ' : 'สภาพอากาศในคอกเหมาะสมดี แม่วัวเคี้ยวเอื้องสบาย'),
+        voice_text: `สวัสดีจ้า ตอนนี้ในคอกวัว อุณหภูมิ ${d.now.temperature_c} องศาเซลเซียส ความชื้น ${Math.round(d.now.humidity_pct)} เปอร์เซ็นต์ ${isSevere ? 'อากาศร้อนจัด' : 'สบายดีจ้า'}`,
+        vet_phone: d.farm?.vet_phone || '080-000-0000',
+        vet_name: 'สัตวแพทย์ประจำฟาร์ม',
+        action_templates: [
+          { id: 'fan', title: 'เปิดพัดลมในคอก', desc: 'ช่วยระบายอากาศร้อน ไม่ให้อากาศอับ', icon: 'mdi-fan' },
+          { id: 'water_spray', title: 'เปิดละอองน้ำ / สปริงเกลอร์', desc: 'พ่นละอองน้ำเป็นรอบๆ ช่วยลดอุณหภูมิร่างกายวัว', icon: 'mdi-sprinkler-variant' },
+          { id: 'fresh_water', title: 'เติมน้ำสะอาดให้เต็มราง', desc: 'แม่วัวกินน้ำเยอะขึ้นเมื่ออากาศร้อน ดื่มน้ำลดเครียด', icon: 'mdi-cup-water' },
+          { id: 'check_cow', title: 'สังเกตอาการแม่วัว (ไม่หอบ)', desc: 'ตรวจดูว่ามีตัวไหนยืนหอบ อ้าปาก หรือน้ำลายยืดหรือไม่', icon: 'mdi-cow' }
+        ]
+      }
+    }
+    return d
+  }
+
   const refresh = async () => {
     if (!token()) return
     loading.value = true
@@ -201,13 +290,13 @@ export const useFarmer = () => {
         request('me'),
         request('actions').catch(() => ({ done_actions: [] }))
       ])
-      me.value = d
+      me.value = normalizeData(d)
       doneActions.value = acts?.done_actions || []
       if (d?.farm?.id && d.farm.id !== farmId.value) farmId.value = d.farm.id
       error.value = ''
     } catch (err) {
       if (err.response?.status !== 401 && err.response?.status !== 403) {
-        error.value = 'โหลดข้อมูลไม่สำเร็จ กรุณาตรวจสัญญาณอินเทอร์เน็ต'
+        error.value = 'โหลดข้อมูลไม่สำเร็จ กรุณาตรวจสัญญาณเน็ตหรือ URL หลังบ้าน'
       }
     } finally {
       loading.value = false
@@ -291,6 +380,10 @@ export const useFarmer = () => {
     isSpeaking,
     speakThai,
     stopSpeech,
+    currentBackendUrl,
+    testBackend,
+    switchBackend,
+    getKnownBackends,
     doneActions,
     toggleAction,
     dailyLogs,
