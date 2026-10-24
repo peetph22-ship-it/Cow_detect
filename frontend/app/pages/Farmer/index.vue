@@ -394,7 +394,9 @@ const playVoice = () => {
     stopSpeech()
   } else {
     const text = senior.value?.voice_text || 
-      `ตอนนี้ในคอก อุณหภูมิ ${now.value ? Number(now.value.temperature_c).toFixed(1) : '31'} องศาเซลเซียส ${statusTitle.value} ${statusMessage.value}`
+      (now.value?.temperature_c != null 
+        ? `ตอนนี้ในคอก อุณหภูมิ ${Number(now.value.temperature_c).toFixed(1)} องศาเซลเซียส ${statusTitle.value} ${statusMessage.value}`
+        : `ตอนนี้ในคอก ${statusTitle.value} ${statusMessage.value}`)
     speakThai(text)
   }
 }

@@ -1,14 +1,14 @@
 /**
  * CowCare AI - Composable สำหรับหน้าเกษตรกร (Senior & Minimal Edition)
- * - ทำงานร่วมกับระบบหลังบ้านเดิม 100% (/api/farmer/me, /history, /events)
+ * - ทำงานร่วมกับระบบหลังบ้านเดิมของตนเอง 100% (/api/farmer/me, /history, /events)
+ * - ไม่มีการเชื่อมต่อหรือดึง API มั่วจากภายนอก
  * - ปรับขนาดตัวอักษรสำหรับผู้สูงอายุ (ก / ก+ / ก++)
  * - ระบบอ่านออกเสียงภาษาไทย (Web Speech API)
  * - ระบบเช็คลิสต์สิ่งที่ทำแล้ววันนี้ (บันทึกในเครื่อง)
- * - ระบบเชื่อมต่อไปยังหลังบ้านของเพื่อน (Dynamic Backend Switcher & Latency Ping)
  * - ระบบออกจากระบบที่ปลอดภัย มี Modal ยืนยันป้องกันคนแก่เผลอกดผิด
  */
 import axios from 'axios'
-import { getNodeApiBase, setCustomNodeApi, getCustomNodeApi, getKnownBackends, isValidBackendUrl } from '~/API/baseAPI'
+import { getNodeApiBase } from '~/API/baseAPI'
 import { getThresholds, RISK_LABELS_TH } from '~/utils/heatStress'
 
 const REFRESH_MS = 60 * 1000
@@ -85,9 +85,6 @@ export const useFarmer = () => {
   const fontSize = useState('farmer.fontSize', () => 'normal')
   const isSpeaking = useState('farmer.isSpeaking', () => false)
 
-  // URL หลังบ้านที่กำลังเชื่อมต่ออยู่
-  const currentBackendUrl = useState('farmer.backendUrl', () => getNodeApiBase())
-
   // หน้าต่างยืนยันออกจากระบบ (Senior Modal)
   const showLogoutModal = useState('farmer.showLogoutModal', () => false)
 
@@ -123,10 +120,17 @@ export const useFarmer = () => {
       message = 'ความร้อนสะสมเริ่มเพิ่มขึ้น แนะนำเปิดพัดลมระบายอากาศ และเตรียมน้ำสะอาดให้พร้อม'
     }
 
-    const temp = n ? Number(n.temperature_c).toFixed(1) : (t?.max_temp ? Number(t.max_temp).toFixed(1) : '31.0')
-    const hum = n ? Math.round(n.humidity_pct) : (t?.avg_humidity_pct ? Math.round(t.avg_humidity_pct) : 70)
+    const temp = n?.temperature_c != null 
+      ? Number(n.temperature_c).toFixed(1) 
+      : (t?.max_temp != null ? Number(t.max_temp).toFixed(1) : null)
+    
+    const hum = n?.humidity_pct != null 
+      ? Math.round(n.humidity_pct) 
+      : (t?.avg_humidity_pct != null ? Math.round(t.avg_humidity_pct) : null)
 
-    const voiceText = `สวัสดีจ้า ตอนนี้ในคอกวัว อุณหภูมิ ${temp} องศาเซลเซียส ความชื้น ${hum} เปอร์เซ็นต์ ${title} ${message} อย่าลืมดูแลแม่วัวนะจ๊ะ`
+    const voiceText = temp != null
+      ? `สวัสดีจ้า ตอนนี้ในคอกวัว อุณหภูมิ ${temp} องศาเซลเซียส ${hum != null ? `ความชื้น ${hum} เปอร์เซ็นต์` : ''} ${title} ${message} อย่าลืมดูแลแม่วัวนะจ๊ะ`
+      : `สวัสดีจ้า ตอนนี้ในคอกวัว ${title} ${message} อย่าลืมดูแลแม่วัวนะจ๊ะ`
 
     // คาดการณ์ช่วงบ่าย/พรุ่งนี้ ภาษาชาวบ้าน (แยกเวลา peak_window_label ป้องกัน [object Object])
     let peakWindowText = 'ช่วงเวลา 13:00 – 16:00 น.'
@@ -166,7 +170,7 @@ export const useFarmer = () => {
       forecast_simple: forecastSimple,
       peak_window_label: peakWindowText,
       action_templates: actionTemplates,
-      vet_phone: d.farm?.vet_phone || '080-000-0000',
+      vet_phone: d.farm?.vet_phone || null,
       vet_name: 'สัตวแพทย์ / สหกรณ์'
     }
   })
@@ -288,54 +292,10 @@ export const useFarmer = () => {
         doneActions.value = []
       }
     }
-    currentBackendUrl.value = getNodeApiBase()
     return true
   }
 
-  // ตัวทดสอบการเชื่อมต่อไปยัง URL หลังบ้านเพื่อน (ตรวจสอบความปลอดภัยก่อน Ping)
-  const testBackend = async (targetUrl) => {
-    const cleanUrl = String(targetUrl || '').trim().replace(/\/+$/, '')
-    if (!cleanUrl) return { success: false, message: 'กรุณากรอก URL' }
-    if (!isValidBackendUrl(cleanUrl)) {
-      return { success: false, latency: 0, message: 'URL ไม่อยู่ในรูปแบบที่ปลอดภัย (อนุญาตเฉพาะ http/https วงแลน หรือโดเมนที่เชื่อถือได้)' }
-    }
-    const startTime = Date.now()
-
-    try {
-      let res = null
-      try {
-        res = await axios.get(`${cleanUrl}/farmer/ping`, { timeout: 4000 })
-      } catch (e1) {
-        try {
-          res = await axios.get(`${cleanUrl}/ping`, { timeout: 4000 })
-        } catch (e2) {
-          res = await axios.get(`${cleanUrl}/`, { timeout: 4000 })
-        }
-      }
-      const latency = Date.now() - startTime
-      return { 
-        success: true, 
-        latency, 
-        message: `เชื่อมต่อสำเร็จ! ความเร็ว ${latency} ms`, 
-        data: res?.data 
-      }
-    } catch (err) {
-      return { 
-        success: false, 
-        latency: 0, 
-        message: `เชื่อมต่อไม่สำเร็จ: ${err.message}` 
-      }
-    }
-  }
-
-  // สลับ URL หลังบ้านที่เชื่อมต่อ
-  const switchBackend = async (newUrl) => {
-    setCustomNodeApi(newUrl)
-    currentBackendUrl.value = getNodeApiBase()
-    await refresh()
-  }
-
-  // GET /api/farmer/<path> (เรียกใช้งาน API ระบบเดิม - ปลอดภัยต่อ Path Traversal & Unauthorized)
+  // GET /api/farmer/<path> (เรียกใช้งาน API ระบบเดิมของตนเอง - ปลอดภัยต่อ Path Traversal & Unauthorized)
   const request = async (path, params = {}) => {
     try {
       const apiBase = getNodeApiBase()
@@ -367,7 +327,7 @@ export const useFarmer = () => {
 
     if (!d.now && (d.temperature != null || d.temperature_c != null || d.temp != null)) {
       const t = Number(d.temperature_c ?? d.temperature ?? d.temp)
-      const h = Number(d.humidity_pct ?? d.humidity ?? d.hum ?? 70)
+      const h = (d.humidity_pct ?? d.humidity ?? d.hum) != null ? Number(d.humidity_pct ?? d.humidity ?? d.hum) : null
       d.now = {
         temperature_c: t,
         humidity_pct: h,
@@ -390,7 +350,7 @@ export const useFarmer = () => {
       error.value = ''
     } catch (err) {
       if (err.response?.status !== 401 && err.response?.status !== 403) {
-        error.value = 'โหลดข้อมูลไม่สำเร็จ กรุณาตรวจสัญญาณเน็ตหรือ URL หลังบ้าน'
+        error.value = 'โหลดข้อมูลไม่สำเร็จ กรุณาตรวจสัญญาณเน็ตหรือการเชื่อมต่อเซิร์ฟเวอร์'
       }
     } finally {
       loading.value = false
@@ -450,10 +410,6 @@ export const useFarmer = () => {
     isSpeaking,
     speakThai,
     stopSpeech,
-    currentBackendUrl,
-    testBackend,
-    switchBackend,
-    getKnownBackends,
     doneActions,
     toggleAction,
     showLogoutModal,

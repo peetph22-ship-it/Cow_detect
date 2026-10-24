@@ -54,12 +54,24 @@
       </div>
     </section>
 
-    <!-- รายการการ์ดของแต่ละวัน (ใหญ่ ชัดเจน มีสีเขียว-เหลือง-ส้ม-แดง บ่งบอกทันที) -->
+    <!-- กำลังโหลดข้อมูล -->
     <div v-if="loadingDays" class="py-16 text-center text-sm font-bold text-[#64748B] space-y-2">
       <v-icon icon="mdi-loading" class="animate-spin text-[#2D6A4F]" size="36" />
       <p>กำลังเปิดข้อมูลสภาพอากาศย้อนหลัง...</p>
     </div>
 
+    <!-- กรณีไม่มีข้อมูลจริงในระบบ -->
+    <div v-else-if="!days.length" class="bg-white rounded-3xl p-8 sm:p-10 shadow-[0_8px_30px_rgba(15,41,30,0.04)] border border-[#E5ECE7] text-center space-y-3">
+      <div class="w-16 h-16 rounded-3xl bg-[#F8F9F6] text-[#64748B] flex items-center justify-center mx-auto border border-gray-200">
+        <v-icon icon="mdi-calendar-blank" size="36" />
+      </div>
+      <h2 class="text-lg sm:text-xl font-black text-[#15221B]">ยังไม่พบประวัติสภาพอากาศย้อนหลัง</h2>
+      <p class="text-xs sm:text-sm text-[#64748B] max-w-sm mx-auto leading-relaxed">
+        ระบบจะรวบรวมประวัติรายวันอัตโนมัติเมื่อกล่องเซ็นเซอร์ในโรงเรือนส่งข้อมูลเข้ามาครับ
+      </p>
+    </div>
+
+    <!-- รายการการ์ดของแต่ละวัน (ข้อมูลจริงจากเซิร์ฟเวอร์) -->
     <div v-else class="space-y-3">
       <div
         v-for="d in days"
@@ -168,26 +180,14 @@ const loadHistory = async () => {
   loadingDays.value = true
   try {
     const res = await request('history', { days: 7 })
-    if (res?.days) {
+    if (res?.days && Array.isArray(res.days)) {
       days.value = res.days
       streakDays.value = res.streak_days || 0
+    } else {
+      days.value = []
     }
   } catch (e) {
-    // Fallback จำลอง 7 วันถ้าเซิร์ฟเวอร์ยังไม่มีข้อมูล
-    const today = new Date()
-    days.value = Array.from({ length: 7 }).map((_, i) => {
-      const dt = new Date(today)
-      dt.setDate(today.getDate() - i)
-      return {
-        date: dt.toISOString().slice(0, 10),
-        is_today: i === 0,
-        has_data: true,
-        max_temp: (31.5 + (i % 3) * 1.2).toFixed(1),
-        avg_humidity_pct: 68 + (i % 4) * 3,
-        severe_hours: i === 2 ? 2 : 0,
-        stress_hours: i === 1 ? 3 : 0
-      }
-    })
+    days.value = []
   } finally {
     loadingDays.value = false
   }
