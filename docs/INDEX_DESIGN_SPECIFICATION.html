@@ -50,7 +50,6 @@
       border: 1px solid var(--border);
     }
 
-    /* Print & Export Bar */
     .action-bar {
       display: flex;
       justify-content: space-between;
@@ -104,7 +103,6 @@
       transform: translateY(-1px);
     }
 
-    /* Header */
     header {
       margin-bottom: 40px;
     }
@@ -140,7 +138,6 @@
       color: var(--primary);
     }
 
-    /* Typography & Sections */
     h2 {
       font-size: 22px;
       font-weight: 800;
@@ -189,7 +186,6 @@
       margin-bottom: 8px;
     }
 
-    /* Cards & Callouts */
     .callout {
       background: #F4F8F5;
       border-left: 4px solid var(--primary-light);
@@ -214,7 +210,6 @@
       color: #FFFFFF;
     }
 
-    /* Tables */
     table {
       width: 100%;
       border-collapse: collapse;
@@ -247,7 +242,6 @@
       border-top: 1px solid #EAEFEA;
     }
 
-    /* Code & Formulas */
     code, pre {
       font-family: 'JetBrains Mono', monospace;
     }
@@ -280,7 +274,6 @@
       display: block;
     }
 
-    /* Grid layout */
     .grid-2 {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -302,7 +295,6 @@
       margin-bottom: 8px;
     }
 
-    /* Print Styles */
     @media print {
       body {
         padding: 0;
@@ -335,47 +327,42 @@
     <div class="action-bar">
       <div class="meta-tag">
         <span class="pulse-dot"></span>
-        CowCare AI • Technical Architecture & Design Document
+        CowCare AI • Technical Architecture &amp; Design Document
       </div>
       <button class="export-btn" onclick="window.print()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M6 9V2h12v7"></path>
-          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
-          <rect x="6" y="14" width="12" height="8"></rect>
-        </svg>
         Print / Export to PDF
       </button>
     </div>
 
     <!-- Document Header -->
     <header>
-      <h1>Comprehensive Design & UI/UX Architectural Specification of pages/index.vue</h1>
-      <div class="subtitle">System: CowCare AI (Heat Stress Intelligence for Dairy Farms) • Nuxt 3 & Biophilic Agritech</div>
+      <h1>Comprehensive Design &amp; UI/UX Architectural Specification of pages/index.vue</h1>
+      <div class="subtitle">System: CowCare AI (Heat Stress Intelligence for Dairy Farms) • Nuxt 3 &amp; Biophilic Agritech</div>
       
       <div class="doc-meta">
-        <div><strong>Status:</strong> Production Approved (v2.1)</div>
-        <div><strong>Primary Architect:</strong> Senior Frontend & UI/UX Architect</div>
-        <div><strong>Active Model:</strong> YOLO26m (Fine-tuned, 4 Classes)</div>
-        <div><strong>Date:</strong> October 14, 2026</div>
+        <div><strong>Status:</strong> Updated Specification (Oct 24, 2026)</div>
+        <div><strong>Primary Architect:</strong> Senior Frontend &amp; UI/UX Architect</div>
+        <div><strong>Active Vision Model:</strong> YOLO26m ONNX (4 Classes: drinking, feeding, lying down, standing)</div>
+        <div><strong>Active Forecast:</strong> hybrid-ecmwf-bias-v1 (ECMWF + 3–14d Sensor Bias)</div>
       </div>
     </header>
 
     <!-- Section 1 -->
-    <h2><span class="section-num">1</span> Executive Overview & Design Intent</h2>
+    <h2><span class="section-num">1</span> Executive Overview &amp; Design Intent</h2>
     <p>
       The public-facing <code>pages/index.vue</code> is the central digital gateway of <strong>CowCare AI</strong>. 
-      Rather than functioning merely as marketing copy, it is engineered as an <strong>Enterprise-Grade Agritech Showcase and Interactive Scientific Sandbox</strong>.
+      It serves as an <strong>Agritech Product Overview and Interactive THI Sandbox</strong> grounded in verified dairy science.
     </p>
     <div class="callout">
-      <strong>Core Paradigm Shift:</strong>
-      Transitioning tropical smallholder dairy management from <em>"Reactive"</em> (discovering milk yield loss 5 days after heat stress) 
-      to <em>"Proactive"</em> (preempting metabolic exhaustion with 3–7 day AI forecasts and automated IoT ventilation).
+      <strong>Core Focus:</strong>
+      Supporting Thai smallholder dairy farms with continuous barn microclimate sensing (ESP32-S3 + SHT20), 
+      Thai-Holstein daily-mean THI thresholds (<strong>74 / 76 / 82</strong>), 3-day hybrid THI forecasting (Open-Meteo ECMWF + farm sensor bias), and non-invasive posture counting (YOLO26m ONNX).
     </div>
 
     <!-- Section 2 -->
-    <h2><span class="section-num">2</span> Design System & Tokens (Biophilic Agritech)</h2>
+    <h2><span class="section-num">2</span> Design System &amp; Tokens (Biophilic Agritech)</h2>
     <p>
-      The interface employs the <strong>Biophilic Agritech Design System</strong>, fusing biological warmth with industrial precision.
+      The interface employs the <strong>Biophilic Agritech Design System</strong>, fusing biological warmth with readable telemetry hierarchy.
     </p>
 
     <table>
@@ -392,49 +379,49 @@
           <td><strong>Warm Ivory Canvas</strong></td>
           <td><code>#FFFDF7</code></td>
           <td>Global Page Background</td>
-          <td>Reduces outdoor screen glare and eye strain for farmers and field agronomists.</td>
+          <td>Reduces outdoor screen glare and eye strain for farmers and field staff.</td>
         </tr>
         <tr>
           <td><strong>Deep Forest Green</strong></td>
           <td><code>#24433A / #163026</code></td>
-          <td>Primary Brand & Framing</td>
-          <td>Reflects biological balance, vitality, and enterprise-grade agritech stability.</td>
+          <td>Primary Brand &amp; Framing</td>
+          <td>Reflects agricultural balance and primary structural framing.</td>
         </tr>
         <tr>
           <td><strong>Deep Night Forest</strong></td>
           <td><code>#19362E</code></td>
-          <td>Predictive AI Section</td>
-          <td>Inverted dark tone highlighting computational depth for the LSTM Neural Network.</td>
+          <td>Forecast &amp; Pipeline Section</td>
+          <td>Inverted dark tone highlighting the 3-day hybrid forecast and telemetry pipeline.</td>
         </tr>
         <tr>
           <td><strong>Terracotta Amber</strong></td>
           <td><code>#D87939 / #F2BD7C</code></td>
-          <td>Primary Accent & Trajectory</td>
-          <td>Signals thermal inflection points, critical warnings, and forecast trend lines.</td>
+          <td>Primary Accent &amp; Trajectory</td>
+          <td>Signals thermal inflection points, warnings, and forecast trend lines.</td>
         </tr>
         <tr>
-          <td><strong>Comfort Zone</strong></td>
+          <td><strong>Normal (Comfort)</strong></td>
           <td><code>#10B981</code> (Bg <code>#ECFDF5</code>)</td>
-          <td>THI &lt; 76.0</td>
-          <td>Baseline physiological comfort for Thai crossbred dairy cattle; zero production penalty.</td>
+          <td>THI &lt; 74.0</td>
+          <td>Normal thermal condition for Thai crossbred dairy cattle.</td>
         </tr>
         <tr>
-          <td><strong>Mild Stress</strong></td>
+          <td><strong>Mild (Watch)</strong></td>
           <td><code>#F59E0B</code> (Bg <code>#FFFBEB</code>)</td>
-          <td>THI 76.0 – 79.9</td>
-          <td>Biological onset threshold; initial drop in dry matter intake (-0.28 kg milk/THI unit).</td>
+          <td>THI 74.0 – 75.9</td>
+          <td>Onset threshold where milk yield begins to decline in multiparous high-HF cows (Boonkum et al., 2011).</td>
         </tr>
         <tr>
           <td><strong>Moderate Stress</strong></td>
           <td><code>#EA580C</code> (Bg <code>#FFF7ED</code>)</td>
-          <td>THI 80.0 – 83.9</td>
-          <td>Elevated respiration rate; double production decline (-0.56 kg/day); somatic cell rise.</td>
+          <td>THI 76.0 – 81.9</td>
+          <td>Population-level heat stress threshold for Thai-Holstein crossbreds; milk yield and conception rate decline (Boonkum et al., 2024).</td>
         </tr>
         <tr>
           <td><strong>Severe Heat Stress</strong></td>
           <td><code>#E11D48</code> (Bg <code>#FFF1F2</code>)</td>
-          <td>THI &ge; 84.0</td>
-          <td>Emergency thermal load; severe risk of subclinical acidosis (FPR &lt; 1.2) and embryonic death.</td>
+          <td>THI &ge; 82.0</td>
+          <td>Critical thermal load where milk production drops more rapidly (Boonkum et al., 2011); requires immediate cooling.</td>
         </tr>
       </tbody>
     </table>
@@ -442,14 +429,14 @@
     <!-- Section 3 -->
     <h2><span class="section-num">3</span> Detailed Architecture of the 7 Key Sections</h2>
 
-    <h3>Section 1: Hero Section & Interactive Telemetry Sandbox</h3>
+    <h3>Section 1: Hero Section &amp; Interactive Telemetry Sandbox</h3>
     <p>
       Arranged in an asymmetrical split grid (7 cols narrative : 5 cols interactive sandbox):
     </p>
     <ul>
-      <li><strong>Value Proposition & Eyebrow:</strong> Pulsing live indicator <code>PRECISION LIVESTOCK FARMING • MULTIMODAL AI</code>, highlighting that Thai cows endure &ge; 76 THI for 250 days/year (67% of the year).</li>
+      <li><strong>Value Proposition &amp; Eyebrow:</strong> Presents the Thai-Holstein daily-mean THI thresholds (<code>74 / 76 / 82</code>) and continuous barn monitoring without daily manual data entry by farmers.</li>
       <li><strong>Direct Authentication Route:</strong> Primary CTA button routes securely to <code>/login</code> (protecting internal administrator portals), accompanied by a smooth-scroll simulator button.</li>
-      <li><strong>Interactive NRC 1971 Simulator:</strong> Calculates THI client-side in real time:</li>
+      <li><strong>Interactive NRC 1971 Simulator:</strong> Demonstrates the THI calculation using the standard NRC (1971) formula:</li>
     </ul>
 
     <div class="formula-box">
@@ -459,102 +446,100 @@
 
     <div class="grid-2">
       <div class="card">
-        <h4>4 Thai Regional Weather Presets</h4>
+        <h4>4 Sample Scenarios</h4>
         <ul style="margin: 0; padding-left: 18px; font-size: 13.5px;">
-          <li><strong>Chiang Mai (Winter):</strong> 24.0°C, 55% RH → THI 70.8 (Comfort)</li>
-          <li><strong>Saraburi (Summer):</strong> 34.0°C, 60% RH → THI 83.8 (Moderate)</li>
-          <li><strong>Pak Chong / Korat (Rainy):</strong> 31.5°C, 82% RH → THI 85.2 (Severe)</li>
-          <li><strong>Heatwave Crisis:</strong> 36.5°C, 78% RH → THI 92.5 (Extreme Severe)</li>
+          <li><strong>Chiang Mai (Winter):</strong> 24.0°C, 55% RH → THI 70.8 (Normal &lt; 74)</li>
+          <li><strong>Watch Condition:</strong> 27.5°C, 65% RH → THI 75.1 (Mild 74–75.9)</li>
+          <li><strong>Moderate Stress:</strong> 30.5°C, 65% RH → THI 79.6 (Moderate 76–81.9)</li>
+          <li><strong>Severe Heat Stress:</strong> 34.0°C, 70% RH → THI 85.6 (Severe &ge; 82)</li>
         </ul>
       </div>
       <div class="card">
-        <h4>Live Economic Impact & Advisory</h4>
+        <h4>Humidity-Aware Cooling Advisory</h4>
         <p style="font-size: 13px; margin: 0;">
-          Outputs immediate milk loss estimations (-0.28 to -0.42 kg/THI unit), subclinical acidosis risk (FPR &lt; 1.2), 
-          and enteric methane surge (+17.5%), paired with immediate action protocols (fans, misting, Sodium Bicarbonate buffer).
+          Follows <code>heatStress.js</code>: when relative humidity RH &ge; 75%, advises avoiding fine misting and instead using brief direct cow wetting paired with fan airflow (Penn State Extension). Does not claim milk loss in kilograms.
         </p>
       </div>
     </div>
 
     <h3>Section 2: Scientific Signal Strip (Deep Green Banner #24433A)</h3>
     <p>
-      A high-contrast four-column data banner highlighting the scientific cornerstones of CowCare AI:
+      A high-contrast four-column data banner highlighting the core methodology of CowCare AI:
     </p>
     <ul>
-      <li><strong>THI 76.0:</strong> Physiological heat stress onset threshold for tropical crossbred cattle (Boonkum et al., 2024).</li>
-      <li><strong>5 Days:</strong> Peak biological lag effect before milk yield bottom-out (Hasan et al., 2026).</li>
-      <li><strong>14 Days:</strong> Historical thermal accumulation lookback window for the LSTM neural network.</li>
-      <li><strong>3–7 Days:</strong> Proactive advance warning lead-time delivered directly via LINE Messaging API.</li>
+      <li><strong>THI 74 / 76 / 82:</strong> Daily-mean heat stress thresholds for Thai crossbred dairy cattle (Boonkum et al., 2011; 2024).</li>
+      <li><strong>22:00–06:00:</strong> Night relief window where THI &lt; 74 allows cows to recover from daytime heat load (Igono et al., 1992).</li>
+      <li><strong>5-Min Buckets:</strong> Unified sensor aggregation interval without gap interpolation (<code>heatMetrics.js</code>).</li>
+      <li><strong>3-Day Forecast:</strong> Daily-mean THI forecast using Open-Meteo ECMWF + 3–14 day farm sensor median bias (<code>forecastService.js</code>).</li>
     </ul>
 
-    <h3>Section 3: 3-Layer Architecture & Bento Feature Matrix</h3>
+    <h3>Section 3: 3-Layer Architecture &amp; Bento Feature Matrix</h3>
     <p>
       Visualizes the end-to-end data pipeline in three distinct cards:
     </p>
     <ul>
       <li>
         <strong>Sense (Card 01 — Deep Forest #24433A):</strong> 
-        ESP32-S3 (N16R8) microcontroller with SHT20 (XY-MD02) temperature/humidity sensor over RS485 Modbus RTU (&plusmn;0.3&deg;C / &plusmn;3% RH). 
-        Features a preview of the <strong>YOLO26m ONNX</strong> model (<code>best.onnx</code>) 
-        counting bovine postures: <code>lying down</code>, <code>standing</code>, <code>eating</code>, and <code>drinking</code> with Class-Agnostic NMS.
+        ESP32-S3 (v1.4.1) microcontroller with SHT20 (XY-MD02) temperature/humidity sensor over RS485 Modbus RTU (&plusmn;0.3&deg;C / &plusmn;3% RH, THI &plusmn;0.7) and Dahua IP camera snapshot every 10 minutes. 
+        Features the <strong>YOLO26m ONNX</strong> model (<code>best.onnx</code>) 
+        counting 4 bovine postures: <code>drinking</code>, <code>feeding</code>, <code>lying down</code>, and <code>standing</code> with Class-Agnostic NMS.
       </li>
       <li>
         <strong>Recommend (Card 02 — Elevated Glass):</strong> 
-        72-hour thermal accumulation trend coupled with context-aware Thai farm recommendations.
+        3-day hybrid THI forecast (<code>hybrid-ecmwf-bias-v1</code>: Open-Meteo ECMWF + 3–14 day farm sensor bias, backtested over 354 days at Chiang Mai airport station WMO 48327 with MAE <code>0.69 / 0.78 / 0.88</code>) and farm-specific peak/cool windows.
       </li>
       <li>
         <strong>Capitalize (Card 03 — Elevated Glass):</strong> 
-        Digital logbooks on PostgreSQL / Supabase reporting data completeness, night relief hours, and consecutive stress days for cooperatives.
+        Digital logbooks on PostgreSQL / Supabase reporting data completeness (<code>coverage_pct</code>), night relief hours, and consecutive stress days for cooperatives.
       </li>
     </ul>
 
-    <h3>Section 4: Proactive vs Reactive Management Comparison (#19362E)</h3>
+    <h3>Section 4: 3-Day Hybrid Forecast &amp; Thermal Accumulation Pipeline (#19362E)</h3>
     <p>
-      Deep night-forest contrast section detailing the thermal accumulation and early-warning pipeline:
+      Deep night-forest contrast section detailing the forecasting and early-warning pipeline:
     </p>
     <div class="callout callout-dark">
-      <strong>72-Hour Thermal Accumulation Pipeline:</strong><br>
-      • <em>Input Vectors:</em> SHT20 Microclimate Data + 72-Hour Thermal Load + YOLO26m Behavioral Posture Counts.<br>
-      • <em>Core Processing:</em> 5-minute bucketed THI aggregation and 72-hour baseline thermal trend.<br>
-      • <em>Output Actuation:</em> Farm-specific hottest/coolest windows and proactive cooling alerts.
+      <strong>3-Day Hybrid Forecast Pipeline (<code>hybrid-ecmwf-bias-v1</code>):</strong><br>
+      • <em>Inputs:</em> SHT20 Barn Telemetry (3–14 Completed Days) + Open-Meteo ECMWF Hourly Forecast at Farm Coordinates.<br>
+      • <em>Core Processing:</em> Per-horizon (+1/+2/+3 d) median bias correction (clamped to &plusmn;6 THI) and 5-minute bucketed THI metrics.<br>
+      • <em>Outputs:</em> 3-Day Daily-Mean THI Forecast, Farm-Specific Hottest/Coolest Windows, and Humidity-Aware Cooling Advice.
     </div>
 
-    <h3>Section 5: Digital Logbook & Smallholder ESG Preview</h3>
+    <h3>Section 5: Cooperative Digital Logbook Preview</h3>
     <p>
-      Addresses the reality of Thai smallholder dairy farming: over 80% of barns are 2.7m low-roof structures with zinc sheets that amplify radiant heat.
-      Includes a mockup logbook displaying 7-day average THI (74.8), cumulative heat hours (12.5 hrs), and a custom vector SVG sparkline tracking the weekly trajectory.
+      Includes a sample logbook card (explicitly labeled as sample data) displaying weekly average THI, stress hours, night relief hours, and recording completeness (<code>coverage_pct</code>).
     </p>
 
-    <h3>Section 6: Academic Foundation & Peer-Reviewed Citation Matrix</h3>
+    <h3>Section 6: Academic Foundation &amp; Verified Citation Matrix</h3>
     <p>
-      Integrates rigorous academic validation from four international research papers (2022–2026):
+      Quotes verified peer-reviewed references used in <code>heatStress.js</code>:
     </p>
     <ol>
-      <li><strong>Boonkum et al. (2024, Animals):</strong> Verified THI 76 threshold and conception decline in Thai-Holstein crossbreds.</li>
-      <li><strong>Hasan et al. (2026, Comput. Electron. Agric.):</strong> Discovery of the 5-day lag effect across 82,000+ dairy cattle.</li>
-      <li><strong>Onan-Martinez et al. (2026, J. Dairy Sci.):</strong> Documented +17.5% enteric methane emission intensity under heat stress.</li>
-      <li><strong>Mulajkar et al. & Abdourhamane (2026):</strong> Edge AI multimodal fusion and 14-day LSTM forecasting accuracy.</li>
+      <li><strong>NRC (1971) &amp; Sae-tiao et al. (2019, LRRD 31(12)):</strong> Standard THI equation and its application in Thai dairy cattle research.</li>
+      <li><strong>Boonkum et al. (2011, J. Dairy Sci. 94:487; 2024, Animals 14(20):3026):</strong> Verified daily-mean THI thresholds (74 / 76 / 82) for Thai-Holstein crossbred cattle.</li>
+      <li><strong>Duangjinda et al. (ICAR Technical Series 23):</strong> Tropical dairy cattle heat stress thresholds (moderate &gt; 74, severe &gt; 80).</li>
+      <li><strong>Igono et al. (1992, Int. J. Biometeorol. 36:77–87) &amp; Penn State Extension:</strong> Nighttime cooling recovery and direct cow wetting + fan airflow under high humidity.</li>
     </ol>
 
-    <h3>Section 7: Final Conversion CTA & Global Footer</h3>
+    <h3>Section 7: Final Conversion CTA &amp; Global Footer</h3>
     <p>
       Directs users to member sign-in at <code>/login</code> and documentation anchors (<code>#solution</code>), concluded with the semantic <code>&lt;AppFooter /&gt;</code> component.
     </p>
 
     <!-- Section 4 -->
-    <h2><span class="section-num">4</span> Security & Access Control Architecture</h2>
+    <h2><span class="section-num">4</span> Security &amp; Access Control Architecture</h2>
     <div class="callout callout-warning">
       <strong>Zero Administrative Exposure on Public Surfaces:</strong><br>
       In accordance with security standards, all direct references and navigation links to <code>/Admin</code> ("Command Center") 
       have been stripped from the public landing page. All visitors authenticate through <code>/login</code>.
     </div>
     <ul>
-      <li><strong>Layout Guard (<code>frontend/app/layouts/admin.vue</code>):</strong> Automatic verification of authentication token and role claims. Users without the <code>role === 'admin'</code> property are redirected immediately to <code>/login</code>.</li>
-      <li><strong>User Interface Preparation:</strong> Establishes the foundation for the upcoming general member dashboard (<code>/user</code>), maintaining strict role segregation.</li>
+      <li><strong>Layout Guard (<code>frontend/app/layouts/admin.vue</code>):</strong> Automatic verification of authentication token and role claims alongside backend <code>verifyToken</code> + <code>requireRole('admin')</code>.</li>
+      <li><strong>Admin-Only Registration:</strong> Account creation (<code>POST /api/auth/register</code>) requires an authenticated admin token.</li>
     </ul>
 
     <!-- Section 5 -->
-    <h2><span class="section-num">5</span> Verification & Technical Specifications</h2>
+    <h2><span class="section-num">5</span> Verification &amp; Technical Specifications</h2>
     <table>
       <thead>
         <tr>
@@ -564,7 +549,7 @@
       </thead>
       <tbody>
         <tr>
-          <td><strong>Framework & Script</strong></td>
+          <td><strong>Framework &amp; Script</strong></td>
           <td>Nuxt 3.16+, Vue 3 Composition API (<code>&lt;script setup&gt;</code>)</td>
         </tr>
         <tr>
@@ -573,15 +558,15 @@
         </tr>
         <tr>
           <td><strong>Computer Vision Model</strong></td>
-          <td>Fine-tuned <strong>YOLO26m</strong> (<code>best1.pt</code>, 44.03 MB, 4 classes)</td>
+          <td><strong>YOLO26m ONNX</strong> (<code>best.onnx</code>, 4 classes: <code>drinking</code>, <code>feeding</code>, <code>lying down</code>, <code>standing</code>, Class-Agnostic NMS)</td>
         </tr>
         <tr>
-          <td><strong>Motion & Performance</strong></td>
+          <td><strong>3-Day Forecast Engine</strong></td>
+          <td><strong>Open-Meteo ECMWF + Farm Sensor Bias</strong> (<code>hybrid-ecmwf-bias-v1</code>, MAE <code>0.69 / 0.78 / 0.88</code> on 354d WMO 48327 backtest)</td>
+        </tr>
+        <tr>
+          <td><strong>Motion &amp; Performance</strong></td>
           <td>Native <code>IntersectionObserver</code> (threshold 0.12), GPU accelerated (<code>translate3d</code>), <code>prefers-reduced-motion</code> compliant</td>
-        </tr>
-        <tr>
-          <td><strong>Public Accessibility</strong></td>
-          <td>SSR rendered, HTTP 200 OK verified, zero exposed administrative routes</td>
         </tr>
       </tbody>
     </table>

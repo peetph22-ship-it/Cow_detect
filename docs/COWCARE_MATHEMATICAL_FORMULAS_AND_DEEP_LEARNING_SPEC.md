@@ -8,7 +8,8 @@
 **CowCare AI** เป็นระบบเฝ้าระวังความเครียดจากความร้อนในโคนมลูกผสมไทย (Thai Crossbred Dairy Cattle) โดยผสานการทำงานระหว่าง:
 1. **IoT Telemetry Sensing (`cowcare_sensor.ino` v1.4.1):** วัดอุณหภูมิและความชื้นสัมพัทธ์ในโรงเรือนด้วยโมดูล RS485 ตระกูล **XY-MD02 ชิป SHT20** ($\pm 0.3^\circ\text{C} / \pm 3\%\text{ RH}$) ผ่านบอร์ด ESP32-S3 พร้อมระบบสำรองข้อมูลลงแฟลช (`/q.bin`) เมื่อเน็ตหลุด และส่งรายงานสุขภาพกล่อง (Heartbeat) ทุก 5 นาที
 2. **Unified Heat Stress Metrics (`heatStress.js` & `heatMetrics.js`):** คำนวณค่า $\text{THI}$ ตามสูตรมาตรฐาน **NRC (1971)** ชุดเดียวกันทั้งระบบ โดยแบ่งถังเวลาเฉลี่ยทุก **5 นาที** เพื่อคำนวณความครบถ้วนของข้อมูล ระดับความเครียดรายวัน ชั่วโมงพักกลางคืน และจำนวนวันเครียดติดต่อกัน
-3. **Computer Vision Snapshot Pipeline (`visionService.js` & `visionPostprocess.js`):** บอร์ด ESP32-S3 ดึงภาพนิ่งจากกล้องวงจรปิด `Dahua DH-IPC-HFW2231TP-ZAS-S2` ทุก 10 นาที ส่งขึ้นเซิร์ฟเวอร์เพื่อรันโมเดล **YOLO26m ONNX (`best.onnx`)** บน Node.js Worker Thread นับวัวแยกตาม 4 ท่าทาง (**นอน / ยืน / กิน / ดื่ม**) พร้อมระบบตัดกรอบซ้อนแบบไม่ดูท่า (Class-Agnostic NMS)
+3. **3-Day Hybrid Forecast & Outdoor Comparison (`forecastService.js` & `outdoorWeather.js`):** พยากรณ์ $\text{THI}$ เฉลี่ยรายวันล่วงหน้า 3 วัน (`hybrid-ecmwf-bias-v1`) ด้วยข้อมูลพยากรณ์อากาศรายชั่วโมงจาก Open-Meteo **ECMWF (`ecmwf_ifs025`)** หักลบค่าเพี้ยนมัธยฐานที่เรียนรู้จากเซ็นเซอร์จริงของฟาร์มในช่วง 3–14 วันล่าสุด และเปรียบเทียบอากาศในโรงเรือนกับภายนอกย้อนหลัง 72 ชั่วโมงในช่วงบ่าย (12:00–16:59 น.)
+4. **Computer Vision Snapshot Pipeline (`visionService.js` & `visionPostprocess.js`):** บอร์ด ESP32-S3 ดึงภาพนิ่งจากกล้องวงจรปิด `Dahua DH-IPC-HFW2231TP-ZAS-S2` ทุก 10 นาที ส่งขึ้นเซิร์ฟเวอร์เพื่อรันโมเดล **YOLO26m ONNX (`best.onnx`)** บน Node.js Worker Thread นับวัวแยกตาม 4 ท่าทาง (**`drinking` / `feeding` / `lying down` / `standing`**) พร้อมระบบตัดกรอบซ้อนแบบไม่ดูท่า (Class-Agnostic NMS)
 
 ---
 
@@ -63,19 +64,36 @@ $$\text{THI} = (1.8 \times T + 32) - (0.55 - 0.0055 \times \text{RH}) \times (1.
 
 ---
 
-### 2.4 การประเมินแนวโน้มความร้อนสะสม 72 ชั่วโมงและคำแนะนำตามบริบทไทย (`forecastService.js`)
-1. **ค่าเฉลี่ยแนวโน้มความร้อนสะสม 72 ชั่วโมง (`baseline-72h-mean-v2`):**
-   เมื่อมีข้อมูลรายชั่วโมงอย่างน้อย 24 ชั่วโมงในรอบ 72 ชั่วโมงล่าสุด ระบบคำนวณค่าเฉลี่ย $\text{THI}$ รายชั่วโมงย้อนหลัง 72 ชั่วโมง:
-   $$\widehat{\text{THI}}_{\text{baseline}} = \frac{1}{M} \sum_{h=1}^{M} \overline{\text{THI}}_h \qquad (24 \le M \le 72)$$
-   * **เหตุผลที่ใช้วิธีนี้แทน Bi-LSTM ในระยะปัจจุบัน:** จากการวัดผลด้วยสคริปต์ `eval_baselines.py` และ `eval_forecast.js` บนชุดข้อมูลสังเคราะห์ชุดเดียวกับที่ใช้เทรน พบว่าค่าเฉลี่ย 72 ชั่วโมงให้ค่าความคลาดเคลื่อน $\text{MAE} \approx 0.45\text{ THI}$ ซึ่งแม่นยำกว่าโมเดล Bi-LSTM เดิม ($\text{MAE} \approx 0.87\text{ THI}$) จึงปิด `ENABLE_LSTM=false` ไว้จนกว่าจะมีข้อมูลภาคสนามจริง
-   * **ไม่แสดงตัวเลขกิโลกรัมน้ำนมลด:** ระบบยังไม่ประเมินปริมาณน้ำนมที่ลดลงเป็นกิโลกรัม เนื่องจากยังไม่มีข้อมูลบันทึกน้ำนมจริงจากฟาร์ม
+### 2.4 ระบบพยากรณ์ THI ล่วงหน้า 3 วัน และการปรับค่าเพี้ยนจากเซ็นเซอร์ฟาร์ม (`forecastService.js`)
+1. **การพยากรณ์แบบผสม ECMWF + ค่าเพี้ยนมัธยฐานจากเซ็นเซอร์ฟาร์ม (`hybrid-ecmwf-bias-v1`):**
+   * ดึงพยากรณ์อากาศรายชั่วโมงจาก Open-Meteo โมเดล **ECMWF (`ecmwf_ifs025`)** ณ พิกัดฟาร์ม (หาก ECMWF ขัดข้องหรือข้อมูลไม่ครบชั่วโมงจะถอยกลับไปใช้ `best_match`) พร้อมดึงค่าพยากรณ์ล่วงหน้า +1/+2/+3 วันในอดีตจาก Previous Runs API
+   * คำนวณค่าเพี้ยนมัธยฐานแยกตามระยะล่วงหน้า $k \in \{1, 2, 3\}$ วัน จากข้อมูลเซ็นเซอร์จริงของฟาร์มในช่วง **3–14 วันที่ผ่านมา** (คัดเฉพาะวันที่ข้อมูลครบอย่างน้อย 20 ชั่วโมง, แต่ละชั่วโมงมีข้อมูลอย่างน้อย 60 จุด และช่วงกลางวัน 10:00–17:00 น. ขาดไม่เกิน 1 ชั่วโมง) และจำกัดค่าปรับไม่เกิน $\pm 6\text{ THI}$:
+     $$\text{bias}_k = \text{clamp}\!\left(\text{median}_{t \in D_{\text{valid}}}\!\left(\widehat{\text{THI}}_{\text{ECMWF}, t}^{(k)} - \overline{\text{THI}}_{\text{farm}, t}\right),\; -6,\; +6\right)$$
+     $$\widehat{\text{THI}}_{\text{pred}}(d+k) = \widehat{\text{THI}}_{\text{ECMWF}}(d+k) - \text{bias}_k$$
+   * **กรณีข้อมูลฟาร์มยังไม่ครบ 3 วัน:** หากใช้โมเดล ECMWF ในพื้นที่จังหวัดภาคเหนือ จะใช้ค่าเพี้ยนระดับภูมิภาคจากสถานีสนามบินเชียงใหม่ ($\text{bias}_1 = -1.41,\; \text{bias}_2 = -1.37,\; \text{bias}_3 = -1.32$) ส่วนกรณีไม่มีพิกัดฟาร์มหรือเรียก API ไม่สำเร็จ ระบบจะถอยกลับไปใช้ค่าเฉลี่ย 72 ชั่วโมงย้อนหลัง (`baseline_72h_mean`) พร้อมแจ้งสาเหตุใน `fallback_reason`
+   * **ผลการทดสอบย้อนหลัง (Backtest) กับสถานีสนามบินเชียงใหม่ (WMO 48327) 354 วัน (19 ธ.ค. 2024 – 7 ธ.ค. 2025):**
 
-2. **การหาช่วงเวลาร้อนที่สุดและเย็นที่สุดเฉพาะของแต่ละโรงเรือน (`findWindows`):**
-   เนื่องจากโรงเรือนแต่ละแห่งร้อนสุดคนละเวลา (เช่น หลังคาสังกะสีมักสะสมความร้อนไปพีคช่วงบ่ายแก่หรือเย็น) ระบบจึงสแกนค่าเฉลี่ยรายชั่วโมงในรอบ 72 ชั่วโมงเพื่อหา:
+| วิธีพยากรณ์ (Method) | MAE +1 วัน (THI) | MAE +2 วัน (THI) | MAE +3 วัน (THI) | หมายเหตุ |
+| :--- | :---: | :---: | :---: | :--- |
+| **ค่าเฉลี่ย 72 ชม. ย้อนหลัง (`baseline_72h_mean`)** | 1.10 | 1.38 | 1.56 | ใช้ค่าเดิมซ้ำทั้ง 3 วัน (Fallback) |
+| **ECMWF ดิบ (ไม่ปรับค่าเพี้ยน)** | 1.34 | 1.32 | 1.35 | มีความต่างระดับพื้นที่/ความชื้น |
+| **ECMWF + ปรับค่าเพี้ยน 14 วัน (`hybrid-ecmwf-bias-v1`)** | **0.69** | **0.78** | **0.88** | เฉพาะวันทดสอบที่มีประวัติครบ $\ge 9$ วัน; ระดับความเสี่ยงตรง **94% / 93% / 92%** |
+| **ECMWF + ปรับค่าเพี้ยน 3 วัน** | 0.80 | 0.92 | 1.07 | กรณีเพิ่งติดตั้งมีข้อมูลครบ 3–8 วัน |
+| **ECMWF + ค่าเพี้ยนคงที่จากปี 2024 (`regional_bias`)** | 0.77 | 0.83 | 0.90 | ใช้เมื่อฟาร์มภาคเหนือมีข้อมูลไม่ถึง 3 วัน |
+| **GRU (1,212 พารามิเตอร์, เฉลี่ย 3 seed)** | 0.88 | 0.91 | 0.91 | แพ้วิธี ECMWF + ปรับค่าเพี้ยน จึงปิดการใช้งาน |
+
+   * **ข้อจำกัดสำคัญ:** ตัวเลขข้างต้นวัดกับสถานีตรวจอากาศกลางแจ้งสนามบินเชียงใหม่ (WMO 48327) ยังไม่ใช่ข้อมูลในโรงเรือนจริง และระบบยังไม่ประเมินปริมาณน้ำนมที่ลดลงเป็นกิโลกรัม
+
+2. **การเปรียบเทียบอากาศในโรงเรือนกับภายนอก (`outdoorWeather.js`):**
+   * ใช้พิกัดฟาร์ม (`latitude`, `longitude`) เป็นอันดับแรก ถัดไปใช้จุดกึ่งกลางอำเภอ (เฉพาะอำเภอที่อยู่ในจังหวัดของฟาร์ม) หรือจุดกึ่งกลางจังหวัด
+   * เปรียบเทียบค่าเฉลี่ยรายชั่วโมงย้อนหลัง 72 ชั่วโมงในช่วงบ่าย (**12:00–16:59 น.**) ระหว่างเซ็นเซอร์ในโรงเรือนกับค่าจากโมเดล Open-Meteo โดยเผื่อความคลาดเคลื่อนของโมเดล $\pm 2^\circ\text{C}$
+
+3. **การหาช่วงเวลาร้อนที่สุดและเย็นที่สุดเฉพาะของแต่ละโรงเรือน (`findWindows`):**
+   ระบบสแกนค่าเฉลี่ยรายชั่วโมงในรอบ 72 ชั่วโมงของฟาร์มเพื่อหา:
    * **ช่วงร้อนที่สุด 4 ชั่วโมงติดต่อกัน (`peak_window`):** เพื่อแนะนำให้เน้นเปิดพัดลมระบายอากาศในช่วงเวลานั้น
    * **ช่วงเย็นที่สุด 3 ชั่วโมงติดต่อกันระหว่าง 04:00–20:00 น. (`cool_window`):** เพื่อแนะนำช่วงเวลาให้อาหารที่วัวกินได้ดีที่สุด
 
-3. **กฎการใช้น้ำลดความร้อนตามความชื้นสัมพัทธ์ (`getCoolingAdvice`):**
+4. **กฎการใช้น้ำลดความร้อนตามความชื้นสัมพัทธ์ (`getCoolingAdvice`):**
    * เมื่อ $\text{RH} \ge 75\%$: **งดพ่นหมอกฝอย** (เพราะละอองหมอกละเอียดทำให้อากาศอิ่มตัวแต่ไม่ช่วยลดความร้อน) และแนะนำให้ **ฉีดน้ำเม็ดใหญ่ที่หลังและไหล่วัวให้เปียกช่วงสั้นๆ (เลี่ยงเต้านม) ร่วมกับเปิดพัดลมเป่าให้แห้ง**
    * เมื่อ $\text{RH} < 75\%$: สามารถเปิดพ่นหมอกหรือฉีดน้ำตัววัวร่วมกับเปิดพัดลมได้
 
@@ -97,10 +115,10 @@ $$S_t = \alpha \cdot X_t + (1 - \alpha) \cdot S_{t-1} \qquad (\alpha = 0.70)$$
 [ HTTPS Upload ──► Node.js Backend (visionService.js) ]
     │
     ├──► [ Worker Thread: YOLO26m ONNX (best.onnx, IMGSZ = 480) ]
-    │       ├── ตรวจจับกรอบวัว 4 ท่า: นอน (lying down), ยืน (standing), กิน (eating), ดื่ม (drinking)
+    │       ├── ตรวจจับกรอบวัว 4 ท่า: drinking, feeding, lying down, standing
     │       └── ตัดกรอบซ้อนโดยไม่ดูท่า (Class-Agnostic NMS: conf ≥ 0.25, IoU ≥ 0.70)
     │
-    ├──► [ บันทึกผลนับท่าวัวลงตาราง behavior_logs ใน Supabase PostgreSQL ]
+    ├──► [ บันทึกผลนับท่าวัวลงตาราง cctv_behavior_telemetry ใน Supabase PostgreSQL ]
     └──► [ เก็บภาพตัวอย่างชั่วโมงละ 1 รูป + ไฟล์ JSON ลง Private Bucket (camera-samples) ]
 ```
 
@@ -108,11 +126,11 @@ $$S_t = \alpha \cdot X_t + (1 - \alpha) \cdot S_{t-1} \qquad (\alpha = 0.70)$$
 * **ไฟล์โมเดลและการตรวจสอบความถูกต้อง (`modelStore.js`):** ไฟล์ `best.onnx` (สถาปัตยกรรม YOLO26m) ถูกเก็บใน Supabase Storage แบบ Private เมื่อเซิร์ฟเวอร์ดาวน์โหลดมาจะตรวจสอบค่าแฮช **SHA-256** ทุกครั้งก่อนโหลดเข้า `onnxruntime-node`
 * **การประมวลผลภาพ (`visionWorker.js` & `visionPostprocess.js`):**
   1. ย่อขนาดภาพแบบรักษาสัดส่วน (Letterbox) ลงขนาด $480 \times 480$ พิกเซล (`IMGSZ = 480`)
-  2. จำแนกท่าทางโคนมเป็น **4 คลาส**:
+  2. จำแนกท่าทางโคนมเป็น **4 คลาส** (ไม่มีระบบติดตามตัววัว ByteTrack และไม่ตรวจจับท่าหอบ):
+     * `drinking` (ดื่มน้ำ)
+     * `feeding` (กินอาหาร)
      * `lying down` (นอนพัก)
      * `standing` (ยืน)
-     * `eating` (กินอาหาร)
-     * `drinking` (ดื่มน้ำ)
   3. **การตัดกรอบซ้อนแบบไม่ดูท่า (Class-Agnostic NMS, `agnostic: true`):**
      หากมีกรอบทำนาย 2 กรอบซ้อนทับกันเกินเกณฑ์ $\text{IoU} \ge 0.70$ ระบบจะเก็บไว้เฉพาะกรอบที่มีความมั่นใจ (`conf`) สูงสุดเพียงกรอบเดียว **โดยไม่สนใจว่าเป็นคลาสเดียวกันหรือไม่** (บังคับกฎ **วัว 1 ตัว = 1 กรอบ**) เพื่อแก้ปัญหาวัวตัวเดียวถูกตีกรอบซ้อนกันหลายท่า
   4. **สัดส่วนวัวนอน (`lying_ratio`):**
@@ -130,9 +148,8 @@ $$S_t = \alpha \cdot X_t + (1 - \alpha) \cdot S_{t-1} \qquad (\alpha = 0.70)$$
 ## 📚 4. เอกสารและงานวิจัยอ้างอิง (Scientific References)
 1. **NRC (1971).** *A Guide to Environmental Research on Animals.* National Academy of Sciences, Washington, DC. (สมการมาตรฐานดัชนี THI)
 2. **Sae-tiao, T. et al. (2019).** *Temperature-humidity index and heat stress effects on dairy cattle in Thailand.* Livestock Research for Rural Development, 31(12). (การใช้สมการ NRC 1971 กับโคนมในประเทศไทย)
-3. **Boonkum, W. et al. (2011).** *Genetic effects of heat stress on milk yield of Thai Friesian_dairy cattle.* Journal of Dairy Science, 94(1), 487–492. (จุดเริ่มลดของน้ำนมที่ THI 74 ในแม่โคท้อง 3+ สายเลือดโฮลสไตน์สูง และลดเร็วขึ้นเมื่อ THI > 82)
+3. **Boonkum, W. et al. (2011).** *Genetic effects of heat stress on milk yield of Thai Friesian dairy cattle.* Journal of Dairy Science, 94(1), 487–492. (จุดเริ่มลดของน้ำนมที่ THI 74 ในแม่โคท้อง 3+ สายเลือดโฮลสไตน์สูง และลดเร็วขึ้นเมื่อ THI > 82)
 4. **Boonkum, W. et al. (2024).** *Impact of Heat Stress on Milk Yield, Milk Fat-to-Protein Ratio, and Conception Rate in Thai–Holstein Dairy Cattle: A Phenotypic and Genetic Perspective.* Animals, 14(20), 3026. (เกณฑ์ความเครียดความร้อนระดับประชากรโคนมลูกผสมไทยที่ THI 76)
 5. **Duangjinda, M. et al.** *ICAR Technical Series No. 23.* (เกณฑ์ระดับความเครียดโคนมเขตร้อน: ปานกลาง > 74, รุนแรง > 80)
 6. **Igono, M. O. et al. (1992).** *Environmental profile and critical temperature effects on milk production of Holstein cows in arid climate.* International Journal of Biometeorology, 36, 77–87. (ความสำคัญของชั่วโมงเย็นช่วงกลางคืนต่อการฟื้นตัวจากความร้อน)
-7. **Hasan, F. M. et al. (2026).** *Impact of heat stress on cattle systems: Responses of production metrics to thermal stress.* Computers and Electronics in Agriculture. (ผลกระทบตามหลัง Lag Effect ประมาณ 5 วันต่อผลผลิตน้ำนม)
-8. **Penn State Extension.** *Heat Stress Abatement Techniques for Dairy Cattle.* (หลักการระบายความร้อนด้วยการฉีดน้ำตัวโคควบคู่กับการเป่าพัดลมในสภาพอากาศชื้น)
+7. **Penn State Extension.** *Heat Stress Abatement Techniques for Dairy Cattle.* (หลักการระบายความร้อนด้วยการฉีดน้ำตัวโคควบคู่กับการเป่าพัดลมในสภาพอากาศชื้น)

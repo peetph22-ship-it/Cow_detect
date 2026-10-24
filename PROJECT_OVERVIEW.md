@@ -22,9 +22,9 @@
 **PH Detection System** เป็นระบบตรวจจับ แจ้งเตือน และพยากรณ์ความเครียดความร้อน (Heat Stress) ควบคู่กับการวิเคราะห์พฤติกรรมโคนมแบบแม่นยำสูง ออกแบบมาเพื่อยกระดับฟาร์มโคนมไทย (โดยเฉพาะฟาร์มรายย่อยและฟาร์มมาตรฐาน) ให้อยู่รอดและคงผลผลิตน้ำนมได้ท่ามกลางสภาพอากาศร้อนชื้นของประเทศไทย
 
 ### ปัญหาหลักที่ระบบแก้ไข (Core Problems Addressed)
-1. **ภาวะน้ำนมดิ่งจากความร้อนสะสม (Milk Yield Drop):** สภาพอากาศร้อนชื้นทำให้โคนมเกิดความเครียดความร้อน ส่งผลให้น้ำนมลดลงอย่างรุนแรง โดยมีผลกระทบตามหลัง 5 วัน (Biological Lag Effect) หากไม่ระบายอากาศล่วงหน้า
-2. **การฟื้นตัวกลางคืนล้มเหลว (Night-time Thermal Inefficiency):** หากอุณหภูมิโรงเรือนช่วงกลางคืน (00:00–06:00 น.) ไม่ลดลง แม่โคจะไม่สามารถระบายความร้อนสะสมจากช่วงกลางวันได้
-3. **การสูญเสียทางเศรษฐกิจและการตรวจพบที่ช้าเกินไป:** เกษตรกรส่วนใหญ่รับรู้ปัญหาเมื่อน้ำนมลดลงแล้ว ซึ่งสายเกินไป ระบบนี้จึงเปลี่ยนจากการ **"ตั้งรับ (Reactive)"** มาเป็นการ **"พยากรณ์เชิงรุก (Proactive Management)"**
+1. **ผลผลิตน้ำนมและอัตราผสมติดลดลงจากความร้อน (Milk Yield & Conception Decline):** สภาพอากาศร้อนชื้นทำให้โคนมลูกผสมไทยเกิดความเครียดความร้อนตั้งแต่ค่า $\text{THI}$ เฉลี่ยรายวันถึงเกณฑ์ 74–76 และลดลงเร็วขึ้นเมื่อถึง 82 (Boonkum et al., 2011; 2024)
+2. **การฟื้นตัวกลางคืนล้มเหลว (Night-time Thermal Inefficiency):** หากช่วงกลางคืน (22:00–06:00 น.) ค่า $\text{THI}$ ไม่ลดต่ำกว่า 74 แม่โคจะไม่สามารถระบายความร้อนสะสมจากช่วงกลางวันได้ (Igono et al., 1992)
+3. **การสูญเสียทางเศรษฐกิจและการตรวจพบที่ช้าเกินไป:** เกษตรกรส่วนใหญ่รับรู้ปัญหาเมื่อน้ำนมลดลงแล้ว ระบบนี้จึงเปลี่ยนจากการ **"ตั้งรับ (Reactive)"** มาเป็นการ **"เฝ้าระวังและพยากรณ์ล่วงหน้า 3 วัน (Proactive Management)"**
 
 ---
 
@@ -44,8 +44,8 @@ flowchart TD
     end
 
     subgraph DataStorage["3. Database & Cloud Services"]
-        SupabaseDB[("PostgreSQL Database (Supabase Cloud)<br/>• tb_users, tb_farms, tb_devices<br/>• tb_sensor_readings<br/>• tb_farm_daily_summaries<br/>• behavior_logs, milk_records")]
-        GeminiAI["Google Gemini Generative AI<br/>• คำแนะนำการจัดการฟาร์มภาษาไทย"]
+        SupabaseDB[("PostgreSQL Database (Supabase Cloud)<br/>• tb_users, tb_farms, tb_devices<br/>• tb_sensor_readings<br/>• tb_farm_daily_summaries<br/>• cctv_behavior_telemetry")]
+        OpenMeteo["Open-Meteo Weather API<br/>• ECMWF 3-Day Forecast & Outdoor Comparison"]
     end
 
     subgraph ClientLayer["4. User Interface Layer"]
@@ -105,8 +105,8 @@ erDiagram
     tb_devices ||--o{ tb_sensor_readings : "บันทึกค่าเซ็นเซอร์"
     tb_farms ||--o{ tb_sensor_readings : "เป็นเจ้าของข้อมูล"
     tb_farms ||--o{ tb_farm_daily_summaries : "สรุปผลรายวัน (Batch 20:00)"
-    tb_farms ||--o{ behavior_logs : "บันทึกพฤติกรรมจากกล้อง"
-    tb_farms ||--o{ milk_records : "บันทึกผลผลิตน้ำนม"
+    tb_farms ||--o{ cctv_behavior_telemetry : "บันทึกพฤติกรรมจากกล้อง"
+    tb_farms ||--o{ tb_farmer_daily_actions : "เช็กลิสต์การดูแลรายวัน"
 
     tb_users {
         uuid id_users PK
@@ -166,10 +166,10 @@ erDiagram
         numeric max_temp_c
         numeric avg_humidity_pct "ความชื้นเฉลี่ย"
         numeric stress_hours "ชั่วโมงความร้อนสะสม (THI >= 76)"
-        numeric severe_hours "ชั่วโมงวิกฤต (THI >= 84)"
-        numeric night_recovery_thi "THI ฟื้นตัวกลางคืน (00:00-06:00)"
+        numeric severe_hours "ชั่วโมงวิกฤต (THI >= 82)"
+        numeric night_recovery_thi "THI ฟื้นตัวกลางคืน (22:00-06:00)"
         jsonb yesterday_comparison "ข้อมูลเปรียบเทียบกับเมื่อวาน"
-        jsonb lstm_forecast "ผลพยากรณ์ล่วงหน้า 3 วันและน้ำนมลด"
+        jsonb lstm_forecast "ผลพยากรณ์ล่วงหน้า 3 วัน (hybrid-ecmwf-bias-v1)"
         text advisory "สรุปคำแนะนำเชิงรุกประจำวัน"
         timestamptz created_at
     }
@@ -183,8 +183,8 @@ erDiagram
 - `avg_temp_c`, `min_temp_c`, `max_temp_c`: อุณหภูมิอากาศ
 - `avg_humidity_pct`, `min_humidity_pct`, `max_humidity_pct`: ความชื้นสัมพัทธ์
 - `stress_hours`: จำนวนชั่วโมงในวันนั้นที่ค่า $\text{THI} \ge 76.0$
-- `severe_hours`: จำนวนชั่วโมงในวันนั้นที่ค่า $\text{THI} \ge 84.0$
-- `night_recovery_thi`: ค่าเฉลี่ย THI ในช่วงเวลา 00:00 - 06:00 น. (ตัวชี้วัดการฟื้นตัวเวลากลางคืน)
+- `severe_hours`: จำนวนชั่วโมงในวันนั้นที่ค่า $\text{THI} \ge 82.0$
+- `night_recovery_thi`: ค่าเฉลี่ย THI ในช่วงเวลา 22:00 - 06:00 น. (ตัวชี้วัดการฟื้นตัวเวลากลางคืน)
 - `yesterday_comparison` (JSONB):
   ```json
   {
@@ -197,8 +197,8 @@ erDiagram
     "trend_description": "ความร้อนสะสมเฉลี่ยเพิ่มขึ้น +0.5 THI เทียบกับเมื่อวาน"
   }
   ```
-- `lstm_forecast` (JSONB): เก็บผลการพยากรณ์ล่วงหน้า 3 วัน (Day +1, +2, +3) พร้อมปริมาณน้ำนมที่ลดลง
-- `advisory`: ข้อความสรุปเชิงรุกสำหรับแจ้งเตือนเกษตรกร
+- `lstm_forecast` (JSONB): เก็บผลการพยากรณ์ล่วงหน้า 3 วัน (Day +1, +2, +3) รุ่น `hybrid-ecmwf-bias-v1`
+- `advisory`: ข้อความสรุปคำแนะนำประจำวันตามบริบทฟาร์มไทย
 
 ### 4.2 ระบบความปลอดภัยและความสมบูรณ์ของข้อมูล (ACID Transactions)
 - **การเพิ่มฟาร์ม (`POST /api/Admin/farms`):** ใช้ `db.pool.connect()` เริ่มด้วย `BEGIN` สร้างข้อมูลฟาร์ม และเชื่อมโยงอุปกรณ์ IoT หากจุดใดล้มเหลวจะทำ `ROLLBACK` ทันที ป้องกันปัญหาฟาร์มค้างโดยไม่มีอุปกรณ์
@@ -223,24 +223,27 @@ erDiagram
    - $76 \le \text{THI} < 82$: **Moderate** (เครียดจากความร้อน — เกณฑ์ระดับประชากรโคนมลูกผสมไทย)
    - $\text{THI} \ge 82$: **Severe** (วิกฤต — ผลผลิตน้ำนมลดลงเร็วขึ้นชัดเจน)
 
-3. **ผลกระทบตามหลัง Biological Lag Effect 5 วัน (Hasan et al. 2026):**
-   - ผลกระทบต่อผลผลิตน้ำนมมีระยะหน่วงทางชีวภาพ (Biological Lag) ชัดเจนที่ประมาณ **5 วัน** หลังเผชิญความร้อนสะสม (ระบบยังไม่ประเมินกิโลกรัมน้ำนมที่ลดลงเนื่องจากไม่มีข้อมูลบันทึกน้ำนมจริง)
-
-4. **ชั่วโมงกลางคืนที่วัวได้พักจากความร้อน (Night Relief Hours — Igono et al. 1992):**
+3. **ชั่วโมงกลางคืนที่วัวได้พักจากความร้อน (Night Relief Hours — Igono et al. 1992):**
    - นับจำนวนชั่วโมงในช่วงเวลา **22:00 – 06:00 น.** (เวลาไทย) ที่ค่าเฉลี่ยถัง 5 นาทีมี $\text{THI} < 74$
 
-5. **การจัดการความชื้นและช่วงเวลาร้อน/เย็นของโรงเรือน (Penn State Extension & Farm History):**
+4. **การจัดการความชื้นและช่วงเวลาร้อน/เย็นของโรงเรือน (Penn State Extension & Farm History):**
    - เมื่อความชื้นสัมพัทธ์ $\text{RH} \ge 75\%$: แนะนำ **งดพ่นหมอกฝอย** และใช้การฉีดน้ำราดตัววัวช่วงสั้นๆ ร่วมกับเปิดพัดลมแทน
    - ช่วงเวลาร้อนที่สุด (4 ชม.) และช่วงเย็นที่สุดสำหรับให้อาหาร (3 ชม.) คำนวณจากข้อมูลจริงของโรงเรือนนั้นย้อนหลัง 72 ชั่วโมง
 
 ### 5.2 ระบบ Computer Vision (YOLO26m ONNX)
 - บอร์ด ESP32-S3 ดึงภาพนิ่งจากกล้อง Dahua ทุก 10 นาทีผ่าน HTTP Digest Auth ส่งขึ้น `backend_node`
 - รันโมเดล **YOLO26m ONNX (`best.onnx`)** บน Node.js Worker Thread (เก็บไฟล์โมเดลใน Supabase Private Storage ตรวจด้วย SHA-256)
-- นับจำนวนวัวแยกตาม 4 ท่าทาง: **นอน (`lying down`)**, **ยืน (`standing`)**, **กินอาหาร (`eating`)**, **ดื่มน้ำ (`drinking`)** พร้อมตัดกรอบซ้อนโดยไม่ดูท่า (Class-Agnostic NMS: 1 ตัว = 1 กรอบ)
+- นับจำนวนวัวแยกตาม 4 ท่าทาง: **ดื่มน้ำ (`drinking`)**, **กินอาหาร (`feeding`)**, **นอน (`lying down`)**, **ยืน (`standing`)** พร้อมตัดกรอบซ้อนโดยไม่ดูท่า (Class-Agnostic NMS: `conf = 0.25`, `IoU = 0.70`, 1 ตัว = 1 กรอบ)
 - เก็บภาพตัวอย่างชั่วโมงละ 1 รูป พร้อมไฟล์ JSON ลง Private Storage เพื่อใช้นับเทียบความแม่นยำและสร้าง Dataset โรงเรือนไทย
 
-### 5.3 แนวโน้มความร้อนสะสม 72 ชั่วโมง (`forecastService.js`)
-- ใช้ **Baseline ค่าเฉลี่ย THI รายชั่วโมงย้อนหลัง 72 ชั่วโมง (`baseline-72h-mean-v2`)** เพื่อสะท้อนความร้อนสะสมของโรงเรือน (บนชุดข้อมูลสังเคราะห์ได้ $\text{MAE} \approx 0.45\text{ THI}$ ดีกว่า Bi-LSTM เดิมที่ได้ $\sim 0.87$ จึงปิด `ENABLE_LSTM=false` ไว้ก่อนจนกว่าจะมีข้อมูลภาคสนามจริง)
+### 5.3 ระบบพยากรณ์ THI ล่วงหน้า 3 วัน (`forecastService.js`, `hybrid-ecmwf-bias-v1`)
+- ดึงพยากรณ์อากาศรายชั่วโมงจาก Open-Meteo โมเดล **ECMWF (`ecmwf_ifs025`)** ณ พิกัดฟาร์ม (สำรองด้วย `best_match` หรือค่าเฉลี่ย 72 ชม.) แล้วหักลบค่าเพี้ยนมัธยฐานแยกตามระยะล่วงหน้า (+1/+2/+3 วัน) ที่เรียนรู้จากเซ็นเซอร์จริงของฟาร์มในช่วง 3–14 วันที่ผ่านมา (เฉพาะวันที่ข้อมูลครบ $\ge 20$ ชม. และช่วง 10:00–17:00 น. ขาดไม่เกิน 1 ชม. จำกัดค่าปรับ $\pm 6\text{ THI}$)
+- **ผลทดสอบย้อนหลังกับสถานีสนามบินเชียงใหม่ (WMO 48327) 354 วัน (19 ธ.ค. 2024 – 7 ธ.ค. 2025):**
+  - ค่าเฉลี่ย 72 ชม. ย้อนหลัง: $\text{MAE} = 1.10 / 1.38 / 1.56$
+  - ECMWF ดิบ: $\text{MAE} = 1.34 / 1.32 / 1.35$
+  - **ECMWF + ปรับค่าเพี้ยน 14 วัน:** $\text{MAE} = \mathbf{0.69 / 0.78 / 0.88}$ (ระดับความเสี่ยงตรง **94% / 93% / 92%**)
+  - โมเดล GRU (1,212 พารามิเตอร์): $\text{MAE} = 0.88 / 0.91 / 0.91$ (แพ้วิธีปัจจุบัน จึงปิดการใช้งาน LSTM/GRU ไว้ก่อน)
+- ระบบยังไม่ประเมินปริมาณน้ำนมที่ลดลงเป็นกิโลกรัม เนื่องจากไม่มีข้อมูลบันทึกน้ำนมจริงจากฟาร์ม
 
 ---
 
@@ -253,7 +256,7 @@ erDiagram
 2. **Data Extraction:** ดึงค่าเซ็นเซอร์ทั้งหมดของวันนั้น (00:00:00 - 23:59:59 เวลาไทย) จาก `tb_sensor_readings`
 3. **Daily Aggregation:** คำนวณค่าต่ำสุด สูงสุด เฉลี่ย, ชั่วโมงความเครียด (`stress_hours`), ชั่วโมงวิกฤต (`severe_hours`), และค่าฟื้นตัวกลางคืน (`night_recovery_thi`)
 4. **Historical Comparison:** ดึงสถิติของเมื่อวานมาเปรียบเทียบคำนวณผลต่าง (`diff_avg_thi`, `diff_max_temp`, `trend`)
-5. **LSTM Projection:** คำนวณแนวโน้ม 3 วันข้างหน้า (Day +1, Day +2, Day +3) พร้อมคำนวณปริมาณน้ำนมที่เสี่ยงสูญเสีย
+5. **3-Day Hybrid Forecast:** คำนวณแนวโน้ม 3 วันข้างหน้า (Day +1, Day +2, Day +3) ด้วย `hybrid-ecmwf-bias-v1`
 6. **Advisory Generation:** สร้างข้อความคำแนะนำการจัดการฟาร์มเชิงรุกภาษาไทย
 7. **Atomic Upsert:** บันทึกลงตาราง `tb_farm_daily_summaries` ด้วยคำสั่ง `ON CONFLICT (id_farms, summary_date) DO UPDATE`
 
@@ -278,10 +281,10 @@ erDiagram
 - **Data Gap Alert Banner:** ตรวจจับสัญญาณขาดหาย หากบอร์ดปิดหรือไม่ได้ส่งสัญญาณเกิน 10 นาที แบนเนอร์สีส้มจะแจ้งเตือนพร้อมระบุระยะเวลาที่สัญญาณหายไปอย่างแม่นยำ
 - **Bento Grid Hero Cockpit:** แสดงค่า THI ขนาดใหญ่, ระดับความเครียดสีตามเกณฑ์, เกจวัดสัดส่วนความเสี่ยง
 - **24-Hour Rolling Summary Ribbon:** 4 การ์ดแสดงค่าเฉลี่ย THI, ช่วงอุณหภูมิ (Min-Max), ช่วงความชื้น (Min-Max), และรอบเตือนความร้อนสะสม
-- **AI LSTM Predictive Brain Section:**
-  - การ์ดพยากรณ์ล่วงหน้า 3 วัน (Day +1 ถึง +3)
-  - การคาดการณ์น้ำนมที่ลดลง ($\text{kg/ตัว/วัน}$) ตามหลัก Biological Lag Effect 5 วัน
-  - แผนจัดการเชิงรุก (Proactive Strategy) แนะนำเวลาเปิดพัดลมพ่นหมอก
+- **3-Day Hybrid Forecast & Outdoor Comparison Section:**
+  - การ์ดพยากรณ์ล่วงหน้า 3 วัน (Day +1 ถึง +3) ด้วย Open-Meteo ECMWF + ค่าเพี้ยนจากเซ็นเซอร์ฟาร์ม 3–14 วัน (`hybrid-ecmwf-bias-v1`)
+  - การ์ดเปรียบเทียบสภาพอากาศในโรงเรือนกับภายนอกย้อนหลัง 72 ชม. ช่วงบ่าย 12:00–16:59 น. (`outdoorWeather.js`) เผื่อความคลาดเคลื่อนโมเดล $\pm 2^\circ\text{C}$
+  - แผนจัดการตามบริบทไทย แนะนำช่วงเวลาเปิดพัดลมและวิธีใช้น้ำตามความชื้นสัมพัทธ์
   - แถบแสดงสถานะ **สรุปผลรายวัน (Batch 20:00 น.)**, ค่าเปรียบเทียบเมื่อวาน, ค่า Night Recovery และปุ่มกดรัน Daily Job
 - **Interactive ApexCharts:** กราฟแสดงแนวโน้มอุณหภูมิ ความชื้น THI และเส้นเกณฑ์ความเครียด พร้อมระบบตัดข้อมูลส่วนที่ขาดหาย ไม่พล็อตกราฟหลอก
 - **Real-Time Lightweight Polling:** Polling ผ่าน `GET /api/Admin/farms/:id/latest` ทุก 8 วินาที (ขนาดแพ็กเก็ตเพียง ~200 bytes) ลดภาระฐานข้อมูลลงกว่า 95%

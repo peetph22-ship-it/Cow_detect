@@ -281,7 +281,8 @@
     <ul>
       <li><strong>IoT Telemetry (Firmware v1.4.1):</strong> กล่องเซ็นเซอร์ ESP32-S3 อ่านค่าจากหัววัด RS485 ตระกูล <strong>XY-MD02 ชิป SHT20</strong> ($\pm 0.3^\circ\text{C} / \pm 3\%\text{ RH}$) ส่งผ่าน HTTPS (Root CA + <code>X-Device-Key</code>) พร้อมคิวสำรองข้อมูลในบอร์ดเมื่อเน็ตหลุด และรายงานสถานะกล่องทุก 5 นาที</li>
       <li><strong>Unified Heat Metrics (5-Minute Buckets):</strong> คำนวณค่า THI ด้วยสูตรมาตรฐาน <strong>NRC (1971)</strong> และเกณฑ์โคนมลูกผสมไทย <strong>74 / 76 / 82</strong> ชุดเดียวกันทั้งระบบ</li>
-      <li><strong>Computer Vision (YOLO26m ONNX):</strong> บอร์ดดึงภาพจากกล้อง <code>Dahua DH-IPC-HFW2231TP-ZAS-S2</code> ทุก 10 นาที ส่งให้เซิร์ฟเวอร์รันโมเดล <strong>YOLO26m ONNX</strong> บน Worker Thread นับวัวแยกตาม 4 ท่า (นอน / ยืน / กิน / ดื่ม)</li>
+      <li><strong>3-Day Hybrid Forecast &amp; Outdoor Comparison (<code>forecastService.js</code>, <code>outdoorWeather.js</code>):</strong> พยากรณ์ THI เฉลี่ยรายวันล่วงหน้า 3 วันด้วยข้อมูล Open-Meteo <strong>ECMWF (<code>ecmwf_ifs025</code>)</strong> หักลบค่าเพี้ยนมัธยฐานจากเซ็นเซอร์ฟาร์มย้อนหลัง 3–14 วัน และเปรียบเทียบอากาศในโรงเรือนกับภายนอกย้อนหลัง 72 ชม. ช่วงบ่าย 12:00–16:59 น.</li>
+      <li><strong>Computer Vision (YOLO26m ONNX):</strong> บอร์ดดึงภาพจากกล้อง <code>Dahua DH-IPC-HFW2231TP-ZAS-S2</code> ทุก 10 นาที ส่งให้เซิร์ฟเวอร์รันโมเดล <strong>YOLO26m ONNX</strong> บน Worker Thread นับวัวแยกตาม 4 ท่า (<code>drinking</code> / <code>feeding</code> / <code>lying down</code> / <code>standing</code>)</li>
     </ul>
 
     <!-- Section 2 -->
@@ -356,21 +357,23 @@
       </div>
     </div>
 
-    <h3>2.4 คำแนะนำตามบริบทไทยและแนวโน้มความร้อนสะสม 72 ชั่วโมง (<code>forecastService.js</code>)</h3>
+    <h3>2.4 ระบบพยากรณ์ THI ล่วงหน้า 3 วัน และการปรับค่าเพี้ยนจากเซ็นเซอร์ฟาร์ม (<code>forecastService.js</code>)</h3>
     <div class="formula-card">
-      <p>คำนวณแนวโน้มความร้อนสะสมจากค่าเฉลี่ย THI รายชั่วโมงย้อนหลัง 72 ชั่วโมง (<code>baseline-72h-mean-v2</code>):</p>
+      <p>พยากรณ์ THI เฉลี่ยรายวันล่วงหน้า $k \in \{1, 2, 3\}$ วัน ด้วยค่าจาก Open-Meteo <strong>ECMWF (<code>ecmwf_ifs025</code>)</strong> หักลบค่าเพี้ยนมัธยฐานที่เรียนรู้จากเซ็นเซอร์จริงของฟาร์มในช่วง 3–14 วันล่าสุด (<code>hybrid-ecmwf-bias-v1</code>):</p>
       <div class="formula-math">
-        $$\widehat{\text{THI}}_{\text{baseline}} = \frac{1}{M} \sum_{h=1}^{M} \overline{\text{THI}}_h \qquad (24 \le M \le 72)$$
+        $$\text{bias}_k = \text{clamp}\!\left(\text{median}_{t \in D_{\text{valid}}}\!\left(\widehat{\text{THI}}_{\text{ECMWF}, t}^{(k)} - \overline{\text{THI}}_{\text{farm}, t}\right),\; -6,\; +6\right), \qquad \widehat{\text{THI}}_{\text{pred}}(d+k) = \widehat{\text{THI}}_{\text{ECMWF}}(d+k) - \text{bias}_k$$
       </div>
       <div class="formula-desc">
-        • <strong>ช่วงร้อนและช่วงเย็นเฉพาะฟาร์ม:</strong> คำนวณช่วงร้อนที่สุด (4 ชม.) และช่วงเย็นที่สุดสำหรับให้อาหาร (3 ชม. ระหว่าง 04:00–20:00 น.) จากข้อมูลของโรงเรือนนั้นเอง<br>
+        • <strong>เงื่อนไขวันที่มีข้อมูลครบ ($D_{\text{valid}}$):</strong> ใช้เฉพาะวันที่ข้อมูลครบ $\ge 20$ ชม., แต่ละชั่วโมงมีข้อมูล $\ge 60$ จุด และช่วงกลางวัน 10:00–17:00 น. ขาดไม่เกิน 1 ชม.<br>
+        • <strong>กรณีฟาร์มมีข้อมูลไม่ถึง 3 วัน:</strong> หากใช้ ECMWF ในจังหวัดภาคเหนือ ใช้ค่าเพี้ยนภูมิภาคเชียงใหม่ ($-1.41 / -1.37 / -1.32$) และหากไม่มีพิกัดหรือเรียก API ไม่ได้ จะถอยกลับไปใช้ค่าเฉลี่ย 72 ชม. ย้อนหลัง (<code>baseline_72h_mean</code>)<br>
+        • <strong>ช่วงร้อนและช่วงเย็นเฉพาะฟาร์ม:</strong> คำนวณช่วงร้อนที่สุด (4 ชม.) และช่วงเย็นที่สุดสำหรับให้อาหาร (3 ชม. ระหว่าง 04:00–20:00 น.) จากข้อมูล 72 ชม. ของโรงเรือนนั้นเอง<br>
         • <strong>กฎความชื้น $\text{RH} \ge 75\%$:</strong> แนะนำให้ <strong>งดพ่นหมอกฝอย</strong> และใช้การฉีดน้ำราดตัววัวช่วงสั้นๆ ร่วมกับเปิดพัดลมแทน<br>
         • <strong>ข้อควรทราบ:</strong> ยังไม่ประเมินปริมาณน้ำนมที่ลดลงเป็นกิโลกรัม เนื่องจากระบบไม่มีข้อมูลบันทึกน้ำนมจริง
       </div>
     </div>
 
     <!-- Section 3 -->
-    <h2>🧠 3. สถาปัตยกรรมระบบกล้องและโมเดลในระบบ</h2>
+    <h2>🧠 3. สถาปัตยกรรมระบบกล้องและระบบพยากรณ์ในระบบ</h2>
 
     <div class="grid-2">
       <!-- DL Model 1 -->
@@ -379,9 +382,9 @@
         <p><strong>โมเดล:</strong> YOLO26m ONNX (<code>best.onnx</code> บน Node.js Worker Thread)</p>
         <p><strong>การเก็บโมเดล:</strong> Supabase Private Storage (ตรวจไฟล์ด้วย SHA-256)</p>
         <ul>
-          <li>บอร์ด ESP32-S3 ดึงภาพจากกล้อง Dahua ทุก 10 นาทีผ่าน HTTP Digest</li>
-          <li>จำแนกและนับวัวแยกตาม <strong>4 ท่าทาง</strong>: นอน (<code>lying down</code>), ยืน (<code>standing</code>), กิน (<code>eating</code>), ดื่ม (<code>drinking</code>)</li>
-          <li><strong>ตัดกรอบซ้อนโดยไม่ดูท่า (Class-Agnostic NMS, IoU = 0.70):</strong> บังคับ 1 ตัว = 1 กรอบ แก้ปัญหานับวัวซ้ำ</li>
+          <li>บอร์ด ESP32-S3 ดึงภาพจากกล้อง Dahua ทุก 10 นาทีผ่าน HTTP Digest (ไม่มีระบบติดตามตัววัวและไม่ตรวจจับท่าหอบ)</li>
+          <li>จำแนกและนับวัวแยกตาม <strong>4 ท่าทาง</strong>: ดื่มน้ำ (<code>drinking</code>), กินอาหาร (<code>feeding</code>), นอน (<code>lying down</code>), ยืน (<code>standing</code>)</li>
+          <li><strong>ตัดกรอบซ้อนโดยไม่ดูท่า (Class-Agnostic NMS, conf = 0.25, IoU = 0.70):</strong> บังคับ 1 ตัว = 1 กรอบ แก้ปัญหานับวัวซ้ำ</li>
           <li><strong>ผลทดสอบกับชุดภาพ 203 ภาพ:</strong> วัวที่ถูกนับซ้ำลดจาก <strong>11 คู่ เหลือ 0</strong>, จำนวนวัวนอนคลาดเฉลี่ย <strong>0.47 ตัว/ภาพ</strong>, พลาดวัวประมาณ <strong>21%</strong> (เทรนจากภาพต่างประเทศ)</li>
           <li>เก็บภาพตัวอย่างชั่วโมงละ 1 รูป พร้อมไฟล์ JSON เพื่อใช้นับเทียบและทำ Dataset โรงเรือนไทย</li>
         </ul>
@@ -389,13 +392,17 @@
 
       <!-- DL Model 2 -->
       <div class="model-box">
-        <h4>📈 2. แนวโน้มความร้อนสะสม (72h Baseline vs Bi-LSTM)</h4>
-        <p><strong>โมเดลที่เปิดใช้งานจริง:</strong> <code>baseline-72h-mean-v2</code> (<code>forecastService.js</code>)</p>
-        <p><strong>สถานะ Bi-LSTM:</strong> ปิดไว้ชั่วคราว (<code>ENABLE_LSTM=false</code>)</p>
+        <h4>📈 2. ระบบพยากรณ์ 3 วัน (ECMWF + Farm Sensor Bias)</h4>
+        <p><strong>โมเดลที่เปิดใช้งานจริง:</strong> <code>hybrid-ecmwf-bias-v1</code> (<code>forecastService.js</code>)</p>
+        <p><strong>สถานะโมเดล LSTM/GRU:</strong> ปิดไว้ (ทดสอบแล้วแพ้วิธีปัจจุบัน)</p>
         <ul>
-          <li><strong>เหตุผล:</strong> จากการวัดผลบนข้อมูลชุดทดสอบ วิธีค่าเฉลี่ย THI 72 ชม. ได้ $\text{MAE} \approx 0.45\text{ THI}$ ดีกว่า Bi-LSTM เดิม ($\sim 0.87$)</li>
-          <li>ใช้สะท้อนแนวโน้มความร้อนสะสมของโรงเรือนเพื่อเตือนการระบายอากาศล่วงหน้า</li>
-          <li>ยังไม่เชื่อมต่อพยากรณ์อากาศภายนอก (Open-Meteo ตกลงทำในระยะถัดไป)</li>
+          <li><strong>ผลทดสอบย้อนหลังกับสถานีสนามบินเชียงใหม่ (WMO 48327) 354 วัน (19 ธ.ค. 2024 – 7 ธ.ค. 2025) ค่า MAE (+1/+2/+3 วัน):</strong></li>
+          <li>ค่าเฉลี่ย 72 ชม. ย้อนหลัง: <strong>1.10 / 1.38 / 1.56</strong></li>
+          <li>ECMWF ดิบ: <strong>1.34 / 1.32 / 1.35</strong></li>
+          <li><strong>ECMWF + ปรับค่าเพี้ยน 14 วัน: 0.69 / 0.78 / 0.88</strong> (ระดับความเสี่ยงตรง <strong>94% / 93% / 92%</strong>)</li>
+          <li>ECMWF + ปรับค่าเพี้ยน 3 วัน: <strong>0.80 / 0.92 / 1.07</strong></li>
+          <li>GRU (1,212 พารามิเตอร์): <strong>0.88 / 0.91 / 0.91</strong> (ไม่เปิดใช้)</li>
+          <li>เป็นผลวัดกับสถานีตรวจอากาศกลางแจ้ง ต้องวัดซ้ำกับข้อมูลในโรงเรือนจริงหลังติดตั้ง 2 สัปดาห์</li>
         </ul>
       </div>
     </div>
@@ -410,13 +417,15 @@
           ▼ (HTTPS ตรวจใบรับรองจริง + X-Device-Key)
 [ Node.js Cloud Backend (Render) ]
   ├── คำนวณตัวชี้วัดความร้อนชุดเดียวทั้งระบบ (เฉลี่ยทุก 5 นาที — heatMetrics.js)
+  ├── พยากรณ์ THI 3 วัน (ECMWF + ค่าเพี้ยนเซ็นเซอร์ฟาร์ม 3–14 วัน — forecastService.js)
+  ├── เปรียบเทียบอากาศในโรงเรือนกับภายนอกย้อนหลัง 72 ชม. ช่วงบ่าย 12:00–16:59 น. (outdoorWeather.js)
   ├── รัน YOLO26m ONNX บน Worker Thread นับวัว 4 ท่า (Class-Agnostic NMS)
   └── บันทึกข้อมูลลง Supabase PostgreSQL &amp; เก็บภาพตัวอย่างรายชั่วโมงลง Private Storage
           │
           ▼
 [ หน้าเว็บ Nuxt 3 (cow-detect.pages.dev) ]
   ├── หน้าเกษตรกร (4 หน้า): วันนี้ / ย้อนหลัง / แจ้งเตือน / ฉัน
-  └── หน้า Admin: แดชบอร์ด, สุขภาพกล่อง, จัดการกล้อง, และสมุดสหกรณ์
+  └── หน้า Admin: แดชบอร์ด, เปรียบเทียบอากาศภายนอก, สุขภาพกล่อง, จัดการกล้อง, และสมุดสหกรณ์
     </div>
 
     <!-- Section 5 -->
@@ -428,7 +437,6 @@
       <li><strong>Boonkum, W. et al. (2024).</strong> Impact of Heat Stress on Milk Yield, Milk Fat-to-Protein Ratio, and Conception Rate in Thai–Holstein Dairy Cattle. <em>Animals</em>, 14(20), 3026. (เกณฑ์ระดับประชากรที่ THI 76)</li>
       <li><strong>Duangjinda, M. et al.</strong> <em>ICAR Technical Series No. 23.</em> (moderate &gt; 74, severe &gt; 80)</li>
       <li><strong>Igono, M. O. et al. (1992).</strong> <em>International Journal of Biometeorology</em>, 36, 77–87. (ช่วงเย็นกลางคืนช่วยให้โคฟื้นจากความร้อน)</li>
-      <li><strong>Hasan, F. M. et al. (2026).</strong> <em>Computers and Electronics in Agriculture</em>. (ผลกระทบตามหลัง Lag Effect 5 วัน)</li>
       <li><strong>Penn State Extension.</strong> <em>Heat Stress Abatement Techniques for Dairy Cattle.</em> (การฉีดน้ำตัวโคควบคู่กับการระบายอากาศ)</li>
     </ul>
 

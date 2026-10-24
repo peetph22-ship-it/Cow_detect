@@ -11,7 +11,7 @@
 The primary `pages/index.vue` serves as the public-facing gateway for **CowCare AI**. It is built upon the **"Biophilic Agritech Design System"**, which strategically combines:
 - **Biophilic Aesthetic:** Natural, earthy tones (Deep Forest Green, Warm Terracotta, Sage, and Ivory Canvas) that resonate with sustainable agriculture and precision dairy farming.
 - **Micro-SaaS & Glassmorphism:** Semi-transparent cards (`backdrop-blur`, subtle borders, soft ambient elevation) creating an enterprise-grade, modern web feel.
-- **Evidence-Based Storytelling:** Seamlessly transitioning the user from agricultural challenges to scientific evidence (Thai-Holstein THI thresholds, 5-day lag effect), architectural solutions, and interactive verification.
+- **Evidence-Based Storytelling:** Seamlessly transitioning the user from agricultural challenges to scientific evidence (Thai-Holstein daily-mean THI thresholds 74 / 76 / 82, night relief hours), architectural solutions, and interactive verification.
 
 ---
 
@@ -23,9 +23,9 @@ The primary `pages/index.vue` serves as the public-facing gateway for **CowCare 
 |---|---|---|---|
 | **Deep Forest Green** | `#24433a` / `#163026` | Primary Brand Color | Conveys stability, vitality, deep agricultural roots, and trust. |
 | **Terracotta Amber** | `#d87939` / `#ea580c` | Primary Accent / Warning | Represents thermal energy, high-priority notifications, and callouts. |
-| **Sage & Comfort Green** | `#3e7d4f` / `#e6f2e7` | Normal / Optimal Status | Represents the Comfort Zone ($\text{THI} < 76$), safety, and optimal milk yield. |
+| **Sage & Comfort Green** | `#3e7d4f` / `#e6f2e7` | Normal / Optimal Status | Represents the Comfort Zone ($\text{THI} < 74$), safety, and normal thermal state. |
 | **Warm Ivory Canvas** | `#fffdf7` | Global Background | Eliminates sterile pure-white `#ffffff` fatigue, giving a warm, tactile feel. |
-| **Deep Night Forest** | `#19362e` | Section Accent (AI / LSTM) | Creates an intentional visual contrast for deep tech and AI intelligence. |
+| **Deep Night Forest** | `#19362e` | Section Accent (Forecast & Vision) | Creates an intentional visual contrast for 3-day THI forecast and computer vision sections. |
 
 ### 2.2 Typography & Spacing Rhythm
 - **Primary Typeface:** `"Noto Sans Thai"` paired with `Inter` / system sans-serif.
@@ -38,11 +38,11 @@ The primary `pages/index.vue` serves as the public-facing gateway for **CowCare 
 
 ```mermaid
 flowchart TD
-    A["1. Hero Section (Split 1.05fr : 0.95fr)<br/>Value Proposition & Interactive THI Simulator"] --> B["2. Signal Strip<br/>4-Column Scientific Proof Points (THI 76, 5-Day Lag, 14-Day Lookback)"]
+    A["1. Hero Section (Split 1.05fr : 0.95fr)<br/>Value Proposition & Interactive THI Simulator"] --> B["2. Signal Strip<br/>4-Column Scientific Proof Points (THI 74 / 76 / 82 Thresholds, 3-Day Forecast)"]
     B --> C["3. Three-Layer Architecture Matrix<br/>Sense → Recommend → Capitalize Pipeline & Bento Features"]
-    C --> D["4. Predictive Analytics & Thermal Trend Engine<br/>Deep Forest #19362e Theme, 72h Baseline & Lag Effect Comparison"]
-    D --> E["5. Digital Logbook & Data Capitalization<br/>ESG Scoring & Micro-Finance Credit Enabling"]
-    E --> F["6. Academic Foundation & Citations<br/>Peer-Reviewed Research Stack (Mulajkar 2026)"]
+    C --> D["4. 3-Day THI Forecast & Thermal Accumulation<br/>Deep Forest #19362e Theme, ECMWF + Farm Sensor Bias"]
+    D --> E["5. Digital Logbook & Cooperative Reporting<br/>Data Completeness & Night Relief Tracking"]
+    E --> F["6. Academic Foundation & Citations<br/>Peer-Reviewed Research Stack (Boonkum et al., 2011, 2024; NRC, 1971)"]
     F --> G["7. Action Conversion (CTA) & AppFooter"]
 ```
 
@@ -55,32 +55,32 @@ flowchart TD
 - **Interactive THI Calculator:** Rather than static mockups, the hero embeds a functional sandbox:
   - Implements the official **NRC (1971)** mathematical formula in a Vue `computed` property:
     $$\text{THI} = (1.8 \times T + 32) - (0.55 - 0.0055 \times \text{RH}) \times (1.8 \times T - 26)$$
-  - **Dynamic State Machine:** Reactively updates background colors, risk ring borders, risk badges, and recommendations across four research-defined stages (`Comfort Zone < 76`, `Mild 76–79`, `Moderate 80–83`, `Severe ≥ 84`).
+  - **Dynamic State Machine:** Reactively updates background colors, risk ring borders, risk badges, and recommendations across four research-defined stages (`Normal < 74`, `Mild 74–75.9`, `Moderate 76–81.9`, `Severe ≥ 82`).
   - **Continuous Gauge Bar:** An analog three-segment scale with a smoothly transitioning pointer (`transition: left 0.25s`) demonstrates the exact threshold position.
-  - **Educational Trust Marker:** A dedicated callout clarifies the scientific rationale of choosing **THI 76** over Western standards (THI 72) for Thai crossbred Holstein cattle.
+  - **Educational Trust Marker:** A dedicated callout clarifies the scientific rationale of Thai crossbred Holstein daily-mean THI thresholds (**74 / 76 / 82** — Boonkum et al., 2011; 2024).
 
 ### 4.2 Signal Strip (Scientific Proof Points)
 - **Visual Rhythm:** Full-width deep green bar (`#24433a`) providing an immediate grounding break between the hero and product explanation.
-- **Cognitive Clarity:** Distills complex research parameters into four easily digestible numbers:
-  1. **THI 76:** Physiological onset threshold.
-  2. **5 Days:** Peak milk drop lag effect.
-  3. **14 Days:** LSTM historical lookback window.
-  4. **3–7 Days:** Proactive alert forecast lead time.
+- **Cognitive Clarity:** Distills research parameters into four easily digestible metrics:
+  1. **THI 74 / 76 / 82:** Thai crossbred dairy cattle daily-mean thresholds.
+  2. **22:00–06:00:** Night relief window ($\text{THI} < 74$).
+  3. **5-Min Buckets:** Unified sensor aggregation interval.
+  4. **3 Days:** Proactive daily-mean THI forecast horizon (ECMWF + farm sensor bias).
 
 ### 4.3 Three-Layer Architecture & Bento Feature Matrix
-- **Conceptual Pipeline:** Visualizes the progression from raw IoT telemetry to structured business value:
-  - **Layer 1 (Sense):** ESP32-S3 + SHT20 (XY-MD02 RS485 Modbus) and non-invasive CCTV vision (YOLO26m ONNX).
-  - **Layer 2 (Recommend):** 72h thermal accumulation trend and context-aware Thai advisory.
-  - **Layer 3 (Capitalize):** Digital logbook and cooperative reporting.
+- **Conceptual Pipeline:** Visualizes the progression from raw IoT telemetry to structured farm insights:
+  - **Layer 1 (Sense):** ESP32-S3 + SHT20 (XY-MD02 RS485 Modbus) and non-invasive CCTV vision (YOLO26m ONNX, 4 classes: `drinking`, `feeding`, `lying down`, `standing`).
+  - **Layer 2 (Recommend):** 3-day hybrid THI forecast (`hybrid-ecmwf-bias-v1`: Open-Meteo ECMWF + 3–14 day farm sensor bias) and context-aware Thai advisory.
+  - **Layer 3 (Capitalize):** Cooperative digital logbook and data completeness reporting.
 - **Bento Feature Grid:** Features an intentional asymmetrical visual hierarchy where Card 01 (`feature-primary`) is tinted in solid Forest Green with tag chips, while Cards 02 and 03 utilize elevated off-white glass with miniature visualizers (behavior frequency bars and status pill badges).
 
-### 4.4 Predictive AI Section (The Inversion Section)
-- **Intentional Contrast Inversion:** Shifts the palette to `#19362e` with golden accents (`#f2bd7c` and `#d87939`) to denote computational intelligence and technical depth.
-- **Node-Based Model Flow (`.lstm-flow`):** Custom SVG-connected pipeline diagram visually detailing how raw temperature and humidity are fed into the central **LSTM Time-Series Brain Node** before outputting proactive warnings.
+### 4.4 Forecast & Thermal Accumulation Section (The Inversion Section)
+- **Intentional Contrast Inversion:** Shifts the palette to `#19362e` with golden accents (`#f2bd7c` and `#d87939`) to denote technical depth.
+- **Node-Based Model Flow:** Custom SVG-connected pipeline diagram visually detailing how barn sensor history and Open-Meteo ECMWF forecasts are combined into 3-day proactive warnings.
 
 ### 4.5 Digital Logbook & Scientific Citation Cards
-- **Mockup Digital Logbook:** Displays sample audit metrics (weekly average THI, cumulative heat load hours, behavioral anomalies, recording completeness).
-- **Academic Foundation:** Directly quotes recent peer-reviewed literature (Mulajkar et al., 2026), reinforcing that CowCare AI is not a generic hackathon concept, but an evidence-based precision livestock platform.
+- **Mockup Digital Logbook (Labeled as Sample Data):** Displays sample audit metrics (weekly average THI, cumulative heat load hours, recording completeness).
+- **Academic Foundation:** Directly quotes verified peer-reviewed literature (`NRC, 1971`, `Sae-tiao et al., 2019`, `Boonkum et al., 2011, 2024`, `Igono et al., 1992`), reinforcing that CowCare AI is grounded in dairy science.
 
 ---
 
@@ -116,7 +116,7 @@ flowchart TD
 ## 7. Strategic Recommendations & Optimization Opportunities
 
 1. **Preset Quick-Selector in Sandbox:**
-   - *Enhancement:* Add one-click quick buttons to the hero sandbox (e.g., `"เชียงใหม่ ฤดูร้อน"`, `"สระบุรี ฤดูฝน"`) so first-time visitors can instantly jump to extreme conditions without adjusting sliders manually.
+   - *Enhancement:* Add one-click quick buttons to the hero sandbox (e.g., "Chiang Mai Summer", "Saraburi Rainy Season") so first-time visitors can instantly jump to sample conditions without adjusting sliders manually.
 2. **Dynamic Chart Sparkline in Logbook Card:**
    - *Enhancement:* Replace the static log rows with a mini 7-day sparkline SVG to visually demonstrate the cumulative heat load trajectory.
 3. **PWA / Standalone Read-Mode Support:**

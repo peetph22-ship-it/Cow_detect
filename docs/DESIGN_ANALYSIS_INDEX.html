@@ -188,7 +188,7 @@
     <ul>
       <li><strong>Biophilic Aesthetic:</strong> Natural, earthy tones (Deep Forest Green, Warm Terracotta, Sage, and Ivory Canvas) that resonate with sustainable agriculture and precision dairy farming.</li>
       <li><strong>Micro-SaaS & Glassmorphism:</strong> Semi-transparent cards (<code>backdrop-blur</code>, subtle borders, soft ambient elevation) creating an enterprise-grade, modern web feel.</li>
-      <li><strong>Evidence-Based Storytelling:</strong> Seamlessly transitioning the user from agricultural challenges to scientific evidence (Thai-Holstein THI thresholds, 5-day lag effect), architectural solutions, and interactive verification.</li>
+      <li><strong>Evidence-Based Storytelling:</strong> Seamlessly transitioning the user from agricultural challenges to scientific evidence (Thai-Holstein daily-mean THI thresholds 74 / 76 / 82, night relief hours), architectural solutions, and interactive verification.</li>
     </ul>
 
     <h2>2. Design System & Visual Hierarchy</h2>
@@ -218,7 +218,7 @@
           <td><strong>Sage & Comfort Green</strong></td>
           <td><code>#3e7d4f</code> / <code>#e6f2e7</code></td>
           <td>Normal / Optimal Status</td>
-          <td>Represents the Comfort Zone (THI &lt; 76), safety, and optimal milk yield.</td>
+          <td>Represents the Comfort Zone (THI &lt; 74), safety, and normal thermal state.</td>
         </tr>
         <tr>
           <td><strong>Warm Ivory Canvas</strong></td>
@@ -229,8 +229,8 @@
         <tr>
           <td><strong>Deep Night Forest</strong></td>
           <td><code>#19362e</code></td>
-          <td>Section Accent (AI / LSTM)</td>
-          <td>Creates an intentional visual contrast for deep tech and AI intelligence.</td>
+          <td>Section Accent (Forecast &amp; Vision)</td>
+          <td>Creates an intentional visual contrast for 3-day THI forecast and computer vision sections.</td>
         </tr>
       </tbody>
     </table>
@@ -246,11 +246,11 @@
     <div class="bento-preview">
       <div class="bento-card">
         <strong>01. SENSE (Edge &amp; IoT)</strong>
-        ESP32-S3 + SHT20 (XY-MD02) via RS485 Modbus RTU alongside non-invasive CCTV Computer Vision with YOLO26m ONNX.
+        ESP32-S3 + SHT20 (XY-MD02) via RS485 Modbus RTU alongside non-invasive CCTV Computer Vision with YOLO26m ONNX (<code>drinking</code>, <code>feeding</code>, <code>lying down</code>, <code>standing</code>).
       </div>
       <div class="bento-card">
-        <strong>02. RECOMMEND (Cloud AI)</strong>
-        72-hour thermal accumulation trend and context-aware Thai farm advisory.
+        <strong>02. RECOMMEND (Cloud Forecast)</strong>
+        3-day hybrid THI forecast (Open-Meteo ECMWF + 3–14 day farm sensor bias) and context-aware Thai farm advisory.
       </div>
       <div class="bento-card">
         <strong>03. CAPITALIZE (Value)</strong>
