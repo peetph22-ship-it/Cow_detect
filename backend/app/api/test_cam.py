@@ -256,6 +256,7 @@ def generate_frames(
             boxes = result.boxes
             counts = {"standing": 0, "lying down": 0, "feeding": 0, "drinking": 0}
             current_detections = []
+            confs = []  # เฟรมที่ไม่เจอวัวเลย: ต้องมีค่า ไม่งั้นบรรทัด Active Learning ด้านล่างพังแล้วสตรีมหลุด
 
             if boxes is not None and len(boxes) > 0:
                 clss = boxes.cls.int().cpu().tolist()
