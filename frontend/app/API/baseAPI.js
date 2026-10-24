@@ -6,6 +6,13 @@
 
 export const CUSTOM_API_KEY = 'custom_node_api'
 
+// สลับไปหลังบ้านเพื่อนได้เฉพาะตอนเปิดหน้าเว็บจากเครื่องตัวเอง (localhost/วง LAN)
+// บนเว็บจริงห้าม: ถ้าเกษตรกรถูกหลอกให้ใส่ URL อื่น รหัสผ่านและ token จะถูกส่งไปที่นั่น
+export const canSwitchBackend = () => {
+  if (typeof window === 'undefined') return false
+  return /^(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+)$/.test(window.location.hostname)
+}
+
 const resolveEnvNodeApi = () => {
   if (typeof import.meta !== 'undefined' && import.meta.env?.NUXT_PUBLIC_NODE_API_BASE) {
     return String(import.meta.env.NUXT_PUBLIC_NODE_API_BASE).replace(/\/+$/, '')
@@ -29,7 +36,7 @@ const resolveEnvFastApi = () => {
 export const getNodeApiBase = () => {
   // 1. ตรวจสอบว่าผู้ใช้หรือเกษตรกรตั้งค่าเชื่อมต่อหลังบ้านเพื่อนไว้ในเครื่องหรือไม่
   if (typeof window !== 'undefined') {
-    const custom = localStorage.getItem(CUSTOM_API_KEY)
+    const custom = canSwitchBackend() ? localStorage.getItem(CUSTOM_API_KEY) : null
     if (custom && custom.trim()) {
       return custom.trim().replace(/\/+$/, '')
     }
@@ -50,7 +57,7 @@ export const getNodeApiBase = () => {
 }
 
 export const setCustomNodeApi = (url) => {
-  if (typeof window !== 'undefined') {
+  if (canSwitchBackend()) {
     if (url && url.trim()) {
       localStorage.setItem(CUSTOM_API_KEY, url.trim().replace(/\/+$/, ''))
     } else {
@@ -60,7 +67,7 @@ export const setCustomNodeApi = (url) => {
 }
 
 export const getCustomNodeApi = () => {
-  if (typeof window !== 'undefined') {
+  if (canSwitchBackend()) {
     return localStorage.getItem(CUSTOM_API_KEY) || ''
   }
   return ''

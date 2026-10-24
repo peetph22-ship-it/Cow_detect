@@ -49,6 +49,7 @@
 
           <!-- สถานะเซ็นเซอร์ & ลิงก์เชื่อมต่อหลังบ้าน -->
           <NuxtLink
+            v-if="showBackendSwitch"
             to="/Farmer/me"
             class="hidden sm:inline-flex text-[11px] font-bold px-2.5 py-1.5 rounded-full items-center gap-1.5 border text-decoration-none transition-colors"
             :class="isCustomBackend ? 'bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]' : 'bg-[#143225] text-[#A7D7C5] border-white/10 hover:border-white/30'">
@@ -190,7 +191,7 @@
 
 <script setup>
 import { useFarmer, agoText } from '~/composables/useFarmer'
-import { getCustomNodeApi } from '~/API/baseAPI'
+import { getCustomNodeApi, canSwitchBackend } from '~/API/baseAPI'
 
 const route = useRoute()
 const {
@@ -219,6 +220,9 @@ const {
 } = useFarmer()
 
 const isCustomBackend = computed(() => Boolean(getCustomNodeApi()))
+// ตัวสลับหลังบ้านมีเฉพาะตอนรันในเครื่อง (ดู canSwitchBackend)
+const showBackendSwitch = ref(false)
+onMounted(() => { showBackendSwitch.value = canSwitchBackend() })
 
 const fontOptions = [
   { key: 'normal', label: 'ก' },

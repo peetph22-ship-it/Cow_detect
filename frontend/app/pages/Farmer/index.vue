@@ -167,6 +167,7 @@
     <section class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
       <!-- ปุ่มโทรหาหมอวัว -->
       <a
+        v-if="vetPhoneDisplay"
         :href="`tel:${vetPhoneClean}`"
         class="h-16 sm:h-20 rounded-3xl bg-[#E07A5F] hover:bg-[#d46a4e] text-white flex items-center justify-center gap-3 font-black text-base sm:text-lg shadow-sm transition-all text-decoration-none active:scale-[0.98]">
         <div class="w-11 h-11 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
@@ -316,7 +317,8 @@ const submitSos = async () => {
 }
 
 // ข้อมูลหมอวัว
-const vetPhoneDisplay = computed(() => farm.value?.vet_phone || '080-000-0000')
+// ไม่มีเบอร์จริง = ไม่แสดงปุ่มโทร (ห้ามใส่เบอร์สมมติ เกษตรกรจะโทรไปเบอร์ที่ไม่มีจริง)
+const vetPhoneDisplay = computed(() => farm.value?.vet_phone || '')
 const vetPhoneClean = computed(() => vetPhoneDisplay.value.replace(/[^0-9+]/g, ''))
 
 // รายการสิ่งที่ควรทำ (ดึงจาก senior ใน backend หรือเทมเพลตมาตรฐาน)

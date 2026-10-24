@@ -55,8 +55,8 @@
     </section>
 
 
-    <!-- 3. การเชื่อมต่อไปยังหลังบ้านของเพื่อน / Localhost / Cloud (เชื่อมต่อได้อิสระ) -->
-    <section class="bg-white rounded-3xl p-5 sm:p-7 shadow-xs border border-[#E5E7EB] space-y-4">
+    <!-- 3. การเชื่อมต่อหลังบ้าน: มีเฉพาะตอนรันในเครื่อง (บนเว็บจริงซ่อน กันเกษตรกรถูกหลอกให้ส่งรหัสไปที่อื่น) -->
+    <section v-if="showBackendSwitch" class="bg-white rounded-3xl p-5 sm:p-7 shadow-xs border border-[#E5E7EB] space-y-4">
       <div class="flex items-center justify-between">
         <h2 class="text-base sm:text-lg font-bold text-[#15221B] flex items-center gap-2">
           <v-icon icon="mdi-server-network" class="text-[#2D6A4F]" size="22" />
@@ -266,7 +266,7 @@
 
 <script setup>
 import { useFarmer } from '~/composables/useFarmer'
-import { getCustomNodeApi } from '~/API/baseAPI'
+import { getCustomNodeApi, canSwitchBackend } from '~/API/baseAPI'
 
 definePageMeta({ layout: 'farmer' })
 useHead({ title: 'ฟาร์มฉัน & เชื่อมต่อหลังบ้าน | CowCare ฟาร์มโคนม' })
@@ -295,6 +295,8 @@ const testingPing = ref(false)
 const pingResult = ref(null)
 
 const isCustomBackend = computed(() => Boolean(getCustomNodeApi()))
+const showBackendSwitch = ref(false)
+onMounted(() => { showBackendSwitch.value = canSwitchBackend() })
 
 const selectBackendOption = (opt) => {
   selectedOption.value = opt

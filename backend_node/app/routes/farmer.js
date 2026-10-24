@@ -208,7 +208,7 @@ function buildSeniorSummary(now, today, forecast, farm) {
         voice_text: voiceText,
         forecast_simple: forecastSimple,
         action_templates: actionTemplates,
-        vet_phone: farm.vet_phone || '080-000-0000',
+        vet_phone: farm.vet_phone || null,
         vet_name: 'สัตวแพทย์ / สหกรณ์'
     }
 }
@@ -223,45 +223,8 @@ router.get('/ping', (req, res) => {
     })
 })
 
-// POST /api/farmer/friend-bridge/test : ทดสอบเชื่อมต่อไปยังหลังบ้านของเพื่อน
-router.post('/friend-bridge/test', async (req, res) => {
-    const { url } = req.body
-    if (!url) {
-        return res.status(400).json({ success: false, message: 'กรุณาระบุ URL ของหลังบ้านเพื่อน เช่น http://192.168.1.50:4001/api' })
-    }
-    const cleanUrl = String(url).trim().replace(/\/+$/, '')
-    const startTime = Date.now()
-
-    try {
-        let remoteData = null
-        try {
-            const resp = await axios.get(`${cleanUrl}/farmer/ping`, { timeout: 4000 })
-            remoteData = resp.data
-        } catch (e1) {
-            try {
-                const resp2 = await axios.get(`${cleanUrl}/ping`, { timeout: 4000 })
-                remoteData = resp2.data
-            } catch (e2) {
-                const resp3 = await axios.get(`${cleanUrl}/`, { timeout: 4000 })
-                remoteData = resp3.data
-            }
-        }
-        const latencyMs = Date.now() - startTime
-        return res.json({
-            success: true,
-            message: 'เชื่อมต่อไปยังหลังบ้านของเพื่อนสำเร็จ',
-            latency_ms: latencyMs,
-            target_url: cleanUrl,
-            remote_response: remoteData
-        })
-    } catch (err) {
-        return res.status(502).json({
-            success: false,
-            message: `ไม่สามารถเชื่อมต่อหลังบ้านเพื่อนได้: ${err.message}`,
-            target_url: cleanUrl
-        })
-    }
-})
+// (ลบ POST /friend-bridge/test: ให้เซิร์ฟเวอร์ไปเปิด URL ใดก็ได้โดยไม่ต้อง login = SSRF
+//  หน้าเว็บทดสอบหลังบ้านเพื่อนด้วยการ ping จากเบราว์เซอร์เองอยู่แล้ว)
 
 // GET /api/farmer/me
 router.get('/me', verifyToken, requireFarm, async (req, res) => {
@@ -565,7 +528,7 @@ router.post('/sos', verifyToken, requireFarm, async (req, res) => {
         return res.json({
             success: true,
             message: 'ส่งสัญญาณขอความช่วยเหลือเรียบร้อย เจ้าหน้าที่จะติดต่อกลับด่วนที่สุด',
-            vet_phone: req.farm.vet_phone || '080-000-0000'
+            vet_phone: req.farm.vet_phone || null
         })
     } catch (err) {
         console.error('[Farmer API] /sos error:', err.message)
