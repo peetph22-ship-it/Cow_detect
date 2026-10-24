@@ -49,3 +49,8 @@ backend/app/weights/*.onnx
 
 # prompt/แผนงานสำหรับส่งต่อให้ AI ตัวอื่น (มีรายการงานความปลอดภัยที่ยังค้าง ไม่ขึ้น repo)
 docs/prompts/
+
+# ภาพ active learning ที่ระบบเก็บเองจากกล้องจริง (อาจติดคน/ในบ้าน) ไม่ขึ้น repo
+# ภาพจำลอง al_simulation_* ที่ track ไว้แล้วยังอยู่ใน repo ตามเดิม
+backend/app/active_learning_samples/*
+!backend/app/active_learning_samples/al_simulation_*
