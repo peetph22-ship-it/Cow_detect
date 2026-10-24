@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-5 sm:space-y-6">
-    <!-- แถวที่ 1 (Bento Grid 2 คอลัมน์): ข้อมูลฟาร์ม & สลับฟาร์ม (7 คอลัมน์) + ติดต่อสัตวแพทย์ & เสียงอ่าน (5 คอลัมน์) -->
+    <!-- แถวที่ 1 (Bento Grid 2 คอลัมน์): ข้อมูลฟาร์ม & สลับฟาร์ม (7 คอลัมน์) + ติดต่อสัตวแพทย์ประจำฟาร์ม (5 คอลัมน์) -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-stretch">
       <!-- 1. บัตรข้อมูลเกษตรกร & ตัวเลือกสลับฟาร์ม -->
       <section class="lg:col-span-7 bg-white rounded-[28px] p-5 sm:p-7 shadow-[0_12px_36px_rgba(20,40,32,0.04)] border border-[#E4E8E5] flex flex-col justify-between">
@@ -67,34 +67,19 @@
         </div>
       </section>
 
-      <!-- 2. ติดต่อสัตวแพทย์ & ทดสอบเสียงอ่าน -->
-      <div class="lg:col-span-5 flex flex-col gap-5 sm:gap-6">
-        <section class="bg-white rounded-[28px] p-5 sm:p-7 shadow-[0_12px_36px_rgba(20,40,32,0.04)] border border-[#E4E8E5] space-y-3">
-          <h2 class="text-base sm:text-lg font-black text-[#142820] flex items-center gap-2">
-            <v-icon icon="mdi-doctor" class="text-[#D87939]" size="24" />
-            <span>ติดต่อสัตวแพทย์ประจำฟาร์ม</span>
-          </h2>
-          <FarmerVetCallButton :show-empty-hint="true" />
-        </section>
-
+      <!-- 2. ติดต่อสัตวแพทย์ประจำฟาร์ม -->
+      <div class="lg:col-span-5 flex flex-col">
         <section class="bg-white rounded-[28px] p-5 sm:p-7 shadow-[0_12px_36px_rgba(20,40,32,0.04)] border border-[#E4E8E5] space-y-3 flex-1 flex flex-col justify-between">
           <div>
             <h2 class="text-base sm:text-lg font-black text-[#142820] flex items-center gap-2">
-              <v-icon icon="mdi-volume-high" class="text-[#2D6A4F]" size="24" />
-              <span>ระบบผู้ช่วยเสียงอ่านภาษาไทย</span>
+              <v-icon icon="mdi-doctor" class="text-[#D87939]" size="24" />
+              <span>ติดต่อสัตวแพทย์ประจำฟาร์ม</span>
             </h2>
             <p class="text-xs sm:text-sm text-[#5A6B63] font-medium mt-1">
-              กดปุ่มด้านล่างเพื่อทดสอบเสียงพูดสรุปสภาพอากาศและคำแนะนำการดูแลโคนม
+              ใช้สำหรับโทรปรึกษาสัตวแพทย์หรือเจ้าหน้าที่สหกรณ์เมื่อแม่วัวมีอาการผิดปกติ
             </p>
           </div>
-
-          <button
-            type="button"
-            @click="testVoice"
-            class="w-full min-h-[52px] rounded-2xl bg-[#142820] hover:bg-[#24433A] text-white font-black text-sm sm:text-base flex items-center justify-center gap-2.5 cursor-pointer transition-colors shadow-xs">
-            <v-icon icon="mdi-volume-high" size="22" class="text-[#F3C68F]" />
-            <span>กดทดสอบเสียงอ่านภาษาไทย</span>
-          </button>
+          <FarmerVetCallButton :show-empty-hint="true" />
         </section>
       </div>
     </div>
@@ -288,7 +273,6 @@ const {
   thresholds,
   user,
   isAdmin,
-  speakThai,
   selectFarm,
   currentBackendUrl,
   testBackend,
@@ -349,10 +333,6 @@ const resetToDefaultBackend = async () => {
   selectedOption.value = 'cloud'
   pingResult.value = null
   alert('คืนค่าเริ่มต้นกลับสู่เซิร์ฟเวอร์หลักเรียบร้อย')
-}
-
-const testVoice = () => {
-  speakThai('ยินดีต้อนรับสู่ระบบเฝ้าระวังความเครียดความร้อนโคนม CowCare สำหรับเกษตรกรจ้า ระบบนี้ช่วยให้คุณดูแลแม่วัวได้อย่างสบายใจ')
 }
 
 onMounted(() => {

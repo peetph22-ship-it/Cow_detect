@@ -5,8 +5,6 @@
  *   ?farm_id=<uuid>  เลือกฟาร์ม (กรณีมีหลายฟาร์ม) admin ใช้ดูตัวอย่างหน้าเกษตรกรของฟาร์มใดก็ได้
  *
  * GET  /api/farmer/me             สภาพอากาศตอนนี้ + คำแนะนำสำหรับผู้สูงอายุ + 24 ชม. + พยากรณ์
- * GET  /api/farmer/actions        เช็คลิสต์สิ่งที่ต้องทำประจำวันของฟาร์ม
- * POST /api/farmer/actions/toggle ติ๊กทำแล้ว/ยกเลิก สิ่งที่ต้องทำ
  * GET  /api/farmer/history        สรุปรายวัน 7 วัน พร้อมคำอธิบายภาษาชาวบ้านเข้าใจง่าย
  * GET  /api/farmer/events         ประวัติเหตุการณ์เตือนความร้อน 7 วัน
  */
@@ -23,10 +21,6 @@ const { summarizeHealth } = require('../services/deviceHealth')
 
 const SENSOR_OFFLINE_MIN = 5  // กล่องส่งทุก 15 วินาที เงียบเกิน 5 นาที = ขาดการติดต่อ
 const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str || '').trim())
-
-// สำรองในหน่วยความจำ เมื่อยังไม่ได้รัน migrations/20261027_farmer_senior_portal.sql
-// (ไม่สร้างตารางเองตอนเปิดเซิร์ฟเวอร์: ตารางต้องมาจาก migration ที่เจ้าของโปรเจกต์รันเท่านั้น)
-const inMemoryActions = new Map() // key: `${farmId}_${date}_${actionKey}` -> boolean
 
 const farmsOfUser = async (user) => {
     if (user.role === 'admin') {
@@ -99,12 +93,6 @@ function buildSeniorSummary(now, today, forecast, farm) {
         icon = 'mdi-weather-sunny-alert'
     }
 
-    const temp = now ? Number(now.temperature_c).toFixed(1) : (today?.max_temp ? Number(today.max_temp).toFixed(1) : '31.0')
-    const hum = now ? Math.round(now.humidity_pct) : (today?.avg_humidity_pct ? Math.round(today.avg_humidity_pct) : 70)
-    
-    // ข้อความสำหรับ Speech Synthesis อ่านออกเสียงภาษาไทย
-    const voiceText = `สวัสดีจ้า ตอนนี้ในคอกวัว อุณหภูมิ ${temp} องศาเซลเซียส ความชื้น ${hum} เปอร์เซ็นต์ ${title} ${message} อย่าลืมตรวจดูน้ำดื่มให้แม่วัวนะจ๊ะ`
-
     // พยากรณ์ช่วงบ่าย/พรุ่งนี้ ภาษาชาวบ้าน
     let forecastSimple = 'สภาพอากาศพรุ่งนี้ใกล้เคียงกับวันนี้ เตรียมน้ำสะอาดให้พร้อม'
     // forecast = ผลจาก forecastService (รายการวันอยู่ใน forecasts, peak_window เป็นออบเจกต์ที่มี label)
@@ -163,7 +151,6 @@ function buildSeniorSummary(now, today, forecast, farm) {
         color,
         bg,
         icon,
-        voice_text: voiceText,
         forecast_simple: forecastSimple,
         action_templates: actionTemplates,
         vet_phone: farm.vet_phone || null,
@@ -297,76 +284,6 @@ router.get('/me', verifyToken, requireFarm, async (req, res) => {
     } catch (err) {
         console.error('[Farmer API] /me error:', err.message)
         return res.status(500).json({ success: false, message: 'ดึงข้อมูลฟาร์มไม่สำเร็จ' })
-    }
-})
-
-// GET /api/farmer/actions : ดึงรายการสิ่งที่ทำแล้ววันนี้
-router.get('/actions', verifyToken, requireFarm, async (req, res) => {
-    try {
-        const todayStr = bkkDate(new Date())
-        let doneActions = []
-
-        try {
-            const { rows } = await db.query(
-                `SELECT action_key, is_done FROM tb_farmer_daily_actions 
-                 WHERE id_farms = $1 AND action_date = $2`,
-                [req.farm.id_farms, todayStr]
-            )
-            doneActions = rows.filter(r => r.is_done).map(r => r.action_key)
-        } catch (dbErr) {
-            // fallback in-memory
-            for (const [key, val] of inMemoryActions.entries()) {
-                if (key.startsWith(`${req.farm.id_farms}_${todayStr}_`) && val) {
-                    doneActions.push(key.split('_')[2])
-                }
-            }
-        }
-
-        return res.json({
-            success: true,
-            date: todayStr,
-            done_actions: doneActions
-        })
-    } catch (err) {
-        console.error('[Farmer API] /actions error:', err.message)
-        return res.status(500).json({ success: false, message: 'ดึงรายการเช็คลิสต์ไม่สำเร็จ' })
-    }
-})
-
-// POST /api/farmer/actions/toggle : ติ๊กทำแล้ว/ยกเลิก สิ่งที่ต้องทำ
-router.post('/actions/toggle', verifyToken, requireFarm, async (req, res) => {
-    try {
-        const { action_id, is_done } = req.body
-        if (!action_id) {
-            return res.status(400).json({ success: false, message: 'กรุณาระบุ action_id' })
-        }
-
-        const todayStr = bkkDate(new Date())
-        const targetState = is_done !== undefined ? Boolean(is_done) : true
-
-        try {
-            await db.query(
-                `INSERT INTO tb_farmer_daily_actions (id_farms, action_date, action_key, is_done, updated_at)
-                 VALUES ($1, $2, $3, $4, NOW())
-                 ON CONFLICT (id_farms, action_date, action_key)
-                 DO UPDATE SET is_done = $4, updated_at = NOW()`,
-                [req.farm.id_farms, todayStr, action_id, targetState]
-            )
-        } catch (dbErr) {
-            // fallback in-memory
-            const memKey = `${req.farm.id_farms}_${todayStr}_${action_id}`
-            inMemoryActions.set(memKey, targetState)
-        }
-
-        return res.json({
-            success: true,
-            action_id,
-            is_done: targetState,
-            message: targetState ? 'บันทึกเรียบร้อย' : 'ยกเลิกเครื่องหมายเรียบร้อย'
-        })
-    } catch (err) {
-        console.error('[Farmer API] /actions/toggle error:', err.message)
-        return res.status(500).json({ success: false, message: 'บันทึกสถานะไม่สำเร็จ' })
     }
 })
 

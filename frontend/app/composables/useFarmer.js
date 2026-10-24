@@ -77,8 +77,6 @@ export const useFarmer = () => {
   const error = useState('farmer.error', () => '')
   const farmId = useState('farmer.farmId', () => '')
 
-  const isSpeaking = useState('farmer.isSpeaking', () => false)
-
   // URL หลังบ้านที่กำลังเชื่อมต่ออยู่
   const currentBackendUrl = useState('farmer.backendUrl', () => getNodeApiBase())
 
@@ -97,36 +95,7 @@ export const useFarmer = () => {
 
   const token = () => (typeof window !== 'undefined' ? localStorage.getItem('token') : null)
 
-
-  // เสียงอ่านภาษาไทย (Web Speech API)
-  const speakThai = (text) => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
-    window.speechSynthesis.cancel()
-
-    if (!text) return
-    const utterance = new SpeechSynthesisUtterance(text)
-    utterance.lang = 'th-TH'
-    utterance.rate = 0.9 // อ่านช้าลงเล็กน้อยให้ผู้สูงอายุฟังทัน
-
-    const voices = window.speechSynthesis.getVoices()
-    const thVoice = voices.find(v => v.lang && v.lang.startsWith('th'))
-    if (thVoice) utterance.voice = thVoice
-
-    utterance.onstart = () => { isSpeaking.value = true }
-    utterance.onend = () => { isSpeaking.value = false }
-    utterance.onerror = () => { isSpeaking.value = false }
-
-    window.speechSynthesis.speak(utterance)
-  }
-
-  const stopSpeech = () => {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel()
-    }
-    isSpeaking.value = false
-  }
-
-  // หน้าต่างยืนยันการออกจากระบบ (Senior Modal)
+  // หน้าต่างยืนยันการออกจากระบบ
   const showLogoutModal = useState('farmer.showLogoutModal', () => false)
 
   const openLogoutModal = () => {
@@ -143,8 +112,6 @@ export const useFarmer = () => {
   }
 
   const logout = async () => {
-    stopSpeech()
-    
     // แจ้งหลังบ้านว่าออกจากระบบ (Fire & forget)
     try {
       const apiBase = getNodeApiBase()
@@ -285,7 +252,6 @@ export const useFarmer = () => {
         level: isSevere ? 'danger' : (isMod ? 'warning' : 'good'),
         title: isSevere ? 'อากาศร้อนจัดมาก แม่วัวกำลังเครียด!' : (isMod ? 'อากาศเริ่มร้อนขึ้นแล้ว ระวังแม่วัวหอบ' : 'อากาศสบายดี แม่วัวไม่เครียด'),
         message: isSevere ? 'อุณหภูมิและความชื้นสูงมาก เสี่ยงน้ำนมดิ่ง รีบเปิดพัดลมและสเปรย์น้ำด่วน' : (isMod ? 'ความร้อนสะสมเริ่มเพิ่มขึ้น แนะนำเปิดพัดลมระบายอากาศ' : 'สภาพอากาศในคอกเหมาะสมดี แม่วัวเคี้ยวเอื้องสบาย'),
-        voice_text: `สวัสดีจ้า ตอนนี้ในคอกวัว อุณหภูมิ ${d.now.temperature_c} องศาเซลเซียส ความชื้น ${Math.round(d.now.humidity_pct)} เปอร์เซ็นต์ ${isSevere ? 'อากาศร้อนจัด' : 'สบายดีจ้า'}`,
         vet_phone: d.farm?.vet_phone || null,
         vet_name: 'สัตวแพทย์ประจำฟาร์ม',
         action_templates: [
@@ -345,7 +311,6 @@ export const useFarmer = () => {
   }
 
   const stopPolling = () => {
-    stopSpeech()
     clearInterval(timer)
     timer = null
     if (listening) { document.removeEventListener('visibilitychange', onVisible); listening = false }
@@ -370,9 +335,6 @@ export const useFarmer = () => {
     loaded,
     error,
     farmId,
-    isSpeaking,
-    speakThai,
-    stopSpeech,
     currentBackendUrl,
     testBackend,
     switchBackend,

@@ -256,7 +256,7 @@ const navItems = computed(() => [
     to: '/Farmer/me',
     label: 'ข้อมูลฟาร์ม & ตั้งค่า',
     shortLabel: 'ฟาร์มฉัน',
-    desc: 'สลับฟาร์ม เสียงอ่าน คู่มือสี',
+    desc: 'สลับฟาร์ม ข้อมูลโรงเรือน คู่มือสี',
     icon: 'mdi-barn'
   }
 ])

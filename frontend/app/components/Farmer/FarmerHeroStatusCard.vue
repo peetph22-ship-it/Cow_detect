@@ -33,7 +33,7 @@
       </div>
 
       <!-- 3 กล่องตัวเลขหลัก: อุณหภูมิ / ความชื้น / ดัชนีความร้อน THI -->
-      <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 my-5 relative z-10">
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-5 relative z-10">
         <!-- 1. อุณหภูมิ -->
         <div class="p-4 rounded-2xl bg-white/95 border border-black/8 shadow-2xs flex flex-col justify-between">
           <div class="flex items-center justify-between gap-1">
@@ -116,18 +116,6 @@
         </div>
       </div>
     </div>
-
-    <!-- ปุ่มกดฟังเสียงสรุปขนาดใหญ่ -->
-    <button
-      type="button"
-      @click="$emit('play-voice')"
-      class="w-full min-h-[52px] px-4 py-3 rounded-2xl font-black text-sm sm:text-base flex items-center justify-center gap-2.5 transition-all shadow-xs cursor-pointer active:scale-[0.99] border relative z-10"
-      :class="isSpeaking
-        ? 'bg-[#DC2626] text-white border-[#991B1B]'
-        : 'bg-[#142820] hover:bg-[#24433A] text-[#FFFDF7] border-[#142820]'">
-      <v-icon :icon="isSpeaking ? 'mdi-stop-circle' : 'mdi-volume-high'" size="22" class="text-[#F3C68F]" />
-      <span>{{ isSpeaking ? 'กดเพื่อหยุดเสียงอ่าน' : 'กดฟังเสียงสรุปสภาพอากาศตอนนี้' }}</span>
-    </button>
   </section>
 </template>
 
@@ -135,16 +123,13 @@
 import { useFarmer, agoText } from '~/composables/useFarmer'
 import { thresholdLabels } from '~/utils/heatStress'
 
-defineEmits(['play-voice'])
-
 const {
   farm,
   now,
   today,
   cooling,
   senior,
-  thresholds,
-  isSpeaking
+  thresholds
 } = useFarmer()
 
 // ไม่มีข้อมูล หรือกล่องไม่ได้ส่งค่าล่าสุด = ไม่บอกระดับความเสี่ยงจากค่าเก่า

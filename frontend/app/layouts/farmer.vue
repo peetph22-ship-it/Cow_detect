@@ -18,9 +18,7 @@
     <!-- พื้นที่ทำงานหลักด้านขวา (Main Workspace) -->
     <div class="flex-1 flex flex-col min-w-0 min-h-screen relative z-10">
       <!-- แถบด้านบนของพื้นที่ทำงาน -->
-      <FarmerTopBar
-        @toggle-voice="handleVoiceToggle"
-        @open-sidebar="sidebarOpen = true" />
+      <FarmerTopBar @open-sidebar="sidebarOpen = true" />
 
       <!-- เนื้อหาหลักแบบ Wide Bento Container -->
       <main class="flex-1 max-w-[1380px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-28 lg:pb-12">
@@ -89,36 +87,14 @@ const sidebarOpen = ref(false)
 const {
   me,
   farm,
-  now,
-  senior,
-  cooling,
   loaded,
   error,
-  isSpeaking,
-  speakThai,
-  stopSpeech,
   ensureAuth,
   refresh,
   openLogoutModal,
   startPolling,
   stopPolling
 } = useFarmer()
-
-const handleVoiceToggle = () => {
-  if (isSpeaking.value) {
-    stopSpeech()
-    return
-  }
-  const hasFresh = now.value && now.value.sensor_status === 'online'
-  if (!hasFresh) {
-    speakThai('ขณะนี้กล่องเซ็นเซอร์ไม่ได้ส่งข้อมูลล่าสุด กรุณาตรวจสอบปลั๊กไฟและสัญญาณอินเทอร์เน็ตที่โรงเรือนจ้า')
-    return
-  }
-  const baseVoice = senior.value?.voice_text ||
-    `สภาพอากาศในคอกตอนนี้ อุณหภูมิ ${Number(now.value.temperature_c).toFixed(1)} องศาเซลเซียส ความชื้น ${Math.round(now.value.humidity_pct)} เปอร์เซ็นต์`
-  const coolingNote = cooling.value?.short ? ` คำแนะนำเพิ่มเติมคือ ${cooling.value.short}` : ''
-  speakThai(`${baseVoice}${coolingNote}`)
-}
 
 onMounted(() => {
   if (!ensureAuth()) return

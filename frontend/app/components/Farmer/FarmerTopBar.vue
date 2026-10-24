@@ -51,11 +51,11 @@
         </div>
       </div>
 
-      <!-- ฝั่งขวา: สถานะกล่องเซ็นเซอร์ + ปุ่มฟังเสียงสรุป + ปุ่มรีเฟรช -->
+      <!-- ฝั่งขวา: สถานะกล่องเซ็นเซอร์ + ปุ่มรีเฟรช -->
       <div class="flex items-center gap-2 sm:gap-2.5 shrink-0">
         <!-- สถานะกล่องเซ็นเซอร์ -->
         <div
-          class="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-extrabold border"
+          class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-extrabold border"
           :class="sensorOnline
             ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
             : 'bg-amber-50 text-amber-900 border-amber-200'">
@@ -73,19 +73,6 @@
           <v-icon icon="mdi-server-network" size="15" />
           <span>หลังบ้านกำหนดเอง</span>
         </NuxtLink>
-
-        <!-- ปุ่มกดฟังเสียงสรุป -->
-        <button
-          type="button"
-          @click="$emit('toggle-voice')"
-          class="h-10 sm:h-11 px-3.5 sm:px-4 rounded-2xl text-xs sm:text-sm font-black flex items-center gap-2 transition-all cursor-pointer shadow-xs"
-          :class="isSpeaking
-            ? 'bg-[#DC2626] text-white animate-pulse'
-            : 'bg-[#142820] hover:bg-[#24433A] text-[#FFFDF7]'"
-          :title="isSpeaking ? 'กดเพื่อหยุดเสียงอ่าน' : 'กดเพื่อฟังเสียงสรุป'">
-          <v-icon :icon="isSpeaking ? 'mdi-stop-circle-outline' : 'mdi-volume-high'" size="19" class="text-[#F3C68F]" />
-          <span>{{ isSpeaking ? 'หยุดพูด' : 'ฟังเสียงสรุป' }}</span>
-        </button>
 
         <!-- ปุ่มรีเฟรชข้อมูล -->
         <button
@@ -122,7 +109,7 @@
 import { useFarmer, agoText, thaiDate } from '~/composables/useFarmer'
 import { getCustomNodeApi, canSwitchBackend } from '~/API/baseAPI'
 
-defineEmits(['toggle-voice', 'open-sidebar'])
+defineEmits(['open-sidebar'])
 
 const route = useRoute()
 const {
@@ -131,7 +118,6 @@ const {
   farms,
   now,
   loading,
-  isSpeaking,
   selectFarm,
   refresh
 } = useFarmer()
