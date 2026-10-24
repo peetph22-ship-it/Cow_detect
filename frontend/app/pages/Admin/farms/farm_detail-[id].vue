@@ -451,6 +451,7 @@
       <div v-else-if="!outdoorWeather" class="text-sm text-[#718078]">{{ isOutdoorWeatherLoading ? 'กำลังโหลดอากาศภายนอก...' : 'ยังไม่มีข้อมูลอากาศภายนอก' }}</div>
       <div v-else-if="!outdoorWeather.weather" class="rounded-2xl p-4 bg-[#f7faf8] border border-[#e2ece6] text-sm text-[#4e6057]">
         เชื่อมต่อ Open-Meteo ไม่สำเร็จ ลองกดอัปเดตอีกครั้งภายหลัง
+        <p v-if="outdoorWeather.api_error_th" class="text-xs mt-1 text-[#718078]">สาเหตุ: {{ outdoorWeather.api_error_th }}</p>
       </div>
 
       <template v-else>
@@ -512,7 +513,12 @@
         <p v-if="outdoorWeather.comparison?.now && !outdoorWeather.comparison.now.has" class="text-[11px] text-[#718078]">
           ยังไม่เทียบค่าตอนนี้: {{ outdoorWeather.comparison.now.reason }}
         </p>
-        <p v-if="outdoorWeather.api_status === 'stale'" class="text-[11px] text-amber-700">เชื่อมต่อ Open-Meteo ไม่ได้ชั่วคราว แสดงค่าล่าสุดที่ดึงได้</p>
+        <p v-if="outdoorWeather.api_status === 'stale'" class="text-[11px] text-amber-700">
+          เชื่อมต่อ Open-Meteo ไม่ได้ชั่วคราว แสดงค่าล่าสุดที่ดึงได้<template v-if="outdoorWeather.api_error_th"> (สาเหตุ: {{ outdoorWeather.api_error_th }})</template>
+        </p>
+        <p v-else-if="outdoorWeather.fallback_reason_th" class="text-[11px] text-[#718078]">
+          ใช้เซิร์ฟเวอร์สำรองของ Open-Meteo (ค่าจากแบบจำลองเดียวกัน) เพราะเซิร์ฟเวอร์หลัก: {{ outdoorWeather.fallback_reason_th }}
+        </p>
       </template>
 
       <p class="text-[10.5px] text-[#a0aea6]">

@@ -220,8 +220,31 @@ const locationProblem = (farm) => {
     return 'ยังไม่ได้ใส่พิกัดฟาร์ม และไม่พบอำเภอ/จังหวัดในตารางพิกัด ใส่พิกัดฟาร์มในหน้าแก้ไขฟาร์ม'
 }
 
+// โฮสต์หลัก + โฮสต์สำรอง: ทั้งสองรับ query เดียวกันและตอบรูปแบบเดียวกัน (current + hourly)
+// previous-runs-api คือโฮสต์ที่ forecastService ใช้อยู่และเรียกจาก Render ได้ จึงใช้เป็นตัวสำรองเมื่อโฮสต์หลักล้มเหลว
+const OPEN_METEO_HOSTS = [
+    { name: 'forecast', url: 'https://api.open-meteo.com/v1/forecast' },
+    { name: 'previous_runs', url: 'https://previous-runs-api.open-meteo.com/v1/forecast' }
+]
+const OPEN_METEO_TIMEOUT_MS = 10000
+
+// แปลง error ของ axios เป็นรหัสสถานะ + เหตุผลภาษาไทยที่แอดมินอ่านเข้าใจ (ใช้ทั้งใน log และหน้าเว็บ)
+const describeFetchError = (err) => {
+    const status = err.response?.status ?? null
+    const code = err.code || null
+    let reason_th
+    if (status === 429) reason_th = 'Open-Meteo จำกัดจำนวนครั้งการเรียก (HTTP 429)'
+    else if (status && status >= 500) reason_th = `Open-Meteo ขัดข้อง (HTTP ${status})`
+    else if (status) reason_th = `Open-Meteo ปฏิเสธคำขอ (HTTP ${status})`
+    else if (code === 'ECONNABORTED' || code === 'ETIMEDOUT') reason_th = `Open-Meteo ตอบช้าเกิน ${OPEN_METEO_TIMEOUT_MS / 1000} วินาที`
+    else if (code) reason_th = `เซิร์ฟเวอร์เชื่อมต่อ Open-Meteo ไม่ได้ (${code})`
+    else reason_th = `ข้อมูลจาก Open-Meteo ไม่ครบ (${err.message})`
+    return { status, code, reason_th }
+}
+
 /**
  * ดึงค่าปัจจุบัน + รายชั่วโมงย้อนหลัง 72 ชม. (เวลาไทย) แคช 15 นาที
+ * ลองโฮสต์หลักก่อน ถ้าล้มเหลวลองโฮสต์สำรอง ถ้าล้มทั้งคู่ส่งเหตุผลของแต่ละโฮสต์กลับไปแสดงในหน้า
  */
 const fetchOpenMeteo = async (lat, lon, { refresh = false } = {}) => {
     const key = `${Number(lat).toFixed(3)}_${Number(lon).toFixed(3)}`
@@ -229,28 +252,38 @@ const fetchOpenMeteo = async (lat, lon, { refresh = false } = {}) => {
     const cached = WEATHER_CACHE.get(key)
     if (!refresh && cached && now < cached.expiresAt) return { ...cached.data, from_cache: true }
 
-    const url = 'https://api.open-meteo.com/v1/forecast'
-        + `?latitude=${Number(lat).toFixed(4)}&longitude=${Number(lon).toFixed(4)}`
+    const query = `?latitude=${Number(lat).toFixed(4)}&longitude=${Number(lon).toFixed(4)}`
         + '&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m'
         + '&hourly=temperature_2m,relative_humidity_2m'
         + '&past_days=3&forecast_days=1&timezone=Asia%2FBangkok'
-    try {
-        const { data } = await axios.get(url, { timeout: 5000 })
-        if (!data?.current || !data?.hourly?.time) throw new Error('Open-Meteo response missing current/hourly')
-        const h = data.hourly
-        const hourly = h.time.map((t, i) => ({
-            key: t.slice(0, 13),                   // "YYYY-MM-DDTHH" เวลาไทย
-            temp: h.temperature_2m?.[i],
-            hum: h.relative_humidity_2m?.[i]
-        })).filter(x => x.temp != null && x.hum != null)
-        const result = { current: data.current, hourly, model_elevation_m: data.elevation ?? null, api_status: 'online', fetched_at: new Date(now).toISOString() }
-        WEATHER_CACHE.set(key, { data: result, expiresAt: now + CACHE_TTL_MS, fetchedAt: now })
-        return { ...result, from_cache: false }
-    } catch (err) {
-        console.warn(`[OutdoorWeather] Open-Meteo fetch error (${key}):`, err.message)
-        if (cached && now - cached.fetchedAt < STALE_GRACE_MS) return { ...cached.data, from_cache: true, api_status: 'stale' }
-        return { current: null, hourly: [], api_status: 'offline', error: err.message }
+    const errors = []
+    for (const host of OPEN_METEO_HOSTS) {
+        try {
+            const { data } = await axios.get(host.url + query, { timeout: OPEN_METEO_TIMEOUT_MS })
+            if (!data?.current || !data?.hourly?.time) throw new Error('response missing current/hourly')
+            const h = data.hourly
+            const hourly = h.time.map((t, i) => ({
+                key: t.slice(0, 13),                   // "YYYY-MM-DDTHH" เวลาไทย
+                temp: h.temperature_2m?.[i],
+                hum: h.relative_humidity_2m?.[i]
+            })).filter(x => x.temp != null && x.hum != null)
+            const result = {
+                current: data.current, hourly, model_elevation_m: data.elevation ?? null,
+                api_status: 'online', api_host: host.name, fetched_at: new Date(now).toISOString(),
+                // โฮสต์หลักล้มแต่สำรองได้: เก็บเหตุผลไว้ให้แอดมินเห็นว่าใช้ตัวสำรองอยู่เพราะอะไร
+                fallback_reason_th: errors.length ? errors.map(e => e.reason_th).join(' · ') : null
+            }
+            WEATHER_CACHE.set(key, { data: result, expiresAt: now + CACHE_TTL_MS, fetchedAt: now })
+            return { ...result, from_cache: false }
+        } catch (err) {
+            const e = { host: host.name, ...describeFetchError(err) }
+            errors.push(e)
+            console.warn(`[OutdoorWeather] Open-Meteo ${host.name} failed (${key}): status=${e.status ?? '-'} code=${e.code ?? '-'} ${err.message}`)
+        }
     }
+    const error_th = errors.map(e => e.reason_th).join(' · ')
+    if (cached && now - cached.fetchedAt < STALE_GRACE_MS) return { ...cached.data, from_cache: true, api_status: 'stale', error_th }
+    return { current: null, hourly: [], api_status: 'offline', errors, error_th }
 }
 
 const hourKey = (d) => `${bkkDate(d)}T${String(bkkHour(d)).padStart(2, '0')}`
@@ -400,6 +433,10 @@ const getFarmOutdoorComparison = async (farm, { refresh = false, now = new Date(
         } : null,
         source: SOURCE,
         api_status: om.api_status,
+        api_host: om.api_host || null,
+        // เหตุผลที่ดึงไม่สำเร็จ (offline/stale) หรือเหตุผลที่ต้องใช้โฮสต์สำรอง แสดงในหน้ารายละเอียดฟาร์ม
+        api_error_th: om.error_th || null,
+        fallback_reason_th: om.fallback_reason_th || null,
         from_cache: Boolean(om.from_cache),
         fetched_at: om.fetched_at || null
     }
@@ -408,6 +445,8 @@ const getFarmOutdoorComparison = async (farm, { refresh = false, now = new Date(
 module.exports = {
     resolveLocation,
     fetchOpenMeteo,
+    describeFetchError,
+    OPEN_METEO_HOSTS,
     indoorHourly,
     comparePeriod,
     compareNow,
