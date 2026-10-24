@@ -6,39 +6,85 @@
 
 export const CUSTOM_API_KEY = 'custom_node_api'
 
+/**
+ * 🔒 ตรวจสอบความปลอดภัยของ Backend URL ป้องกัน SSRF, CRLF Injection และ Token Exfiltration
+ * - อนุญาตเฉพาะ HTTP / HTTPS เท่านั้น (บล็อก javascript:, file:, data:)
+ * - ห้ามมี whitespace หรือ newline ป้องกัน Header Injection
+ * - อนุญาตเฉพาะ Localhost, วง LAN ปลอดภัย (RFC 1918) หรือ Trusted Domains
+ */
+export const isValidBackendUrl = (urlStr) => {
+  if (!urlStr || typeof urlStr !== 'string') return false
+  const trimmed = urlStr.trim()
+  if (/[\s\r\n]/.test(trimmed)) return false
+
+  try {
+    const parsed = new URL(trimmed)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false
+
+    const host = parsed.hostname.toLowerCase()
+    // Localhost & Loopback
+    if (host === 'localhost' || host === '127.0.0.1') return true
+    // LAN Private IP (RFC 1918)
+    if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(host)) return true
+    if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host)) return true
+    if (/^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(host)) return true
+    // Trusted Production & Tunnel Domains
+    if (
+      host === 'cow-detect-zea6.onrender.com' ||
+      host.endsWith('.onrender.com') ||
+      host.endsWith('.trycloudflare.com') ||
+      host.endsWith('.ngrok-free.app') ||
+      host.endsWith('.ngrok.io')
+    ) {
+      return true
+    }
+
+    return false
+  } catch {
+    return false
+  }
+}
+
 const resolveEnvNodeApi = () => {
   if (typeof import.meta !== 'undefined' && import.meta.env?.NUXT_PUBLIC_NODE_API_BASE) {
-    return String(import.meta.env.NUXT_PUBLIC_NODE_API_BASE).replace(/\/+$/, '')
+    const envVal = String(import.meta.env.NUXT_PUBLIC_NODE_API_BASE).replace(/\/+$/, '')
+    if (isValidBackendUrl(envVal)) return envVal
   }
   if (typeof process !== 'undefined' && process.env?.NUXT_PUBLIC_NODE_API_BASE) {
-    return String(process.env.NUXT_PUBLIC_NODE_API_BASE).replace(/\/+$/, '')
+    const envVal = String(process.env.NUXT_PUBLIC_NODE_API_BASE).replace(/\/+$/, '')
+    if (isValidBackendUrl(envVal)) return envVal
   }
   return 'https://cow-detect-zea6.onrender.com/api'
 }
 
 const resolveEnvFastApi = () => {
   if (typeof import.meta !== 'undefined' && import.meta.env?.NUXT_PUBLIC_API_BASE) {
-    return String(import.meta.env.NUXT_PUBLIC_API_BASE).replace(/\/+$/, '')
+    const envVal = String(import.meta.env.NUXT_PUBLIC_API_BASE).replace(/\/+$/, '')
+    if (isValidBackendUrl(envVal)) return envVal
   }
   if (typeof process !== 'undefined' && process.env?.NUXT_PUBLIC_API_BASE) {
-    return String(process.env.NUXT_PUBLIC_API_BASE).replace(/\/+$/, '')
+    const envVal = String(process.env.NUXT_PUBLIC_API_BASE).replace(/\/+$/, '')
+    if (isValidBackendUrl(envVal)) return envVal
   }
   return 'http://localhost:8000'
 }
 
 export const getNodeApiBase = () => {
-  // 1. ตรวจสอบว่าผู้ใช้หรือเกษตรกรตั้งค่าเชื่อมต่อหลังบ้านเพื่อนไว้ในเครื่องหรือไม่
+  // 1. ตรวจสอบว่าผู้ใช้หรือเกษตรกรตั้งค่าเชื่อมต่อหลังบ้านเพื่อนไว้ในเครื่องหรือไม่ (ต้องผ่านการตรวจความปลอดภัย)
   if (typeof window !== 'undefined') {
     const custom = localStorage.getItem(CUSTOM_API_KEY)
-    if (custom && custom.trim()) {
+    if (custom && isValidBackendUrl(custom)) {
       return custom.trim().replace(/\/+$/, '')
+    } else if (custom) {
+      // ล้างค่าทิ้งทันทีหากเป็น URL ผิดรูปแบบหรือไม่ปลอดภัย
+      localStorage.removeItem(CUSTOM_API_KEY)
     }
   }
 
   // 2. ถ้าไม่ได้ตั้งค่าเอง ให้ใช้ค่าจาก RuntimeConfig
   try {
     const config = useRuntimeConfig()
-    if (config?.public?.nodeApiBase) {
+    if (config?.public?.nodeApiBase && isValidBackendUrl(config.public.nodeApiBase)) {
       return String(config.public.nodeApiBase).replace(/\/+$/, '')
     }
   } catch (e) {
@@ -51,7 +97,7 @@ export const getNodeApiBase = () => {
 
 export const setCustomNodeApi = (url) => {
   if (typeof window !== 'undefined') {
-    if (url && url.trim()) {
+    if (url && isValidBackendUrl(url)) {
       localStorage.setItem(CUSTOM_API_KEY, url.trim().replace(/\/+$/, ''))
     } else {
       localStorage.removeItem(CUSTOM_API_KEY)

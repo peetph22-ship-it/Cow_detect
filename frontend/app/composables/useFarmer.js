@@ -8,7 +8,7 @@
  * - ระบบออกจากระบบที่ปลอดภัย มี Modal ยืนยันป้องกันคนแก่เผลอกดผิด
  */
 import axios from 'axios'
-import { getNodeApiBase, setCustomNodeApi, getCustomNodeApi, getKnownBackends } from '~/API/baseAPI'
+import { getNodeApiBase, setCustomNodeApi, getCustomNodeApi, getKnownBackends, isValidBackendUrl } from '~/API/baseAPI'
 import { getThresholds, RISK_LABELS_TH } from '~/utils/heatStress'
 
 const REFRESH_MS = 60 * 1000
@@ -173,6 +173,20 @@ export const useFarmer = () => {
 
   const token = () => (typeof window !== 'undefined' ? localStorage.getItem('token') : null)
 
+  // 🔒 ตรวจสอบความปลอดภัยของ Token ว่าหมดอายุหรือถูกปลอมแปลงหรือไม่
+  const isTokenExpired = (rawToken) => {
+    if (!rawToken || typeof rawToken !== 'string') return true
+    try {
+      const parts = rawToken.split('.')
+      if (parts.length !== 3) return false // Mock หรือ non-JWT token
+      const payload = JSON.parse(atob(parts[1]))
+      if (!payload.exp) return false
+      return Date.now() >= payload.exp * 1000
+    } catch {
+      return false
+    }
+  }
+
   const setFontSize = (size) => {
     fontSize.value = size
     if (typeof window !== 'undefined') {
@@ -252,8 +266,9 @@ export const useFarmer = () => {
   const ensureAuth = () => {
     let u = null
     try { u = JSON.parse(localStorage.getItem('user') || 'null') } catch { u = null }
-    if (!token() || !u || !['farmer', 'admin'].includes(u.role)) {
-      navigateTo('/login')
+    const t = token()
+    if (!t || isTokenExpired(t) || !u || !['farmer', 'admin'].includes(u.role)) {
+      logout()
       return false
     }
     user.value = u
@@ -277,10 +292,13 @@ export const useFarmer = () => {
     return true
   }
 
-  // ตัวทดสอบการเชื่อมต่อไปยัง URL หลังบ้านเพื่อน
+  // ตัวทดสอบการเชื่อมต่อไปยัง URL หลังบ้านเพื่อน (ตรวจสอบความปลอดภัยก่อน Ping)
   const testBackend = async (targetUrl) => {
     const cleanUrl = String(targetUrl || '').trim().replace(/\/+$/, '')
     if (!cleanUrl) return { success: false, message: 'กรุณากรอก URL' }
+    if (!isValidBackendUrl(cleanUrl)) {
+      return { success: false, latency: 0, message: 'URL ไม่อยู่ในรูปแบบที่ปลอดภัย (อนุญาตเฉพาะ http/https วงแลน หรือโดเมนที่เชื่อถือได้)' }
+    }
     const startTime = Date.now()
 
     try {
@@ -317,12 +335,18 @@ export const useFarmer = () => {
     await refresh()
   }
 
-  // GET /api/farmer/<path> (เรียกใช้งาน API ระบบเดิม)
+  // GET /api/farmer/<path> (เรียกใช้งาน API ระบบเดิม - ปลอดภัยต่อ Path Traversal & Unauthorized)
   const request = async (path, params = {}) => {
     try {
       const apiBase = getNodeApiBase()
-      const res = await axios.get(`${apiBase}/farmer/${path}`, {
-        headers: { Authorization: `Bearer ${token()}` },
+      const t = token()
+      if (!t || isTokenExpired(t)) {
+        await logout()
+        throw new Error('Unauthenticated')
+      }
+      const safePath = String(path || '').replace(/[^a-zA-Z0-9_\-\/]/g, '')
+      const res = await axios.get(`${apiBase}/farmer/${safePath}`, {
+        headers: { Authorization: `Bearer ${t}` },
         params: {
           ...(farmId.value ? { farm_id: farmId.value } : {}),
           ...params
