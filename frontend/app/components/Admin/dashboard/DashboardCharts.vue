@@ -227,7 +227,9 @@ const lineChartOptions = computed(() => {
     },
     tooltip: {
       theme: 'light',
-      shared: true,
+      // กราฟแท่งชุดเดียว: ApexCharts ไม่ยอมให้ shared คู่กับ intersect (ค่าเริ่มต้นของ bar) กราฟจะไม่วาดเลย
+      shared: false,
+      intersect: false,
       y: {
         formatter: (val) => val !== null && val !== undefined ? `${val.toFixed(1)} THI` : '-'
       }
