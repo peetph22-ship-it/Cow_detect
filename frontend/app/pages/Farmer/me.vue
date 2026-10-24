@@ -84,12 +84,11 @@
         <label class="block text-xs sm:text-sm font-extrabold text-[#4E655B]">
           เลือกขนาดตัวอักษรที่อ่านสบายตาที่สุด:
         </label>
-        <div class="grid grid-cols-3 gap-2.5 sm:gap-3">
+        <div class="grid grid-cols-2 gap-2.5 sm:gap-3">
           <button
             v-for="opt in [
               { key: 'normal', title: 'ก ปกติ', desc: 'ขนาดมาตรฐาน' },
-              { key: 'large', title: 'ก+ ใหญ่', desc: 'อ่านง่ายขึ้น' },
-              { key: 'huge', title: 'ก++ ใหญ่มาก', desc: 'ชัดเจนพิเศษ' }
+              { key: 'large', title: 'ก+ ใหญ่', desc: 'อ่านง่ายขึ้น' }
             ]"
             :key="opt.key"
             type="button"

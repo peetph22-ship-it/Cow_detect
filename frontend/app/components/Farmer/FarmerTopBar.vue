@@ -70,7 +70,7 @@
             <span class="hidden sm:inline">{{ isSpeaking ? 'หยุดพูด' : 'ฟังเสียง' }}</span>
           </button>
 
-          <!-- ปุ่มปรับขนาดตัวอักษร ก / ก+ / ก++ -->
+          <!-- ปุ่มปรับขนาดตัวอักษร ก / ก+ -->
           <div class="flex items-center bg-[#12241F] p-1 rounded-xl border border-white/15" role="group" aria-label="ขนาดตัวอักษร">
             <button
               v-for="s in fontOptions"
@@ -151,8 +151,7 @@ onMounted(() => {
 
 const fontOptions = [
   { key: 'normal', label: 'ก' },
-  { key: 'large', label: 'ก+' },
-  { key: 'huge', label: 'ก++' }
+  { key: 'large', label: 'ก+' }
 ]
 
 const onSelectFarm = (event) => {

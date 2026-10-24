@@ -85,7 +85,6 @@ const {
 } = useFarmer()
 
 const fontSizeClass = computed(() => {
-  if (fontSize.value === 'huge') return 'font-huge'
   if (fontSize.value === 'large') return 'font-large'
   return 'font-normal'
 })
@@ -117,5 +116,4 @@ onUnmounted(() => {
    เดิมบังคับทุก span เป็นขนาดเดียว ทำให้ตัวเลข text-4xl หดเหลือ ~18px เมื่อกด ก+ */
 .font-normal { zoom: 1; }
 .font-large { zoom: 1.12; }
-.font-huge { zoom: 1.25; }
 </style>

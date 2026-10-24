@@ -79,7 +79,7 @@ export const useFarmer = () => {
   const error = useState('farmer.error', () => '')
   const farmId = useState('farmer.farmId', () => '')
 
-  // ฟีเจอร์ผู้สูงอายุ: ขนาดตัวอักษร (normal = ปกติ, large = ใหญ่, huge = ใหญ่พิเศษ)
+  // ฟีเจอร์ผู้สูงอายุ: ขนาดตัวอักษร (normal = ปกติ, large = ใหญ่)
   const fontSize = useState('farmer.fontSize', () => 'normal')
   const isSpeaking = useState('farmer.isSpeaking', () => false)
 
@@ -119,7 +119,7 @@ export const useFarmer = () => {
     if (!text) return
     const utterance = new SpeechSynthesisUtterance(text)
     utterance.lang = 'th-TH'
-    utterance.rate = fontSize.value === 'huge' ? 0.9 : 0.95 // อ่านช้าลงเล็กน้อยให้ผู้สูงอายุฟังทัน
+    utterance.rate = fontSize.value === 'large' ? 0.9 : 0.95 // อ่านช้าลงเล็กน้อยให้ผู้สูงอายุฟังทัน
 
     const voices = window.speechSynthesis.getVoices()
     const thVoice = voices.find(v => v.lang && v.lang.startsWith('th'))
@@ -195,9 +195,9 @@ export const useFarmer = () => {
     // โหลดขนาดตัวหนังสือที่เคยตั้งไว้
     if (typeof window !== 'undefined') {
       const savedFont = localStorage.getItem(FONT_KEY)
-      if (savedFont && ['normal', 'large', 'huge'].includes(savedFont)) {
-        fontSize.value = savedFont
-      }
+      // 'huge' (ก++) เลิกใช้แล้ว: เครื่องที่เคยตั้งไว้ใช้ 'large' แทน
+      if (savedFont === 'huge') fontSize.value = 'large'
+      else if (savedFont && ['normal', 'large'].includes(savedFont)) fontSize.value = savedFont
     }
     currentBackendUrl.value = getNodeApiBase()
     return true
