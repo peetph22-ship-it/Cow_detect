@@ -19,7 +19,7 @@ const { calcThi, getRiskLevel, getFarmProfile, RISK_LABELS_TH } = require('./hea
 const { loadBuckets, bkkDate, bkkHour, round1 } = require('./heatMetrics')
 
 const WEATHER_CACHE = new Map()                 // "lat_lon" -> { data, expiresAt, fetchedAt }
-const CACHE_TTL_MS = 15 * 60 * 1000
+const CACHE_TTL_MS = 30 * 60 * 1000             // ค่าจากแบบจำลองอัปเดตรายชั่วโมง แคช 30 นาทีช่วยลดโอกาสโดนจำกัด (429)
 const STALE_GRACE_MS = 2 * 60 * 60 * 1000       // เน็ตหลุด: ใช้ค่าเดิมได้ไม่เกิน 2 ชม.
 const PAST_HOURS = 72
 const MIN_BUCKETS_PER_HOUR = 6                  // 6 x 5 นาที = มีข้อมูลอย่างน้อย 30 นาทีในชั่วโมงนั้น
@@ -227,6 +227,11 @@ const OPEN_METEO_HOSTS = [
     { name: 'previous_runs', url: 'https://previous-runs-api.open-meteo.com/v1/forecast' }
 ]
 const OPEN_METEO_TIMEOUT_MS = 10000
+// โฮสต์ที่ตอบ 429 จะถูกข้ามชั่วคราว 1 ชม. (Render ใช้ IP ขาออกร่วมกับเว็บอื่น โควตาจึงหมดบ่อย)
+// เรียกโฮสต์สำรองตรงๆ แทน หน้าโหลดเร็วขึ้นและไม่เปลืองคำขอ
+const RATE_LIMIT_COOLDOWN_MS = 60 * 60 * 1000
+const HOST_COOLDOWN = new Map()                 // host name -> เวลา (ms) ที่จะกลับมาลองใหม่
+const bkkClock = (ms) => new Date(ms).toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit' })
 
 // แปลง error ของ axios เป็นรหัสสถานะ + เหตุผลภาษาไทยที่แอดมินอ่านเข้าใจ (ใช้ทั้งใน log และหน้าเว็บ)
 const describeFetchError = (err) => {
@@ -243,7 +248,7 @@ const describeFetchError = (err) => {
 }
 
 /**
- * ดึงค่าปัจจุบัน + รายชั่วโมงย้อนหลัง 72 ชม. (เวลาไทย) แคช 15 นาที
+ * ดึงค่าปัจจุบัน + รายชั่วโมงย้อนหลัง 72 ชม. (เวลาไทย) แคช 30 นาที
  * ลองโฮสต์หลักก่อน ถ้าล้มเหลวลองโฮสต์สำรอง ถ้าล้มทั้งคู่ส่งเหตุผลของแต่ละโฮสต์กลับไปแสดงในหน้า
  */
 const fetchOpenMeteo = async (lat, lon, { refresh = false } = {}) => {
@@ -257,7 +262,14 @@ const fetchOpenMeteo = async (lat, lon, { refresh = false } = {}) => {
         + '&hourly=temperature_2m,relative_humidity_2m'
         + '&past_days=3&forecast_days=1&timezone=Asia%2FBangkok'
     const errors = []
-    for (const host of OPEN_METEO_HOSTS) {
+    for (const [i, host] of OPEN_METEO_HOSTS.entries()) {
+        const until = HOST_COOLDOWN.get(host.name) || 0
+        const isLast = i === OPEN_METEO_HOSTS.length - 1
+        if (now < until && !isLast) {
+            errors.push({ host: host.name, skipped: true, status: 429, code: null,
+                reason_th: `ตอบ HTTP 429 ก่อนหน้านี้ จึงข้ามไว้ถึง ${bkkClock(until)} น.` })
+            continue
+        }
         try {
             const { data } = await axios.get(host.url + query, { timeout: OPEN_METEO_TIMEOUT_MS })
             if (!data?.current || !data?.hourly?.time) throw new Error('response missing current/hourly')
@@ -273,10 +285,12 @@ const fetchOpenMeteo = async (lat, lon, { refresh = false } = {}) => {
                 // โฮสต์หลักล้มแต่สำรองได้: เก็บเหตุผลไว้ให้แอดมินเห็นว่าใช้ตัวสำรองอยู่เพราะอะไร
                 fallback_reason_th: errors.length ? errors.map(e => e.reason_th).join(' · ') : null
             }
+            HOST_COOLDOWN.delete(host.name)
             WEATHER_CACHE.set(key, { data: result, expiresAt: now + CACHE_TTL_MS, fetchedAt: now })
             return { ...result, from_cache: false }
         } catch (err) {
             const e = { host: host.name, ...describeFetchError(err) }
+            if (e.status === 429) HOST_COOLDOWN.set(host.name, now + RATE_LIMIT_COOLDOWN_MS)
             errors.push(e)
             console.warn(`[OutdoorWeather] Open-Meteo ${host.name} failed (${key}): status=${e.status ?? '-'} code=${e.code ?? '-'} ${err.message}`)
         }
@@ -447,6 +461,7 @@ module.exports = {
     fetchOpenMeteo,
     describeFetchError,
     OPEN_METEO_HOSTS,
+    HOST_COOLDOWN,
     indoorHourly,
     comparePeriod,
     compareNow,

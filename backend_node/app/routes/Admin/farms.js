@@ -948,7 +948,7 @@ router.get('/:id', verifyToken, requireRole('admin'), async (req, res) => {
     }
 })
 
-// 5.1 GET: /api/Admin/farms/:id/outdoor-weather  (?refresh=1 ข้ามแคช 15 นาที)
+// 5.1 GET: /api/Admin/farms/:id/outdoor-weather  (?refresh=1 ข้ามแคช 30 นาที)
 // อากาศภายนอกจาก Open-Meteo + เทียบรายชั่วโมงกับในโรงเรือน ดู services/outdoorWeather.js
 router.get('/:id/outdoor-weather', verifyToken, requireRole('admin'), async (req, res) => {
     try {
