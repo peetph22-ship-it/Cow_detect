@@ -139,8 +139,10 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
-import { Admin } from '../../API/baseAPI'
+import { getNodeApiBase } from '../../API/baseAPI'
 import { calcThi, getRiskLevel, RISK_LABELS_TH } from '~/utils/heatStress'
+
+const Admin = `${getNodeApiBase()}/Admin`
 
 useHead({ title: 'สัตวแพทย์และผู้เชี่ยวชาญ | CowCare AI' })
 

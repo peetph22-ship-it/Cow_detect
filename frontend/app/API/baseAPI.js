@@ -14,6 +14,9 @@ export const canSwitchBackend = () => {
 }
 
 const resolveEnvNodeApi = () => {
+  if (typeof window !== 'undefined' && window.__NUXT__?.config?.public?.nodeApiBase) {
+    return String(window.__NUXT__.config.public.nodeApiBase).replace(/\/+$/, '')
+  }
   if (typeof import.meta !== 'undefined' && import.meta.env?.NUXT_PUBLIC_NODE_API_BASE) {
     return String(import.meta.env.NUXT_PUBLIC_NODE_API_BASE).replace(/\/+$/, '')
   }
@@ -24,6 +27,9 @@ const resolveEnvNodeApi = () => {
 }
 
 const resolveEnvFastApi = () => {
+  if (typeof window !== 'undefined' && window.__NUXT__?.config?.public?.apiBase) {
+    return String(window.__NUXT__.config.public.apiBase).replace(/\/+$/, '')
+  }
   if (typeof import.meta !== 'undefined' && import.meta.env?.NUXT_PUBLIC_API_BASE) {
     return String(import.meta.env.NUXT_PUBLIC_API_BASE).replace(/\/+$/, '')
   }

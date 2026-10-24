@@ -1,9 +1,9 @@
 import axios from 'axios'
-import { getNodeApiBase, base } from './baseAPI'
+import { getNodeApiBase } from './baseAPI'
 
 export default {
   login: (data) => {
-    const apiBase = getNodeApiBase() || base || 'http://localhost:4001/api'
+    const apiBase = getNodeApiBase() || 'http://localhost:4001/api'
     return axios.post(`${apiBase}/auth/login`, data)
   }
 }

@@ -382,8 +382,10 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
-import { Admin } from '../../API/baseAPI'
+import { getNodeApiBase } from '../../API/baseAPI'
 import { calcThi, getRiskLevel } from '~/utils/heatStress'
+
+const Admin = `${getNodeApiBase()}/Admin`
 
 definePageMeta({
   layout: 'admin'

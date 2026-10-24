@@ -316,7 +316,9 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import axios from 'axios'
-import { Admin } from '../../../API/baseAPI'
+import { getNodeApiBase } from '../../../API/baseAPI'
+
+const Admin = `${getNodeApiBase()}/Admin`
 
 const props = defineProps({
   modelValue: {

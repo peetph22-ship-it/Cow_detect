@@ -1613,6 +1613,7 @@ definePageMeta({
 
 // อ่าน base ตอน setup: ใน setInterval เรียก useRuntimeConfig ไม่ได้ (จะตกไปใช้ URL production)
 const Admin = `${getNodeApiBase()}/Admin`
+const fastApi = getFastApiBase()
 const route = useRoute()
 const router = useRouter()
 const farmId = computed(() => {
@@ -1739,7 +1740,6 @@ watch(() => primaryCamera.value?.id, loadLiveRtspUrl)
 
 const cameraStreamUrl = computed(() => {
   if (!primaryCamera.value || !liveRtspUrl.value) return ''
-  const fastApi = getFastApiBase()
   const url = liveRtspUrl.value
   return `${fastApi}/api/cam/stream?cam_id=rtsp&rtsp_url=${encodeURIComponent(url)}&flip=${cameraFlip.value}&t=${cameraStreamKey.value}`
 })

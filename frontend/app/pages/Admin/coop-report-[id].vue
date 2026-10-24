@@ -350,7 +350,9 @@ import { ref, computed, onMounted } from 'vue'
 import HeatMethodNote from '~/components/common/HeatMethodNote.vue'
 import { useRoute } from 'vue-router'
 import axios from 'axios'
-import { Admin } from '../../API/baseAPI'
+import { getNodeApiBase } from '../../API/baseAPI'
+
+const Admin = `${getNodeApiBase()}/Admin`
 
 definePageMeta({
   layout: 'admin'

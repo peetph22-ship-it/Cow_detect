@@ -391,7 +391,10 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
-import { api, Admin } from '../../API/baseAPI'
+import { getNodeApiBase } from '../../API/baseAPI'
+
+const api = getNodeApiBase()
+const Admin = `${api}/Admin`
 
 definePageMeta({
   layout: 'admin'

@@ -719,10 +719,12 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
-import { Admin } from '~/API/baseAPI'
+import { getNodeApiBase } from '~/API/baseAPI'
 import { getRiskLevel } from '~/utils/heatStress'
 import AdminAddFarmModal from '~/components/Admin/farm/AddFarmModal.vue'
 import AdminEditFarmModal from '~/components/Admin/farm/EditFarmModal.vue'
+
+const Admin = `${getNodeApiBase()}/Admin`
 
 definePageMeta({
   layout: 'admin',

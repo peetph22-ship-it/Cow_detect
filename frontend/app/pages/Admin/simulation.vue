@@ -755,8 +755,11 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
-import { Admin, getFastApiBase } from '~/API/baseAPI'
+import { getNodeApiBase, getFastApiBase } from '~/API/baseAPI'
 import { calcThi, getRiskLevel, RISK_LABELS_TH } from '~/utils/heatStress'
+
+const Admin = `${getNodeApiBase()}/Admin`
+const fastApi = getFastApiBase()
 
 definePageMeta({
   layout: 'admin',
@@ -874,7 +877,6 @@ watch(selectedCameraSource, async (src) => {
 })
 
 const cameraStreamUrl = computed(() => {
-  const fastApi = getFastApiBase()
   if (selectedCameraSource.value === 'simulation') {
     return `${fastApi}/api/cam/stream?cam_id=simulation&sample_video=sample_barn.mp4&flip=${cameraFlip.value}&t=${cameraStreamKey.value}`
   }
@@ -1005,7 +1007,6 @@ const onFarmSelected = async () => {
 
 const fetchCameraDevices = async () => {
   try {
-    const fastApi = getFastApiBase()
     const res = await axios.get(`${fastApi}/api/cam/devices`, { timeout: 3000 })
     if (res.data && res.data.devices && res.data.devices.length > 0) {
       detectedCameras.value = res.data.devices
