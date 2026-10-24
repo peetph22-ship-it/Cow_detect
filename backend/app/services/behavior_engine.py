@@ -5,6 +5,8 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
 NODE_API_BASE = os.getenv("NODE_BACKEND_URL", "http://localhost:4001")
+# backend_node รับ telemetry/alerts จากโปรแกรมภายในเมื่อ X-Internal-Key ตรงกับ INTERNAL_API_KEY ของ backend_node
+INTERNAL_HEADERS = {"X-Internal-Key": os.getenv("INTERNAL_API_KEY", "")}
 
 def point_in_polygon(x: float, y: float, polygon: List[dict]) -> bool:
     """Ray-casting algorithm to test if (x,y) normalized [0..1] is in polygon."""
@@ -222,9 +224,11 @@ class CowStateTracker:
 
         try:
             url = f"{NODE_API_BASE}/api/Admin/farms/{self.farm_id}/cameras/telemetry"
-            res = requests.post(url, json=payload, timeout=3)
+            res = requests.post(url, json=payload, headers=INTERNAL_HEADERS, timeout=3)
             if res.status_code in [200, 201]:
                 print(f"[Behavior Engine] ✅ 5-Min Telemetry Rolled up: {total} cows, CCI: {cci}%")
+            else:
+                print(f"[Behavior Engine] ⚠️ Telemetry rejected by Node.js: HTTP {res.status_code} (ตรวจ INTERNAL_API_KEY)")
         except Exception as e:
             print(f"[Behavior Engine] ⚠️ Could not emit telemetry to Node.js: {e}")
 
@@ -244,7 +248,10 @@ class CowStateTracker:
         }
         try:
             url = f"{NODE_API_BASE}/api/Admin/farms/{self.farm_id}/cameras/alerts"
-            requests.post(url, json=payload, timeout=3)
+            res = requests.post(url, json=payload, headers=INTERNAL_HEADERS, timeout=3)
+            if res.status_code not in [200, 201]:
+                print(f"[Behavior Engine] ⚠️ Alert rejected by Node.js: HTTP {res.status_code}")
+                return
             print(f"[Behavior Engine] 🚨 Dispatched Alert [{alert_type}] for Track #{track_id}")
         except Exception as e:
             print(f"[Behavior Engine] ⚠️ Alert dispatch error: {e}")

@@ -188,7 +188,9 @@
 <script setup>
 import { ref, reactive, computed, watch } from 'vue'
 import axios from 'axios'
-import { api, base } from '../../../API/baseAPI'
+import { getNodeApiBase } from '../../../API/baseAPI'
+// อ่าน base ตอน setup (ค่าคงที่ api/base ชี้ production เสมอในเบราว์เซอร์ แม้รันในเครื่อง)
+const API = getNodeApiBase()
 
 const props = defineProps({
   modelValue: {
@@ -268,7 +270,11 @@ const submitForm = async () => {
     }
     
     // Call Node.js Backend API
-    const response = await axios.post(`${base || api}/auth/register`, payload)
+    // สร้างบัญชีได้เฉพาะ admin ที่ login แล้ว (backend ตรวจ token)
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+    const response = await axios.post(`${API}/auth/register`, payload, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    })
     const returnedUser = response.data.user || {}
     const newUserId = returnedUser.id_users || returnedUser.id || Date.now()
     

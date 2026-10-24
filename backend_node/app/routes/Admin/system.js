@@ -9,6 +9,8 @@ const db = require('../../config/db')
 const { evaluateMultimodalStatus } = require('../../services/multimodalValidationService')
 const { PROFILES, PROFILE_LABELS } = require('../../services/heatStress')
 const { FORECAST_VERSION } = require('../../services/forecastService')
+const { verifyToken, requireRole } = require('../../middleware/authMiddleware')
+const adminOnly = [verifyToken, requireRole('admin')]
 
 // Helper function to check valid UUID
 const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str || '').trim())
@@ -19,7 +21,7 @@ const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-
 // -----------------------------------------------------------------
 // ตัวเลขความแม่นยำเดิม (Argon benchmark) ไม่มีการวัดรองรับ จึงถูกลบออก
 // รายงานเฉพาะสิ่งที่ตรวจสอบได้: วิธีที่ใช้ เกณฑ์ และสถานะการทดสอบ
-router.get('/accuracy-benchmarks', (req, res) => {
+router.get('/accuracy-benchmarks', adminOnly, (req, res) => {
     return res.json({
         success: true,
         benchmarks: {
@@ -46,7 +48,7 @@ router.get('/accuracy-benchmarks', (req, res) => {
 // 2. GET /api/system/farms/:farmId/multimodal-status
 // ตรวจสอบสถานะการเชื่อมโยงสองระบบ (IoT Sensor + CCTV Behavior Cross-Validation Gate)
 // -----------------------------------------------------------------
-router.get('/farms/:farmId/multimodal-status', async (req, res) => {
+router.get('/farms/:farmId/multimodal-status', adminOnly, async (req, res) => {
     const { farmId } = req.params
     if (!isUUID(farmId)) {
         return res.status(400).json({ success: false, message: 'Invalid Farm UUID' })
@@ -68,7 +70,7 @@ router.get('/farms/:farmId/multimodal-status', async (req, res) => {
 // 3. POST /api/alerts/:alertId/feedback
 // Human-in-the-Loop Feedback (ปุ่มยืนยันความแม่นยำ/แจ้งเตือนหลอก จากหน้าเว็บ/LINE)
 // -----------------------------------------------------------------
-router.post(['/alerts/:alertId/feedback', '/:alertId/feedback'], async (req, res) => {
+router.post(['/alerts/:alertId/feedback', '/:alertId/feedback'], adminOnly, async (req, res) => {
     const { alertId } = req.params
     if (!isUUID(alertId)) {
         return res.status(400).json({ success: false, message: 'Invalid Alert UUID' })

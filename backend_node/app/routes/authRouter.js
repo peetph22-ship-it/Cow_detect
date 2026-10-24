@@ -4,6 +4,10 @@ const db = require('../config/db')
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const SECRET_KEY = process.env.SECRET_KEY
+const { verifyToken, requireRole } = require('../middleware/authMiddleware')
+
+const ROLES = ['admin', 'farmer', 'expert']
+const STATUSES = ['pending', 'active', 'suspended']
 
 // POST: Login API
 router.post('/login',async (req, res) => {
@@ -92,13 +96,16 @@ router.post('/login',async (req, res) => {
 
 
 // POST: Register API
-router.post('/register',async(req,res) => {
+// POST: สร้างบัญชี (เฉพาะ admin ที่ login แล้ว) เดิมเปิดให้ทุกคนสมัครเป็น admin เองได้
+router.post('/register', verifyToken, requireRole('admin'), async(req,res) => {
     try{
         const { email,full_name,phone,password,role,organization,status } = req.body
         if(!full_name || !phone || !password || !role ) return res.status(400).json({
             success:false,
             message:'Please Enter your [full_name,phone,password,role]'
         })
+        if (!ROLES.includes(role)) return res.status(400).json({ success: false, message: `role ต้องเป็น ${ROLES.join(' / ')}` })
+        if (status && !STATUSES.includes(status)) return res.status(400).json({ success: false, message: `status ต้องเป็น ${STATUSES.join(' / ')}` })
 
         const userStatus = status || 'active'
         const hash = await bcrypt.hash(password,10)

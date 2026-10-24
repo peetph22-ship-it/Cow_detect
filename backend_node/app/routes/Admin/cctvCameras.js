@@ -1,12 +1,12 @@
 const express = require('express')
 const router = express.Router({ mergeParams: true })
 const db = require('../../config/db')
-const { verifyToken, requireRole } = require('../../middleware/authMiddleware')
+const { verifyToken, requireRole, adminOrInternal } = require('../../middleware/authMiddleware')
 const { encryptSecret, decryptSecret, isConfigured, CameraSecretError } = require('../../services/cameraSecrets')
 const { getCameraBehavior } = require('../../services/cameraBehavior')
 
 // ข้อมูลกล้อง (ที่อยู่, user, รหัส) ดูหรือแก้ได้เฉพาะ admin
-// telemetry/alerts ยังเปิดอยู่เพราะ behavior engine ฝั่ง Python ส่งเข้ามาโดยไม่มี token
+// ส่ง telemetry/alerts: admin หรือ behavior engine ฝั่ง Python ที่ส่ง X-Internal-Key (INTERNAL_API_KEY)
 const adminOnly = [verifyToken, requireRole('admin')]
 
 const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str || '').trim())
@@ -282,7 +282,7 @@ router.delete('/:cameraId', adminOnly, async (req, res) => {
 // 4. GET /api/Admin/farms/:farmId/behavior-telemetry
 // Get rolling 5-minute behavior telemetry for charts and Cockpit
 // -----------------------------------------------------------------
-router.get('/telemetry', async (req, res) => {
+router.get('/telemetry', adminOnly, async (req, res) => {
     const farmId = req.params.farmId
     if (!isUUID(farmId)) {
         return res.status(400).json({ success: false, message: 'Invalid Farm UUID' })
@@ -314,7 +314,7 @@ router.get('/telemetry', async (req, res) => {
 // 5. POST /api/Admin/farms/:farmId/behavior-telemetry
 // Ingest 5-minute periodic herd aggregate from FastAPI Worker / Simulator
 // -----------------------------------------------------------------
-router.post('/telemetry', async (req, res) => {
+router.post('/telemetry', adminOrInternal, async (req, res) => {
     const farmId = req.params.farmId
     if (!isUUID(farmId)) {
         return res.status(400).json({ success: false, message: 'Invalid Farm UUID' })
@@ -382,7 +382,7 @@ router.post('/telemetry', async (req, res) => {
 // 6. GET /api/Admin/farms/:farmId/behavior-alerts
 // List active welfare alerts
 // -----------------------------------------------------------------
-router.get('/alerts', async (req, res) => {
+router.get('/alerts', adminOnly, async (req, res) => {
     const farmId = req.params.farmId
     if (!isUUID(farmId)) {
         return res.status(400).json({ success: false, message: 'Invalid Farm UUID' })
@@ -411,7 +411,7 @@ router.get('/alerts', async (req, res) => {
 // 7. POST /api/Admin/farms/:farmId/behavior-alerts
 // Trigger animal welfare alert (Layer 3 Engine)
 // -----------------------------------------------------------------
-router.post('/alerts', async (req, res) => {
+router.post('/alerts', adminOrInternal, async (req, res) => {
     const farmId = req.params.farmId
     if (!isUUID(farmId)) {
         return res.status(400).json({ success: false, message: 'Invalid Farm UUID' })
@@ -465,7 +465,7 @@ router.post('/alerts', async (req, res) => {
 // 8. PATCH /api/Admin/farms/:farmId/behavior-alerts/:alertId/resolve
 // Mark alert as acknowledged / resolved
 // -----------------------------------------------------------------
-router.patch('/alerts/:alertId/resolve', async (req, res) => {
+router.patch('/alerts/:alertId/resolve', adminOnly, async (req, res) => {
     const { farmId, alertId } = req.params
     if (!isUUID(farmId) || !isUUID(alertId)) {
         return res.status(400).json({ success: false, message: 'Invalid UUID' })
@@ -490,7 +490,7 @@ router.patch('/alerts/:alertId/resolve', async (req, res) => {
 // 9. POST /api/Admin/farms/:farmId/behavior-alerts/:alertId/feedback
 // Human-in-the-loop farmer feedback (accurate / false alarm)
 // -----------------------------------------------------------------
-router.post(['/alerts/:alertId/feedback', '/behavior-alerts/:alertId/feedback'], async (req, res) => {
+router.post(['/alerts/:alertId/feedback', '/behavior-alerts/:alertId/feedback'], adminOnly, async (req, res) => {
     const { farmId, alertId } = req.params
     if (!isUUID(farmId) || !isUUID(alertId)) {
         return res.status(400).json({ success: false, message: 'Invalid UUID' })
