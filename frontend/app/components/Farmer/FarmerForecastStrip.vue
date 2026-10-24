@@ -56,17 +56,7 @@
       </div>
     </div>
 
-    <!-- กรณีไม่มี forecast.days แต่มีข้อความสรุปจาก senior.forecast_simple -->
-    <div
-      v-else-if="simpleForecastText"
-      class="p-4 rounded-2xl bg-[#ECFDF5] border border-[#A7F3D0] flex items-center gap-3">
-      <v-icon icon="mdi-weather-partly-cloudy" size="28" class="text-[#15803D] shrink-0" />
-      <p class="text-sm sm:text-base font-bold text-[#14532D] leading-snug">
-        {{ simpleForecastText }}
-      </p>
-    </div>
-
-    <!-- กรณีข้อมูลในคอกยังไม่ครบเกณฑ์พยากรณ์ -->
+    <!-- ไม่มีพยากรณ์: บอกเหตุผล ไม่ใช้ข้อความทั่วไปอย่าง "พรุ่งนี้ใกล้เคียงวันนี้" (อาจไม่จริง) -->
     <div
       v-else-if="insufficientReason"
       class="p-4 rounded-2xl bg-[#F4EFE4] border border-[#E6DEC8] text-xs sm:text-sm font-semibold text-[#4E655B] flex items-center gap-2.5">
@@ -82,10 +72,13 @@ import { useFarmer, thaiDate } from '~/composables/useFarmer'
 const { forecast, senior } = useFarmer()
 
 const forecastDays = computed(() => forecast.value?.days || [])
-const simpleForecastText = computed(() => senior.value?.forecast_simple || '')
-const insufficientReason = computed(() =>
-  forecast.value?.insufficient_data ? (forecast.value.reason || 'กำลังสะสมข้อมูลเซ็นเซอร์เพื่อพยากรณ์ล่วงหน้า') : ''
-)
+// ข้อความสรุปจาก backend ใช้เฉพาะเมื่อมีพยากรณ์จริง (ไม่มีพยากรณ์ backend ส่งข้อความกลางๆ ที่อาจไม่จริง)
+const simpleForecastText = computed(() => (forecastDays.value.length ? senior.value?.forecast_simple || '' : ''))
+const insufficientReason = computed(() => {
+  if (forecastDays.value.length) return ''
+  if (forecast.value?.insufficient_data) return forecast.value.reason || 'กำลังสะสมข้อมูลเซ็นเซอร์เพื่อพยากรณ์ล่วงหน้า'
+  return 'ยังไม่มีพยากรณ์ล่วงหน้า'
+})
 
 const dayTitle = (d, idx) => {
   if (d.label) return d.label

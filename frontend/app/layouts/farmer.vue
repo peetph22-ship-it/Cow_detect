@@ -1,7 +1,6 @@
 <template>
   <div
-    class="min-h-screen bg-[#F6F1E6] text-[#1B342D] font-sans selection:bg-[#2D6A4F]/20 flex flex-col transition-all duration-200"
-    :class="fontSizeClass">
+    class="min-h-screen bg-[#F6F1E6] text-[#1B342D] font-sans selection:bg-[#2D6A4F]/20 flex flex-col transition-all duration-200">
     <!-- แถบด้านบน: ชื่อฟาร์ม ตัวสลับฟาร์ม ปุ่มฟังเสียง ปุ่มขยายตัวอักษร -->
     <FarmerTopBar @toggle-voice="handleVoiceToggle" />
 
@@ -9,7 +8,8 @@
     <FarmerBottomNav variant="desktop" />
 
     <!-- เนื้อหาหลัก -->
-    <main class="flex-1 max-w-5xl w-full mx-auto px-4 py-5 pb-28 md:pb-12">
+    <!-- ขยายเฉพาะเนื้อหา (แถบหัวและเมนูล่างคงขนาด ไม่ล้นจอโทรศัพท์) -->
+    <main class="flex-1 max-w-5xl w-full mx-auto px-4 py-5 pb-28 md:pb-12" :class="fontSizeClass">
       <!-- สถานะกำลังโหลด -->
       <div v-if="!loaded" class="py-24 text-center space-y-3">
         <v-icon icon="mdi-loading" class="animate-spin text-[#2D6A4F]" size="44" />
@@ -113,23 +113,9 @@ onUnmounted(() => {
 </script>
 
 <style>
-/* คลาสปรับขนาดตัวอักษรสำหรับผู้สูงอายุ */
-.font-normal {
-  font-size: 16px;
-}
-.font-large {
-  font-size: 18.5px;
-}
-.font-large h1 { font-size: 1.45rem !important; }
-.font-large h2 { font-size: 1.3rem !important; }
-.font-large h3 { font-size: 1.2rem !important; }
-.font-large p, .font-large span, .font-large button { font-size: 1.12rem !important; }
-
-.font-huge {
-  font-size: 21px;
-}
-.font-huge h1 { font-size: 1.7rem !important; }
-.font-huge h2 { font-size: 1.5rem !important; }
-.font-huge h3 { font-size: 1.35rem !important; }
-.font-huge p, .font-huge span, .font-huge button { font-size: 1.28rem !important; }
+/* ปรับขนาดสำหรับผู้สูงอายุ: ขยายทั้งหน้าตามสัดส่วน (zoom) ตัวเลขใหญ่จึงใหญ่ขึ้นด้วย
+   เดิมบังคับทุก span เป็นขนาดเดียว ทำให้ตัวเลข text-4xl หดเหลือ ~18px เมื่อกด ก+ */
+.font-normal { zoom: 1; }
+.font-large { zoom: 1.12; }
+.font-huge { zoom: 1.25; }
 </style>

@@ -77,6 +77,17 @@
       <p>กำลังเปิดข้อมูลย้อนหลัง 7 วัน...</p>
     </div>
 
+    <div v-else-if="loadError" class="bg-[#FFFDF7] rounded-3xl p-8 shadow-xs border-2 border-[#FCA5A5] text-center space-y-3">
+      <v-icon icon="mdi-cloud-off-outline" size="40" class="text-[#B91C1C]" />
+      <p class="text-base font-extrabold text-[#7F1D1D]">โหลดข้อมูลย้อนหลังไม่สำเร็จ</p>
+      <p class="text-sm text-[#4E655B]">ตรวจสัญญาณอินเทอร์เน็ตแล้วลองใหม่</p>
+      <button type="button" class="px-5 py-2.5 rounded-2xl bg-[#1B4332] text-white font-bold" @click="loadHistory">ลองใหม่</button>
+    </div>
+
+    <div v-else-if="!days.length" class="bg-[#FFFDF7] rounded-3xl p-8 shadow-xs border border-[#E6DEC8] text-center text-sm font-bold text-[#4E655B]">
+      ยังไม่มีข้อมูลย้อนหลัง เมื่อกล่องเซ็นเซอร์ส่งข้อมูลครบวัน หน้านี้จะแสดงให้อัตโนมัติ
+    </div>
+
     <div v-else class="space-y-3.5">
       <FarmerHistoryDayCard
         v-for="d in days"
@@ -97,13 +108,16 @@ const days = ref([])
 const streakDays = ref(0)
 const loadingDays = ref(true)
 
+const loadError = ref(false)
 const loadHistory = async () => {
   loadingDays.value = true
+  loadError.value = false
   try {
     const res = await request('history')
     days.value = res?.days || []
     streakDays.value = res?.streak?.days || 0
   } catch (err) {
+    loadError.value = true
     console.error('Error loading history:', err.message)
   } finally {
     loadingDays.value = false

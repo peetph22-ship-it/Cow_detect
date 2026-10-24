@@ -56,6 +56,14 @@
       <p>กำลังเปิดรายการแจ้งเตือน...</p>
     </div>
 
+    <!-- โหลดไม่สำเร็จ: ห้ามขึ้นว่าปลอดภัย -->
+    <div v-else-if="loadError" class="bg-[#FFFDF7] rounded-3xl p-8 shadow-xs border-2 border-[#FCA5A5] text-center space-y-3">
+      <v-icon icon="mdi-cloud-off-outline" size="40" class="text-[#B91C1C]" />
+      <p class="text-base font-extrabold text-[#7F1D1D]">โหลดรายการแจ้งเตือนไม่สำเร็จ</p>
+      <p class="text-sm text-[#4E655B]">ตรวจสัญญาณอินเทอร์เน็ตแล้วลองใหม่ (ยังไม่รู้ว่ามีเหตุการณ์หรือไม่)</p>
+      <button type="button" class="px-5 py-2.5 rounded-2xl bg-[#1B4332] text-white font-bold" @click="load">ลองใหม่</button>
+    </div>
+
     <!-- กรณีไม่มีเหตุการณ์ผิดปกติ -->
     <div
       v-else-if="!events.length"
@@ -124,12 +132,15 @@ const groups = computed(() => {
   }))
 })
 
+const loadError = ref(false)
 const load = async () => {
   loadingEvents.value = true
+  loadError.value = false
   try {
     const res = await request('events')
     events.value = res?.events || []
   } catch (err) {
+    loadError.value = true
     console.error('Error loading events:', err.message)
   } finally {
     loadingEvents.value = false

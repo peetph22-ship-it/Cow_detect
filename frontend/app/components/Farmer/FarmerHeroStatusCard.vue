@@ -149,9 +149,12 @@ const {
   refresh
 } = useFarmer()
 
-const riskLevel = computed(() => now.value?.risk_level || 'normal')
+// ไม่มีข้อมูล หรือกล่องไม่ได้ส่งค่าล่าสุด = ไม่บอกระดับความเสี่ยงจากค่าเก่า
+const noFreshData = computed(() => !now.value || now.value.sensor_status !== 'online')
+const riskLevel = computed(() => (noFreshData.value ? 'nodata' : (now.value?.risk_level || 'normal')))
 
 const statusTitle = computed(() => {
+  if (riskLevel.value === 'nodata') return now.value ? 'กล่องเซ็นเซอร์ไม่ได้ส่งข้อมูลล่าสุด' : 'ยังไม่มีข้อมูลจากกล่องเซ็นเซอร์'
   if (senior.value?.title) return senior.value.title
   if (riskLevel.value === 'severe') return 'อากาศร้อนจัดมาก แม่วัวกำลังเครียด!'
   if (riskLevel.value === 'moderate') return 'อากาศร้อน แม่วัวเริ่มอึดอัดและหอบ'
@@ -160,6 +163,11 @@ const statusTitle = computed(() => {
 })
 
 const statusMessage = computed(() => {
+  if (riskLevel.value === 'nodata') {
+    return now.value
+      ? `ค่าที่เห็นเป็นค่าล่าสุดเมื่อ ${now.value.minutes_ago ?? '?'} นาทีที่แล้ว ยังบอกไม่ได้ว่าตอนนี้วัวเครียดหรือไม่ ตรวจปลั๊กไฟและอินเทอร์เน็ตของกล่อง`
+      : 'เมื่อกล่องเริ่มส่งข้อมูล หน้านี้จะแสดงสภาพในคอกให้อัตโนมัติ'
+  }
   if (senior.value?.message) return senior.value.message
   if (riskLevel.value === 'severe') {
     return 'อุณหภูมิและความชื้นสูงถึงระดับวิกฤต เสี่ยงน้ำนมลดลงมาก รีบเปิดพัดลมระบายอากาศและช่วยลดความร้อนให้แม่วัวทันที'
@@ -171,6 +179,17 @@ const statusMessage = computed(() => {
 })
 
 const heroTheme = computed(() => {
+  if (riskLevel.value === 'nodata') {
+    return {
+      shortTag: 'ไม่มีข้อมูลล่าสุด',
+      icon: 'mdi-wifi-off',
+      card: 'bg-[#F3F4F6] border-[#D1D5DB]',
+      badge: 'bg-[#6B7280] text-white border-[#4B5563]',
+      titleText: 'text-[#1F2937]',
+      bodyText: 'text-[#374151]',
+      subtext: 'text-[#4B5563]'
+    }
+  }
   if (riskLevel.value === 'severe') {
     return {
       shortTag: 'ร้อนจัดวิกฤต!',
