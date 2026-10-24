@@ -854,10 +854,6 @@ router.get('/:id', verifyToken, requireRole('admin'), async (req, res) => {
         } catch (fcErr) {
             console.warn('[Farm Detail API] forecast error:', fcErr.message)
         }
-        // ผลที่บันทึกตอน 20:00 ใช้ได้ถ้าเป็นเวอร์ชันปัจจุบัน แต่ถ้าตอนนั้นใช้วิธีสำรอง (API ล่ม) และตอนนี้ได้พยากรณ์อากาศแล้ว ให้ใช้ผลล่าสุด
-        const savedForecast = saved_daily_summary?.lstm_forecast
-        const useSaved = isCurrentForecast(savedForecast)
-            && !(String(lstm_forecast?.engine || '').startsWith('openmeteo') && !String(savedForecast.engine || '').startsWith('openmeteo'))
 
         // ตรวจสอบความต่อเนื่องของสัญญาณเซ็นเซอร์ (Data Continuity & Gap Alert)
         let gapAlert = null
@@ -901,6 +897,11 @@ router.get('/:id', verifyToken, requireRole('admin'), async (req, res) => {
         } catch (dsErr) {
             console.warn('[Farm Detail API] Saved daily summary query error:', dsErr.message)
         }
+
+        // ผลที่บันทึกตอน 20:00 ใช้ได้ถ้าเป็นเวอร์ชันปัจจุบัน แต่ถ้าตอนนั้นใช้วิธีสำรอง (API ล่ม) และตอนนี้ได้พยากรณ์อากาศแล้ว ให้ใช้ผลล่าสุด
+        const savedForecast = saved_daily_summary?.lstm_forecast
+        const useSaved = isCurrentForecast(savedForecast)
+            && !(String(lstm_forecast?.engine || '').startsWith('openmeteo') && !String(savedForecast.engine || '').startsWith('openmeteo'))
 
         // วันที่ THI เฉลี่ยรายวันถึงระดับเครียดติดต่อกัน (heatMetrics)
         let streak = null
