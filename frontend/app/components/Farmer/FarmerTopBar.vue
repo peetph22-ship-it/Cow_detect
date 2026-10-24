@@ -1,20 +1,21 @@
 <template>
-  <header class="sticky top-0 z-30 bg-white/85 backdrop-blur-xl border-b border-[#E4E8E5] transition-all">
-    <div class="max-w-[1380px] mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-[72px] flex items-center justify-between gap-3">
-      <!-- ฝั่งซ้าย: ปุ่มเปิดเมนูมือถือ + ชื่อหน้าปัจจุบัน + ตัวสลับฟาร์ม -->
+  <header class="h-16 sm:h-[68px] bg-white/90 backdrop-blur-xl border-b border-[#E4E8E5] shrink-0 z-30 transition-all">
+    <div class="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between gap-3">
+      <!-- ฝั่งซ้าย: ปุ่ม Hamburger สไลด์เปิด-ปิด Sidebar + ชื่อหน้าปัจจุบัน + ตัวสลับฟาร์ม -->
       <div class="flex items-center gap-3 min-w-0 flex-1">
-        <!-- ปุ่มเปิด Sidebar บนมือถือ/แท็บเล็ต -->
+        <!-- ปุ่ม Hamburger ใช้ได้ทั้งบนคอมและมือถือ -->
         <button
           type="button"
-          @click="$emit('open-sidebar')"
-          class="lg:hidden w-10 h-10 rounded-xl bg-[#F4F6F4] hover:bg-[#E6ECE8] text-[#142820] flex items-center justify-center shrink-0 cursor-pointer border border-[#E4E8E5]"
-          aria-label="เปิดเมนูนำทาง">
-          <v-icon icon="mdi-menu" size="22" />
+          @click="$emit('toggle-sidebar')"
+          class="w-10 h-10 rounded-xl bg-white hover:bg-[#F2F4F2] text-[#142820] flex items-center justify-center shrink-0 cursor-pointer border border-[#E4E8E5] shadow-2xs transition-colors"
+          :title="sidebarOpen ? 'ซ่อนแถบเมนูด้านซ้าย' : 'เปิดแถบเมนูด้านซ้าย'"
+          aria-label="สลับแถบเมนูด้านซ้าย">
+          <v-icon :icon="sidebarOpen ? 'mdi-menu-open' : 'mdi-menu'" size="21" />
         </button>
 
         <div class="min-w-0 flex-1">
           <div class="flex items-center gap-2.5 flex-wrap">
-            <h1 class="text-base sm:text-xl font-black text-[#142820] tracking-tight truncate">
+            <h1 class="text-base sm:text-lg font-black text-[#142820] tracking-tight truncate">
               {{ pageTitle }}
             </h1>
 
@@ -24,26 +25,26 @@
                 :value="farm?.id"
                 @change="onSelectFarm($event)"
                 aria-label="เลือกฟาร์ม"
-                class="appearance-none bg-[#F4EFE4] hover:bg-[#EAE2D0] text-[#142820] font-extrabold text-xs sm:text-sm rounded-full pl-3.5 pr-8 py-1 border border-[#D8CEB8] focus:outline-none focus:border-[#D87939] cursor-pointer max-w-[180px] sm:max-w-[240px] truncate">
+                class="appearance-none bg-[#F4EFE4] hover:bg-[#EAE2D0] text-[#142820] font-extrabold text-xs rounded-full pl-3 pr-7 py-1 border border-[#D8CEB8] focus:outline-none focus:border-[#D87939] cursor-pointer max-w-[160px] sm:max-w-[220px] truncate">
                 <option v-for="f in farms" :key="f.id" :value="f.id">
                   {{ f.name }}
                 </option>
               </select>
               <v-icon
                 icon="mdi-chevron-down"
-                size="16"
-                class="text-[#D87939] pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
+                size="15"
+                class="text-[#D87939] pointer-events-none absolute right-2 top-1/2 -translate-y-1/2" />
             </div>
 
             <span
               v-else-if="farm?.name"
-              class="hidden sm:inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-extrabold bg-[#F4EFE4] text-[#24433A] border border-[#E2D9C5]">
+              class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-[#F4EFE4] text-[#24433A] border border-[#E2D9C5]">
               <v-icon icon="mdi-barn" size="14" class="text-[#D87939]" />
               <span>{{ farm.name }}</span>
             </span>
           </div>
 
-          <p class="text-[11px] sm:text-xs text-[#64766D] font-semibold truncate mt-0.5">
+          <p class="text-[11px] text-[#64766D] font-semibold truncate hidden sm:block">
             {{ todayDateLabel }}
             <span v-if="farm?.barn_unit"> · {{ farm.barn_unit }}</span>
             <span v-if="farm?.province"> · จ.{{ farm.province }}</span>
@@ -52,10 +53,10 @@
       </div>
 
       <!-- ฝั่งขวา: สถานะกล่องเซ็นเซอร์ + ปุ่มรีเฟรช -->
-      <div class="flex items-center gap-2 sm:gap-2.5 shrink-0">
+      <div class="flex items-center gap-2 shrink-0">
         <!-- สถานะกล่องเซ็นเซอร์ -->
         <div
-          class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-extrabold border"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-extrabold border"
           :class="sensorOnline
             ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
             : 'bg-amber-50 text-amber-900 border-amber-200'">
@@ -79,41 +80,30 @@
           type="button"
           @click="refresh"
           :disabled="loading"
-          class="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-[#F4F6F4] hover:bg-[#E6ECE8] border border-[#E4E8E5] text-[#142820] flex items-center justify-center transition-all cursor-pointer active:scale-95"
+          class="w-10 h-10 rounded-xl bg-[#F4F6F4] hover:bg-[#E6ECE8] border border-[#E4E8E5] text-[#142820] flex items-center justify-center transition-all cursor-pointer active:scale-95"
           title="อัปเดตข้อมูลล่าสุด">
-          <v-icon icon="mdi-refresh" size="20" :class="loading ? 'animate-spin text-[#D87939]' : ''" />
+          <v-icon icon="mdi-refresh" size="19" :class="loading ? 'animate-spin text-[#D87939]' : ''" />
         </button>
-      </div>
-    </div>
-
-    <!-- แถบแจ้งเตือนเมื่อกล่องเซ็นเซอร์มีปัญหา -->
-    <div
-      v-if="deviceAlert"
-      class="bg-gradient-to-r from-[#B45309] to-[#D97706] text-white text-xs sm:text-sm font-bold px-4 sm:px-8 py-2.5 border-t border-black/10">
-      <div class="max-w-[1380px] mx-auto flex items-center justify-between gap-3">
-        <div class="flex items-center gap-2">
-          <v-icon :icon="deviceAlert.icon" size="20" class="shrink-0" />
-          <span>{{ deviceAlert.text }}</span>
-        </div>
-        <NuxtLink
-          to="/Farmer/alerts"
-          class="px-3 py-1 rounded-full bg-white/20 hover:bg-white/30 text-xs font-extrabold text-white text-decoration-none shrink-0">
-          ดูประวัติแจ้งเตือน
-        </NuxtLink>
       </div>
     </div>
   </header>
 </template>
 
 <script setup>
-import { useFarmer, agoText, thaiDate } from '~/composables/useFarmer'
+import { useFarmer, thaiDate } from '~/composables/useFarmer'
 import { getCustomNodeApi, canSwitchBackend } from '~/API/baseAPI'
 
-defineEmits(['open-sidebar'])
+defineProps({
+  sidebarOpen: {
+    type: Boolean,
+    default: true
+  }
+})
+
+defineEmits(['toggle-sidebar'])
 
 const route = useRoute()
 const {
-  me,
   farm,
   farms,
   now,
@@ -145,21 +135,4 @@ const onSelectFarm = (event) => {
   const targetId = event.target?.value
   if (targetId) selectFarm(targetId)
 }
-
-const deviceAlert = computed(() => {
-  const dev = me.value?.device
-  if (dev?.status === 'sensor_fault') {
-    return {
-      icon: 'mdi-thermometer-off',
-      text: 'กล่องส่งสัญญาณออนไลน์ แต่อ่านค่าหัววัดอุณหภูมิไม่ได้ กรุณาตรวจสายเซ็นเซอร์ในคอก'
-    }
-  }
-  if (now.value && now.value.sensor_status === 'offline') {
-    return {
-      icon: 'mdi-wifi-off',
-      text: `กล่องเซ็นเซอร์ไม่ได้ส่งข้อมูลมา ${agoText(now.value.minutes_ago)} กรุณาตรวจปลั๊กไฟและสัญญาณเน็ตที่โรงเรือน`
-    }
-  }
-  return null
-})
 </script>
