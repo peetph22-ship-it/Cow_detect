@@ -190,20 +190,10 @@ router.post('/send-test', verifyToken, requireRole('admin'), async (req, res) =>
 
 // -----------------------------------------------------------------
 // 3. POST: /api/Admin/alerts/resolve/:id
-// ยืนยันการดำเนินการแก้ไข (Action Taken)
+// ยืนยันการดำเนินการแก้ไข (Action Taken) — ยังไม่มีตารางบันทึกจริง จึงตอบ 501
 // -----------------------------------------------------------------
 router.post('/resolve/:id', verifyToken, requireRole('admin'), async (req, res) => {
-    try {
-        const { id } = req.params
-        const { action_taken } = req.body
-
-        res.json({
-            success: true,
-            message: `บันทึกการดำเนินการ "${action_taken || 'เปิดพัดลมระบายอากาศแล้ว'}" สำหรับแจ้งเตือน ${id} สำเร็จ`
-        })
-    } catch (err) {
-        res.status(500).json({ success: false, message: err.message })
-    }
+    return res.status(501).json({ success: false, message: 'ยังไม่รองรับการบันทึกการดำเนินการ' })
 })
 
 module.exports = router
