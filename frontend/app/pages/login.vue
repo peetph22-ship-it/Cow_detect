@@ -279,6 +279,13 @@ const Login = async () => {
       localStorage.setItem('user', JSON.stringify(res.data.user))
     }
     const useRole = res.data.user?.role
+    // ซ่อนบทบาทผู้เชี่ยวชาญไว้ก่อน ไม่ให้เข้าสู่ระบบ
+    if (useRole === 'expert') {
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      errorMessage.value = 'บทบาทผู้เชี่ยวชาญอยู่ระหว่างพัฒนา'
+      return
+    }
     if (useRole === 'admin') await navigateTo('/Admin')
     else if (useRole === 'farmer') await navigateTo('/Farmer')
     else await navigateTo('/Admin')
