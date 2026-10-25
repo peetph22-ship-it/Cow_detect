@@ -6,7 +6,7 @@ try {
     console.warn('[LSTM ONNX Service] Notice: onnxruntime-node could not be loaded in this runtime:', err.message)
 }
 const db = require('../config/db')
-const { calcThi, getRiskLevel, getFarmProfile } = require('./heatStress')
+const { calcThi, getRiskLevel, getFarmProfile, HUMID_RH } = require('./heatStress')
 const { getRiskAdvisory, getBadgeClass } = require('./forecastService')
 
 // ⚠️ EXPERIMENTAL - ปิดใช้งานใน production (ดู ENABLE_LSTM ใน dailyLstmScheduler.js)
@@ -357,25 +357,32 @@ const runOnnxInference = async (farm, windowData) => {
 /**
  * สร้างคำแนะนำสรุปประจำวันภาษาชาวบ้าน (แยกแยะบริบทฤดูร้อน vs ฤดูฝน & Anti-Misting Rule)
  */
-const generateElderlyFriendlyAdvisory = (summaryDate, avgThi, maxThi, avgTemp, avgHum, severeHours, stressHours, nightRecoveryThi, cci = null, profile = 'default') => {
+const generateElderlyFriendlyAdvisory = (summaryDate, avgThi, maxThi, avgTemp, avgHum, severeHours, stressHours, nightRecoveryThi, cci = null, profile = 'default', peakWindowLabel = null) => {
     let advisory = `สรุปสภาวะอากาศวันที่ ${summaryDate}: ค่า THI เฉลี่ย ${avgThi} (สูงสุด ${maxThi}) อุณหภูมิเฉลี่ย ${avgTemp}°C ความชื้นเฉลี่ย ${avgHum}%`
 
-    // บริบทพิเศษ: ฤดูฝน (ความชื้นสูงจัด >= HUMID_RH ใน heatStress.js, ค่าแนวทางของระบบ)
-    if (avgHum >= 75.0) {
+    // ช่วงร้อนที่สุดมาจากข้อมูลจริงของคอก 72 ชม. (forecastService) ไม่มีข้อมูล = ไม่ระบุเวลา
+    const peakText = peakWindowLabel ? ` โดยเฉพาะช่วง ${peakWindowLabel}` : ''
+
+    // ความชื้นสูง (>= HUMID_RH ใน heatStress.js ค่าแนวทางของระบบ): งดพ่นหมอก ใช้ฉีดน้ำที่ตัววัวสลับพัดลม
+    if (avgHum >= HUMID_RH) {
         if (severeHours > 0) {
-            advisory += ` 🌧️🚨 อากาศอบอ้าวความชื้นสูงจัด (${avgHum}%) ตรวจพบวิกฤตความร้อน ${severeHours} ชม. เสี่ยงน้ำนมตก! ให้เปิดพัดลมระบายอากาศเต็มที่ *ห้ามพ่นหมอกเด็ดขาด* เพื่อป้องกันคอกแฉะและโรคเต้านมอักเสบ`
+            advisory += ` 🌧️🚨 อากาศอบอ้าวความชื้นสูง (${avgHum}%) มีช่วงร้อนจัด ${severeHours} ชม. เปิดพัดลมระบายอากาศเต็มที่${peakText} งดพ่นหมอก ใช้ฉีดน้ำที่หลังและไหล่วัวสลับกับพัดลม และรักษาพื้นคอกให้แห้ง`
         } else if (stressHours >= 4.0) {
-            advisory += ` 🌧️⚠️ อากาศอบอ้าวจากความชื้นสูง (>75%) แม่โคระบายเหงื่อยาก แนะนำเปิดพัดลมระบายอากาศ *ห้ามพ่นหมอก* เพื่อป้องกันคอกแฉะและโรคเต้านมอักเสบ`
+            advisory += ` 🌧️⚠️ อากาศอบอ้าวความชื้นสูง (${avgHum}%) มีความร้อนสะสม ${stressHours} ชม. เปิดพัดลมระบายอากาศ${peakText} งดพ่นหมอก และรักษาพื้นคอกให้แห้ง`
+        } else if (stressHours > 0) {
+            advisory += ` 🌧️ ความชื้นสูง (${avgHum}%) มีช่วงร้อนสั้นๆ ${stressHours} ชม. เปิดพัดลมช่วงที่ร้อน งดพ่นหมอก`
         } else {
-            advisory += ` 🌧️ อากาศมีความชื้นสูง (${avgHum}%) แต่ยังอยู่ในเกณฑ์ปกติ ควรรักษาความแห้งของพื้นคอกและเปิดพัดลมหมุนเวียนอากาศ`
+            advisory += ` 🌧️ อากาศมีความชื้นสูง (${avgHum}%) แต่ไม่มีช่วงที่ถึงระดับอากาศร้อน ควรรักษาพื้นคอกให้แห้งและเปิดพัดลมหมุนเวียนอากาศ`
         }
     } else {
         if (severeHours > 0) {
-            advisory += ` 🚨 ตรวจพบวิกฤตความร้อนจัด ${severeHours} ชม. เสี่ยงน้ำนมดิ่งในอีก 5 วัน! ควรเปิดพัดลมพ่นหมอกเต็มที่ และเสริมเกลือแร่ในน้ำ`
+            advisory += ` 🚨 มีช่วงร้อนจัด ${severeHours} ชม. เปิดพัดลมคู่กับพ่นหมอกหรือฉีดน้ำที่ตัววัว${peakText} จัดน้ำสะอาดให้กินตลอดเวลา และเฝ้าดูการกินอาหารของแม่วัว`
         } else if (stressHours >= 4.0) {
-            advisory += ` ⚠️ มีความร้อนสะสมนาน ${stressHours} ชม. แนะนำเปิดพัดลมระบายอากาศช่วง 11:00-15:00 น.`
+            advisory += ` ⚠️ มีความร้อนสะสม ${stressHours} ชม. แนะนำเปิดพัดลมระบายอากาศ${peakText}`
+        } else if (stressHours > 0) {
+            advisory += ` 🌤️ มีช่วงร้อนสั้นๆ ${stressHours} ชม. เปิดพัดลมช่วงที่ร้อน`
         } else {
-            advisory += ` ✅ สภาวะอากาศปกติ`
+            advisory += ` ✅ ไม่มีช่วงที่ THI ถึงระดับอากาศร้อน`
         }
     }
 

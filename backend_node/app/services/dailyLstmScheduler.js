@@ -169,7 +169,8 @@ const calculateFarmDailySummary = async (farmId, targetDateStr = null) => {
         stressHours, 
         nightRecoveryThi,
         dayCci,
-        profile
+        profile,
+        lstmForecast?.peak_window?.label ?? null
     )
 
     // 7. บันทึกข้อมูลลง tb_farm_daily_summaries (UPSERT)
