@@ -5,7 +5,7 @@
     <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 animate-fade-up">
       <div>
         <h1 class="text-[32px] md:text-[40px] font-black text-[#163026] tracking-tight leading-tight mb-2 flex items-center gap-3">
-          Network Farm Roster
+          ฟาร์มในเครือข่าย
           <span class="px-3 py-1 bg-[#d87939]/10 text-[#d87939] rounded-[12px] text-xs font-bold uppercase tracking-wider border border-[#d87939]/20">
             Farms
           </span>
