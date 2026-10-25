@@ -6,7 +6,8 @@
 
 const axios = require('axios')
 const db = require('../config/db')
-const { getRiskLevel, getFarmProfile, getThresholds, toAlertLevel, calcThi, thiSql, MIN_ALERT_THI } = require('./heatStress')
+const { getRiskLevel, getFarmProfile, toAlertLevel, calcThi } = require('./heatStress')
+const { loadFarmEvents } = require('./heatEvents')
 
 // เก็บ Alert Logs ในหน่วยความจำสำรองกรณีไม่มีตาราง tb_alerts
 const inMemoryAlertLogs = []
@@ -205,55 +206,52 @@ async function sendLineAlert({ farmId, farmName, barnUnit, thi, temp, hum, advic
 
 /**
  * ดึงรายการ Alert Logs ล่าสุด (รองรับการกรองตาม farmId)
+ * ใช้เหตุการณ์ความร้อนย้อนหลัง 7 วัน (กฎเดียวกับหน้าเกษตรกร) ไม่นับทุกแถวดิบของเซ็นเซอร์
  */
 async function getAlertLogs(limit = 50, farmId = null) {
-    // รวม alerts จาก in-memory และ telemetry จริง: กรองหยาบใน SQL ด้วยเกณฑ์ต่ำสุด แล้วจัดระดับตาม profile ของฟาร์ม
     try {
-        let query = `
-            SELECT 
-                sr.id_sensor_readings,
-                COALESCE(sr.id_farms, d.id_farms) AS id_farms,
-                f.name_farms AS farm_name,
-                f.barn_unit,
-                to_jsonb(f)->>'hf_profile' AS hf_profile,
-                sr.temperature_c,
-                sr.humidity_pct,
-                sr.recorded_at AS created_at
-            FROM tb_sensor_readings sr
-            LEFT JOIN tb_devices d ON d.id_devices = sr.id_devices
-            LEFT JOIN tb_farms f ON f.id_farms = COALESCE(sr.id_farms, d.id_farms)
-            WHERE ${thiSql('sr')} >= $2
-        `
-        const params = [limit, MIN_ALERT_THI]
+        const params = []
+        let whereClause = ''
         if (farmId) {
-            query += ` AND COALESCE(sr.id_farms, d.id_farms) = $3`
+            whereClause = 'WHERE f.id_farms = $1'
             params.push(farmId)
         }
-        query += ` ORDER BY sr.recorded_at DESC LIMIT $1`
+        const { rows: farms } = await db.query(`
+            SELECT f.id_farms, f.name_farms, f.barn_unit, to_jsonb(f)->>'hf_profile' AS hf_profile
+            FROM tb_farms f
+            ${whereClause}
+            ORDER BY f.created_at ASC
+        `, params)
 
-        const { rows } = await db.query(query, params)
-
-        const dbAlerts = rows.map((r, idx) => {
-            const thi = calcThi(r.temperature_c, r.humidity_pct)
-            const level = toAlertLevel(getRiskLevel(thi, getFarmProfile(r)))
-            if (!level) return null
-            return {
-                id: `db-alert-${r.id_sensor_readings || idx}`,
-                farm_id: r.id_farms,
-                farm_name: r.farm_name || 'ฟาร์มไม่ระบุชื่อ',
-                barn_unit: r.barn_unit || 'โรงเรือน 1',
-                thi,
-                temperature_c: parseFloat(r.temperature_c),
-                humidity_pct: parseFloat(r.humidity_pct),
-                level,
-                advice: level === 'critical' 
-                    ? '🚨 วิกฤต! เปิดพัดลมสูงสุดและสังเกตอาการหอบ งดพ่นหมอกหากความชื้นเกิน 75%' 
-                    : '⚠️ เปิดพัดลมระบายอากาศเพื่อป้องกันความร้อนสะสม',
-                channel: 'SYSTEM_SENSOR',
-                status: 'detected',
-                created_at: r.created_at
-            }
-        }).filter(Boolean)
+        const perFarm = await Promise.all(farms.map(async (farm) => {
+            const events = await loadFarmEvents(farm, 7)
+            return events
+                .filter(e => e.type === 'heat')
+                .map(e => {
+                    const level = toAlertLevel(e.level) // moderate -> 'moderate', severe -> 'critical'
+                    return {
+                        id: `heat-${farm.id_farms}-${new Date(e.start).toISOString()}`,
+                        farm_id: farm.id_farms,
+                        farm_name: farm.name_farms || 'ฟาร์มไม่ระบุชื่อ',
+                        barn_unit: farm.barn_unit || 'โรงเรือน 1',
+                        thi: e.peak_thi,
+                        temperature_c: e.peak_temp,
+                        humidity_pct: null,
+                        level,
+                        advice: level === 'critical'
+                            ? '🚨 วิกฤต! เปิดพัดลมสูงสุดและสังเกตอาการหอบ งดพ่นหมอกหากความชื้นเกิน 75%'
+                            : '⚠️ เปิดพัดลมระบายอากาศเพื่อป้องกันความร้อนสะสม',
+                        channel: 'SYSTEM_SENSOR',
+                        status: e.ongoing ? 'ongoing' : 'ended',
+                        created_at: e.start,
+                        start: e.start,
+                        end: e.end,
+                        duration_min: e.duration_min,
+                        ongoing: e.ongoing
+                    }
+                })
+        }))
+        const dbAlerts = perFarm.flat()
 
         // กรอง memory logs ตาม farmId ถ้ามี
         const filteredMemLogs = farmId 
@@ -273,7 +271,7 @@ async function getAlertLogs(limit = 50, farmId = null) {
 }
 
 /**
- * ดึงข้อมูลสรุปสถานะการแจ้งเตือนแยกตามรายฟาร์ม
+ * ดึงข้อมูลสรุปสถานะการแจ้งเตือนแยกตามรายฟาร์ม (นับเหตุการณ์ความร้อนย้อนหลัง 7 วัน)
  */
 async function getFarmsAlertSummary() {
     try {
@@ -317,23 +315,15 @@ async function getFarmsAlertSummary() {
 
         const now = Date.now()
 
-        // สรุปจำนวนแจ้งเตือนของแต่ละฟาร์ม
+        // สรุปจำนวนเหตุการณ์ความร้อนย้อนหลัง 7 วันของแต่ละฟาร์ม (กฎเดียวกับหน้าเกษตรกร)
         const results = await Promise.all(farms.map(async (farm) => {
             const profile = getFarmProfile(farm)
-            const t = getThresholds(profile)
-            const thiExpr = thiSql('sr')
-            const { rows: alertCounts } = await db.query(`
-                SELECT 
-                    COUNT(*) FILTER (WHERE ${thiExpr} >= $2) AS total_alerts,
-                    COUNT(*) FILTER (WHERE ${thiExpr} >= $4) AS critical_alerts,
-                    COUNT(*) FILTER (WHERE ${thiExpr} >= $3 AND ${thiExpr} < $4) AS moderate_alerts,
-                    COUNT(*) FILTER (WHERE ${thiExpr} >= $2 AND ${thiExpr} < $3) AS mild_alerts,
-                    MAX(sr.recorded_at) FILTER (WHERE ${thiExpr} >= $2) AS last_alert_at
-                FROM tb_sensor_readings sr
-                WHERE (sr.id_farms = $1 OR sr.id_devices IN (SELECT id_devices FROM tb_devices WHERE id_farms = $1))
-            `, [farm.id_farms, t.mild, t.moderate, t.severe])
+            const events = await loadFarmEvents(farm, 7)
+            const heatEvents = events.filter(e => e.type === 'heat')
+            const criticalAlerts = heatEvents.filter(e => e.level === 'severe').length
+            const moderateAlerts = heatEvents.filter(e => e.level === 'moderate').length
+            const lastAlertAt = heatEvents[0]?.start || null
 
-            const countData = alertCounts[0] || {}
             const thi = calcThi(farm.temperature_c, farm.humidity_pct)
             const isOnline = farm.last_seen_at && (now - new Date(farm.last_seen_at).getTime()) < 10 * 60 * 1000
 
@@ -363,11 +353,11 @@ async function getFarmsAlertSummary() {
                 last_reading_time: farm.last_reading_time,
                 alert_status: alertStatus,
                 status_text: statusText,
-                total_alerts: parseInt(countData.total_alerts || 0, 10),
-                critical_alerts: parseInt(countData.critical_alerts || 0, 10),
-                moderate_alerts: parseInt(countData.moderate_alerts || 0, 10),
-                mild_alerts: parseInt(countData.mild_alerts || 0, 10),
-                last_alert_at: countData.last_alert_at
+                total_alerts: heatEvents.length,
+                critical_alerts: criticalAlerts,
+                moderate_alerts: moderateAlerts,
+                mild_alerts: 0,
+                last_alert_at: lastAlertAt
             }
         }))
 

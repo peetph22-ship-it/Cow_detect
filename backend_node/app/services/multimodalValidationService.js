@@ -37,6 +37,7 @@ const evaluateMultimodalStatus = async (farmId) => {
                timestamp, is_simulation
         FROM cctv_behavior_telemetry
         WHERE farm_id = $1
+          AND is_simulation = false
         ORDER BY timestamp DESC
         LIMIT 1
     `
@@ -66,10 +67,10 @@ const evaluateMultimodalStatus = async (farmId) => {
     const sensorRisk = getRiskLevel(sensorThi, profile)
     const isStressed = sensorRisk === 'moderate' || sensorRisk === 'severe'
 
-    // Check freshness of vision telemetry (valid if within 30 mins or simulation; simulation ถูกติดป้ายในผลลัพธ์)
+    // Check freshness of vision telemetry (valid if within 30 mins; ข้อมูลจำลองถูกกรองออกใน query แล้ว)
     const now = Date.now()
     const visionAgeMs = vision ? now - new Date(vision.timestamp).getTime() : Infinity
-    const isVisionFresh = vision && (vision.is_simulation || visionAgeMs <= 30 * 60 * 1000)
+    const isVisionFresh = vision && visionAgeMs <= 30 * 60 * 1000
     const simTag = vision && vision.is_simulation ? ' [ข้อมูลกล้องจำลอง]' : ''
 
     // Case C: Fail-Safe Thai Heuristic Engine (Vision Camera offline / occluded)

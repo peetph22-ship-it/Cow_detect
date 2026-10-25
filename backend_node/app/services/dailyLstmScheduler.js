@@ -81,6 +81,7 @@ const calculateFarmDailySummary = async (farmId, targetDateStr = null) => {
             SELECT AVG(cow_comfort_index)::numeric(5,2) AS avg_cci
             FROM cctv_behavior_telemetry
             WHERE farm_id = $1
+              AND is_simulation = false
               AND timestamp >= $2
               AND timestamp <= $3
         `, [farmId, startOfDay, endOfDay])

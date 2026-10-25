@@ -19,7 +19,7 @@
               </span>
               <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1.5">
                 <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>ระบบแยกฐานข้อมูลอิสระ 100%</span>
+                <span>ข้อมูลจำลองติดป้าย is_simulation ไม่นับรวมผลจริง</span>
               </span>
             </div>
             <p class="text-xs md:text-sm text-[#718078] mt-1 font-medium">
@@ -397,7 +397,7 @@
               class="px-2.5 py-1.5 rounded-xl border text-[11px] font-bold transition-all cursor-pointer text-left"
               :class="activeScenario === 'CaseC' ? 'bg-amber-100 border-amber-300 text-amber-950 shadow-xs' : 'bg-white border-[#e5ece9] text-[#4e6057] hover:bg-[#f0f4f2]'">
               <div class="font-black">Case C: กล้องขัดข้อง</div>
-              <div class="text-[9.5px] opacity-75">Fail-Safe 100% Uptime</div>
+              <div class="text-[9.5px] opacity-75">Fail-Safe: ใช้เกณฑ์ไทยเมื่อกล้องไม่พร้อม</div>
             </button>
           </div>
         </div>
@@ -964,7 +964,7 @@ const applyGateScenario = (sc) => {
 const fetchFarms = async () => {
   try {
     const token = getToken()
-    const res = await axios.get(`${Admin}/farms`, {
+    const res = await axios.get(`${Admin}/farms/all`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     })
     if (res.data && res.data.rows && res.data.rows.length > 0) {
@@ -1035,7 +1035,7 @@ const fetchSimulationAlerts = async () => {
   if (!selectedFarmId.value || selectedFarmId.value === 'sandbox-default') return
   try {
     const token = getToken()
-    const res = await axios.get(`${Admin}/farms/${selectedFarmId.value}/cameras/alerts`, {
+    const res = await axios.get(`${Admin}/farms/${selectedFarmId.value}/cameras/alerts?include_simulation=1`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     })
     if (res.data && res.data.alerts) {

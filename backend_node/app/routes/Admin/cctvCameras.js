@@ -459,6 +459,8 @@ router.get('/alerts', adminOnly, async (req, res) => {
     }
 
     try {
+        // ค่าเริ่มต้นแสดงเฉพาะข้อมูลจริง หน้า simulation ขอดูข้อมูลจำลองด้วย ?include_simulation=1
+        const includeSim = req.query.include_simulation === '1'
         const { rows } = await db.query(
             `SELECT id, farm_id, camera_id, track_id, alert_type, severity,
                     duration_minutes, message_th, thi_at_event, snapshot_url,
@@ -466,9 +468,10 @@ router.get('/alerts', adminOnly, async (req, res) => {
                     is_accurate, feedback_note, feedback_at
              FROM animal_behavior_alerts
              WHERE farm_id = $1
+               AND ($2::boolean OR is_simulation = false)
              ORDER BY created_at DESC
              LIMIT 50`,
-            [farmId]
+            [farmId, includeSim]
         )
         return res.json({ success: true, alerts: rows })
     } catch (err) {

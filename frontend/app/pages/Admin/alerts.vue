@@ -192,7 +192,7 @@
                 <td class="py-4 px-6 text-center">
                   <div class="flex flex-col items-center gap-1">
                     <span class="font-extrabold text-xs text-[#142820] bg-[#F6F7F5] px-2.5 py-0.5 rounded-md border border-[#E4E8E5]">
-                      รวม {{ farm.total_alerts }} ครั้ง
+                      เหตุการณ์ 7 วัน: {{ farm.total_alerts }} ครั้ง
                     </span>
                     <div class="flex items-center gap-1 text-[10px]">
                       <span v-if="farm.moderate_alerts > 0" class="font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
@@ -327,7 +327,7 @@
             <!-- Alert Counts Summary -->
             <div class="space-y-1.5 text-xs bg-[#FAFBF9] p-3 rounded-2xl border border-[#E4E8E5]/70">
               <div class="flex justify-between items-center text-[#718078]">
-                <span>การแจ้งเตือนสะสม:</span>
+                <span>เหตุการณ์ 7 วัน:</span>
                 <span class="font-extrabold text-[#142820] bg-white px-2 py-0.5 rounded border border-[#E4E8E5]">{{ farm.total_alerts }} ครั้ง</span>
               </div>
               <div class="flex justify-between items-center text-[11px]">
@@ -337,7 +337,7 @@
                 </span>
                 <span class="font-black text-amber-700">{{ farm.moderate_alerts || 0 }} ครั้ง</span>
               </div>
-              <div class="flex justify-between items-center text-[11px]">
+              <div v-if="farm.mild_alerts > 0" class="flex justify-between items-center text-[11px]">
                 <span class="text-orange-600 font-bold flex items-center gap-1">
                   <span class="w-1.5 h-1.5 rounded-full bg-orange-400"></span>
                   เฝ้าระวัง (74–75.9):

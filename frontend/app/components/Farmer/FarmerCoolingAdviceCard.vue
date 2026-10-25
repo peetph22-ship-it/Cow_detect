@@ -85,7 +85,7 @@
           <v-icon icon="mdi-grass" size="22" />
         </div>
         <div class="min-w-0">
-          <div class="text-[11px] font-extrabold text-[#065F46]">ช่วงเย็นเหมาะให้อาหาร</div>
+          <div class="text-[11px] font-extrabold text-[#065F46]">ช่วงอากาศเย็นเหมาะให้อาหาร</div>
           <div class="text-sm sm:text-base font-black text-[#064E3B] mt-0.5">
             {{ coolWindowLabel ? `ประมาณ ${coolWindowLabel}` : 'ช่วงเช้ามืด / หัวค่ำ' }}
           </div>

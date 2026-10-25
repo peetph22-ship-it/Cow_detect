@@ -259,9 +259,8 @@
                 <tr class="border-b border-[#E4E8E5] bg-[#F6F7F5]/50 text-[11px] font-bold text-[#718078] uppercase tracking-wider">
                   <th class="py-4 px-6">วันและเวลาที่ตรวจพบ</th>
                   <th class="py-4 px-6">ระดับความรุนแรง</th>
-                  <th class="py-4 px-6">ค่าตรวจวัด (THI / อุณหภูมิ / ความชื้น)</th>
+                  <th class="py-4 px-6">ค่าตรวจวัดสูงสุด</th>
                   <th class="py-4 px-6">คำแนะนำ &amp; มาตรการฉุกเฉิน</th>
-                  <th class="py-4 px-6 text-right">การจัดการ</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-[#E4E8E5]/80 text-xs">
@@ -270,36 +269,50 @@
                   :key="alert.id"
                   class="hover:bg-[#F6F7F5]/60 transition-colors">
                   
-                  <!-- Timestamp -->
+                  <!-- Timestamp & Duration -->
                   <td class="py-4 px-6">
-                    <div class="font-bold text-[#142820]">{{ formatDateTime(alert.created_at) }}</div>
-                    <div class="text-[10px] text-[#718078]">{{ formatTimeAgo(alert.created_at) }}</div>
+                    <div class="font-bold text-[#142820] flex items-center gap-1.5">
+                      <span>{{ formatDateTime(alert.created_at) }}</span>
+                      <span
+                        v-if="alert.ongoing"
+                        class="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-600 text-white animate-pulse">
+                        กำลังเกิด
+                      </span>
+                    </div>
+                    <div class="text-[10px] text-[#718078] flex items-center gap-1.5 mt-0.5">
+                      <span v-if="alert.duration_min != null" class="font-bold text-[#142820]">
+                        ระยะเวลา {{ formatDuration(alert.duration_min) }} ·
+                      </span>
+                      <span>{{ formatTimeAgo(alert.created_at) }}</span>
+                    </div>
                   </td>
 
                   <!-- Severity Level -->
                   <td class="py-4 px-6">
                     <span 
                       class="px-2.5 py-1 rounded-full text-[11px] font-bold inline-flex items-center gap-1 border"
-                      :class="alert.level === 'critical' || alert.thi >= 82 
+                      :class="alert.level === 'critical' 
                         ? 'bg-rose-50 text-rose-700 border-rose-200' 
-                        : alert.level === 'moderate' || alert.thi >= 76 
+                        : alert.level === 'moderate' 
                         ? 'bg-amber-50 text-amber-700 border-amber-200' 
                         : 'bg-orange-50 text-orange-700 border-orange-200'">
-                      <v-icon :icon="alert.level === 'critical' || alert.thi >= 82 ? 'mdi-alert-octagon' : 'mdi-alert'" size="13" />
-                      {{ alert.level === 'critical' || alert.thi >= 82 ? 'วิกฤต (Severe)' : alert.level === 'moderate' || alert.thi >= 76 ? 'เครียดความร้อน (Moderate)' : 'เฝ้าระวัง (Mild)' }}
+                      <v-icon :icon="alert.level === 'critical' ? 'mdi-alert-octagon' : 'mdi-alert'" size="13" />
+                      {{ alert.level === 'critical' ? 'วิกฤต (Severe)' : alert.level === 'moderate' ? 'เครียดความร้อน (Moderate)' : 'เฝ้าระวัง (Mild)' }}
                     </span>
                   </td>
 
                   <!-- Telemetry -->
                   <td class="py-4 px-6">
                     <div class="flex items-center gap-2">
-                      <span class="font-extrabold text-sm" :class="alert.level === 'critical' || alert.thi >= 82 ? 'text-rose-600' : 'text-amber-600'">
+                      <span class="font-extrabold text-sm" :class="alert.level === 'critical' ? 'text-rose-600' : 'text-amber-600'">
                         THI {{ alert.thi }}
                       </span>
                       <span class="text-[#718078]">•</span>
                       <span class="text-[#142820] font-medium">{{ alert.temperature_c }}°C</span>
-                      <span class="text-[#718078]">•</span>
-                      <span class="text-[#142820] font-medium">{{ alert.humidity_pct }}% RH</span>
+                      <template v-if="alert.humidity_pct != null">
+                        <span class="text-[#718078]">•</span>
+                        <span class="text-[#142820] font-medium">{{ alert.humidity_pct }}% RH</span>
+                      </template>
                     </div>
                   </td>
 
@@ -308,15 +321,6 @@
                     <div class="text-[#142820] font-medium leading-relaxed truncate" :title="alert.advice">
                       {{ alert.advice }}
                     </div>
-                  </td>
-
-                  <!-- Actions -->
-                  <td class="py-4 px-6 text-right">
-                    <button
-                      @click="markResolved(alert)"
-                      class="px-3.5 py-1.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-[11px] font-bold transition-all cursor-pointer">
-                      บันทึกการแก้ไข
-                    </button>
                   </td>
 
                 </tr>
@@ -338,7 +342,7 @@
             <!-- Top Color Accent Bar based on Severity -->
             <div 
               class="h-2 w-full"
-              :class="alert.level === 'critical' || alert.thi >= 82 ? 'bg-rose-500' : alert.level === 'moderate' || alert.thi >= 76 ? 'bg-amber-500' : 'bg-orange-400'">
+              :class="alert.level === 'critical' ? 'bg-rose-500' : alert.level === 'moderate' ? 'bg-amber-500' : 'bg-orange-400'">
             </div>
 
             <div class="p-5 space-y-3.5 flex-1">
@@ -346,29 +350,43 @@
               <!-- Card Header: Time & Badge -->
               <div class="flex items-start justify-between gap-2">
                 <div>
-                  <div class="font-bold text-[#142820] text-sm">{{ formatDateTime(alert.created_at) }}</div>
-                  <div class="text-[10px] text-[#718078]">{{ formatTimeAgo(alert.created_at) }}</div>
+                  <div class="font-bold text-[#142820] text-sm flex items-center gap-1.5 flex-wrap">
+                    <span>{{ formatDateTime(alert.created_at) }}</span>
+                    <span
+                      v-if="alert.ongoing"
+                      class="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-600 text-white animate-pulse">
+                      กำลังเกิด
+                    </span>
+                  </div>
+                  <div class="text-[10px] text-[#718078] mt-0.5">
+                    <span v-if="alert.duration_min != null" class="font-bold text-[#142820]">
+                      ระยะเวลา {{ formatDuration(alert.duration_min) }} ·
+                    </span>
+                    <span>{{ formatTimeAgo(alert.created_at) }}</span>
+                  </div>
                 </div>
 
                 <span 
                   class="px-2.5 py-1 rounded-full text-[10px] font-bold shrink-0 inline-flex items-center gap-1 border"
-                  :class="alert.level === 'critical' || alert.thi >= 82 
+                  :class="alert.level === 'critical' 
                     ? 'bg-rose-50 text-rose-700 border-rose-200' 
-                    : alert.level === 'moderate' || alert.thi >= 76 
+                    : alert.level === 'moderate' 
                     ? 'bg-amber-50 text-amber-700 border-amber-200' 
                     : 'bg-orange-50 text-orange-700 border-orange-200'">
-                  <v-icon :icon="alert.level === 'critical' || alert.thi >= 82 ? 'mdi-alert-octagon' : 'mdi-alert'" size="12" />
-                  {{ alert.level === 'critical' || alert.thi >= 82 ? 'วิกฤต' : alert.level === 'moderate' || alert.thi >= 76 ? 'เครียดความร้อน' : 'เฝ้าระวัง' }}
+                  <v-icon :icon="alert.level === 'critical' ? 'mdi-alert-octagon' : 'mdi-alert'" size="12" />
+                  {{ alert.level === 'critical' ? 'วิกฤต' : alert.level === 'moderate' ? 'เครียดความร้อน' : 'เฝ้าระวัง' }}
                 </span>
               </div>
 
               <!-- Telemetry Metrics Card -->
-              <div class="grid grid-cols-3 gap-2 bg-[#F6F7F5] p-3 rounded-2xl border border-[#E4E8E5] text-center">
+              <div
+                class="grid gap-2 bg-[#F6F7F5] p-3 rounded-2xl border border-[#E4E8E5] text-center"
+                :class="alert.humidity_pct != null ? 'grid-cols-3' : 'grid-cols-2'">
                 <div>
                   <div class="text-[9px] text-[#718078] font-bold uppercase">ดัชนี THI</div>
                   <div 
                     class="text-lg font-black mt-0.5"
-                    :class="alert.level === 'critical' || alert.thi >= 82 ? 'text-rose-600' : alert.level === 'moderate' || alert.thi >= 76 ? 'text-amber-600' : 'text-emerald-700'">
+                    :class="alert.level === 'critical' ? 'text-rose-600' : alert.level === 'moderate' ? 'text-amber-600' : 'text-emerald-700'">
                     {{ alert.thi }}
                   </div>
                 </div>
@@ -376,7 +394,7 @@
                   <div class="text-[9px] text-[#718078] font-bold uppercase">อุณหภูมิ</div>
                   <div class="text-base font-black text-[#142820] mt-0.5">{{ alert.temperature_c }}°C</div>
                 </div>
-                <div>
+                <div v-if="alert.humidity_pct != null">
                   <div class="text-[9px] text-[#718078] font-bold uppercase">ความชื้น</div>
                   <div class="text-base font-black text-[#142820] mt-0.5">{{ alert.humidity_pct }}%</div>
                 </div>
@@ -393,14 +411,12 @@
 
             </div>
 
-            <!-- Card Footer Action -->
-            <div class="p-3.5 bg-[#FAFBF9] border-t border-[#E4E8E5] flex items-center justify-between">
-              <span class="text-[10px] text-[#718078]">สถานะ: ตรวจพบสภาวะ</span>
-              <button
-                @click="markResolved(alert)"
-                class="px-3.5 py-1.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-[11px] font-bold transition-all cursor-pointer">
-                บันทึกการแก้ไข
-              </button>
+            <!-- Card Footer Status -->
+            <div class="p-3.5 bg-[#FAFBF9] border-t border-[#E4E8E5] flex items-center justify-between text-[10px] text-[#718078]">
+              <span>สถานะ: {{ alert.ongoing ? 'กำลังเกิดเหตุ' : 'จบช่วงเหตุการณ์แล้ว' }}</span>
+              <span v-if="alert.duration_min != null" class="font-bold text-[#142820]">
+                ต่อเนื่อง {{ formatDuration(alert.duration_min) }}
+              </span>
             </div>
 
           </div>
@@ -506,9 +522,9 @@ const totalAlerts = computed(() => alerts.value.length)
 
 const filteredAlerts = computed(() => {
   if (activeFilter.value === 'all') return alerts.value
-  if (activeFilter.value === 'critical') return alerts.value.filter(a => a.level === 'critical' || a.thi >= 82.0)
-  if (activeFilter.value === 'moderate') return alerts.value.filter(a => a.level === 'moderate' || (a.thi >= 76.0 && a.thi < 82.0))
-  if (activeFilter.value === 'warning') return alerts.value.filter(a => a.level === 'warning' || (a.thi >= 74.0 && a.thi < 76.0))
+  if (activeFilter.value === 'critical') return alerts.value.filter(a => a.level === 'critical')
+  if (activeFilter.value === 'moderate') return alerts.value.filter(a => a.level === 'moderate')
+  if (activeFilter.value === 'warning') return alerts.value.filter(a => a.level === 'warning')
   return alerts.value
 })
 
@@ -561,19 +577,14 @@ const openTestModal = () => {
   showTestModal.value = true
 }
 
-const markResolved = async (alertItem) => {
-  const action = prompt('กรุณาระบุการดำเนินการที่ทำไปแล้ว เช่น "เปิดพัดลมเพิ่ม 2 ตัว", "เปิดม่านข้าง":', 'เปิดพัดลมระบายอากาศแล้ว')
-  if (!action) return
-
-  try {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
-    const headers = token ? { Authorization: `Bearer ${token}` } : {}
-
-    await axios.post(`${Admin}/alerts/resolve/${alertItem.id}`, { action_taken: action }, { headers })
-    alert(`บันทึกการดำเนินการ "${action}" สำเร็จ`)
-  } catch (err) {
-    alert('บันทึกสำเร็จ')
+const formatDuration = (min) => {
+  if (!min) return 'ไม่กี่นาที'
+  if (min >= 60) {
+    const hrs = Math.floor(min / 60)
+    const rem = min % 60
+    return `${hrs} ชม.${rem ? ` ${rem} นาที` : ''}`
   }
+  return `${min} นาที`
 }
 
 const formatDateTime = (isoStr) => {

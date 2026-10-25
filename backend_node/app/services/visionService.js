@@ -7,7 +7,7 @@ const { Worker } = require('worker_threads')
 const { ensureModel } = require('./modelStore')
 
 const IMGSZ = 480
-const MAX_PENDING = 2              // กำลังทำ 1 + รอ 1 (ภาพมาทุก 5 นาที ปกติไม่เกินนี้)
+const MAX_PENDING = 2              // กำลังทำ 1 + รอ 1 (ภาพมาทุก 10 นาที (ค่าเริ่มต้นของเฟิร์มแวร์) ปกติไม่เกินนี้)
 const TIMEOUT_MS = Number(process.env.VISION_TIMEOUT_MS || 120000)
 
 let worker = null

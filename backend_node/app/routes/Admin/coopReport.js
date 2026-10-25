@@ -25,7 +25,7 @@ const DATA_NOTE = 'ข้อมูลจากเซ็นเซอร์ใน�
 const round1 = (v) => (v == null ? null : parseFloat(Number(v).toFixed(1)))
 
 /**
- * สถิติความเสี่ยงรายชั่วโมงย้อนหลัง REPORT_DAYS วัน (THI เฉลี่ยรายชั่วโมง เวลาไทย)
+ * สถิติความเสี่ยงรายชั่วโมงย้อนหลัง REPORT_DAYS วัน (THI เฉลี่ยทุก 5 นาที เวลาไทย)
  */
 const computeFarmRisk = async (farm) => {
     const profile = getFarmProfile(farm)
@@ -226,7 +226,7 @@ const handleFarmReportDetail = async (req, res) => {
             report_id: `CCR-${new Date().getFullYear()}-${farm.id_farms.slice(0, 8)}`,
             generated_at: new Date().toISOString(),
             report_days: REPORT_DAYS,
-            data_basis: `THI เฉลี่ยรายชั่วโมง (สูตร NRC 1971) จากเซ็นเซอร์ในโรงเรือน ย้อนหลัง ${REPORT_DAYS} วัน`,
+            data_basis: `THI เฉลี่ยทุก 5 นาที (สูตร NRC 1971) จากเซ็นเซอร์ในโรงเรือน ย้อนหลัง ${REPORT_DAYS} วัน`,
             data_note: DATA_NOTE,
             method: getMethod(r.profile),
             data_coverage: r.coverage,

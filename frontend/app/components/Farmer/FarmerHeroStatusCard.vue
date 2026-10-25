@@ -18,7 +18,7 @@
         </div>
 
         <span class="text-xs sm:text-sm font-bold" :class="heroTheme.subtext">
-          {{ now ? `ข้อมูลเมื่อ ${agoText(now.minutes_ago)}` : 'ยังไม่มีข้อมูลจากกล่องเซ็นเซอร์' }}
+          {{ now ? `อัปเดต ${agoText(now.minutes_ago)}` : 'ยังไม่มีข้อมูลจากกล่องเซ็นเซอร์' }}
         </span>
       </div>
 
