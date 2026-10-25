@@ -36,7 +36,7 @@ router.get('/accuracy-benchmarks', adminOnly, (req, res) => {
                 lstm_enabled: String(process.env.ENABLE_LSTM || '').toLowerCase() === 'true'
             },
             computer_vision: {
-                model: 'YOLO26m fine-tuned (backend/app/weights/best1.pt)',
+                model: 'YOLO26m (ONNX 480 px, yolo26m_480.onnx) บน cloud — ภาพสดใน LAN ใช้ best1.pt',
                 classes: ['drinking', 'feeding', 'lying down', 'standing'],
                 dataset: 'Roboflow cow-behavior-analysiws v2 (CC BY 4.0) ไม่ใช่ภาพจากโรงเรือนไทย',
                 metrics: null

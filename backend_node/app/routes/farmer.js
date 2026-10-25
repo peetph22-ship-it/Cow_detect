@@ -320,7 +320,8 @@ router.get('/history', verifyToken, requireFarm, async (req, res) => {
 
             if (d.severe_hours > 0) {
                 seniorStatus = `ร้อนจัด ${round1(d.severe_hours)} ชั่วโมง`
-                seniorDesc = `มีช่วงอากาศร้อนจัดมาก สูงสุด ${round1(d.max_temp)}°C ในช่วงบ่าย ควรเฝ้าดูปริมาณน้ำนม`
+                const peakAt = d.peak_hour != null ? ` ช่วงประมาณ ${String(d.peak_hour).padStart(2, '0')}:00 น.` : ''
+                seniorDesc = `มีช่วงอากาศร้อนจัด สูงสุด ${round1(d.max_temp)}°C${peakAt} ควรเฝ้าดูการกินอาหารและอาการหอบของแม่วัว`
                 badgeColor = '#DC2626'
             } else if (d.stress_hours > 0) {
                 seniorStatus = `อากาศร้อน ${round1(d.stress_hours)} ชั่วโมง`

@@ -273,7 +273,6 @@ const Login = async () => {
       email: email.value,
       password: password.value,
     })
-    console.log('API Response:', res.data)
     localStorage.setItem('token', res.data.token)
     if (res.data.user) {
       localStorage.setItem('user', JSON.stringify(res.data.user))
@@ -283,7 +282,7 @@ const Login = async () => {
     else if (useRole === 'farmer') await navigateTo('/Farmer')
     else await navigateTo('/Admin')
   } catch (err: any) {
-    console.log('Login False!', err)
+    console.warn('Login failed:', err.response?.status ?? err.message)
     errorMessage.value = err.response?.data?.message || 'เข้าสู่ระบบไม่สำเร็จ'
   } finally {
     loading.value = false
