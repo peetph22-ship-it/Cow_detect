@@ -125,7 +125,7 @@
         <div class="text-[36px] font-black text-amber-600 leading-none mb-2">{{ stats.moderate || 0 }}</div>
         <div class="text-xs font-bold text-amber-600 flex items-center gap-1.5">
           <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-          <span>เริ่มกระทบปริมาณน้ำนมดิบ</span>
+          <span>เสี่ยงกระทบปริมาณน้ำนมดิบ</span>
         </div>
       </div>
 

@@ -78,7 +78,7 @@ function buildSeniorSummary(now, today, forecast, farm) {
     const risk = now?.risk_level || today?.daily_mean_level || 'normal'
     let level = 'good'
     let title = 'อากาศสบายดี แม่วัวไม่เครียด'
-    let message = 'สภาพอากาศในคอกเหมาะสมดี แม่วัวเคี้ยวเอื้องสบาย ให้น้ำนมได้ดี'
+    let message = 'สภาพอากาศในคอกเหมาะสมดี แม่วัวเคี้ยวเอื้องสบาย พักผ่อนได้เต็มที่'
     let color = '#2D6A4F'
     let bg = '#E8F5E9'
     let icon = 'mdi-emoticon-happy-outline'
@@ -86,7 +86,7 @@ function buildSeniorSummary(now, today, forecast, farm) {
     if (risk === 'severe') {
         level = 'danger'
         title = 'อากาศร้อนจัดมาก แม่วัวกำลังเครียด!'
-        message = 'อุณหภูมิและความชื้นสูงมาก เสี่ยงน้ำนมตกฮวบ รีบเปิดพัดลมและสเปรย์น้ำด่วน'
+        message = 'อุณหภูมิและความชื้นสูงมาก เสี่ยงน้ำนมลด รีบเปิดพัดลมและสเปรย์น้ำด่วน'
         color = '#DC2626'
         bg = '#FEE2E2'
         icon = 'mdi-alert-octagon-outline'
