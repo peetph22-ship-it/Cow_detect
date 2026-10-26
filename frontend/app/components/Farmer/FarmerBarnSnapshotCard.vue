@@ -100,7 +100,7 @@
         </div>
 
         <span
-          v-if="hasCamera"
+          v-if="hasCows"
           class="text-[11px] font-black px-2.5 py-0.5 rounded-full border"
           :class="lyingPct >= 50
             ? 'bg-[#ECFDF5] text-[#15803D] border-[#A7F3D0]'
@@ -109,8 +109,8 @@
         </span>
       </div>
 
-      <!-- กรณีมีข้อมูลกล้องจริง -->
-      <div v-if="hasCamera" class="space-y-1.5">
+      <!-- กรณีมีข้อมูลกล้องจริงและพบวัวในภาพ -->
+      <div v-if="hasCows" class="space-y-1.5">
         <div class="flex justify-between text-xs font-black">
           <span class="text-[#15803D] flex items-center gap-1.5">
             <span class="w-2.5 h-2.5 rounded-full bg-[#16A34A]"></span>
@@ -132,6 +132,11 @@
         </div>
       </div>
 
+      <!-- กล้องส่งภาพมาแต่ไม่พบวัว: สัดส่วน 0% ไม่มีความหมาย จึงไม่สรุปว่าวัวยืนหรือนอน -->
+      <div v-else-if="hasCamera" class="text-xs text-[#5A6B63] font-semibold bg-white/80 rounded-xl px-3.5 py-2.5 border border-[#E2D9C5]/80">
+        ภาพล่าสุดไม่พบวัวในมุมกล้อง จึงยังบอกสัดส่วนวัวนอนพักและวัวยืนไม่ได้ (ถ้าวัวอยู่ในคอก ให้ตรวจมุมกล้อง)
+      </div>
+
       <!-- กรณีโรงเรือนยังไม่มีข้อมูลภาพล่าสุดจากกล้อง -->
       <div v-else class="text-xs text-[#5A6B63] font-semibold bg-white/80 rounded-xl px-3.5 py-2.5 border border-[#E2D9C5]/80">
         ยังไม่มีข้อมูลภาพล่าสุดจากกล้องในโรงเรือนนี้ (เมื่อกล้องส่งผลวิเคราะห์ ระบบจะแสดง % วัวนอนพักและวัวยืนที่นี่)
@@ -147,6 +152,8 @@ const { today, streak, camera } = useFarmer()
 
 const hasToday = computed(() => Boolean(today.value && today.value.data_hours > 0))
 const hasCamera = computed(() => Boolean(camera.value && camera.value.total != null && camera.value.lying_pct != null))
+// ภาพที่ไม่พบวัวเลยได้ % เป็น 0 ทุกท่า ห้ามนำไปสรุปว่า "วัวยืนค่อนข้างมาก"
+const hasCows = computed(() => hasCamera.value && Number(camera.value.total) > 0)
 
 const nightRestOk = computed(() => (today.value?.night_relief_hours ?? 0) >= 3)
 const streakDays = computed(() => streak.value?.days || 0)

@@ -172,7 +172,7 @@
                 <v-icon icon="mdi-lightbulb-on-outline" size="15" />
               </div>
               <div class="text-xs text-[#4A5A52] leading-relaxed">
-                <strong class="text-[#142820] block mb-0.5">คำแนะนำจาก AI:</strong>
+                <strong class="text-[#142820] block mb-0.5">คำแนะนำของระบบ:</strong>
                 {{ riskState.action }}
               </div>
             </div>
