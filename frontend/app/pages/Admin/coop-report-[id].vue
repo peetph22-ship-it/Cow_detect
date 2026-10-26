@@ -213,7 +213,7 @@
             <div>
               <div class="text-[11px] text-[#718078]">ชั่วโมงที่มีความเครียดความร้อนรวม:</div>
               <div class="text-xl font-black text-amber-700 mt-0.5">
-                {{ reportData.risk_metrics?.stressed_hours ?? 0 }} ชม. / {{ reportData.risk_metrics?.hours_sampled ?? 0 }} ชม.
+                {{ Number(reportData.risk_metrics?.stressed_hours ?? 0).toFixed(2) }} ชม. / {{ reportData.risk_metrics?.hours_sampled ?? 0 }} ชม.
               </div>
               <div class="text-[10px] text-[#718078]">
                 คำนวณจากชั่วโมงที่มีข้อมูลเซ็นเซอร์จริงในรอบ {{ reportData.report_days || 30 }} วัน

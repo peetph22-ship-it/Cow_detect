@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="แนวคิดและต้นแบบสนับสนุนการติดตามสุขภาพฝูงโคนมผ่านความเสี่ยงจากความร้อน พร้อมทฤษฎี ขอบเขตข้อมูล และแผนประเมินภาคสนาม">
+<title>CowCare AI — สนับสนุนการติดตามสุขภาพฝูงโคนม ผ่านการเฝ้าระวังความเสี่ยงจากความร้อน</title>
+<style>
+:root{color-scheme:light;--bg:#f5f4ee;--surface:#fff;--ink:#172d24;--muted:#50635a;--line:#d9e1d7;--green:#23513e;--soft:#eaf1e9;--accent:#a95525}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:5rem}body{margin:0;background:var(--bg);color:var(--ink);font-family:"Thonburi","Leelawadee UI","Noto Sans Thai",system-ui,sans-serif;font-size:17px;line-height:1.85}a{color:#245e47;text-underline-offset:3px;overflow-wrap:anywhere}a:hover{color:#8a431f}button,a{touch-action:manipulation}:focus-visible{outline:3px solid #a95525;outline-offset:4px}.wrap{width:min(1040px,100%);margin:auto;padding:0 24px}.hero{background:#193c2d;color:#fff;padding:48px 0 40px}.eyebrow{font-size:13px;letter-spacing:.08em;color:#d2e5d7}.hero h1{font-size:clamp(27px,4vw,42px);line-height:1.5;max-width:900px;margin:16px 0 14px}.hero p{max-width:780px;color:#e4eee5;margin:0}.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:22px}.chip{display:inline-block;border:1px solid #a9c5b1;border-radius:100px;padding:4px 12px;font-size:13px}.nav{border-bottom:1px solid var(--line);background:#fff}.nav .wrap{display:flex;gap:18px;overflow:auto;padding-top:14px;padding-bottom:14px}.nav a{white-space:nowrap;font-size:14px;text-decoration:none;font-weight:700}main{padding-top:30px}.intro{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px}.small-card{background:var(--soft);border:1px solid var(--line);padding:18px;border-radius:16px}.small-card strong{display:block;margin-bottom:5px}.small-card p{font-size:15px;margin:0;color:var(--muted)}.demo{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:26px;margin-bottom:34px;box-shadow:0 7px 28px #183c2a08}.demo h2{font-size:24px;margin:0 0 8px}.demo-note{padding:10px 14px;border-radius:10px;background:#fff5db;color:#654b0e;font-size:14px;margin:0 0 18px}.scenario-controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}.scenario-controls button{font:inherit;font-size:15px;border:1px solid #60796a;border-radius:10px;background:#fff;color:#244333;padding:10px 14px;cursor:pointer;min-height:46px}.scenario-controls button[aria-pressed=true]{background:var(--green);color:white;border-color:var(--green)}.scenario-panel{border:1px solid var(--line);border-radius:16px;padding:20px}.status-row{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap}.risk{font-size:20px;font-weight:750}.data-status{font-size:14px;padding:4px 10px;border:1px solid #6e8575;border-radius:30px;color:#355440}.scenario-panel[data-tone=hot]{border-color:#bf6b32;background:#fff8f1}.scenario-panel[data-tone=unknown]{border-color:#9aa5a0;background:#f2f4f3}.scenario-panel[data-tone=hot] .risk{color:#883c13}.scenario-panel[data-tone=unknown] .risk{color:#43554d}.scenario-panel[data-tone=unknown] .reading strong{color:#58675f}.readings{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:20px 0}.reading{padding:14px 10px;background:#ffffffbd;border-radius:12px;border:1px solid #dce4dd}.reading span{display:block;font-size:13px;color:#51635a}.reading strong{font-size:clamp(24px,4vw,34px);font-variant-numeric:tabular-nums;line-height:1.6}.reading small{font-size:13px}.reading .last-reading{font-size:12px}.demo-time,.demo-coverage{font-size:14px;color:#475f51;margin:6px 0}.message{border-left:4px solid #597d61;padding:10px 15px;background:#eaf1e9;margin-top:16px}.message strong{font-size:14px}.message p{margin:6px 0 0}.demo-source{font-size:13px;color:#5a685f;margin:12px 0 0}.article{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:30px 36px;min-width:0}.article h2{font-size:25px;line-height:1.6;margin:38px 0 14px;border-top:1px solid var(--line);padding-top:26px}.article h2:first-of-type{margin-top:20px}.article h3{font-size:19px;margin:24px 0 10px}.article p{margin:0 0 14px}.article ul,.article ol{padding-left:25px}.article li{margin-bottom:8px}.article blockquote{margin:18px 0;padding:14px 18px;border-left:4px solid var(--accent);background:#fff5e9;border-radius:0 12px 12px 0}.article blockquote p:last-child{margin-bottom:0}.article pre{overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;background:#f1f5f0;padding:16px;border-radius:10px;font-size:14px}.article code{font-family:ui-monospace,monospace;font-size:.88em;overflow-wrap:anywhere}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:12px;margin:18px 0 22px;max-width:100%}table{border-collapse:collapse;width:100%;min-width:520px;font-size:14px;line-height:1.75}th,td{text-align:left;vertical-align:top;padding:12px 14px;border-bottom:1px solid var(--line)}th{background:var(--soft);font-weight:750}tr:last-child td{border-bottom:0}td{min-width:110px}footer{padding:26px 0 42px;color:#56675d;font-size:13px}.footer-links{display:flex;gap:18px;flex-wrap:wrap}.skip{position:absolute;top:-80px;left:16px;z-index:2;background:white;padding:10px}.skip:focus{top:12px}
+@media(max-width:650px){.wrap{padding:0 16px}.hero{padding:32px 0}.intro{grid-template-columns:1fr}.demo{padding:18px}.article{padding:18px}.article h2{font-size:22px}.demo h2{font-size:22px}.scenario-controls button{flex:1 1 40%}.reading{padding:10px 8px}.readings{gap:7px}.reading span{font-size:12px}.article table{font-size:13px}body{font-size:16px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{body{background:white;font-size:11pt}.wrap{width:100%;padding:0}.hero{background:white;color:#172d24;padding:12px 0}.hero p,.eyebrow{color:#172d24}.hero h1{font-size:22pt}.chips,.nav,.scenario-controls,.skip{display:none}.intro{margin-top:14px}.article,.demo{border:1px solid #aaa;box-shadow:none;border-radius:0;padding:16px}.article h2{break-after:avoid;font-size:16pt}.small-card,.scenario-panel,blockquote{break-inside:avoid}table{min-width:0;font-size:9pt}.table-wrap{overflow:visible}footer{padding-bottom:0}}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">ข้ามไปเนื้อหา</a>
+<header class="hero"><div class="wrap"><div class="eyebrow">AI FOR ALL HACKATHON · AGRICULTURE &amp; FOOD</div><h1>CowCare AI — สนับสนุนการติดตามสุขภาพฝูงโคนม ผ่านการเฝ้าระวังความเสี่ยงจากความร้อน</h1><p>แนวคิดและทฤษฎีสำหรับติดตามความเสี่ยงต่อสุขภาพฝูงโค พร้อมแผน AI ช่วยแอดมินวิเคราะห์ข้อมูลและช่วยสัตวแพทย์ตรวจประเมินโรค</p><div class="chips"><span class="chip">ฉบับร่างปรับปรุง · 26 ต.ค. 2569</span><span class="chip">พร้อมสำหรับการติดตั้งเพื่อรวบรวมข้อมูล</span><span class="chip">AI แอดมินและสัตวแพทย์: แผนพัฒนา</span></div></div></header>
+<nav class="nav" aria-label="สารบัญ"><div class="wrap"><a href="#demo">ตัวอย่างหน้าสื่อสาร</a><a href="#section-1">1. จุดเริ่มต้น: เกษตรกรควรเห็นความเสี่ยงก่อนตัดสินใจดูแลฝูง</a><a href="#section-2">2. หลักคิด: เฝ้าระวังสิ่งแวดล้อม ควบคู่กับการสังเกตตัวสัตว์</a><a href="#section-3">3. จากข้อมูลในคอกสู่ภาพรวมที่เข้าใจง่าย</a><a href="#section-4">4. เกณฑ์เฝ้าระวัง: ใช้งานได้อย่างโปร่งใส และยังต้องตรวจสอบภาคสนาม</a><a href="#section-5">5. AI และวิธีวิเคราะห์ที่ทำงานจริง</a><a href="#section-6">6. ผู้ใช้ บทบาท และความเป็นไปได้สำหรับฟาร์มรายย่อย</a><a href="#section-7">7. สิ่งที่มีแล้ว และสิ่งที่จะพัฒนา</a><a href="#section-8">8. ความพร้อมในการรวบรวมข้อมูลและแนวทางประเมิน</a><a href="#section-9">9. แผน AI สำหรับแอดมินและสัตวแพทย์</a><a href="#section-10">10. เอกสารอ้างอิงหลัก</a></div></nav>
+<main class="wrap" id="main">
+<div class="intro"><div class="small-card"><strong>เป้าหมายของการติดตาม</strong><p>ช่วยเกษตรกรเห็นปัจจัยเสี่ยงจากความร้อนและข้อมูลพฤติกรรมประกอบการสังเกตฝูง ลดภาระบันทึกข้อมูลด้วยมือ</p></div><div class="small-card"><strong>ขอบเขตข้อมูลที่มี</strong><p>อุณหภูมิและความชื้นของอากาศ ข้อมูลท่าทางที่ตรวจพบ และพยากรณ์รายวัน ยังไม่ใช่ผลตรวจโรคหรือการฟื้นตัวของโครายตัว</p></div></div>
+<section class="demo" id="demo" aria-labelledby="demo-heading"><h2 id="demo-heading">ตัวอย่างหน้าสื่อสารสำหรับเกษตรกร</h2><p class="demo-note">ข้อมูลสมมติทั้งหมดเพื่ออธิบายแนวคิด ไม่เชื่อมกับฟาร์มจริง และยังไม่เรียก Gen AI</p><div class="scenario-controls" role="group" aria-label="เลือกสถานการณ์จำลอง"><button type="button" data-scenario="fresh" aria-pressed="true">ข้อมูลครบ</button><button type="button" data-scenario="hot" aria-pressed="false">อากาศร้อน</button><button type="button" data-scenario="stale" aria-pressed="false">ข้อมูลเก่า</button><button type="button" data-scenario="fault" aria-pressed="false">หัววัดขัดข้อง</button></div><div class="scenario-panel" id="scenario-panel" data-tone="fresh" aria-live="polite" aria-atomic="true"><div class="status-row"><div class="risk" id="risk-label">ต่ำกว่าเกณฑ์เฝ้าระวังของต้นแบบ</div><span class="data-status" id="data-status">ข้อมูลตัวอย่างครบ</span></div><div class="readings"><div class="reading"><span>อุณหภูมิอากาศ</span><strong id="temp-value">25.0</strong> <small>°C</small></div><div class="reading"><span>ความชื้นสัมพัทธ์</span><strong id="hum-value">60</strong> <small>%</small></div><div class="reading"><span id="thi-title">THI จากข้อมูลตัวอย่าง</span><strong id="thi-value">72.8</strong><span class="last-reading" id="last-reading"></span></div></div><p class="demo-time" id="demo-time">เวลาในสถานการณ์จำลอง 13:00 น. · อ่านล่าสุด 12:58 น.</p><p class="demo-coverage" id="demo-coverage">ช่วงข้อมูลตัวอย่าง 1 ชั่วโมง มีข้อมูลครบตามสถานการณ์ที่กำหนด</p><div class="message"><strong>ตัวอย่างข้อความอธิบาย — เตรียมข้อความไว้ ไม่ใช่ผลจากโมเดลจริง</strong><p id="demo-message">ค่า THI ในข้อมูลตัวอย่างอยู่ต่ำกว่าเกณฑ์เฝ้าระวังของต้นแบบ ใช้ประกอบการติดตามสภาพแวดล้อมและสังเกตฝูงโคต่อไป ค่านี้ไม่ใช่ผลตรวจสุขภาพโครายตัว</p></div></div><p class="demo-source">ใช้สูตร THI และ profile ค่าเริ่มต้นของต้นแบบเพื่อแสดงแนวคิดการสื่อสาร สถานการณ์สมมติไม่มีผลการทดลองทางสุขภาพหรือผลพยากรณ์จริง</p><noscript><p class="demo-note">ปุ่มเลือกสถานการณ์ต้องใช้ JavaScript เนื้อหาทฤษฎีและสถานการณ์เริ่มต้นยังอ่านได้ครบ</p></noscript></section>
+<article class="article" aria-label="แนวคิด ทฤษฎี และแผนประเมิน"><p><strong>ธีม:</strong> Agriculture &amp; Food — พลิกโฉมการเกษตรและอาหาร<br><strong>ฉบับร่าง:</strong> 26 ตุลาคม 2569 (2026) · อ้างอิงโค้ดในเครื่องที่ <code>898e725</code><br><strong>สถานะ:</strong> มีต้นแบบเซ็นเซอร์ ระบบรับข้อมูล และหน้าเว็บ พร้อมสำหรับการติดตั้งเพื่อรวบรวมข้อมูล โดยจะตรวจความพร้อมร่วมกับฟาร์มก่อนเริ่มประเมินภาคสนาม<br><strong>เว็บต้นแบบ:</strong> <a href="https://cow-detect.pages.dev">cow-detect.pages.dev</a></p>
+<h2 id="section-1">1. จุดเริ่มต้น: เกษตรกรควรเห็นความเสี่ยงก่อนตัดสินใจดูแลฝูง</h2>
+<p>ฟาร์มโคนมรายย่อยต้องดูแลสัตว์ภายใต้อากาศร้อนชื้น โดยสภาพอากาศที่โคอยู่จริงอาจต่างจากพยากรณ์ระดับพื้นที่ การรับรู้ว่าช่วงใดร้อนต่อเนื่องและคืนใดอากาศยังร้อนจึงช่วยให้เกษตรกรวางแผนตรวจคอกและเตรียมทรัพยากรได้ดีขึ้น</p>
+<p>งานวิจัยในโคนมลูกผสมไทยพบความสัมพันธ์ระหว่างสภาพแวดล้อมร้อนชื้นกับผลผลิตและการสืบพันธุ์ แต่ระดับที่เริ่มได้รับผลแตกต่างตามกลุ่มโคและวิธีศึกษา จึงไม่ควรตีความว่าค่าอากาศเพียงค่าเดียววินิจฉัยสุขภาพของโคทุกตัวได้</p>
+<p>CowCare AI เสนอเครื่องมือที่ติดตามข้อมูลให้อัตโนมัติ และสรุปเป็นภาษาที่เกษตรกรอ่านได้บนมือถือ แนวคิดหลักคือเชื่อม <strong>สิ่งที่เกิดขึ้นในคอก → ความเสี่ยงที่ควรเฝ้าระวัง → ข้อมูลประกอบการดูแลฝูง</strong> โดยลดภาระการกรอกข้อมูลประจำวัน</p>
+<p>ผู้ใช้หลักที่โครงการออกแบบให้คือเกษตรกรรายย่อย โดยเน้นผู้ใช้วัยประมาณ 50–70 ปี และผู้ดูแลระบบหนึ่งคน แผนพัฒนาต่อคือ AI สำหรับแอดมินเพื่อช่วยวิเคราะห์ข้อมูล และ AI สำหรับสัตวแพทย์เพื่อสนับสนุนการตรวจประเมินโรค ส่วนบทบาทสหกรณ์จะพิจารณาเมื่อมีการหารือและตกลงความร่วมมือแล้ว</p>
+<h2 id="section-2">2. หลักคิด: เฝ้าระวังสิ่งแวดล้อม ควบคู่กับการสังเกตตัวสัตว์</h2>
+<p>โคได้รับความร้อนจากการเผาผลาญและสิ่งแวดล้อม และระบายความร้อนผ่านหลายช่องทาง เมื่อได้รับความร้อนมากกว่าที่ระบายออกได้เป็นเวลานาน ความเสี่ยงต่อภาวะเครียดจากความร้อนจะเพิ่มขึ้น ความชื้นสูงยังจำกัดการระบายความร้อนด้วยการระเหย</p>
+<p>ต้นแบบใช้ <strong>Temperature–Humidity Index (THI)</strong> รวมอุณหภูมิอากาศกับความชื้นสัมพัทธ์เป็นตัวชี้วัดสภาพแวดล้อม สูตรที่ใช้ในโค้ดคือ:</p>
+<p><code>THI = (1.8 × T + 32) − (0.55 − 0.0055 × RH) × (1.8 × T − 26)</code></p>
+<p>โดย <code>T</code> คืออุณหภูมิอากาศหน่วย °C และ <code>RH</code> คือความชื้นสัมพัทธ์หน่วย % สมการรูปนี้ปรากฏในงานวิจัยโคนมไทยของ Sae-tiao et al. (2019) ซึ่งอ้าง NOAA (1976) เอกสารนี้แสดงสมการตรงกับการนำไปใช้ โดยไม่อ้างว่าสูตรถูกสร้างขึ้นเฉพาะสำหรับโคนมไทย</p>
+<p>THI ไม่ใช่อุณหภูมิร่างกาย และสูตรนี้ไม่ได้รับข้อมูลความเร็วลมหรือรังสีความร้อนโดยตรง การวัดในคอกจึงเพิ่มบริบทของจุดที่ติดตั้ง แต่ยังไม่ครอบคลุมความแตกต่างทุกจุดในโรงเรือนหรือความไวต่อความร้อนของโคแต่ละตัว</p>
+<p>กล้องเพิ่มข้อมูลพฤติกรรมระดับฝูง เช่น จำนวนที่ตรวจพบในท่านอนและท่ายืน ข้อมูลนี้ช่วยตั้งข้อสังเกตให้ผู้ดูแลตรวจต่อ แต่ยังใช้ยืนยันว่าโคป่วย เครียดจากความร้อน หรือฟื้นตัวแล้วไม่ได้</p>
+<p><strong>ขอบเขตด้านสุขภาพ:</strong> ระบบสนับสนุนการเฝ้าระวังและการตัดสินใจของคน ไม่ได้ทดแทนการตรวจร่างกาย การประเมินอาการ หรือการวินิจฉัยของสัตวแพทย์</p>
+<h2 id="section-3">3. จากข้อมูลในคอกสู่ภาพรวมที่เข้าใจง่าย</h2>
+<p>เส้นทางข้อมูลของต้นแบบคือ <strong>เซ็นเซอร์และภาพจากคอก → ระบบรับข้อมูลบน cloud → การคำนวณและวิเคราะห์ → หน้าเกษตรกรและผู้ดูแล</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>ส่วนประกอบ</th>
+<th>การทำงานในต้นแบบ</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>อุณหภูมิและความชื้น</td>
+<td>ESP32-S3 กับโมดูล SHT20 ผ่าน RS485 อ่านค่าทุก 2 วินาที และส่งข้อมูลทุก 15 วินาที</td>
+</tr>
+<tr>
+<td>ข้อมูลภาพ</td>
+<td>กล่องดึงภาพนิ่งจากกล้อง IP ในเครือข่ายฟาร์มตามรอบประมาณ 10 นาที แล้วส่งให้วิเคราะห์</td>
+</tr>
+<tr>
+<td>ระบบรับและเก็บข้อมูล</td>
+<td>Node.js Express ร่วมกับ Supabase PostgreSQL และพื้นที่เก็บภาพส่วนตัว</td>
+</tr>
+<tr>
+<td>การมองเห็นด้วยคอมพิวเตอร์</td>
+<td>YOLO26m ผ่าน ONNX Runtime ตรวจจับพฤติกรรม 4 คลาส: ยืน นอน กิน และดื่ม</td>
+</tr>
+<tr>
+<td>หน้าเว็บ</td>
+<td>Nuxt 4 บน Cloudflare Pages แสดงสถานะ พยากรณ์ และข้อมูลย้อนหลังสำหรับเกษตรกรกับผู้ดูแล</td>
+</tr>
+</tbody></table></div>
+<p>ระบบคำนวณ THI จากอุณหภูมิและความชื้นของแต่ละรายการวัด แล้วเฉลี่ย THI เป็นช่วง 5 นาที ก่อนนับเวลาที่อยู่เหนือเกณฑ์ การมีตัวอย่างในช่วงหนึ่งไม่ได้ยืนยันว่ามีข้อมูลครบทั้ง 5 นาที จึงต้องตรวจความครบถ้วนก่อนตีความเวลา และไม่เติมช่วงข้อมูลขาดให้เป็นช่วงอากาศเย็น</p>
+<p>หน้าสรุปแสดงชั่วโมงที่มีข้อมูลและความครบถ้วนควบคู่กับ THI เฉลี่ย ชั่วโมงร้อน วันร้อนต่อเนื่อง และเหตุการณ์ความร้อน การรายงานค่าอากาศจึงต้องอ่านพร้อมช่วงเวลาและข้อมูลที่ขาดหายเสมอ</p>
+<h2 id="section-4">4. เกณฑ์เฝ้าระวัง: ใช้งานได้อย่างโปร่งใส และยังต้องตรวจสอบภาคสนาม</h2>
+<p>งานของ Boonkum et al. (2011) พบการลดลงของน้ำนมหลัง THI 74 ในโคท้องที่ 3 ซึ่งมีสายเลือดโฮลสไตน์ตั้งแต่ 87.5% และลดเร็วขึ้นหลัง 82 ส่วนงานปี 2024 เสนอจุดเริ่มผลกระทบระดับประชากรใกล้ THI 76 จากข้อมูลสถานีอุตุนิยมวิทยาและช่วงการรับสัมผัสที่สัมพันธ์กับผลลัพธ์แต่ละด้าน</p>
+<p>หลักฐานเหล่านี้สนับสนุนการเฝ้าระวังตามบริบทของโคนมไทย แต่ไม่ได้รับรองตารางแจ้งเตือนราย 5 นาทีในคอกโดยตรง ตารางต่อไปนี้จึงเป็น <strong>เกณฑ์ปฏิบัติการของต้นแบบ</strong> ที่นำงานวิจัยมาประกอบการออกแบบ:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>ระดับสภาพแวดล้อมที่เสนอใช้สื่อสาร</th>
+<th>โปรไฟล์เริ่มต้น</th>
+<th>โปรไฟล์เฝ้าระวังไวขึ้นสำหรับฝูง HF สูง</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>ต่ำกว่าเกณฑ์เฝ้าระวังของระบบ</td>
+<td>&lt; 74</td>
+<td>&lt; 72</td>
+</tr>
+<tr>
+<td>เริ่มเฝ้าระวัง</td>
+<td>74 ถึง &lt; 76</td>
+<td>72 ถึง &lt; 74</td>
+</tr>
+<tr>
+<td>อากาศร้อน</td>
+<td>76 ถึง &lt; 82</td>
+<td>74 ถึง &lt; 80</td>
+</tr>
+<tr>
+<td>อากาศร้อนจัด</td>
+<td>≥ 82</td>
+<td>≥ 80</td>
+</tr>
+</tbody></table></div>
+<p>การเลือกโปรไฟล์เป็นการตั้งค่าระดับฟาร์มร่วมกับผู้ดูแล ไม่ได้หมายความว่าระบบทราบความทนร้อนของโคแต่ละตัว เกณฑ์เฉพาะโปรไฟล์และการใช้กับข้อมูลระยะสั้นยังต้องตรวจสอบความเหมาะสมกับผู้เชี่ยวชาญ</p>
+<p>ระดับรายวันคำนวณจาก THI เฉลี่ยในช่วงข้อมูลของวัน ส่วนค่าระยะสั้นใช้ชี้ช่วงที่ควรเฝ้าระวัง หากข้อมูลไม่ครบ ต้องระบุว่าเป็นค่าเฉลี่ยจากช่วงที่วัดได้ ไม่ใช่ค่าแทนทั้งวันโดยไม่มีข้อจำกัด</p>
+<p>ตัวชี้วัดกลางคืนที่เสนอใช้สื่อสารคือ <strong>ชั่วโมงที่สภาพแวดล้อมกลางคืนเอื้อต่อการคลายร้อน</strong> ในช่วง 22:00–06:00 เมื่อ THI ต่ำกว่าเกณฑ์เริ่มเฝ้าระวังของโปรไฟล์นั้น แนวคิดมาจากความสำคัญของช่วงอากาศเย็น แต่เวลาและเกณฑ์นี้เป็นนิยามของต้นแบบ ไม่ใช่หลักฐานว่าโคฟื้นตัวทางสรีรวิทยาแล้ว (Igono et al., 1992) ก่อนรายงานว่าเป็น “เมื่อคืน” ต้องตรวจการจับช่วงคืนต่อเนื่องและข้อมูลที่ขาดด้วย</p>
+<h2 id="section-5">5. AI และวิธีวิเคราะห์ที่ทำงานจริง</h2>
+<h3>การมองเห็นพฤติกรรมระดับฝูง</h3>
+<p>YOLO26m ตรวจจับวัตถุจากภาพนิ่งและจำแนก 4 คลาส ข้อมูลที่ได้คือจำนวนและท่าทางที่ตรวจพบในภาพ ไม่ใช่ปริมาณอาหารหรือน้ำที่กินจริง และยังไม่ใช่การติดตามโคต่อเนื่องรายตัว</p>
+<p>ระบบมีอัตราส่วน <code>จำนวนที่ตรวจพบในท่านอน ÷ (ท่านอน + ท่ายืน) × 100</code> ซึ่งเอกสารนี้เรียกว่า <strong>สัดส่วนท่านอนจากภาพ</strong> เพื่อแยกจาก Cow Comfort Index ตามงานวิจัยที่พิจารณาโคซึ่งสัมผัสช่องนอน อัตราส่วนจากภาพจึงยังไม่ใช่คะแนนความสบายหรือคะแนนสุขภาพที่ผ่านการรับรอง</p>
+<p>สัดส่วนดังกล่าวอาจเปลี่ยนตามเวลาให้อาหาร รีดนม พื้นที่พัก การบังกันในภาพ และความผิดพลาดของโมเดล หากไม่สอดคล้องกับ THI ผู้ดูแลควรใช้เป็นเหตุให้ตรวจข้อมูลและหน้างาน ไม่สรุปว่าเซ็นเซอร์คลาดเคลื่อนหรือโคไม่มีความเสี่ยง (Cook et al., 2005)</p>
+<p>ต้นแบบมีการเก็บภาพตัวอย่างเพื่อให้ผู้ดูแลนับเทียบโดยไม่เห็นคำตอบโมเดล และรายงานความคลาดเคลื่อนแยกคลาสตามจำนวนภาพที่ตรวจแล้ว ระบบใช้ 30 ภาพเป็นเกณฑ์เตือนความเพียงพอเบื้องต้นในการวิเคราะห์เชิงสำรวจ ไม่ใช่หลักฐานว่าความแม่นยำเพียงพอในทุกสถานการณ์</p>
+<h3>พยากรณ์ THI เฉลี่ยรายวันล่วงหน้า 3 วัน</h3>
+<p>ระบบใช้พยากรณ์อากาศ ECMWF ผ่าน Open-Meteo คำนวณ THI แล้วปรับด้วยข้อมูลย้อนหลังของจุดวัดในคอก แยกการปรับตามระยะล่วงหน้า +1, +2 และ +3 วัน</p>
+<p>ค่าแก้ไขในระบบปัจจุบันคือ <strong>มัธยฐานของผลต่าง “พยากรณ์เดิม − ค่าวัดจริง”</strong> จากวันที่จบแล้วใน 14 วันล่าสุด โดยต้องมีข้อมูลที่ผ่านเงื่อนไขอย่างน้อย 3 วัน การแก้ไขนี้รวมความคลาดเคลื่อนของพยากรณ์กับความต่างของจุดวัดไว้ด้วยกัน ไม่ได้แยกวัดผลของหลังคา ร่มเงา หรือการระบายอากาศแต่ละส่วน</p>
+<p>เมื่อประวัติฟาร์มยังไม่พอ ระบบอาจใช้ค่าแก้ไขระดับพื้นที่สำหรับกรณีที่รองรับ หรือพยากรณ์ที่ยังไม่ปรับ และระบุแหล่งที่มา หากไม่มีข้อมูลพยากรณ์หรือพิกัดที่ใช้ได้ มีวิธีสำรองจากค่าเฉลี่ยย้อนหลัง ไม่ควรนำผลสำรองไปอธิบายว่าเป็นพยากรณ์ที่เรียนรู้จากคอกแล้ว</p>
+<p>รายงานทดสอบภายในที่มีอยู่ระบุผลย้อนหลัง 354 วัน ระหว่าง 19 ธันวาคม 2024–7 ธันวาคม 2025 เทียบสถานีสนามบินเชียงใหม่ WMO 48327 โดยใช้ MAE ของ THI เฉลี่ยรายวัน (ค่าน้อยดีกว่า):</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>วิธีในรายงานเดิม</th>
+<th align="right">+1 วัน</th>
+<th align="right">+2 วัน</th>
+<th align="right">+3 วัน</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>ค่าเฉลี่ย 72 ชั่วโมงล่าสุด</td>
+<td align="right">1.10</td>
+<td align="right">1.38</td>
+<td align="right">1.56</td>
+</tr>
+<tr>
+<td>ECMWF ดิบ</td>
+<td align="right">1.34</td>
+<td align="right">1.32</td>
+<td align="right">1.35</td>
+</tr>
+<tr>
+<td>ECMWF ปรับค่าเพี้ยนจากประวัติ 9–14 วัน</td>
+<td align="right">0.69</td>
+<td align="right">0.78</td>
+<td align="right">0.88</td>
+</tr>
+</tbody></table></div>
+<p>ที่มา: รายงานเดิมใน <code>backend/ml_lstm/forecast_eval/README.md</code> ภายในโครงการ; การจัดทำเอกสารฉบับนี้ไม่ได้รันทดสอบดังกล่าวซ้ำ ผลนี้เป็นการเทียบอากาศกลางแจ้ง ไม่ใช่ผลตรวจสอบในคอก และไม่ใช่ความแม่นยำในการตรวจสุขภาพสัตว์</p>
+<p>การประเมินเดิมใช้ <strong>ค่าเฉลี่ย</strong> ของค่าเพี้ยน ขณะที่ระบบปัจจุบันใช้ <strong>มัธยฐาน</strong> และรายละเอียดรอบพยากรณ์มีความต่างกัน จึงต้องวัดระบบรุ่นปัจจุบันซ้ำก่อนอ้างตัวเลขเหล่านี้เป็นผลของการใช้งานจริง วิธีปรับค่าเพี้ยนเป็นการปรับทางสถิติ ส่วน AI ที่จำแนกภาพในต้นแบบคือ YOLO; โมเดล LSTM ที่ใช้ข้อมูลสังเคราะห์ไม่ได้เปิดใช้งาน</p>
+<h2 id="section-6">6. ผู้ใช้ บทบาท และความเป็นไปได้สำหรับฟาร์มรายย่อย</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>ผู้ใช้</th>
+<th>ใช้ข้อมูลอย่างไร</th>
+<th>ประโยชน์ที่ต้องทดสอบต่อ</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>เกษตรกร</td>
+<td>ดูสภาพคอก ช่วงที่ควรเฝ้าระวัง และแนวโน้ม 3 วัน</td>
+<td>รับรู้ความเสี่ยงเร็วขึ้นและเตรียมการดูแลได้สะดวกขึ้น</td>
+</tr>
+<tr>
+<td>แอดมิน/ผู้ดูแลระบบ</td>
+<td>ตรวจกล่องและคุณภาพข้อมูล โดยมีแผนใช้ AI วิเคราะห์แนวโน้ม เปรียบเทียบช่วงเวลา และสรุปประเด็นที่ควรตรวจสอบ</td>
+<td>ช่วยจัดการและตีความข้อมูลจำนวนมากอย่างเป็นระบบ</td>
+</tr>
+<tr>
+<td>สัตวแพทย์/ผู้ให้คำปรึกษา — บทบาทที่วางแผนพัฒนา</td>
+<td>มีแผนใช้ AI จัดระเบียบประวัติปัจจัยเสี่ยงและพฤติกรรม ประกอบอาการและผลตรวจที่สัตวแพทย์บันทึก เพื่อช่วยตรวจประเมินโรค</td>
+<td>มีข้อมูลและลำดับเหตุการณ์ประกอบการซักประวัติ การตรวจเพิ่มเติม และการพิจารณาวินิจฉัยของสัตวแพทย์</td>
+</tr>
+</tbody></table></div>
+<p><strong>สหกรณ์หรือหน่วยงานสนับสนุนเป็นทางเลือกในอนาคต:</strong> ปัจจุบันยังไม่มีความร่วมมือที่ยืนยันแล้ว หากมีการตกลงร่วมงานและได้รับอนุญาตจากเจ้าของข้อมูล อาจใช้ข้อมูลภาพรวมเพื่อพิจารณาการสนับสนุนด้านความรู้หรือเครื่องมือให้สมาชิก โดยต้องหารือรูปแบบการใช้งานและประโยชน์ร่วมกันก่อน การพัฒนาต้นแบบในระยะนี้ไม่ได้ขึ้นอยู่กับการเข้าร่วมของสหกรณ์</p>
+<p>การออกแบบใช้กล่องขนาดเล็กและกล้อง IP ที่ฟาร์มมีอยู่ได้เมื่อเข้ากันได้ เพื่อลดความจำเป็นในการซื้ออุปกรณ์เพิ่ม อย่างไรก็ตาม ยังต้องสรุปต้นทุนติดตั้งจริง ค่าเชื่อมต่อ ค่า cloud ค่าบำรุงรักษา และเวลาที่ผู้ดูแลใช้ก่อนยืนยันความคุ้มค่า</p>
+<p>เกษตรกรไม่ต้องบันทึกตัวเลขเซ็นเซอร์เองทุกวัน แต่ยังต้องมีผู้ช่วยตั้งค่าฟาร์ม ตรวจตำแหน่งอุปกรณ์ และสื่อสารเมื่อเกิดปัญหา หน้าเว็บจึงมุ่งให้ข้อความสั้น อ่านง่าย และมองเห็นว่าข้อมูลล่าสุดเมื่อใด</p>
+<p>ประโยชน์ด้านน้ำนม สุขภาพ การสืบพันธุ์ และรายได้เป็น <strong>สมมติฐานที่ต้องประเมิน</strong> ยังไม่มีหลักฐานจากต้นแบบว่าลดการเจ็บป่วย เพิ่มน้ำนม หรือคืนทุนได้เท่าใด</p>
+<h2 id="section-7">7. สิ่งที่มีแล้ว และสิ่งที่จะพัฒนา</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>สถานะ ณ 26 ตุลาคม 2026</th>
+<th>ขอบเขต</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>มีในต้นแบบ</td>
+<td>รับข้อมูลอุณหภูมิ/ความชื้น คำนวณ THI สรุปความครบถ้วน และแสดงข้อมูลบนเว็บ</td>
+</tr>
+<tr>
+<td>มีในต้นแบบ</td>
+<td>พยากรณ์รายวันแบบ hybrid พร้อมแหล่งค่าแก้ไขและวิธีสำรอง</td>
+</tr>
+<tr>
+<td>มีในต้นแบบ</td>
+<td>ตรวจจับภาพ 4 คลาส เก็บภาพให้นับเทียบ และวิเคราะห์พฤติกรรมเชิงสำรวจ</td>
+</tr>
+<tr>
+<td>พร้อมสำหรับขั้นตอนรวบรวมข้อมูล</td>
+<td>เตรียมตรวจความพร้อมก่อนติดตั้งเพื่อเก็บข้อมูลและประเมินในสภาพการใช้งานจริง โดยยังไม่กำหนดวันเริ่ม</td>
+</tr>
+<tr>
+<td>แผนพัฒนา AI</td>
+<td>ผู้ช่วยวิเคราะห์ข้อมูลสำหรับแอดมิน และผู้ช่วยจัดข้อมูลประกอบการตรวจประเมินโรคสำหรับสัตวแพทย์</td>
+</tr>
+<tr>
+<td>แผนต่อยอดระบบ</td>
+<td>การแจ้งเตือน LINE รายฟาร์มและสรุปรายสัปดาห์</td>
+</tr>
+<tr>
+<td>ทางเลือกในอนาคต</td>
+<td>ข้อมูลผลผลิตหรือความร่วมมือกับผู้เชี่ยวชาญและหน่วยงานที่สนใจ หลังมีข้อตกลงและสิทธิ์ใช้ข้อมูล</td>
+</tr>
+</tbody></table></div>
+<p>สถานะ “มีในต้นแบบ” หมายถึงมีการพัฒนาในระบบปัจจุบัน ไม่ใช่การรับรองคุณภาพทุกส่วนหรือหลักฐานว่าใช้งานที่ฟาร์มจริงแล้ว ความต่างที่ต้องการสร้างคือการให้ข้อมูลต่อเนื่องในคอก เชื่อมกับภาพระดับฝูง และแสดงข้อจำกัดให้ผู้ใช้เห็นพร้อมผลสรุป</p>
+<p>ก่อนเปิดใช้ภาคสนามยังต้องแก้และตรวจรับการแสดงข้อมูลเก่า การตีความระยะเหตุการณ์เมื่อข้อมูลขาด และข้อความที่สรุปเกินหลักฐาน รวมถึงยืนยันการบังคับตรวจรหัสอุปกรณ์ในระบบจริง กลไกคิวส่งย้อนหลังที่มีอยู่ต้องทดสอบพร้อมระบบไฟล์และการตั้งเวลาบนกล่องที่จะติดตั้ง ไม่รับรองระยะเก็บข้อมูลออฟไลน์จากความจุที่ออกแบบไว้เพียงอย่างเดียว</p>
+<h2 id="section-8">8. ความพร้อมในการรวบรวมข้อมูลและแนวทางประเมิน</h2>
+<p>รอบนี้มุ่งนำเสนอแนวคิด ทฤษฎี สถาปัตยกรรม และส่วนของต้นแบบที่พัฒนาไว้ พร้อมสำหรับการติดตั้งเพื่อรวบรวมข้อมูลและประเมินผลในสภาพการใช้งานจริง การเริ่มรวบรวมข้อมูลจะดำเนินการเมื่อความพร้อมของอุปกรณ์ สถานที่ และการประสานงานกับฟาร์มได้รับการยืนยัน โดยยังไม่ระบุวันติดตั้ง</p>
+<p>เมื่อเริ่มรวบรวมข้อมูล จะประเมินตามแนวทางดังนี้:</p>
+<ol>
+<li><strong>ตรวจจุดวัดและข้อมูลเซ็นเซอร์:</strong> บันทึกตำแหน่ง ติดตามช่วงที่ส่งข้อมูลได้ และเปรียบเทียบกับเครื่องอ้างอิงที่วางร่วมจุดเมื่อมีอุปกรณ์เหมาะสม</li>
+<li><strong>ตรวจกล้อง:</strong> นับเทียบภาพต่างช่วงเวลาและสภาพแสง รายงานจำนวนภาพ ความคลาดเคลื่อนแยกคลาส และกรณีที่ตรวจจับยาก</li>
+<li><strong>ตรวจพยากรณ์:</strong> เก็บผลที่ออกไว้ก่อนวันเป้าหมาย แล้วเทียบกับค่าที่วัดภายหลัง แยก +1/+2/+3 วันและวิธีที่ระบบใช้ พร้อมจำนวนวันที่เปรียบเทียบได้</li>
+<li><strong>ตรวจการสื่อสาร:</strong> ให้เกษตรกรลองอ่านสถานะและอธิบายความหมายกลับ โดยเฉพาะคำว่าความเสี่ยง ข้อมูลไม่ครบ และผลที่ยังเป็นการทดลอง</li>
+</ol>
+<p>หลักฐานสำหรับรอบเสนอแนวคิดใช้ผังระบบ ตัวอย่างหน้าจอ ผลจากสภาพแวดล้อมทดสอบที่ตรวจสอบได้ และแผนการประเมิน พร้อมระบุว่าข้อมูลใดเป็นข้อมูลทดสอบหรือข้อมูลสมมติ ส่วนผลจากฟาร์มจริงจะเพิ่มเมื่อมีการรวบรวมและประเมินแล้ว</p>
+<p>ระยะเวลารวบรวมข้อมูลจะกำหนดตามวัตถุประสงค์การประเมิน ความครบถ้วน และความหลากหลายของสภาพอากาศ การมีข้อมูลครบตามจำนวนวันที่กำหนดเพียงอย่างเดียวไม่ได้รับประกันว่าสามารถสรุปผลด้านสุขภาพหรือสร้างเกณฑ์ใหม่ได้</p>
+<p>การหาจุดเปลี่ยนของสัดส่วนท่านอนเทียบ THI เป็นการวิเคราะห์ความสัมพันธ์เชิงสำรวจในฟาร์มเดียว ต้องคำนึงถึงเวลาให้อาหาร รีดนม และปัจจัยกวน ไม่ใช้ผลนี้เปลี่ยนเกณฑ์แจ้งเตือนโดยอัตโนมัติ</p>
+<h2 id="section-9">9. แผน AI สำหรับแอดมินและสัตวแพทย์</h2>
+<p><strong>สำหรับแอดมิน — ช่วยวิเคราะห์ข้อมูล:</strong> วางแผนใช้ AI วิเคราะห์และสรุปแนวโน้ม THI ข้อมูลพยากรณ์ และพฤติกรรมที่ตรวจพบ เปรียบเทียบข้อมูลตามช่วงเวลา และชี้ประเด็นที่ควรตรวจสอบร่วมกับสถานะกล่องและความครบถ้วนของข้อมูล โดยแสดงช่วงเวลาและข้อมูลต้นทางให้ผู้ดูแลตรวจสอบได้</p>
+<p><strong>สำหรับสัตวแพทย์ — ช่วยตรวจประเมินโรค:</strong> วางแผนใช้ AI จัดระเบียบประวัติปัจจัยเสี่ยงจากสิ่งแวดล้อมและข้อมูลพฤติกรรม สรุปลำดับเหตุการณ์ และเชื่อมกับอาการ ประวัติสุขภาพ และผลตรวจที่สัตวแพทย์บันทึกหรือได้รับอนุญาตให้ใช้ เพื่อเตรียมข้อมูลประกอบการซักประวัติ การตรวจเพิ่มเติม และการพิจารณาวินิจฉัยโรค อาจต่อยอดการค้นและสรุปแหล่งอ้างอิงที่สัตวแพทย์ตรวจสอบได้</p>
+<p>สัตวแพทย์เป็นผู้ตรวจและสรุปผลทางคลินิก AI จะไม่สรุปโรคจากค่า THI หรือท่าทางในภาพเพียงอย่างเดียว การพัฒนาส่วนนี้ต้องเพิ่มข้อมูลประกอบการตรวจ ระบบสิทธิ์เข้าถึง และการประเมินร่วมกับสัตวแพทย์ก่อนใช้งานจริง</p>
+<p><strong>สถานะของแผน AI:</strong> ปัจจุบันยังไม่มีผู้ช่วย Gen AI สำหรับแอดมินหรือสัตวแพทย์ทำงานในระบบจริง และยังไม่ได้ทดสอบผลทางคลินิก เมื่อพัฒนาจะให้ระบบคำนวณกำหนดตัวเลขและสถานะข้อมูลก่อน แล้วจึงใช้โมเดลช่วยวิเคราะห์หรือเรียบเรียงภายในขอบเขตที่กำหนด ต้องตรวจผลกับแหล่งข้อมูล ระบุข้อมูลที่ขาด และมีข้อความสำรองเมื่อโมเดลไม่พร้อมหรือผลไม่ผ่านการตรวจ</p>
+<p><strong>LINE และสรุปรายสัปดาห์:</strong> วางแผนผูกผู้รับรายฟาร์ม ส่งข้อความเมื่อมีเหตุที่กำหนด ลดข้อความซ้ำ และให้ผู้ใช้จัดการการรับแจ้งเตือน สรุปจะบอกชั่วโมงอากาศร้อนกับข้อมูลที่ขาด แทนการสรุปว่าโคปลอดภัยหรือฟื้นตัวแล้ว</p>
+<p>ข้อจำกัดสำคัญคือยังไม่มีผลภาคสนามระยะยาว ไม่มีอุณหภูมิร่างกายหรืออัตราการหายใจ ไม่ตรวจการหอบ ไม่ติดตามรายตัว และไม่มีข้อมูลน้ำนมเชื่อมกับระบบ ความคลาดเคลื่อนของเซ็นเซอร์และการมองเห็นด้วยกล้องอาจทำให้ผลเปลี่ยนได้</p>
+<p>หากต่อยอดข้อมูลสัตว์หรือผลผลิต ต้องกำหนดความยินยอม สิทธิ์เข้าถึง การเก็บรักษา และวิธีใช้ข้อมูลให้ชัดเจน พร้อมประเมินว่าการใช้งานช่วยให้ตัดสินใจดีขึ้นจริงหรือไม่ก่อนขยายผล</p>
+<h2 id="section-10">10. เอกสารอ้างอิงหลัก</h2>
+<ol>
+<li>Boonkum, W. et al. (2011). <em>Genetic effects of heat stress on milk yield of Thai Holstein crossbreds.</em> Journal of Dairy Science, 94(1), 487–492. <a href="https://pubmed.ncbi.nlm.nih.gov/21183060/">บทคัดย่อต้นฉบับและ DOI</a></li>
+<li>Boonkum, W. et al. (2024). <em>Impact of Heat Stress on Milk Yield, Milk Fat-to-Protein Ratio, and Conception Rate in Thai–Holstein Dairy Cattle: A Phenotypic and Genetic Perspective.</em> Animals, 14(20), 3026. <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC11505317/">บทความฉบับเต็ม</a></li>
+<li>Sae-tiao, T. et al. (2019). <em>Tropical climate change and its effect on milk production of dairy cattle in Thailand.</em> Livestock Research for Rural Development, 31(12), Article 194. <a href="https://www.lrrd.org/lrrd31/12/agrsk31194.html">บทความต้นฉบับ</a></li>
+<li>Igono, M. O., Bjotvedt, G. &amp; Sanford-Crane, H. T. (1992). <em>Environmental profile and critical temperature effects on milk production of Holstein cows in desert climate.</em> International Journal of Biometeorology, 36, 77–87. <a href="https://link.springer.com/article/10.1007/BF01208917">บทคัดย่อจากผู้เผยแพร่</a></li>
+<li>Cook, N. B., Bennett, T. B. &amp; Nordlund, K. V. (2005). <em>Monitoring indices of cow comfort in free-stall-housed dairy herds.</em> Journal of Dairy Science, 88(11), 3876–3885. <a href="https://pubmed.ncbi.nlm.nih.gov/16230693/">บทคัดย่อต้นฉบับและ DOI</a></li>
+</ol>
+</article>
+</main>
+<footer><div class="wrap"><p>ไฟล์นี้เปิดอ่านได้โดยไม่เรียก API หรือโหลดไฟล์ประกอบจากภายนอก ลิงก์อ้างอิงและเว็บจริงต้องใช้อินเทอร์เน็ต</p><div class="footer-links"><a href="https://cow-detect.pages.dev" target="_blank" rel="noopener noreferrer">เว็บต้นแบบแยกต่างหาก</a><a href="https://aiforallhackathon.com/" target="_blank" rel="noopener noreferrer">หน้าส่งผลงาน</a><a href="#main">กลับขึ้นด้านบน</a></div></div></footer>
+<script>
+(() => {
+const data={
+fresh:{temp:25,hum:60,tone:'fresh',risk:'ต่ำกว่าเกณฑ์เฝ้าระวังของต้นแบบ',status:'ข้อมูลตัวอย่างครบ',age:'เวลาในสถานการณ์จำลอง 13:00 น. · อ่านล่าสุด 12:58 น.',coverage:'ช่วงข้อมูลตัวอย่าง 1 ชั่วโมง มีข้อมูลครบตามสถานการณ์ที่กำหนด',message:'ค่า THI ในข้อมูลตัวอย่างอยู่ต่ำกว่าเกณฑ์เฝ้าระวังของต้นแบบ ใช้ประกอบการติดตามสภาพแวดล้อมและสังเกตฝูงโคต่อไป ค่านี้ไม่ใช่ผลตรวจสุขภาพโครายตัว'},
+hot:{temp:31,hum:70,tone:'hot',risk:'เหนือเกณฑ์ร้อนจัดของต้นแบบ',status:'ข้อมูลตัวอย่างครบ',age:'เวลาในสถานการณ์จำลอง 13:00 น. · อ่านล่าสุด 12:58 น.',coverage:'ช่วงข้อมูลตัวอย่าง 1 ชั่วโมง มีข้อมูลครบตามสถานการณ์ที่กำหนด',message:'ค่า THI ในข้อมูลตัวอย่างสูงกว่าเกณฑ์ร้อนจัดของต้นแบบ ควรตรวจสภาพแวดล้อมและสังเกตฝูงโคหน้างาน โดยพิจารณาแนวทางดูแลที่เหมาะกับทรัพยากรของฟาร์ม ยังสรุปสุขภาพโครายตัวจากค่านี้เพียงอย่างเดียวไม่ได้'},
+stale:{temp:31,hum:70,tone:'unknown',risk:'ยังประเมินสภาพคอกปัจจุบันไม่ได้',status:'ข้อมูลตัวอย่างเก่า',age:'เวลาในสถานการณ์จำลอง 13:00 น. · ค่าครั้งก่อน 11:30 น.',coverage:'หลัง 11:30 น. ไม่มีข้อมูลใหม่ในสถานการณ์นี้',message:'ค่าที่แสดงเป็นข้อมูลครั้งก่อน ยังบอกสภาพคอกขณะนี้ไม่ได้ กรุณาตรวจการติดต่อของกล่องและเครือข่าย พร้อมสังเกตสภาพคอกจริงระหว่างรอข้อมูล'},
+fault:{temp:null,hum:null,tone:'unknown',risk:'ยังประเมินความเสี่ยงจากหัววัดไม่ได้',status:'ตัวอย่างหัววัดอ่านค่าไม่ได้',age:'เวลาในสถานการณ์จำลอง 13:00 น. · ไม่มีค่าหัววัดที่ใช้ประเมินได้',coverage:'สถานะกล่องกับสถานะหัววัดแสดงแยกจากระดับความเสี่ยง',message:'กล่องในสถานการณ์จำลองอ่านหัววัดไม่ได้ จึงไม่มีค่า THI ปัจจุบัน ควรตรวจหัววัดและการเชื่อมต่อตามคู่มือ ข้อมูลขาดไม่ได้หมายความว่าสภาพคอกมีความเสี่ยงต่ำ'}
+};
+const set=(id,text)=>document.getElementById(id).textContent=text;
+const calc=(t,rh)=>((1.8*t+32)-(0.55-0.0055*rh)*(1.8*t-26)).toFixed(1);
+for(const button of document.querySelectorAll('[data-scenario]'))button.addEventListener('click',()=>{
+const key=button.dataset.scenario,s=data[key];
+for(const b of document.querySelectorAll('[data-scenario]'))b.setAttribute('aria-pressed',String(b===button));
+document.getElementById('scenario-panel').dataset.tone=s.tone;
+set('risk-label',s.risk);set('data-status',s.status);set('temp-value',s.temp===null?'—':s.temp.toFixed(1));set('hum-value',s.hum===null?'—':String(s.hum));set('thi-value',s.temp===null?'—':calc(s.temp,s.hum));set('thi-title',key==='stale'?'THI ครั้งก่อนในตัวอย่าง':'THI จากข้อมูลตัวอย่าง');set('last-reading',key==='stale'?'ค่านี้ไม่ใช่ค่าปัจจุบัน':'');set('demo-time',s.age);set('demo-coverage',s.coverage);set('demo-message',s.message);
+});
+})();
+</script>
+</body></html>
