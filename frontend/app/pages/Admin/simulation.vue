@@ -229,7 +229,7 @@
               <optgroup label="🎬 สภาพแวดล้อมจำลอง (Sandbox)">
                 <option value="simulation">🎬 วิดีโอจำลองฝูงโค (sample_barn.mp4 - โคในโรงเรือนไทย)</option>
               </optgroup>
-              <optgroup v-if="registeredCameras.length > 0" label="📹 กล้อง Hikvision IP Camera ของฟาร์ม">
+              <optgroup v-if="registeredCameras.length > 0" label="📹 กล้อง IP ของฟาร์ม (RTSP)">
                 <option v-for="cam in registeredCameras" :key="'rtsp-' + cam.id" :value="'rtsp-' + cam.id">
                   {{ cam.camera_name }} ({{ cam.ip_address }})
                 </option>
@@ -853,7 +853,7 @@ const currentCameraSourceLabel = computed(() => {
   if (selectedCameraSource.value.startsWith('rtsp-')) {
     const camId = selectedCameraSource.value.replace('rtsp-', '')
     const cam = registeredCameras.value.find(c => String(c.id) === String(camId))
-    return cam ? `${cam.camera_name} (${cam.ip_address})` : 'Hikvision RTSP'
+    return cam ? `${cam.camera_name} (${cam.ip_address})` : 'กล้อง IP (RTSP)'
   }
   const idx = parseInt(selectedCameraSource.value.replace('usb-', '') || '0', 10)
   const found = detectedCameras.value.find(d => d.index === idx)

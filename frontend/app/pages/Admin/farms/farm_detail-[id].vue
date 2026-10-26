@@ -45,14 +45,14 @@
 
       <!-- Quick Action Controls -->
       <div class="flex items-center gap-2.5 flex-wrap">
-        <!-- Add Hikvision Camera Button -->
+        <!-- ปุ่มผูกกล้อง IP: ฟอร์มเลือกยี่ห้อได้ (ค่าเริ่มต้น Dahua ตามกล้องที่ใช้จริง) จึงไม่ระบุยี่ห้อบนปุ่ม -->
         <button 
           type="button" 
           @click="isAddCameraModalOpen = true"
-          title="ผูกกล้องวงจรปิด Hikvision เข้ากับฟาร์มนี้"
+          title="ผูกกล้องวงจรปิด (IP) เข้ากับฟาร์มนี้"
           class="px-4 py-2.5 rounded-[18px] bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95">
           <v-icon icon="mdi-cctv" size="16" class="text-emerald-700" />
-          <span>+ ผูกกล้อง Hikvision</span>
+          <span>+ ผูกกล้อง IP</span>
         </button>
 
         <!-- System Accuracy Benchmarks Modal Button -->
@@ -992,7 +992,7 @@
           <div>
             <div class="flex items-center gap-2 flex-wrap">
               <h3 class="text-lg md:text-xl font-black text-[#24433a] tracking-tight">
-                Smart Barn Vision &amp; Hikvision Architecture
+                Smart Barn Vision &amp; IP Camera
               </h3>
               <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#D87939]/10 text-[#D87939] border border-[#D87939]/20 uppercase">
                 ByteTrack + YOLO Multi-Cow Telemetry
@@ -1070,7 +1070,7 @@
         </div>
       </div>
 
-      <!-- Registered Hikvision Cameras Strip -->
+      <!-- Registered IP Cameras Strip -->
       <div class="p-3.5 rounded-2xl bg-[#fafcfb] border border-[#e5ece9] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
         <div class="flex items-center gap-2 flex-wrap">
           <span class="font-bold text-[#4e6057] flex items-center gap-1">
@@ -1585,7 +1585,7 @@
       @deleted="handleFarmDeleted" 
     />
 
-    <!-- 🟢 7. Add Hikvision Camera Modal Component -->
+    <!-- 🟢 7. Add IP Camera Modal Component -->
     <AddCameraModal 
       v-model="isAddCameraModalOpen" 
       :farm-id="farmId" 
