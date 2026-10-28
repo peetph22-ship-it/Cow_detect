@@ -530,7 +530,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { calcThi, getRiskLevel, thresholdLabels } from '~/utils/heatStress'
 
 useHead({
-  title: 'CowCare AI — ระบบพยากรณ์และป้องกันความเครียดความร้อนในโคนม',
+  title: 'CowCare AI — ระบบพยากรณ์และเฝ้าระวังความเครียดจากความร้อนในโคนม',
   meta: [
     { name: 'description', content: 'ต้นแบบระบบเฝ้าระวังความเครียดจากความร้อนในโคนมไทยด้วย IoT + Computer Vision (อยู่ระหว่างทดสอบภาคสนาม)' }
   ]
@@ -603,7 +603,7 @@ const archLayers = [
     tabTitle: 'รับรู้สภาพแวดล้อม (Sense)',
     badge: 'LAYER 01 • EDGE & IOT SENSING',
     icon: 'mdi-access-point',
-    title: 'เก็บข้อมูลแม่นยำโดยไม่ต้องติดอุปกรณ์บนตัววัว',
+    title: 'เก็บข้อมูลในคอกโดยไม่ต้องติดอุปกรณ์บนตัววัว',
     desc: 'ลดต้นทุนให้เกษตรกรรายย่อยด้วยการใช้กล้องวงจรปิด Dahua ร่วมกับโมเดล YOLO26m นับวัวแยกตามท่า และใช้เซ็นเซอร์ SHT20 (ตระกูล XY-MD02 RS485, ±0.3°C / ±3% RH) วัดอุณหภูมิ-ความชื้นผ่านสาย RS485',
     points: [
       'บอร์ดดึงภาพจากกล้องทุก 10 นาที นับวัวแยกตาม 4 ท่า: นอนพัก, ยืน, กินอาหาร, ดื่มน้ำ',
