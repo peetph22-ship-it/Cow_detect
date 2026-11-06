@@ -1,7 +1,7 @@
-"""Strict re-run + small GRU test. Truth = Chiang Mai airport station (Meteostat 48327).
+"""Strict re-run + small GRU / LSTM test. Truth = Chiang Mai airport station (Meteostat 48327).
 Issue time = 00:00 local of the day after the last fully observed day (so only completed days are used).
 Target day d at lead k: last fully observed day = d - k - ... we use last = d - k - 1 (strict, no partial day).
-Test = last 365 target days with data; GRU trained on earlier days only.
+Test = last 365 target days with data; GRU / LSTM trained on earlier days only (same inputs, size and training).
 Usage: python -I eval_strict.py <data_dir>"""
 import gzip, json, sys, math
 from datetime import datetime, timedelta
@@ -55,7 +55,7 @@ for model in ["best_match", "ecmwf_ifs025"]:
                 e.append(p-od[d]); h.append(cat(p) == cat(od[d]))
             print(f"    N={N:2d} bias-corrected {st(e)} hit={np.mean(h):.3f}")
             res[(model, k, N)] = (np.abs(e).mean(), len(e))
-# ---- small GRU: sequence of last 14 completed days [obs, fc_lead1..3 for those days, sin, cos] + target-day fc (lead k) -> 3 targets
+# ---- small GRU / LSTM: sequence of last 14 completed days [obs, fc_lead1..3 for those days, sin, cos] + target-day fc (lead k) -> 3 targets
 fd = load("ecmwf_ifs025")
 X, Y, D = [], [], []
 for d0 in all_days:            # d0 = last completed day; targets d0+1..d0+3 use leads 2..4? keep consistent: target d0+k uses lead k+... approximate with lead k
@@ -75,29 +75,35 @@ te = np.array([t >= TEST0 for t in T0]); tr = ~te
 mu, sd = X[tr].reshape(-1, 6).mean(0), X[tr].reshape(-1, 6).std(0)+1e-6
 Xn = (X-mu)/sd; fm, fs = F[tr].mean(), F[tr].std()
 class M(nn.Module):
-    def __init__(s): super().__init__(); s.g = nn.GRU(6, 16, batch_first=True); s.o = nn.Linear(16+3, 3)
-    def forward(s, x, f): _, h = s.g(x); return s.o(torch.cat([h[-1], f], 1))
-maes = []
-for seed in (0, 1, 2):
-    torch.manual_seed(seed); np.random.seed(seed)
-    m = M(); opt = torch.optim.Adam(m.parameters(), 3e-3, weight_decay=1e-4)
-    idx = np.where(tr)[0]; nv = max(30, len(idx)//6); va, trn = idx[-nv:], idx[:-nv]
-    xt = lambda i: (torch.tensor(Xn[i]), torch.tensor((F[i]-fm)/fs), torch.tensor(Y[i]-F[i]))  # predict correction to forecast
-    best, bstate, bad = 1e9, None, 0
-    for ep in range(400):
-        m.train(); a, b, c = xt(trn); opt.zero_grad(); loss = ((m(a, b)-c)**2).mean(); loss.backward(); opt.step()
-        m.eval()
-        with torch.no_grad(): a, b, c = xt(va); vl = (m(a, b)-c).abs().mean().item()
-        if vl < best - 1e-4: best, bstate, bad = vl, {k: v.clone() for k, v in m.state_dict().items()}, 0
-        else:
-            bad += 1
-            if bad > 40: break
-    m.load_state_dict(bstate); m.eval()
-    with torch.no_grad(): a, b, c = xt(np.where(te)[0]); pred = m(a, b).numpy() + F[te]
-    maes.append(np.abs(pred - Y[te]).mean(0))
-maes = np.array(maes)
-print(f"== GRU (ecmwf, 14-day seq, {sum(p.numel() for p in M().parameters())} params, train {tr.sum()} / test {te.sum()} samples) ==")
-for k in range(3): print(f" day+{k+1} GRU MAE {maes[:, k].mean():.2f} (seeds {', '.join(f'{v:.2f}' for v in maes[:, k])}) vs bias-corrected N=14 MAE {res[('ecmwf_ifs025', k+1, 14)][0]:.2f}")
+    def __init__(s, cell): super().__init__(); s.g = cell(6, 16, batch_first=True); s.o = nn.Linear(16+3, 3)
+    def forward(s, x, f):
+        _, h = s.g(x)
+        if isinstance(h, tuple): h = h[0]   # LSTM returns (h, c)
+        return s.o(torch.cat([h[-1], f], 1))
+def run_rnn(cell):
+    maes = []
+    for seed in (0, 1, 2):
+        torch.manual_seed(seed); np.random.seed(seed)
+        m = M(cell); opt = torch.optim.Adam(m.parameters(), 3e-3, weight_decay=1e-4)
+        idx = np.where(tr)[0]; nv = max(30, len(idx)//6); va, trn = idx[-nv:], idx[:-nv]
+        xt = lambda i: (torch.tensor(Xn[i]), torch.tensor((F[i]-fm)/fs), torch.tensor(Y[i]-F[i]))  # predict correction to forecast
+        best, bstate, bad = 1e9, None, 0
+        for ep in range(400):
+            m.train(); a, b, c = xt(trn); opt.zero_grad(); loss = ((m(a, b)-c)**2).mean(); loss.backward(); opt.step()
+            m.eval()
+            with torch.no_grad(): a, b, c = xt(va); vl = (m(a, b)-c).abs().mean().item()
+            if vl < best - 1e-4: best, bstate, bad = vl, {k: v.clone() for k, v in m.state_dict().items()}, 0
+            else:
+                bad += 1
+                if bad > 40: break
+        m.load_state_dict(bstate); m.eval()
+        with torch.no_grad(): a, b, c = xt(np.where(te)[0]); pred = m(a, b).numpy() + F[te]
+        maes.append(np.abs(pred - Y[te]).mean(0))
+    return np.array(maes)
+for name, cell in (("GRU", nn.GRU), ("LSTM", nn.LSTM)):
+    maes = run_rnn(cell)
+    print(f"== {name} (ecmwf, 14-day seq, {sum(p.numel() for p in M(cell).parameters())} params, train {tr.sum()} / test {te.sum()} samples) ==")
+    for k in range(3): print(f" day+{k+1} {name} MAE {maes[:, k].mean():.2f} (seeds {', '.join(f'{v:.2f}' for v in maes[:, k])}) vs bias-corrected N=14 MAE {res[('ecmwf_ifs025', k+1, 14)][0]:.2f}")
 # static regional correction (mean bias of the TRAIN period only) applied to test days
 for k in (1, 2, 3):
     fdk = load("ecmwf_ifs025")[k]
