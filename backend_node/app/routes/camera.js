@@ -16,7 +16,7 @@ const db = require('../config/db')
 const { verifyDeviceKey } = require('../middleware/deviceAuthMiddleware')
 const { parseRecordedAt, checkTimeWindow } = require('../services/sensorIngest')
 const vision = require('../services/visionService')
-const { maybeSaveSample } = require('../services/cameraSamples')
+const { maybeSaveSample, buildSampleJson } = require('../services/cameraSamples')
 
 // แปลง error ของ body parser (เช่น รูปเกิน 2MB) ให้ตอบเป็น JSON ที่ firmware อ่านได้
 const rawJpeg = express.raw({ type: ['image/jpeg', 'application/octet-stream'], limit: '2mb' })
@@ -76,6 +76,23 @@ router.post(
     }
 )
 
+const TELEMETRY_INSERT_SQL = `
+        INSERT INTO cctv_behavior_telemetry (
+            camera_id, farm_id, timestamp, total_cows_detected,
+            standing_count, lying_count, feeding_count, drinking_count,
+            standing_pct, lying_pct, feeding_pct, drinking_pct,
+            cow_comfort_index, ai_confidence_avg, is_simulation)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, false)`
+const TELEMETRY_INSERT_WITH_DETECTIONS_SQL = `
+        INSERT INTO cctv_behavior_telemetry (
+            camera_id, farm_id, timestamp, total_cows_detected,
+            standing_count, lying_count, feeding_count, drinking_count,
+            standing_pct, lying_pct, feeding_pct, drinking_pct,
+            cow_comfort_index, ai_confidence_avg, is_simulation, detections)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, false, $15::jsonb)`
+// ถ้าพบว่ายังไม่มีคอลัมน์ detections ครั้งหนึ่ง จะไม่ลองซ้ำจนกว่าจะรีสตาร์ตเซิร์ฟเวอร์ (หลังรัน migration)
+let detectionsColumnReady = true
+
 const processSnapshot = async (device, capturedAt, jpeg) => {
     let result
     try {
@@ -93,19 +110,24 @@ const processSnapshot = async (device, capturedAt, jpeg) => {
         // ยังไม่ได้ลงทะเบียนกล้อง: บันทึกได้โดยไม่มี camera_id
     }
     const { counts, pct } = result
-    await db.query(`
-        INSERT INTO cctv_behavior_telemetry (
-            camera_id, farm_id, timestamp, total_cows_detected,
-            standing_count, lying_count, feeding_count, drinking_count,
-            standing_pct, lying_pct, feeding_pct, drinking_pct,
-            cow_comfort_index, ai_confidence_avg, is_simulation
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, false)
-    `, [
+    const params = [
         cameraId, device.farmId, capturedAt.toISOString(), result.total,
         counts.standing, counts.lying, counts.feeding, counts.drinking,
         pct.standing, pct.lying, pct.feeding, pct.drinking,
         result.cci, result.confidence_avg
-    ])
+    ]
+    // เก็บตำแหน่งกรอบของทุกภาพ (รูปแบบเดียวกับ HH.json ของภาพตัวอย่าง) แทนการเก็บวิดีโอ
+    const detectionsJson = JSON.stringify(buildSampleJson(capturedAt, result, vision.IMGSZ))
+    try {
+        if (!detectionsColumnReady) throw Object.assign(new Error('detections column not available'), { code: '42703' })
+        await db.query(TELEMETRY_INSERT_WITH_DETECTIONS_SQL, [...params, detectionsJson])
+    } catch (err) {
+        if (err.code !== '42703') throw err
+        // ยังไม่ได้รัน migrations/20261106_telemetry_detection_boxes.sql: บันทึกแบบเดิมไปก่อน ไม่ให้ข้อมูลหาย
+        if (detectionsColumnReady) console.warn('[Camera] detections column missing - run migrations/20261106_telemetry_detection_boxes.sql (saving counts only)')
+        detectionsColumnReady = false
+        await db.query(TELEMETRY_INSERT_SQL, params)
+    }
     console.log(`[Camera] ${device.serial || device.id}: ${result.total} cows ${JSON.stringify(counts)} cci=${result.cci} in ${result.timing_ms.total} ms`)
 
     await maybeSaveSample(device.farmId, capturedAt, jpeg, result, vision.IMGSZ)
@@ -113,5 +135,8 @@ const processSnapshot = async (device, capturedAt, jpeg) => {
 
 // สถานะ worker (ไม่มีข้อมูลลับ)
 router.get('/status', (req, res) => res.json({ success: true, vision: vision.status() }))
+
+// เปิดให้สคริปต์ทดสอบเรียกได้โดยตรง (ไม่ใช่ route)
+router._processSnapshot = processSnapshot
 
 module.exports = router
