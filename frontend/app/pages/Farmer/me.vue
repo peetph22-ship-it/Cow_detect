@@ -98,7 +98,7 @@
             <span>สีเขียว — สบายดี (&lt; {{ thresholds.mild }})</span>
           </div>
           <p class="text-[#166534] font-medium text-xs leading-relaxed">
-            อากาศโปร่งสบาย แม่วัวเคี้ยวเอื้องและให้นมได้ตามปกติ
+            อากาศในคอกยังต่ำกว่าระดับเริ่มอุ่นของระบบ
           </p>
         </div>
 

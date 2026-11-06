@@ -143,7 +143,7 @@ const statusTitle = computed(() => {
   if (riskLevel.value === 'severe') return 'อากาศร้อนจัดมาก แม่วัวกำลังเครียด!'
   if (riskLevel.value === 'moderate') return 'อากาศร้อน แม่วัวเริ่มอึดอัดและหอบ'
   if (riskLevel.value === 'mild') return 'อากาศเริ่มอุ่นขึ้น ควรเฝ้าระวังช่วงบ่าย'
-  return 'อากาศสบายดี แม่วัวไม่เครียด'
+  return 'อากาศในคอกสบายดี'
 })
 
 const statusMessage = computed(() => {
@@ -159,7 +159,7 @@ const statusMessage = computed(() => {
   if (riskLevel.value === 'moderate' || riskLevel.value === 'mild') {
     return 'ความร้อนสะสมในคอกเริ่มสูงขึ้น แนะนำให้เปิดพัดลมช่วยระบายอากาศ และตรวจรางน้ำดื่มให้มีน้ำสะอาดเต็มเสมอ'
   }
-  return 'สภาพอากาศในคอกร่มรื่น แม่วัวกินอาหารและนอนเคี้ยวเอื้องได้ตามปกติ'
+  return 'อากาศในคอกยังต่ำกว่าระดับเริ่มอุ่น เปิดพัดลมหมุนเวียนอากาศและเติมน้ำสะอาดตามปกติ'
 })
 
 const heroTheme = computed(() => {

@@ -262,11 +262,9 @@ async function getAlertLogs(limit = 50, farmId = null) {
         combined.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
         return combined.slice(0, limit)
     } catch (err) {
-        console.warn('[getAlertLogs fallback]:', err.message)
-        const filteredMemLogs = farmId 
-            ? inMemoryAlertLogs.filter(a => String(a.farm_id) === String(farmId))
-            : inMemoryAlertLogs
-        return filteredMemLogs.slice(0, limit)
+        console.warn('[getAlertLogs error]:', err.message)
+        // ห้ามคืนเฉพาะ log ในหน่วยความจำ เพราะหน้าแอดมินจะดูเหมือนไม่มีเหตุการณ์ ทั้งที่จริงคือดึงข้อมูลไม่ได้
+        throw err
     }
 }
 
@@ -364,7 +362,8 @@ async function getFarmsAlertSummary() {
         return results
     } catch (err) {
         console.error('[getFarmsAlertSummary Error]:', err.message)
-        return []
+        // ห้ามคืน [] เพราะหน้าแอดมินจะแสดงว่า "ไม่มีฟาร์ม" ทั้งที่จริงคือดึงข้อมูลไม่ได้
+        throw err
     }
 }
 

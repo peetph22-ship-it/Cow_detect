@@ -77,8 +77,8 @@ const loadBuckets = (farmId, days) => {
 function buildSeniorSummary(now, today, forecast, farm) {
     const risk = now?.risk_level || today?.daily_mean_level || 'normal'
     let level = 'good'
-    let title = 'อากาศสบายดี แม่วัวไม่เครียด'
-    let message = 'สภาพอากาศในคอกเหมาะสมดี แม่วัวเคี้ยวเอื้องสบาย พักผ่อนได้เต็มที่'
+    let title = 'อากาศในคอกสบายดี'
+    let message = 'อากาศในคอกยังต่ำกว่าระดับเริ่มอุ่น เปิดพัดลมหมุนเวียนอากาศและเติมน้ำสะอาดตามปกติ'
     let color = '#2D6A4F'
     let bg = '#E8F5E9'
     let icon = 'mdi-emoticon-happy-outline'
@@ -316,7 +316,7 @@ router.get('/history', verifyToken, requireFarm, async (req, res) => {
 
             // คำอธิบายภาษาง่ายๆ ตามระดับความเครียด
             let seniorStatus = 'สบายดีตลอดวัน'
-            let seniorDesc = 'อากาศในคอกร่มรื่น แม่วัวไม่เครียด กินอาหารได้ตามปกติ'
+            let seniorDesc = 'THI ในคอกไม่ถึงระดับอากาศร้อนตลอดช่วงที่มีข้อมูลของวันนั้น'
             let badgeColor = '#2D6A4F'
 
             if (d.severe_hours > 0) {
@@ -370,7 +370,20 @@ router.get('/events', verifyToken, requireFarm, async (req, res) => {
     try {
         const buckets = await loadBuckets(req.farm.id_farms, 7)
         const out = buildHeatEvents(buckets, req.thresholds, req.profile).slice(0, 40)
-        return res.json({ success: true, farm_id: req.farm.id_farms, events: out })
+        // ไม่มีข้อมูลเลยในรอบ 7 วัน: ส่งเวลาข้อมูลล่าสุดไปด้วย หน้าเว็บจะได้ไม่สรุปว่าอากาศปกติหรือกล่องทำงานปกติ
+        const lastBucket = buckets[buckets.length - 1]
+        let lastDataAt = lastBucket ? lastBucket.t : null
+        if (!lastDataAt) {
+            const { rows } = await db.query(
+                `SELECT MAX(sr.recorded_at) AS last
+                 FROM tb_sensor_readings sr
+                 LEFT JOIN tb_devices d ON d.id_devices = sr.id_devices
+                 WHERE (d.id_farms = $1 OR sr.id_farms = $1)`,
+                [req.farm.id_farms]
+            )
+            lastDataAt = rows[0]?.last || null
+        }
+        return res.json({ success: true, farm_id: req.farm.id_farms, has_data: buckets.length > 0, last_data_at: lastDataAt, events: out })
     } catch (err) {
         console.error('[Farmer API] /events error:', err.message)
         return res.status(500).json({ success: false, message: 'ดึงประวัติแจ้งเตือนไม่สำเร็จ' })

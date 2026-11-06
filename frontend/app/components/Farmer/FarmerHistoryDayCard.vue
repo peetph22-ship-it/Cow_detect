@@ -120,6 +120,6 @@ const descriptionText = computed(() => {
   if (props.day.senior_desc) return props.day.senior_desc
   if (props.day.severe_hours > 0) return 'มีช่วงที่อากาศร้อนจัด แม่วัวอาจหอบและกินอาหารลดลง ควรเปิดพัดลมและฉีดน้ำช่วย'
   if (props.day.stress_hours > 0) return 'มีช่วงที่อากาศอุ่นถึงร้อน แนะนำเปิดพัดลมช่วยระบายอากาศและเติมน้ำสะอาด'
-  return 'สภาพอากาศในคอกร่มรื่น แม่วัวกินอาหารและนอนพักผ่อนได้ตามปกติ'
+  return 'THI ในคอกไม่ถึงระดับอากาศร้อนตลอดช่วงที่มีข้อมูลของวันนั้น'
 })
 </script>

@@ -73,10 +73,23 @@
 
     </div>
 
+    <!-- ได้รายชื่อฟาร์มจากทางสำรอง แต่ไม่มีจำนวนเหตุการณ์: บอกให้ชัดว่าตัวเลข 0 ไม่ใช่ค่าจริง -->
+    <div v-if="!isLoading && alertsUnavailable" class="mb-4 px-4 py-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold">
+      ดึงจำนวนเหตุการณ์ความร้อนไม่สำเร็จ ตัวเลขเหตุการณ์ด้านล่างยังไม่ใช่ค่าจริง ลองกดรีเฟรชอีกครั้ง
+    </div>
+
     <!-- 🟢 Loading / Empty States -->
     <div v-if="isLoading" class="p-16 text-center bg-white rounded-[32px] border border-[#E4E8E5]">
       <div class="w-10 h-10 border-4 border-[#142820] border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
       <p class="text-xs font-bold text-[#718078]">กำลังโหลดข้อมูลฟาร์มและการแจ้งเตือน...</p>
+    </div>
+
+    <!-- ดึงข้อมูลไม่ได้: ห้ามแสดงเหมือน "ไม่มีฟาร์ม" -->
+    <div v-else-if="loadError" class="p-12 text-center bg-white rounded-[32px] border-2 border-rose-200">
+      <v-icon icon="mdi-database-alert-outline" size="36" class="text-rose-600 mb-2" />
+      <h3 class="text-base font-bold text-rose-800 mb-1">ดึงข้อมูลฟาร์มและการแจ้งเตือนไม่สำเร็จ</h3>
+      <p class="text-xs text-[#718078] mb-4">เซิร์ฟเวอร์หรือฐานข้อมูลอาจไม่พร้อมชั่วคราว ข้อมูลยังไม่ได้หายไป ลองใหม่อีกครั้ง</p>
+      <button @click="fetchFarmsSummary" class="px-4 py-2 rounded-xl bg-[#142820] text-white text-xs font-bold cursor-pointer">ลองใหม่</button>
     </div>
 
     <div v-else-if="filteredFarms.length === 0" class="p-16 text-center bg-white rounded-[32px] border border-[#E4E8E5]">
@@ -407,6 +420,9 @@ const stats = ref({
   farms_with_alerts: 0
 })
 const isLoading = ref(true)
+// loadError = ดึงข้อมูลไม่ได้เลย, alertsUnavailable = ได้รายชื่อฟาร์มแต่ไม่ได้จำนวนเหตุการณ์ (อย่าแสดงเป็น 0 ครั้ง)
+const loadError = ref(false)
+const alertsUnavailable = ref(false)
 const searchQuery = ref('')
 const viewMode = ref('table') // 'table' | 'grid' (เหมือนหน้า Farms)
 
@@ -414,6 +430,8 @@ const totalFarms = computed(() => farms.value.length)
 
 const fetchFarmsSummary = async () => {
   isLoading.value = true
+  loadError.value = false
+  alertsUnavailable.value = false
   try {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
     const headers = token ? { Authorization: `Bearer ${token}` } : {}
@@ -455,9 +473,11 @@ const fetchFarmsSummary = async () => {
             last_alert_at: null
           }
         })
+        alertsUnavailable.value = true
       }
     } catch (e) {
       console.error('All fallbacks failed:', e.message)
+      loadError.value = true
     }
   } finally {
     isLoading.value = false

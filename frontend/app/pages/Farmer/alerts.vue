@@ -118,6 +118,15 @@
       <button type="button" class="px-4 py-2 rounded-xl bg-[#1B4332] text-white text-xs font-bold cursor-pointer" @click="load">ลองใหม่</button>
     </div>
 
+    <!-- ไม่มีข้อมูลจากกล่องเลยในรอบ 7 วัน: ห้ามขึ้นว่าปลอดภัยหรือกล่องทำงานปกติ -->
+    <div v-else-if="!hasData" class="bg-[#FFFDF7] rounded-3xl p-6 shadow-xs border-2 border-[#FCD34D] text-center space-y-2.5">
+      <v-icon icon="mdi-access-point-network-off" size="36" class="text-[#B45309]" />
+      <p class="text-sm sm:text-base font-extrabold text-[#78350F]">ไม่มีข้อมูลจากกล่องเซ็นเซอร์ในรอบ 7 วัน</p>
+      <p class="text-xs sm:text-sm text-[#4E655B]">
+        {{ lastDataText }} จึงยังบอกไม่ได้ว่ามีช่วงอากาศร้อนหรือไม่ ตรวจปลั๊กไฟและ Wi-Fi ที่โรงเรือน
+      </p>
+    </div>
+
     <!-- กรณีไม่มีเหตุการณ์ในหมวดที่เลือก -->
     <div
       v-else-if="!filteredEvents.length"
@@ -129,7 +138,7 @@
         {{ events.length ? 'ไม่มีรายการในหมวดหมู่นี้' : 'ไม่มีเหตุการณ์ความร้อนผิดปกติในรอบ 7 วันนี้' }}
       </h2>
       <p class="text-xs text-[#3A5248] font-medium">
-        {{ events.length ? 'กดเลือกหมวด "ทั้งหมด" เพื่อดูรายการแจ้งเตือนประเภทอื่น' : 'สภาพอากาศในคอกวัวอยู่ในเกณฑ์ปลอดภัย และกล่องเซ็นเซอร์ทำงานปกติ' }}
+        {{ events.length ? 'กดเลือกหมวด "ทั้งหมด" เพื่อดูรายการแจ้งเตือนประเภทอื่น' : 'ไม่มีช่วงที่ THI ถึงระดับอากาศร้อนต่อเนื่อง 30 นาทีขึ้นไป และไม่มีช่วงสัญญาณขาดหายเกิน 15 นาที' }}
       </p>
     </div>
 
@@ -174,7 +183,7 @@
 </template>
 
 <script setup>
-import { useFarmer, thaiDate } from '~/composables/useFarmer'
+import { useFarmer, thaiDate, thaiTime } from '~/composables/useFarmer'
 
 definePageMeta({ layout: 'farmer' })
 useHead({ title: 'แจ้งเตือน | CowCare ฟาร์มโคนม' })
@@ -239,12 +248,20 @@ const groups = computed(() => {
 })
 
 const loadError = ref(false)
+// มีข้อมูลจากกล่องในรอบ 7 วันไหม (API ส่ง has_data และเวลาข้อมูลล่าสุดมาให้)
+const hasData = ref(true)
+const lastDataAt = ref(null)
+const lastDataText = computed(() => lastDataAt.value
+  ? `ได้รับข้อมูลล่าสุดเมื่อ ${thaiDate(lastDataAt.value, { day: 'numeric', month: 'short', year: '2-digit' })} เวลา ${thaiTime(lastDataAt.value)} น.`
+  : 'ยังไม่เคยได้รับข้อมูลจากกล่องเซ็นเซอร์ของฟาร์มนี้')
 const load = async () => {
   loadingEvents.value = true
   loadError.value = false
   try {
     const res = await request('events')
     events.value = res?.events || []
+    hasData.value = res?.has_data !== false
+    lastDataAt.value = res?.last_data_at || null
   } catch (err) {
     loadError.value = true
     console.error('Error loading events:', err.message)
