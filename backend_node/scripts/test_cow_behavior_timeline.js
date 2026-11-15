@@ -103,7 +103,7 @@ const server = app.listen(0, async () => {
         assert.strictEqual(empty.cow, null); assert.deepStrictEqual(empty.bouts, []); assert.strictEqual(empty.thi.length, 288)
 
         const noImages = (await get(`/${FARM}/cow-behavior?date=2026-10-01`)).body.cow_behavior
-        assert.strictEqual(noImages.cow.id, COW); assert.strictEqual(noImages.summary, null); assert.ok(/ยังไม่มีภาพ/.test(noImages.note_th))
+        assert.strictEqual(noImages.cow.id, COW); assert.strictEqual(noImages.summary, null); assert.ok(/ไม่มีภาพของวัวตัวนี้ในวันที่เลือก/.test(noImages.note_th))
 
         console.log('cow_behavior_timeline_test: all passed')
     } catch (e) {

@@ -65,7 +65,7 @@ const getCowBehaviorDay = async (farm, { date, cowId } = {}) => {
     `, [cow.id_cows, METHOD, new Date(from.getTime() - PAD_MS).toISOString(), new Date(to.getTime() + PAD_MS).toISOString()])
 
     const cowOut = { id: cow.id_cows, tag_id: cow.tag_id, name: cow.name_cows }
-    if (!rows.length) return { ...base, cow: cowOut, bouts: [], summary: null, interval_sec: null, note_th: 'วันนี้ยังไม่มีภาพของวัวตัวนี้' }
+    if (!rows.length) return { ...base, cow: cowOut, bouts: [], summary: null, interval_sec: null, note_th: 'ไม่มีภาพของวัวตัวนี้ในวันที่เลือก' }
 
     const { bouts, intervalSec } = buildBouts(rows.map(r => ({ observedAt: r.observed_at, behavior: r.behavior })))
     const summary = summarizeBouts(bouts, from, to)

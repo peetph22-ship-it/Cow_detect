@@ -151,7 +151,8 @@ const summarizeBouts = (bouts, from, to) => {
         const min = (e - s) / 60e3
         minutes[b.behavior] = (minutes[b.behavior] || 0) + min
         if (b.behavior in counts) counts[b.behavior]++
-        if (b.behavior === 'lying') longestLyingMin = Math.max(longestLyingMin, b.durationMin)
+        // นับเฉพาะส่วนที่อยู่ในช่วงนี้ (รอบที่ต่อจากเมื่อวานจะไม่ยาวกว่าเวลานอนรวมของวัน)
+        if (b.behavior === 'lying') longestLyingMin = Math.max(longestLyingMin, min)
     }
     const coveredMin = Object.values(minutes).reduce((a, b) => a + b, 0)
     for (const k of Object.keys(minutes)) minutes[k] = round1(minutes[k])

@@ -1477,6 +1477,9 @@
 
     </div>
 
+    <!-- 🟢 4.6 พฤติกรรมวัวรายตัว (ติดตามวัว 1 ตัวจากภาพกล้อง) เทียบ THI วันเดียวกัน -->
+    <CowBehaviorTimeline v-if="farmId" :farm-id="farmId" class="animate-fade-up delay-250" />
+
     <!-- 🟢 5. 24-Hour Telemetry Audit Table (ประวัติการตรวจวัด) -->
     <div class="bg-white/80 backdrop-blur-xl rounded-[32px] p-6 md:p-8 border border-white/90 shadow-[0_8px_30px_rgba(36,67,58,0.04)] space-y-4 animate-fade-up delay-250">
       
@@ -1613,6 +1616,7 @@ import AdminEditFarmModal from '~/components/Admin/farm/EditFarmModal.vue'
 import AddCameraModal from '~/components/Admin/cctv/AddCameraModal.vue'
 import SystemAccuracyModal from '~/components/Admin/cctv/SystemAccuracyModal.vue'
 import CameraAuditAndThiAnalysis from '~/components/Admin/cctv/CameraAuditAndThiAnalysis.vue'
+import CowBehaviorTimeline from '~/components/Admin/cctv/CowBehaviorTimeline.vue'
 import HeatMethodNote from '~/components/common/HeatMethodNote.vue'
 import { calcThi, getRiskLevel, getThresholds, normalizeProfile, RISK_LABELS_TH, PROFILE_LABELS } from '~/utils/heatStress'
 

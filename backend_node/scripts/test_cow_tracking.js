@@ -54,7 +54,7 @@ const day = summarizeBouts(bouts, at(0), at(360))
 // ช่วงแรกเริ่มก่อนภาพแรกครึ่งรอบ (30 วิ) ซึ่งอยู่นอกช่วงที่สรุป จึงถูกตัด 0.5 นาที
 assert.deepStrictEqual(day.minutes, { lying: 211.5, standing: 85, feeding: 60, drinking: 0, not_visible: 3 })
 assert.deepStrictEqual(day.bouts, { lying: 3, standing: 2, feeding: 1, drinking: 0 })
-assert.strictEqual(day.longestLyingMin, 90)
+assert.strictEqual(day.longestLyingMin, 89.5)   // รอบแรกถูกตัดที่ขอบช่วงเหมือนกัน
 
 // --- 2) ตัดตามช่วงเวลา: ช่วงที่คร่อมขอบนับเฉพาะส่วนที่อยู่ในช่วง
 // จุดเปลี่ยนท่าอยู่กึ่งกลางระหว่างภาพ: นอน→ยืน ที่นาที 89.5, ยืน→กิน ที่ 139.5
