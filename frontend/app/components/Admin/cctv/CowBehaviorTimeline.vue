@@ -44,9 +44,21 @@
     </div>
 
     <template v-else>
+      <!-- ท่าปัจจุบัน: อยู่ท่านี้มานานเท่าไร -->
+      <div v-if="data.current" class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl px-4 py-3 border"
+        :style="{ background: ROW[data.current.behavior].color + '12', borderColor: ROW[data.current.behavior].color + '40' }">
+        <span class="w-2.5 h-2.5 rounded-full animate-pulse" :style="{ background: ROW[data.current.behavior].color }"></span>
+        <span class="text-sm font-black text-[#24433a]">
+          ตอนนี้{{ ROW[data.current.behavior].label }}มาแล้ว {{ fmtDur(data.current.minutes) }}
+        </span>
+        <span class="text-xs text-[#718078] font-medium">
+          ตั้งแต่ {{ sinceText(data.current.since) }} · ภาพล่าสุด {{ sinceText(data.current.last_image_at) }}
+        </span>
+      </div>
+
       <!-- แถบเวลาของแต่ละท่า -->
       <ClientOnly>
-        <ApexChart type="rangeBar" height="230" :options="timelineOptions" :series="timelineSeries" />
+        <ApexChart type="rangeBar" height="270" :options="timelineOptions" :series="timelineSeries" />
         <!-- THI วันเดียวกัน ใช้แกนเวลาเดียวกัน -->
         <ApexChart v-if="thiSeries[0].data.length" type="line" height="170" :options="thiOptions" :series="thiSeries" />
         <p v-else class="text-xs text-center text-[#718078] py-2">วันนี้ไม่มีข้อมูล THI จากเซ็นเซอร์</p>
@@ -56,7 +68,7 @@
       </ClientOnly>
 
       <!-- การ์ดสรุปรายวัน -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
         <div v-for="c in summaryCards" :key="c.key" class="rounded-2xl p-4 border" :style="{ background: c.color + '12', borderColor: c.color + '33' }">
           <div class="flex items-center gap-1.5 text-xs font-bold" :style="{ color: c.color }">
             <span class="w-2.5 h-2.5 rounded-full" :style="{ background: c.color }"></span>{{ c.label }}
@@ -70,6 +82,7 @@
       <div class="text-[11px] text-[#718078] leading-relaxed bg-[#f8faf9] rounded-2xl px-4 py-3 space-y-1">
         <p>มีภาพของวัวตัวนี้ {{ fmtDur(data.summary.covered_min) }} จาก {{ fmtDur(data.summary.window_min) }}</p>
         <p>{{ data.note_th }}</p>
+        <p v-if="data.movement_note_th">{{ data.movement_note_th }}</p>
       </div>
     </template>
   </div>
@@ -96,8 +109,10 @@ const ROWS = [
   { key: 'lying', label: 'นอน', color: '#3b82f6' },
   { key: 'standing', label: 'ยืน', color: '#f97316' },
   { key: 'feeding', label: 'กิน', color: '#10b981' },
+  { key: 'moving', label: 'เคลื่อนที่', color: '#8b5cf6' },
   { key: 'not_visible', label: 'ไม่เห็นในภาพ', color: '#a6b5aa' }
 ]
+const ROW = Object.fromEntries(ROWS.map(r => [r.key, r]))
 const AXIS_LABEL_WIDTH = 92   // กว้างเท่ากันทั้ง 2 กราฟ แกนเวลาจะได้ตรงกัน
 // จอมือถือ: ขีดเวลาทุก 6 ชม. และป้ายแกนแคบลง (ทั้ง 2 กราฟเท่ากัน)
 const MOBILE = [{ breakpoint: 640, options: { xaxis: { tickAmount: 4 }, yaxis: { labels: { minWidth: 88, maxWidth: 88 } } } }]
@@ -147,13 +162,21 @@ watch(() => props.farmId, fetchData)
 onMounted(fetchData)
 
 // ทุกแถวแสดงเสมอ (แม้วันนั้นไม่มีท่านั้น) ด้วยจุดความยาว 0 ที่มองไม่เห็น
-const timelineSeries = computed(() => ROWS.map(r => ({
-  name: r.label,
-  data: [
-    { x: r.label, y: [windowMs.value[0], windowMs.value[0]], bout: null },
-    ...bouts.value.filter(b => b.behavior === r.key).map(b => ({ x: r.label, y: [bkk(b.start), bkk(b.end)], bout: b }))
-  ]
-})))
+const timelineSeries = computed(() => ROWS.map(r => {
+  const items = r.key === 'moving' ? (data.value?.movement || []) : bouts.value.filter(b => b.behavior === r.key)
+  return {
+    name: r.label,
+    data: [
+      { x: r.label, y: [windowMs.value[0], windowMs.value[0]], bout: null },
+      ...items.map(b => ({ x: r.label, y: [bkk(b.start), bkk(b.end)], bout: b }))
+    ]
+  }
+}))
+
+const sinceText = (iso) => {
+  const t = bkk(iso)
+  return `${new Date(t).toISOString().slice(11, 16)}${t < windowMs.value[0] ? ' เมื่อวาน' : ''}`
+}
 
 const xaxis = computed(() => ({
   type: 'datetime',
@@ -182,7 +205,13 @@ const timelineOptions = computed(() => ({
       const p = w.config.series[seriesIndex].data[dataPointIndex]
       if (!p?.bout) return ''
       const b = p.bout
-      const extra = [b.from_previous_day && 'ต่อจากเมื่อวาน', b.to_next_day && 'ต่อไปวันถัดไป'].filter(Boolean).join(' · ')
+      const extra = [
+        // ปัดนาทีก่อนลบ เดิน + ยืนนิ่ง จะได้เท่ากับเวลารวมที่แสดงพอดี
+        b.moving_min != null && `เดิน ${fmtDur(b.moving_min)} · ยืนนิ่ง ${fmtDur(Math.round(b.duration_min) - Math.round(b.moving_min))}`,
+        b.distance_body != null && `ระยะประมาณ ${b.distance_body} ช่วงตัว`,
+        b.from_previous_day && 'ต่อจากเมื่อวาน',
+        b.to_next_day && 'ต่อไปวันถัดไป'
+      ].filter(Boolean).join('<br>')
       return `<div style="padding:8px 12px;font-size:12px;line-height:1.6">
         <b style="color:${ROWS[seriesIndex].color}">${ROWS[seriesIndex].label}</b><br>
         ${fmtTime(p.y[0])} – ${fmtTime(p.y[1])} · ${fmtDur(b.duration_min)}
@@ -241,10 +270,11 @@ const summaryCards = computed(() => {
   const s = data.value?.summary
   if (!s) return []
   return [
-    { ...ROWS[0], total: fmtDur(s.minutes.lying), detail: `${s.bouts.lying} รอบ · นานสุด ${fmtDur(s.longest_lying_min)}` },
-    { ...ROWS[1], total: fmtDur(s.minutes.standing), detail: `${s.bouts.standing} รอบ (รวมเวลาดื่มน้ำ)` },
-    { ...ROWS[2], total: fmtDur(s.minutes.feeding), detail: `${s.bouts.feeding} รอบ` },
-    { ...ROWS[3], total: fmtDur(s.minutes.not_visible), detail: 'หาวัวตัวนี้ในภาพไม่เจอ' }
+    { ...ROW.lying, total: fmtDur(s.minutes.lying), detail: `${s.bouts.lying} รอบ · นานสุด ${fmtDur(s.longest_lying_min)}` },
+    { ...ROW.standing, total: fmtDur(s.minutes.standing), detail: `${s.bouts.standing} รอบ (รวมเวลาดื่มน้ำ)` },
+    { ...ROW.feeding, total: fmtDur(s.minutes.feeding), detail: `${s.bouts.feeding} รอบ` },
+    { ...ROW.moving, total: fmtDur(s.moving_min), detail: `${s.moves} ครั้ง · ระยะประมาณ ${s.distance_body} ช่วงตัว` },
+    { ...ROW.not_visible, total: fmtDur(s.minutes.not_visible), detail: 'หาวัวตัวนี้ในภาพไม่เจอ' }
   ]
 })
 </script>

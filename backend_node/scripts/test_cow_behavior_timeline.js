@@ -105,6 +105,22 @@ const server = app.listen(0, async () => {
         const noImages = (await get(`/${FARM}/cow-behavior?date=2026-10-01`)).body.cow_behavior
         assert.strictEqual(noImages.cow.id, COW); assert.strictEqual(noImages.summary, null); assert.ok(/ไม่มีภาพของวัวตัวนี้ในวันที่เลือก/.test(noImages.note_th))
 
+        // แถวจำลองไม่มีกรอบ: ไม่มีช่วงเคลื่อนที่ และใช้เกณฑ์ตั้งต้น
+        assert.deepStrictEqual(d.movement, []); assert.strictEqual(d.summary.moving_min, 0)
+        assert.strictEqual(d.summary.moving_threshold_source, 'default'); assert.ok(d.movement_note_th.includes('25%'))
+        assert.strictEqual(d.bouts[1].moving_min, 0); assert.strictEqual(d.bouts[0].moving_min, null)
+        assert.strictEqual(d.current, null, 'past day has no current posture')
+
+        // ท่าปัจจุบัน: ภาพล่าสุด 00:59 ยืนตั้งแต่ 23:29:30 เมื่อวาน
+        const { getCowBehaviorDay } = require('../app/services/cowBehaviorTimeline')
+        const farmRow = { id_farms: FARM, hf_profile: null }
+        const live = await getCowBehaviorDay(farmRow, { date: '2026-11-16', now: new Date(bkk('2026-11-16T01:00:30')) })
+        assert.deepStrictEqual(live.current, {
+            behavior: 'standing', since: new Date(bkk('2026-11-15T23:29:30')).toISOString(), minutes: 91, last_image_at: new Date(bkk('2026-11-16T00:59:00')).toISOString()
+        })
+        const stale = await getCowBehaviorDay(farmRow, { date: '2026-11-16', now: new Date(bkk('2026-11-16T03:00:00')) })
+        assert.strictEqual(stale.current, null, 'no current posture when the last image is old')
+
         console.log('cow_behavior_timeline_test: all passed')
     } catch (e) {
         console.error(e); process.exitCode = 1

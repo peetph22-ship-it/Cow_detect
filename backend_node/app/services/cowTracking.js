@@ -4,15 +4,20 @@
  * ข้อมูลเข้า: กรอบจาก cctv_behavior_telemetry.detections ของแต่ละภาพ (พิกัดเป็นสัดส่วน 0-1 ของภาพ)
  * ผลลัพธ์: แถวสำหรับ tb_cow_behavior_observations (1 ภาพ = 1 แถว) และช่วงพฤติกรรมสำหรับกราฟ
  *
- * วิธี position-v1: กล้องติดอยู่กับที่ จึงจับคู่วัวข้ามภาพจากตำแหน่ง
+ * วิธี position-v2: กล้องติดอยู่กับที่ จึงจับคู่วัวข้ามภาพจากตำแหน่ง
  * - เลือกกรอบในภาพใหม่ที่ซ้อน/ใกล้ตำแหน่งล่าสุดของวัวเป้าหมายมากที่สุด
+ * - วัวกำลังเดิน: เทียบกับตำแหน่งที่คาดว่าจะไปถึงตามทิศและความเร็วล่าสุดด้วย (v1 ไม่มีข้อนี้ จึงหลุดง่ายตอนเดิน)
  * - ไม่มีกรอบที่ใกล้พอ หรือมี 2 กรอบใกล้พอ ๆ กัน (เสี่ยงสลับตัว) = "ไม่เห็นในภาพ" ไม่เดา
  * - หายจากภาพนานเกิน maxLostSec = หลุดการติดตาม ต้องเลือกวัวใหม่ (ยังไม่มีการจำลายหรือเครื่องหมาย)
+ *
+ * การเคลื่อนที่ (buildMovement): ระยะที่ "ตำแหน่งเท้า" (กลางขอบล่างของกรอบ) ขยับระหว่าง 2 ภาพ เทียบกับขนาดตัว
+ * นับเฉพาะเมื่อทั้ง 2 ภาพเป็นท่ายืน/กิน/ดื่ม (ตอนลุกหรือลงนอนกรอบเปลี่ยนรูป ไม่ใช่การเดิน)
+ * เกณฑ์ = สูงกว่าการสั่นของกรอบที่วัดได้ตอนวัวนอนนิ่ง (กล้องแต่ละตัวสั่นไม่เท่ากัน)
  */
 
 const { iou } = require('./visionPostprocess')
 
-const METHOD = 'position-v1'
+const METHOD = 'position-v2'
 
 const TRACK_DEFAULTS = Object.freeze({
     minScore: 0.3,          // คะแนนต่ำกว่านี้ไม่ถือว่าเป็นตัวเดิม
@@ -44,12 +49,14 @@ const matchScore = (prev, box, maxShift) => {
 /**
  * @param {{x1,y1,x2,y2}} prev  ตำแหน่งล่าสุดของวัวเป้าหมาย
  * @param {Array<{cls,x1,y1,x2,y2}>} boxes  กรอบทั้งหมดในภาพใหม่
+ * @param {{predicted?: {x1,y1,x2,y2}}} opts  predicted = ตำแหน่งที่คาดไว้ตอนวัวเดิน (ใช้คะแนนที่ดีกว่าระหว่าง 2 ตำแหน่ง)
  * @returns {{box, score} | {box: null, reason: 'none'|'ambiguous'}}
  */
 const matchTarget = (prev, boxes, opts = {}) => {
     const o = { ...TRACK_DEFAULTS, ...opts }
+    const score = (box) => Math.max(matchScore(prev, box, o.maxShift), o.predicted ? matchScore(o.predicted, box, o.maxShift) : 0)
     const scored = (boxes || [])
-        .map(box => ({ box, score: matchScore(prev, box, o.maxShift) }))
+        .map(box => ({ box, score: score(box) }))
         .filter(s => s.score >= o.minScore)
         .sort((a, b) => b.score - a.score)
     if (!scored.length) return { box: null, reason: 'none' }
@@ -66,11 +73,15 @@ const matchTarget = (prev, boxes, opts = {}) => {
 const trackTarget = (frames, seed, opts = {}) => {
     const o = { ...TRACK_DEFAULTS, ...opts }
     let last = { box: seed.box, at: toMs(seed.at) }
+    let velocity = null   // การขยับของกรอบต่อมิลลิวินาที จาก 2 ภาพล่าสุดที่เจอวัว
     const observations = []
     for (const f of frames) {
         const at = toMs(f.observedAt)
         if (at - last.at > o.maxLostSec * 1000) return { observations, lostAt: new Date(at).toISOString() }
-        const m = matchTarget(last.box, f.boxes, o)
+        // คาดตำแหน่งไม่เกิน 2 รอบถ่ายภาพล่าสุด (หายนานกว่านั้น วัวอาจหยุดหรือเลี้ยวไปแล้ว)
+        const dt = velocity ? Math.min(at - last.at, 2 * velocity.stepMs) : 0
+        const predicted = velocity ? shiftBox(last.box, velocity.dx * dt, velocity.dy * dt) : null
+        const m = matchTarget(last.box, f.boxes, { ...o, predicted })
         const base = { observedAt: new Date(at).toISOString(), telemetryId: f.telemetryId ?? null, cameraId: f.cameraId ?? null, method: METHOD }
         if (!m.box) {
             observations.push({ ...base, behavior: 'not_visible', box: null, matchScore: null })
@@ -78,10 +89,17 @@ const trackTarget = (frames, seed, opts = {}) => {
         }
         const { x1, y1, x2, y2 } = m.box
         observations.push({ ...base, behavior: CLASS_TO_BEHAVIOR[m.box.cls] || 'not_visible', box: { x1, y1, x2, y2 }, matchScore: Math.round(m.score * 1000) / 1000 })
+        const stepMs = at - last.at
+        const c0 = center(last.box)
+        const c1 = center({ x1, y1, x2, y2 })
+        velocity = stepMs > 0 ? { dx: (c1.x - c0.x) / stepMs, dy: (c1.y - c0.y) / stepMs, stepMs } : null
         last = { box: { x1, y1, x2, y2 }, at }
     }
     return { observations, lostAt: null }
 }
+
+const center = (b) => ({ x: (b.x1 + b.x2) / 2, y: (b.y1 + b.y2) / 2 })
+const shiftBox = (b, dx, dy) => ({ x1: b.x1 + dx, y1: b.y1 + dy, x2: b.x2 + dx, y2: b.y2 + dy })
 
 const medianGap = (times) => {
     const gaps = times.slice(1).map((t, i) => t - times[i]).filter(g => g > 0).sort((a, b) => a - b)
@@ -159,4 +177,82 @@ const summarizeBouts = (bouts, from, to) => {
     return { minutes, bouts: counts, longestLyingMin: round1(longestLyingMin), coveredMin: round1(coveredMin), windowMin: round1((t - f) / 60e3) }
 }
 
-module.exports = { METHOD, TRACK_DEFAULTS, BOUT_DEFAULTS, matchScore, matchTarget, trackTarget, buildBouts, summarizeBouts }
+const MOVE_DEFAULTS = Object.freeze({
+    defaultThreshold: 0.25, // ใช้เมื่อยังมีช่วงวัวนอนไม่พอให้วัดการสั่นของกรอบ (เท่าของขนาดตัว)
+    minThreshold: 0.1,
+    maxThreshold: 0.5,
+    noiseFactor: 2,         // เกณฑ์ = 2 เท่าของการสั่นระดับ 95% ตอนวัวนอนนิ่ง
+    minNoisePairs: 20,
+    maxGapFactor: 2.5
+})
+
+const UPRIGHT = new Set(['standing', 'feeding', 'drinking'])
+const foot = (b) => ({ x: (b.x1 + b.x2) / 2, y: b.y2 })
+const bodySize = (b) => Math.hypot(b.x2 - b.x1, b.y2 - b.y1)
+// ระยะที่เท้าขยับ หน่วยเป็น "เท่าของขนาดตัว" (เส้นทแยงกรอบ) วัวใกล้หรือไกลกล้องจึงเทียบกันได้
+const step = (a, b) => Math.hypot(foot(b).x - foot(a).x, foot(b).y - foot(a).y) / ((bodySize(a) + bodySize(b)) / 2)
+
+/**
+ * ช่วงที่วัวเคลื่อนที่ จากแถวที่เรียงตามเวลา (ต้องมี box)
+ * ช่วงเคลื่อนที่ = ระหว่าง 2 ภาพที่เท้าขยับเกินเกณฑ์ (รู้แค่ว่าขยับระหว่าง 2 ภาพนี้ ไม่รู้เส้นทางจริง)
+ * @returns {{segments: Array<{start, end, durationMin, distanceBody}>, thresholdBody: number, thresholdSource: 'measured'|'default'}}
+ */
+const buildMovement = (observations, opts = {}) => {
+    const o = { ...MOVE_DEFAULTS, ...opts }
+    const times = observations.map(x => toMs(x.observedAt))
+    const maxGap = (o.intervalSec ? o.intervalSec * 1000 : medianGap(times)) * o.maxGapFactor
+    const pairs = []
+    for (let i = 1; i < observations.length; i++) {
+        const a = observations[i - 1]
+        const b = observations[i]
+        if (a.box && b.box && times[i] - times[i - 1] <= maxGap) pairs.push({ i, a, b, d: step(a.box, b.box) })
+    }
+
+    const noise = pairs.filter(p => p.a.behavior === 'lying' && p.b.behavior === 'lying').map(p => p.d).sort((x, y) => x - y)
+    const measured = noise.length >= o.minNoisePairs
+    const threshold = measured
+        ? Math.min(o.maxThreshold, Math.max(o.minThreshold, noise[Math.floor(noise.length * 0.95)] * o.noiseFactor))
+        : o.defaultThreshold
+
+    const segments = []
+    let cur = null
+    for (const p of pairs) {
+        const moving = UPRIGHT.has(p.a.behavior) && UPRIGHT.has(p.b.behavior) && p.d > threshold
+        if (moving && cur && cur.endIdx === p.i - 1) { cur.endIdx = p.i; cur.distance += p.d; continue }
+        if (cur) segments.push(cur)
+        cur = moving ? { startIdx: p.i - 1, endIdx: p.i, distance: p.d } : null
+    }
+    if (cur) segments.push(cur)
+
+    return {
+        segments: segments.map(s => ({
+            start: new Date(times[s.startIdx]).toISOString(),
+            end: new Date(times[s.endIdx]).toISOString(),
+            durationMin: round1((times[s.endIdx] - times[s.startIdx]) / 60e3),
+            distanceBody: round1(s.distance)
+        })),
+        thresholdBody: Math.round(threshold * 100) / 100,
+        thresholdSource: measured ? 'measured' : 'default'
+    }
+}
+
+// นาทีที่เคลื่อนที่ในช่วง [from, to) และระยะ (คิดตามสัดส่วนเวลาถ้าช่วงถูกตัดขอบ)
+const movementWithin = (segments, from, to) => {
+    const f = toMs(from)
+    const t = toMs(to)
+    let minutes = 0, distance = 0, moves = 0
+    for (const s of segments) {
+        const s0 = toMs(s.start), s1 = toMs(s.end)
+        const a = Math.max(s0, f), b = Math.min(s1, t)
+        if (b <= a) continue
+        minutes += (b - a) / 60e3
+        distance += s.distanceBody * ((b - a) / Math.max(1, s1 - s0))
+        moves++
+    }
+    return { movingMin: round1(minutes), distanceBody: round1(distance), moves }
+}
+
+module.exports = {
+    METHOD, TRACK_DEFAULTS, BOUT_DEFAULTS, MOVE_DEFAULTS,
+    matchScore, matchTarget, trackTarget, buildBouts, summarizeBouts, buildMovement, movementWithin
+}

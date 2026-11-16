@@ -1,6 +1,6 @@
 // ทดสอบ services/cowTracking (ติดตามวัวเป้าหมาย + ช่วงพฤติกรรม) ด้วยข้อมูลจำลอง: node backend_node/scripts/test_cow_tracking.js
 const assert = require('assert')
-const { trackTarget, matchTarget, buildBouts, summarizeBouts } = require('../app/services/cowTracking')
+const { trackTarget, matchTarget, buildBouts, summarizeBouts, buildMovement, movementWithin } = require('../app/services/cowTracking')
 
 const T0 = Date.parse('2026-11-11T17:00:00Z')   // 00:00 เวลาไทย
 const at = (min) => new Date(T0 + min * 60e3).toISOString()
@@ -36,7 +36,7 @@ assert.strictEqual(observations.length, 360)
 const wrong = observations.filter((o, i) => o.behavior !== truth[i]).map((o, i) => i)
 assert.deepStrictEqual(wrong, [], 'every frame tracked as the target cow, no switch to the neighbour')
 assert.strictEqual(observations[50].box, null); assert.strictEqual(observations[50].matchScore, null)
-assert.ok(observations[0].matchScore > 0.8 && observations[0].telemetryId === 1000 && observations[0].method === 'position-v1')
+assert.ok(observations[0].matchScore > 0.8 && observations[0].telemetryId === 1000 && observations[0].method === 'position-v2')
 
 const { bouts, intervalSec } = buildBouts(observations)
 assert.strictEqual(intervalSec, 60)
@@ -91,5 +91,30 @@ assert.strictEqual(summarizeBouts(gap.bouts, at(-1), at(60)).coveredMin, 20)
 // --- 7) หาย 1 ภาพระหว่างท่าต่างกัน = ไม่เดาว่าเป็นท่าไหน
 const mixed = ['lying', 'lying', 'not_visible', 'standing', 'standing'].map((b, m) => ({ observedAt: at(m), behavior: b }))
 assert.deepStrictEqual(buildBouts(mixed).bouts.map(b => b.behavior), ['lying', 'not_visible', 'standing'])
+
+// --- 8) เดินเร็ว (ขยับเท่าความกว้างตัวต่อภาพ): ไม่ทำนายจะหลุด ทำนายทิศทางแล้วติดตามได้ตลอด
+const walkSteps = [0, 0.04, 0.08, 0.12, 0.12, 0.12, 0.12, 0.12]
+let wx = 0.15
+const walkFrames = walkSteps.map((s, m) => { wx += s; return { observedAt: at(m), boxes: [stand('standing', wx, 0.45), lie(0.85, 0.85)] } })
+const walk = trackTarget(walkFrames, { box: stand('standing', 0.15, 0.45), at: at(0) })
+assert.deepStrictEqual(walk.observations.map(o => o.behavior), Array(8).fill('standing'), 'fast walk tracked with prediction')
+const prevWalk = stand('standing', 0.5, 0.45)
+assert.strictEqual(matchTarget(prevWalk, [stand('standing', 0.62, 0.45)]).reason, 'none', 'same step is lost without prediction')
+
+// --- 9) การเคลื่อนที่: เกณฑ์จากการสั่นตอนนอน, ยืนนิ่งไม่นับ, เดินนับ, ลุกจากนอนไม่นับ
+const mv = []
+for (let m = 0; m < 60; m++) mv.push({ observedAt: at(m), behavior: 'lying', box: lie(0.49, 0.625) })
+for (let m = 60; m < 80; m++) mv.push({ observedAt: at(m), behavior: 'standing', box: stand('standing', 0.30, 0.55) })        // ยืนนิ่ง (ลุกที่นาที 60 ไม่นับ)
+for (let m = 80; m < 85; m++) mv.push({ observedAt: at(m), behavior: 'standing', box: stand('standing', 0.30 + 0.15 * (m - 79), 0.55) })   // เดิน 5 ภาพ
+for (let m = 85; m < 100; m++) mv.push({ observedAt: at(m), behavior: 'feeding', box: stand('feeding', 1.05, 0.55) })          // กินนิ่ง
+mv.push({ observedAt: at(100), behavior: 'lying', box: lie(0.70, 0.62) })   // ลงนอน กรอบเปลี่ยนรูป ไม่นับ
+const move = buildMovement(mv)
+assert.strictEqual(move.thresholdSource, 'measured')
+assert.ok(move.thresholdBody >= 0.1 && move.thresholdBody < 0.25, `threshold from lying jitter: ${move.thresholdBody}`)
+assert.deepStrictEqual(move.segments.map(s => [s.durationMin, s.start, s.end]), [[5, at(79), at(84)]])
+assert.ok(Math.abs(move.segments[0].distanceBody - 5 * 0.15 / Math.hypot(0.12, 0.30)) < 0.3)
+assert.deepStrictEqual(movementWithin(move.segments, at(60), at(85)), { movingMin: 5, distanceBody: move.segments[0].distanceBody, moves: 1 })
+assert.strictEqual(movementWithin(move.segments, at(0), at(60)).movingMin, 0)
+assert.strictEqual(buildMovement(mv.slice(55, 90)).thresholdSource, 'default', 'too little lying to measure jitter')
 
 console.log('cow_tracking_test: all passed')
