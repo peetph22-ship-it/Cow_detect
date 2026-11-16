@@ -78,6 +78,57 @@
         </div>
       </div>
 
+      <!-- รายละเอียดแต่ละช่วง: เวลา นานเท่าไร และ THI ระหว่างช่วงนั้น -->
+      <details open class="rounded-2xl border border-[#e5ece9] bg-white/60">
+        <summary class="cursor-pointer select-none px-4 py-3 text-sm font-black text-[#24433a]">
+          รายละเอียดแต่ละช่วง พร้อมค่า THI ({{ tableRows.length }} ช่วง)
+        </summary>
+        <div class="px-4 pb-4 space-y-3">
+          <div class="flex flex-wrap gap-1.5">
+            <button v-for="f in [{ key: 'all', label: 'ทั้งหมด' }, ...ROWS.filter(r => r.key !== 'not_visible')]" :key="f.key" type="button"
+              class="px-3 py-1 rounded-full text-xs font-bold border cursor-pointer transition-colors"
+              :class="tableFilter === f.key ? 'bg-[#24433a] text-white border-[#24433a]' : 'bg-white text-[#4e6057] border-[#e5ece9] hover:border-[#24433a]/40'"
+              @click="tableFilter = f.key">
+              {{ f.label }}
+            </button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full min-w-[560px] text-xs">
+              <thead>
+                <tr class="text-left text-[#718078] border-b border-[#e5ece9]">
+                  <th class="py-2 pr-3 font-bold">ท่า</th>
+                  <th class="py-2 pr-3 font-bold">ช่วงเวลา</th>
+                  <th class="py-2 pr-3 font-bold">นาน</th>
+                  <th class="py-2 pr-3 font-bold">THI เฉลี่ย</th>
+                  <th class="py-2 pr-3 font-bold">THI ต่ำสุด–สูงสุด</th>
+                  <th class="py-2 font-bold">หมายเหตุ</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="r in tableRows" :key="r.behavior + r.start" class="border-b border-[#f0f4f2] last:border-0">
+                  <td class="py-2 pr-3 font-bold whitespace-nowrap" :style="{ color: ROW[r.behavior].color }">
+                    <span class="inline-block w-2 h-2 rounded-full mr-1.5" :style="{ background: ROW[r.behavior].color }"></span>{{ ROW[r.behavior].label }}
+                  </td>
+                  <td class="py-2 pr-3 whitespace-nowrap text-[#24433a]">{{ fmtTime(bkk(r.start)) }} – {{ fmtTime(bkk(r.end)) }}</td>
+                  <td class="py-2 pr-3 whitespace-nowrap text-[#24433a]">{{ fmtDur(r.duration_min) }}</td>
+                  <td class="py-2 pr-3 whitespace-nowrap font-bold" :style="{ color: r.thi?.above ? ABOVE_COLOR[r.thi.above] : '#24433a' }">
+                    {{ r.thi ? r.thi.avg : '-' }}
+                    <span v-if="r.thi?.above" class="font-medium">({{ ABOVE_LABEL[r.thi.above] }})</span>
+                  </td>
+                  <td class="py-2 pr-3 whitespace-nowrap text-[#4e6057]">{{ r.thi ? `${r.thi.min}–${r.thi.max}` : 'ไม่มีข้อมูล' }}</td>
+                  <td class="py-2 text-[#718078]">{{ rowNote(r) }}</td>
+                </tr>
+                <tr v-if="!tableRows.length"><td colspan="6" class="py-4 text-center text-[#718078]">ไม่มีช่วงของท่านี้ในวันที่เลือก</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="text-[11px] text-[#718078]">
+            THI ของแต่ละช่วงคิดจากค่าเฉลี่ยทุก 5 นาทีของเซ็นเซอร์ในคอกที่อยู่ในช่วงนั้น · "ถึงเกณฑ์" เป็นการเทียบค่า THI กับเส้นเกณฑ์ของฟาร์ม
+            (เกณฑ์ในงานวิจัยกำหนดจาก THI เฉลี่ยทั้งวัน จึงไม่ได้แปลว่าวัวเครียดในช่วงนั้น)
+          </p>
+        </div>
+      </details>
+
       <!-- หมายเหตุ -->
       <div class="text-[11px] text-[#718078] leading-relaxed bg-[#f8faf9] rounded-2xl px-4 py-3 space-y-1">
         <p>มีภาพของวัวตัวนี้ {{ fmtDur(data.summary.covered_min) }} จาก {{ fmtDur(data.summary.window_min) }}</p>
@@ -173,6 +224,31 @@ const timelineSeries = computed(() => ROWS.map(r => {
   }
 }))
 
+const ABOVE_LABEL = { mild: 'เฝ้าระวัง', moderate: 'เครียดจากความร้อน', severe: 'วิกฤต' }
+const ABOVE_COLOR = { mild: '#d97706', moderate: '#ea580c', severe: '#e11d48' }
+const aboveText = (thi) => (thi?.above ? `ถึงเกณฑ์${ABOVE_LABEL[thi.above]} (${data.value.thresholds[thi.above]})` : '')
+const thiText = (thi) => {
+  if (!thi) return 'ไม่มีข้อมูล THI ช่วงนี้'
+  const range = thi.min === thi.max ? '' : ` (${thi.min}–${thi.max})`
+  return `THI เฉลี่ย ${thi.avg}${range}${thi.above ? ` · ${aboveText(thi)}` : ''}`
+}
+
+// ตารางรายละเอียด: ทุกช่วงที่จับเวลาได้ เรียงตามเวลา (ไม่รวม "ไม่เห็นในภาพ")
+const tableFilter = ref('all')
+const tableRows = computed(() => {
+  const rows = [
+    ...bouts.value.filter(b => b.behavior !== 'not_visible'),
+    ...(data.value?.movement || []).map(m => ({ ...m, behavior: 'moving' }))
+  ].filter(r => tableFilter.value === 'all' || r.behavior === tableFilter.value)
+  return rows.sort((a, b) => new Date(a.start) - new Date(b.start))
+})
+const rowNote = (r) => [
+  r.moving_min != null && r.moving_min > 0 && `เดิน ${fmtDur(r.moving_min)}`,
+  r.distance_body != null && `≈ ${r.distance_body} ช่วงตัว`,
+  r.from_previous_day && 'ต่อจากเมื่อวาน',
+  r.to_next_day && 'ต่อไปวันถัดไป'
+].filter(Boolean).join(' · ')
+
 const sinceText = (iso) => {
   const t = bkk(iso)
   return `${new Date(t).toISOString().slice(11, 16)}${t < windowMs.value[0] ? ' เมื่อวาน' : ''}`
@@ -206,6 +282,7 @@ const timelineOptions = computed(() => ({
       if (!p?.bout) return ''
       const b = p.bout
       const extra = [
+        thiText(b.thi),
         // ปัดนาทีก่อนลบ เดิน + ยืนนิ่ง จะได้เท่ากับเวลารวมที่แสดงพอดี
         b.moving_min != null && `เดิน ${fmtDur(b.moving_min)} · ยืนนิ่ง ${fmtDur(Math.round(b.duration_min) - Math.round(b.moving_min))}`,
         b.distance_body != null && `ระยะประมาณ ${b.distance_body} ช่วงตัว`,

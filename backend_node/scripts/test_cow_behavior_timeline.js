@@ -26,6 +26,7 @@ for (let t = bkk('2026-11-14T23:00:00'); t < bkk('2026-11-16T01:00:00'); t += 60
 }
 
 const queries = []
+let mockThi = 78.04
 const dbPath = require.resolve(path.resolve(__dirname, '../app/config/db'))
 require.cache[dbPath] = {
     id: dbPath, filename: dbPath, loaded: true,
@@ -41,7 +42,7 @@ require.cache[dbPath] = {
             }
             if (sql.includes('tb_sensor_readings')) {
                 const rows = []
-                for (let t = new Date(p[1]).getTime(); t < new Date(p[2]).getTime(); t += 5 * 60e3) rows.push({ t: new Date(t), temp: 30, hum: 70, thi: 78.04, n: 20, serial_no: 'X' })
+                for (let t = new Date(p[1]).getTime(); t < new Date(p[2]).getTime(); t += 5 * 60e3) rows.push({ t: new Date(t), temp: 30, hum: 70, thi: mockThi, n: 20, serial_no: 'X' })
                 return { rows }
             }
             throw new Error('unexpected query: ' + sql.slice(0, 80))
@@ -105,6 +106,10 @@ const server = app.listen(0, async () => {
         const noImages = (await get(`/${FARM}/cow-behavior?date=2026-10-01`)).body.cow_behavior
         assert.strictEqual(noImages.cow.id, COW); assert.strictEqual(noImages.summary, null); assert.ok(/ไม่มีภาพของวัวตัวนี้ในวันที่เลือก/.test(noImages.note_th))
 
+        // THI ของแต่ละช่วง (ข้อมูลจำลอง THI คงที่ 78.04 ทั้งวัน)
+        assert.deepStrictEqual(d.bouts[0].thi, { avg: 78, max: 78, min: 78, above: 'moderate' })
+        assert.ok(d.bouts.every(b => b.thi && b.thi.avg === 78), 'every bout has THI for its own time range')
+
         // แถวจำลองไม่มีกรอบ: ไม่มีช่วงเคลื่อนที่ และใช้เกณฑ์ตั้งต้น
         assert.deepStrictEqual(d.movement, []); assert.strictEqual(d.summary.moving_min, 0)
         assert.strictEqual(d.summary.moving_threshold_source, 'default'); assert.ok(d.movement_note_th.includes('25%'))
@@ -120,6 +125,12 @@ const server = app.listen(0, async () => {
         })
         const stale = await getCowBehaviorDay(farmRow, { date: '2026-11-16', now: new Date(bkk('2026-11-16T03:00:00')) })
         assert.strictEqual(stale.current, null, 'no current posture when the last image is old')
+
+        // ป้ายเกณฑ์ตัดสินจากค่าที่แสดง: 75.96 แสดงเป็น 76 ต้องเป็นเกณฑ์ 76 ไม่ใช่ 74
+        mockThi = 75.96
+        const edge = await getCowBehaviorDay(farmRow, { date: '2026-11-15' })
+        assert.deepStrictEqual(edge.bouts[0].thi, { avg: 76, max: 76, min: 76, above: 'moderate' })
+        mockThi = 78.04
 
         console.log('cow_behavior_timeline_test: all passed')
     } catch (e) {

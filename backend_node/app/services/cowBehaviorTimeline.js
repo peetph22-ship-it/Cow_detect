@@ -5,11 +5,12 @@
  * - movement: ช่วงที่วัวเคลื่อนที่ (เท้าขยับเกินเกณฑ์ระหว่าง 2 ภาพ ตอนยืน/กิน) และนาทีที่เดินในแต่ละรอบยืน
  * - current: ท่าปัจจุบันและอยู่ท่านี้มานานเท่าไร (เฉพาะวันนี้ และภาพล่าสุดยังไม่เก่า)
  * - thi: ค่าเฉลี่ย THI ทุก 5 นาทีของวันเดียวกัน (ชุดเดียวกับหน้าฟาร์ม จาก heatMetrics)
+ *   แต่ละช่วงพฤติกรรม/เคลื่อนที่มี thi ของช่วงนั้นด้วย (เฉลี่ย ต่ำสุด สูงสุด)
  * ช่วงที่ไม่มีแถบเลย = ไม่มีภาพจากกล้อง ไม่เดาค่า
  */
 const db = require('../config/db')
 const { METHOD, BOUT_DEFAULTS, buildBouts, summarizeBouts, buildMovement, movementWithin } = require('./cowTracking')
-const { loadBuckets, bkkDate, round1 } = require('./heatMetrics')
+const { loadBuckets, bkkDate, round1, BUCKET_MIN } = require('./heatMetrics')
 const { getFarmProfile, getThresholds } = require('./heatStress')
 
 // ดึงภาพก่อน/หลังวันเผื่อไว้ จุดตัดช่วงที่เที่ยงคืนจะได้คำนวณจากภาพทั้ง 2 ฝั่ง
@@ -84,11 +85,22 @@ const getCowBehaviorDay = async (farm, { date, cowId, now = new Date() } = {}) =
         return { s, e, start: new Date(s).toISOString(), end: new Date(e).toISOString(), duration_min: round1((e - s) / 60e3) }
     }
     const inDay = (item) => new Date(item.end) > from && new Date(item.start) < to
+    // THI ระหว่างช่วงนั้น จากค่าเฉลี่ย 5 นาทีที่คาบเกี่ยวกับช่วง (ไม่มีข้อมูลเซ็นเซอร์ = null)
+    // above = เกณฑ์สูงสุดที่ THI เฉลี่ยของช่วงถึง (บอกแค่การเทียบค่า เกณฑ์ในงานวิจัยกำหนดจาก THI เฉลี่ยรายวัน)
+    const thiDuring = (s, e) => {
+        const vals = buckets.filter(b => b.t.getTime() < e && b.t.getTime() + BUCKET_MIN * 60e3 > s).map(b => b.thi)
+        if (!vals.length) return null
+        // ตัดสินเกณฑ์จากค่าที่ปัดแล้ว ตัวเลขที่แสดงกับป้ายเกณฑ์จะได้ตรงกัน (75.96 แสดงเป็น 76.0 ต้องถึงเกณฑ์ 76)
+        const avg = round1(vals.reduce((a, v) => a + v, 0) / vals.length)
+        const above = avg >= thresholds.severe ? 'severe' : avg >= thresholds.moderate ? 'moderate' : avg >= thresholds.mild ? 'mild' : null
+        return { avg, max: round1(Math.max(...vals)), min: round1(Math.min(...vals)), above }
+    }
     const clipped = bouts.filter(inDay).map(b => {
         const { s, e, ...c } = clip(b)
         return {
             behavior: b.behavior,
             ...c,
+            thi: thiDuring(s, e),
             // นาทีที่เดินในรอบยืน/กินนี้ (รอบนอนไม่มี)
             moving_min: b.behavior === 'standing' || b.behavior === 'feeding' ? movementWithin(segments, s, e).movingMin : null,
             from_previous_day: new Date(b.start) < from,
@@ -97,7 +109,7 @@ const getCowBehaviorDay = async (farm, { date, cowId, now = new Date() } = {}) =
     })
     const movement = segments.filter(inDay).map(m => {
         const { s, e, ...c } = clip(m)
-        return { ...c, distance_body: round1(m.distanceBody * ((e - s) / Math.max(1, new Date(m.end) - new Date(m.start)))) }
+        return { ...c, thi: thiDuring(s, e), distance_body: round1(m.distanceBody * ((e - s) / Math.max(1, new Date(m.end) - new Date(m.start)))) }
     })
 
     // ท่าปัจจุบัน: เฉพาะเมื่อดูวันนี้ และภาพล่าสุดไม่เก่ากว่าช่วงที่ถือว่ากล้องยังส่งภาพ
