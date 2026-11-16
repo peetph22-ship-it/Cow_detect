@@ -15,6 +15,7 @@ const { getCameraBehavior } = require('../../services/cameraBehavior')
 const { getFarm24h } = require('../../services/farmHistory')
 const { dailySeries, stressStreak, bkkDate } = require('../../services/heatMetrics')
 const { getFarmOutdoorComparison } = require('../../services/outdoorWeather')
+const { getCowBehaviorDay, dayWindow } = require('../../services/cowBehaviorTimeline')
 
 // คอลัมน์กล้องที่ส่งกลับให้หน้าเว็บได้ (ไม่มี password_encrypted)
 const CAMERA_PUBLIC_COLUMNS = `id, farm_id, camera_name, barn_unit, brand, model, ip_address, rtsp_port, http_port,
@@ -961,6 +962,29 @@ router.get('/:id/outdoor-weather', verifyToken, requireRole('admin'), async (req
     } catch (err) {
         console.error('[Outdoor Weather Route] error:', err.message)
         return res.status(500).json({ success: false, message: 'ดึงข้อมูลอากาศภายนอกไม่สำเร็จ' })
+    }
+})
+
+// GET: /api/Admin/farms/:id/cow-behavior?date=YYYY-MM-DD&cowId=uuid
+// พฤติกรรมวัวเป้าหมาย 1 วัน (นอน/ยืน/กิน/ไม่เห็นในภาพ) + THI วันเดียวกัน สำหรับกราฟหน้ารายละเอียดฟาร์ม
+router.get('/:id/cow-behavior', verifyToken, requireRole('admin'), async (req, res) => {
+    try {
+        const { id } = req.params
+        const { date, cowId } = req.query
+        if (!isUUID(id)) return res.status(400).json({ success: false, message: 'id ฟาร์มไม่ถูกต้อง' })
+        if (cowId && !isUUID(cowId)) return res.status(400).json({ success: false, message: 'id วัวไม่ถูกต้อง' })
+        // new Date รับ 2026-02-30 แล้วเลื่อนเป็นเดือนถัดไป จึงเทียบกลับว่าเป็นวันเดิม
+        if (date && (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(dayWindow(date).from.getTime()) || bkkDate(dayWindow(date).from) !== date)) {
+            return res.status(400).json({ success: false, message: 'วันที่ต้องอยู่ในรูปแบบ YYYY-MM-DD' })
+        }
+        const { rows } = await db.query(`SELECT * FROM tb_farms WHERE id_farms = $1 AND deleted_at IS NULL LIMIT 1`, [id])
+        if (!rows.length) return res.status(404).json({ success: false, message: 'ไม่พบข้อมูลฟาร์ม' })
+        const cow_behavior = await getCowBehaviorDay(rows[0], { date, cowId })
+        if (cowId && !cow_behavior.cow) return res.status(404).json({ success: false, message: 'ไม่พบวัวตัวนี้ในฟาร์ม' })
+        return res.json({ success: true, cow_behavior })
+    } catch (err) {
+        console.error('[Cow Behavior Route] error:', err.message)
+        return res.status(500).json({ success: false, message: 'ดึงข้อมูลพฤติกรรมวัวไม่สำเร็จ' })
     }
 })
 

@@ -33,6 +33,7 @@ router.get('/', verifyToken, requireRole('admin'), async (req, res) => {
                 to_jsonb(d)->>'fw_version' AS fw_version,
                 to_jsonb(d)->>'last_heartbeat_at' AS last_heartbeat_at,
                 to_jsonb(d)->'health' AS health,
+                (to_jsonb(d)->>'camera_interval_sec')::int AS camera_interval_sec,
                 f.id_farms,
                 f.name_farms,
                 f.province,
@@ -220,6 +221,13 @@ router.put('/:id', verifyToken, requireRole('admin'), async (req, res) => {
         const { id } = req.params
         const { name_devices, serial_no, type, id_farms, status } = req.body
 
+        // รอบถ่ายภาพกล้อง (วินาที) ส่งมา = ตั้งค่า, null = กลับไปใช้ค่าในเฟิร์มแวร์, ไม่ส่งมา = ไม่แก้
+        const hasInterval = Object.prototype.hasOwnProperty.call(req.body, 'camera_interval_sec')
+        const interval = req.body.camera_interval_sec == null || req.body.camera_interval_sec === '' ? null : Number(req.body.camera_interval_sec)
+        if (hasInterval && interval !== null && !(Number.isInteger(interval) && interval >= 15 && interval <= 3600)) {
+            return res.status(400).json({ success: false, message: 'รอบถ่ายภาพต้องเป็นจำนวนเต็ม 15–3600 วินาที' })
+        }
+
         let farmUuid = null
         if (id_farms && isUUID(id_farms)) {
             farmUuid = id_farms
@@ -246,6 +254,19 @@ router.put('/:id', verifyToken, requireRole('admin'), async (req, res) => {
 
         if (updateRes.rows.length === 0) {
             return res.status(404).json({ success: false, message: 'ไม่พบอุปกรณ์ที่ต้องการแก้ไข' })
+        }
+
+        if (hasInterval) {
+            try {
+                await db.query(`UPDATE tb_devices SET camera_interval_sec = $1 WHERE id_devices = $2`, [interval, id])
+                updateRes.rows[0].camera_interval_sec = interval
+            } catch (err) {
+                if (err.code !== '42703') throw err
+                return res.status(409).json({
+                    success: false,
+                    message: 'บันทึกข้อมูลอุปกรณ์แล้ว แต่ตั้งรอบถ่ายภาพไม่ได้: ต้องรัน migrations/20261116_device_camera_interval.sql ก่อน'
+                })
+            }
         }
 
         res.json({
