@@ -379,6 +379,19 @@
               </select>
             </div>
 
+            <div v-if="isEditMode">
+              <label class="block text-xs font-bold text-[#142820] mb-1.5">ถ่ายภาพจากกล้องทุก</label>
+              <select
+                v-model="formDevice.camera_interval_sec"
+                class="w-full px-4 py-2.5 bg-[#F6F7F5] border border-[#E4E8E5] rounded-xl text-xs font-medium text-[#142820] focus:outline-none focus:border-[#142820] focus:bg-white">
+                <option v-for="o in CAMERA_INTERVALS" :key="String(o.value)" :value="o.value">{{ o.label }}</option>
+              </select>
+              <p class="text-[11px] text-[#718078] mt-1.5 leading-relaxed">
+                กล่องจะใช้รอบใหม่หลังส่งภาพครั้งถัดไป ไม่ต้องไปแฟลชที่ฟาร์ม (เฟิร์มแวร์ 1.5.0 ขึ้นไป<template v-if="formDevice.fw_version"> · กล่องนี้ {{ formDevice.fw_version }}</template>)
+                · ถี่กว่า 1 นาที server ฟรีประมวลผลไม่ทัน ภาพบางส่วนจะถูกข้าม
+              </p>
+            </div>
+
             <div class="flex items-center justify-end gap-3 pt-3">
               <button
                 type="button"
@@ -426,6 +439,15 @@ const searchQuery = ref('')
 
 const showDeviceModal = ref(false)
 const isEditMode = ref(false)
+// null = ใช้ค่าที่ตั้งในเฟิร์มแวร์ (ปกติ 10 นาที)
+const CAMERA_INTERVALS = [
+  { value: null, label: 'ตามค่าในเฟิร์มแวร์ (ปกติ 10 นาที)' },
+  { value: 30, label: '30 วินาที' },
+  { value: 60, label: '1 นาที' },
+  { value: 120, label: '2 นาที' },
+  { value: 300, label: '5 นาที' },
+  { value: 600, label: '10 นาที' }
+]
 const formDevice = ref({
   id_devices: null,
   name_devices: '',
@@ -514,7 +536,9 @@ const openEditModal = (dev) => {
     name_devices: dev.name_devices,
     serial_no: dev.serial_no,
     type: dev.type || 'env_sensor',
-    id_farms: dev.id_farms || null
+    id_farms: dev.id_farms || null,
+    camera_interval_sec: dev.camera_interval_sec ?? null,
+    fw_version: dev.fw_version || null
   }
   showDeviceModal.value = true
 }

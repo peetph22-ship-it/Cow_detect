@@ -71,13 +71,15 @@ const char* CAMERA_USER          = CAMERA_USER_VAL;
 const char* CAMERA_PASS          = CAMERA_PASS_VAL;
 const char* CAMERA_SNAPSHOT_PATH = CAMERA_SNAPSHOT_PATH_VAL;
 const unsigned long CAM_INTERVAL_MS = (unsigned long)max(1, CAMERA_INTERVAL_MIN_VAL) * 60UL * 1000UL;
+// รอบที่ใช้จริง: เริ่มจากค่าข้างบน แล้วเปลี่ยนตาม next_interval_sec ที่ server ตอบกลับ (ตั้งได้จากหน้าเว็บ ไม่ต้องแฟลชใหม่)
+volatile unsigned long camIntervalMs = CAM_INTERVAL_MS;
 const size_t CAM_BUF_PSRAM = 1536UL * 1024UL;  // server รับไม่เกิน 2MB
 const size_t CAM_BUF_HEAP  = 200UL * 1024UL;   // บอร์ดที่ไม่ได้เปิด PSRAM
 
 const unsigned long readInterval   = 2000;   // อ่านเซ็นเซอร์ทุก 2 วินาที
 const unsigned long sampleInterval = 15000;  // บันทึก/ส่งทุก 15 วินาที
 const unsigned long HEARTBEAT_MS = 5UL * 60UL * 1000UL;  // รายงานสถานะกล่องทุก 5 นาที
-const char* FW_VERSION = "1.4.1";
+const char* FW_VERSION = "1.5.0";  // 1.5.0: รอบถ่ายภาพตั้งจากหน้าเว็บได้ (next_interval_sec)
 
 // เวลา: กองทัพเรือ (มาตรฐานเวลาไทย) เป็นหลัก, pool.ntp.org สำรอง
 const char* NTP_PRIMARY   = "time.navy.mi.th";
@@ -548,6 +550,20 @@ String camUploadUrl() {
   return base + "/camera/snapshot";
 }
 
+// อ่าน "next_interval_sec":N จากคำตอบ server (ไม่มี หรือค่าเกินช่วง 15–3600 วินาที = ใช้รอบเดิม)
+void applyServerInterval(const String& body) {
+  const char* key = "\"next_interval_sec\":";
+  int i = body.indexOf(key);
+  if (i < 0) return;
+  long s = body.substring(i + strlen(key)).toInt();
+  if (s < 15 || s > 3600) return;
+  unsigned long ms = (unsigned long)s * 1000UL;
+  if (ms != camIntervalMs) {
+    Serial.printf("[CAM] interval from server: %ld s\n", s);
+    camIntervalMs = ms;
+  }
+}
+
 int camUpload(const uint8_t* buf, size_t len, uint32_t capturedAt) {
   WiFiClientSecure client;
   secureClient(client);
@@ -559,7 +575,11 @@ int camUpload(const uint8_t* buf, size_t len, uint32_t capturedAt) {
   http.addHeader("X-Device-Key", DEVICE_KEY);
   http.addHeader("X-Captured-At", String((unsigned long)capturedAt));
   int code = http.POST((uint8_t*)buf, len);
-  if (code > 0 && code != 202) Serial.println("[CAM] server: " + http.getString());
+  if (code > 0) {
+    String body = http.getString();
+    if (code != 202) Serial.println("[CAM] server: " + body);
+    applyServerInterval(body);  // 202 และ 429 มีรอบที่ตั้งจากหน้าเว็บมาด้วย
+  }
   http.end();
   return code;
 }
@@ -608,15 +628,15 @@ void cameraTask(void*) {
     vTaskDelete(nullptr);
     return;
   }
-  Serial.printf("[CAM] buffer %u KB in %s, snapshot every %lu min\n", (unsigned)(cap / 1024),
-                ps ? "PSRAM" : "heap (enable PSRAM for big images)", CAM_INTERVAL_MS / 60000UL);
+  Serial.printf("[CAM] buffer %u KB in %s, snapshot every %lu s (until the server sends another interval)\n", (unsigned)(cap / 1024),
+                ps ? "PSRAM" : "heap (enable PSRAM for big images)", CAM_INTERVAL_MS / 1000UL);
   BufStream bs(mem, cap);
   bool first = true;
   unsigned long lastShot = 0;
   for (;;) {
     vTaskDelay(pdMS_TO_TICKS(1000));
     if (WiFi.status() != WL_CONNECTED || !timeSynced()) continue;
-    if (!first && millis() - lastShot < CAM_INTERVAL_MS) continue;
+    if (!first && millis() - lastShot < camIntervalMs) continue;
     first = false;
     lastShot = millis();
     cameraRound(bs);

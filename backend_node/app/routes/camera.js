@@ -6,6 +6,7 @@
  *   headers: X-Device-Serial, X-Device-Key, X-Captured-At (Unix epoch UTC วินาที, ไม่บังคับ)
  *
  * ESP32 ดึงภาพนิ่งจากกล้องทุก CAMERA_INTERVAL_MIN_VAL นาที (ค่าเริ่มต้น 10) แล้วส่งมาที่นี่ -> ตอบ 202 ทันที -> YOLO (worker thread) เบื้องหลัง
+ * ถ้าตั้งรอบถ่ายภาพจากหน้าเว็บ (tb_devices.camera_interval_sec) คำตอบจะมี next_interval_sec ให้กล่องใช้รอบใหม่
  * -> บันทึกจำนวนวัวต่อพฤติกรรม -> ทิ้งภาพ
  * ตอบทันทีเพราะบน Render ฟรี (CPU 0.1) YOLO ใช้ ~30 วินาที/รูป ถ้าให้บอร์ดรอ HTTPS จะค้างนานและงานส่งเซ็นเซอร์ต้องรอตาม
  * เก็บภาพตัวอย่างชั่วโมงละ 1 รูป พร้อมผลของโมเดลกับภาพนั้น (services/cameraSamples.js)
@@ -37,6 +38,17 @@ const resolveDevice = async (req) => {
     return rows[0] ? { id: rows[0].id_devices, farmId: rows[0].id_farms, serial } : null
 }
 
+// to_jsonb: ยังไม่ได้รัน migration 20261116 ก็ไม่ error (ได้ null = ใช้ค่าในเฟิร์มแวร์)
+const getCameraInterval = async (deviceId) => {
+    try {
+        const { rows } = await db.query(`SELECT (to_jsonb(d)->>'camera_interval_sec')::int AS s FROM tb_devices d WHERE id_devices = $1`, [deviceId])
+        return rows[0]?.s || null
+    } catch (err) {
+        console.warn('[Camera] read camera interval failed:', err.message)
+        return null
+    }
+}
+
 router.post(
     '/snapshot',
     parseJpeg,
@@ -63,13 +75,17 @@ router.post(
             return res.status(404).json({ success: false, message: 'ไม่พบอุปกรณ์หรืออุปกรณ์ยังไม่ผูกกับฟาร์ม' })
         }
 
+        // รอบถ่ายภาพที่ตั้งจากหน้าเว็บ ส่งกลับไปให้กล่องใช้รอบถัดไป (ไม่มีค่า = กล่องใช้ค่าในเฟิร์มแวร์)
+        const interval = await getCameraInterval(device.id)
+        const next = interval ? { next_interval_sec: interval } : {}
+
         if (!vision.canAccept()) {
             res.set('Retry-After', '60')
-            return res.status(429).json({ success: false, message: 'กำลังประมวลผลภาพก่อนหน้า ลองใหม่ภายหลัง' })
+            return res.status(429).json({ success: false, message: 'กำลังประมวลผลภาพก่อนหน้า ลองใหม่ภายหลัง', ...next })
         }
 
         const jpeg = req.body
-        res.status(202).json({ success: true, accepted: true, captured_at: Math.floor(capturedAt.getTime() / 1000) })
+        res.status(202).json({ success: true, accepted: true, captured_at: Math.floor(capturedAt.getTime() / 1000), ...next })
 
         // ประมวลผลเบื้องหลัง (บอร์ดไม่ต้องรอ) ผลลัพธ์ดูได้จากตาราง cctv_behavior_telemetry
         processSnapshot(device, capturedAt, jpeg).catch(err => console.error('[Camera] processing failed:', err.message))
