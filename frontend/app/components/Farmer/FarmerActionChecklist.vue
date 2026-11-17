@@ -23,7 +23,8 @@
     </div>
 
     <!-- รายการคำแนะนำ 4 ข้อ (Read-only Cards) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    <!-- จอ lg การ์ดนี้กว้างแค่ครึ่งจอ 2 คอลัมน์จะบีบข้อความ: ใช้ 1 คอลัมน์ แล้วกลับเป็น 2 คอลัมน์ที่จอ 2xl -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 2xl:grid-cols-2 gap-3">
       <div
         v-for="act in adviceList"
         :key="act.id"

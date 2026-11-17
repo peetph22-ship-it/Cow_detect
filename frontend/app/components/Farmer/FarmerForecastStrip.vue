@@ -13,7 +13,7 @@
             พยากรณ์อากาศในคอกล่วงหน้า 3 วัน
           </h2>
           <p class="text-xs text-[#64766D] font-medium">
-            เตรียมเปิดพัดลมและสำรองน้ำดื่มล่วงหน้าโดยไม่ต้องอ่านกราฟ
+            เส้นทึบคือค่าจริง 7 วันที่ผ่านมา เส้นประคือค่าที่คาดการณ์
           </p>
         </div>
       </div>
@@ -24,6 +24,15 @@
         {{ forecast.method_th }}
       </span>
     </div>
+
+    <!-- กราฟ THI เฉลี่ยรายวัน: 7 วันจริง ต่อด้วยพยากรณ์ 3 วัน (ค่าเฉลี่ยทั้งวันเหมือนกัน เทียบกันได้) -->
+    <FarmerRiskLegend v-if="forecastDays.length && hasPast" />
+    <ApexChart
+      v-if="chartHeight && forecastDays.length && hasPast"
+      type="line"
+      :height="chartHeight"
+      :options="trendOptions"
+      :series="trendSeries" />
 
     <!-- กรณีมีรายการพยากรณ์รายวัน (forecast.days) -->
     <div v-if="forecastDays.length" class="grid grid-cols-1 md:grid-cols-3 gap-3.5">
@@ -77,8 +86,9 @@
 
 <script setup>
 import { useFarmer } from '~/composables/useFarmer'
+import { thiRange, thiBands, baseChart, AXIS_LABEL, thaiDay, levelName, LEVEL_COLOR } from '~/utils/farmerCharts'
 
-const { forecast, senior } = useFarmer()
+const { forecast, senior, charts, thresholds } = useFarmer()
 
 const forecastDays = computed(() => forecast.value?.days || [])
 const simpleForecastText = computed(() => (forecastDays.value.length ? senior.value?.forecast_simple || '' : ''))
@@ -86,6 +96,79 @@ const insufficientReason = computed(() => {
   if (forecastDays.value.length) return ''
   if (forecast.value?.insufficient_data) return forecast.value.reason || 'กำลังสะสมข้อมูลเซ็นเซอร์เพื่อพยากรณ์ล่วงหน้า'
   return 'ยังไม่มีพยากรณ์ล่วงหน้า (ระบบต้องใช้ข้อมูลเซ็นเซอร์ในคอกเพื่อปรับพยากรณ์)'
+})
+
+// ---------- กราฟแนวโน้ม ----------
+const past = computed(() => charts.value?.week || [])
+const hasPast = computed(() => past.value.some(d => d.has_data))
+// ตั้งความสูงก่อนวาดกราฟครั้งแรก (เปลี่ยนความสูงหลังวาดแล้ว ApexCharts บนมือถือไม่วาดกราฟ)
+const chartHeight = ref(0)
+onMounted(() => { chartHeight.value = window.innerWidth < 640 ? 210 : 240 })
+
+// จุดในกราฟ: [ค่าจริง 7 วัน..., พยากรณ์ 3 วัน...]
+// มือถือมี 10 จุดในความกว้าง ~300px: ป้ายสั้นเหลือแค่วันที่/วันนี้/+1 วัน (รายละเอียดอยู่ใน tooltip)
+const compact = computed(() => chartHeight.value > 0 && chartHeight.value < 240)
+const trendPoints = computed(() => [
+  ...past.value.map(d => ({
+    label: compact.value
+      ? (d.is_today ? 'วันนี้' : String(Number(d.date.slice(8))))
+      : (d.is_today ? [thaiDay(d.date), 'วันนี้'] : [thaiDay(d.date)]),
+    tip: `${thaiDay(d.date)}${d.is_today ? ' (วันนี้ ถึงตอนนี้)' : ''}`,
+    thi: d.has_data ? d.avg_thi : null,
+    level: d.has_data ? d.risk_level : null,
+    forecast: false
+  })),
+  ...forecastDays.value.map((d, i) => ({
+    label: compact.value ? `+${d.horizon_days || i + 1}` : [dayTitle(d, i).replace(/\s*\(.*\)$/, ''), 'คาดการณ์'],
+    tip: `${d.date || dayTitle(d, i)} (คาดการณ์)`,
+    thi: d.predicted_thi,
+    level: d.risk_level,
+    forecast: true
+  }))
+])
+
+const trendSeries = computed(() => {
+  const pts = trendPoints.value
+  const nPast = past.value.length
+  // เส้นประเริ่มจากค่าจริงวันล่าสุด ให้สองเส้นต่อกัน
+  return [
+    { name: 'ค่าจริง', data: pts.map((p, i) => (i < nPast ? p.thi : null)) },
+    { name: 'คาดการณ์', data: pts.map((p, i) => (i >= nPast ? p.thi : (i === nPast - 1 ? p.thi : null))) }
+  ]
+})
+
+const trendOptions = computed(() => {
+  const t = thresholds.value
+  const pts = trendPoints.value
+  const range = thiRange(pts.map(p => p.thi), t)
+  return {
+    chart: { ...baseChart, type: 'line' },
+    colors: ['#142820', '#D87939'],
+    stroke: { width: [3, 3], curve: 'straight', dashArray: [0, 6] },
+    markers: { size: [5, 5], strokeColors: '#fff', strokeWidth: 2, hover: { size: 7 } },
+    dataLabels: { enabled: false },
+    xaxis: {
+      categories: pts.map(p => p.label),
+      labels: { rotate: 0, hideOverlappingLabels: false, style: { ...AXIS_LABEL, fontSize: '10px' } },
+      axisTicks: { show: false },
+      tooltip: { enabled: false }
+    },
+    yaxis: { min: range.min, max: range.max, tickAmount: 4, decimalsInFloat: 0, labels: { style: AXIS_LABEL, formatter: v => String(Math.round(v)) } },
+    annotations: { yaxis: thiBands(t, range) },
+    grid: { borderColor: '#f0f4f2', strokeDashArray: 4, padding: { left: 4, right: 8 } },
+    legend: { position: 'top', horizontalAlign: 'left', fontSize: '12px', fontWeight: 700 },
+    tooltip: {
+      shared: false,
+      intersect: true,
+      custom: ({ dataPointIndex }) => {
+        const p = pts[dataPointIndex]
+        if (!p) return ''
+        if (p.thi == null) return `<div style="padding:8px 10px;font-size:12px"><b>${p.tip}</b><div>ไม่มีข้อมูลจากกล่องเซ็นเซอร์</div></div>`
+        return `<div style="padding:8px 10px;font-size:12px;line-height:1.5"><div style="font-weight:800">${p.tip}</div>
+          <div>THI เฉลี่ยทั้งวัน <b>${p.thi}</b> · <span style="color:${LEVEL_COLOR[p.level] || '#142820'};font-weight:800">${levelName(p.level)}</span></div></div>`
+      }
+    }
+  }
 })
 
 const dayTitle = (d, idx) => {

@@ -92,6 +92,8 @@ export const useFarmer = () => {
   const streak = computed(() => me.value?.streak || null)
   const camera = computed(() => me.value?.camera || null)
   const device = computed(() => me.value?.device || null)
+  // ข้อมูลกราฟ (หลังบ้านเก่าที่ไม่มี charts: กราฟจะแสดงว่าไม่มีข้อมูล)
+  const charts = computed(() => me.value?.charts || { hourly: [], week: [] })
 
   const token = () => (typeof window !== 'undefined' ? localStorage.getItem('token') : null)
 
@@ -331,6 +333,7 @@ export const useFarmer = () => {
     streak,
     camera,
     device,
+    charts,
     loading,
     loaded,
     error,

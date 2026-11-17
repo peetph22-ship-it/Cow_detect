@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-5 sm:space-y-6">
-    <!-- แถวที่ 1 (Bento Row 1): การ์ดสถานะคอกตอนนี้ (7 คอลัมน์) + คำแนะนำคลายร้อนและช่วงเวลาสำคัญ (5 คอลัมน์) -->
+    <!-- 1. ตอนนี้เป็นยังไง: สถานะคอก + คำแนะนำคลายร้อนตามความชื้น -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-stretch">
       <div class="lg:col-span-7">
         <FarmerHeroStatusCard />
@@ -10,7 +10,13 @@
       </div>
     </div>
 
-    <!-- แถวที่ 2 (Bento Row 2): คำแนะนำการดูแลแม่วัวในคอก (6 คอลัมน์) + สรุป 24 ชม. และกล้อง AI (6 คอลัมน์) -->
+    <!-- 2. วันนี้ร้อนช่วงไหน: กราฟ THI รายชั่วโมง 24 ชม. -->
+    <FarmerThi24hChart />
+
+    <!-- 3. อีก 3 วันจะเป็นยังไง: กราฟ 7 วันจริงต่อพยากรณ์ + การ์ดรายวัน -->
+    <FarmerForecastStrip />
+
+    <!-- 4. ต้องทำอะไร + กล้อง AI -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-stretch">
       <div class="lg:col-span-6">
         <FarmerActionChecklist />
@@ -20,8 +26,9 @@
       </div>
     </div>
 
-    <!-- แถวที่ 3 (Bento Row 3): พยากรณ์ล่วงหน้า 3 วัน + ปุ่มโทรด่วนหาสัตวแพทย์ -->
-    <FarmerForecastStrip />
+    <!-- 5. สัปดาห์นี้เป็นยังไง: ชั่วโมงร้อนรายวัน -->
+    <FarmerWeekHeatChart />
+
     <FarmerVetCallButton />
   </div>
 </template>

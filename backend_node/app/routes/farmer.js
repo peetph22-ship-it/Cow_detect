@@ -4,7 +4,7 @@
  * ทุก route: ข้อมูลเฉพาะฟาร์มของผู้ที่ login (เจ้าของฟาร์ม tb_farms.id_users หรือสมาชิก tb_farm_members)
  *   ?farm_id=<uuid>  เลือกฟาร์ม (กรณีมีหลายฟาร์ม) admin ใช้ดูตัวอย่างหน้าเกษตรกรของฟาร์มใดก็ได้
  *
- * GET  /api/farmer/me             สภาพอากาศตอนนี้ + คำแนะนำสำหรับผู้สูงอายุ + 24 ชม. + พยากรณ์
+ * GET  /api/farmer/me             สภาพอากาศตอนนี้ + คำแนะนำสำหรับผู้สูงอายุ + 24 ชม. + พยากรณ์ + ข้อมูลกราฟ (charts)
  * GET  /api/farmer/history        สรุปรายวัน 7 วัน พร้อมคำอธิบายภาษาชาวบ้านเข้าใจง่าย
  * GET  /api/farmer/events         ประวัติเหตุการณ์เตือนความร้อน 7 วัน
  */
@@ -19,6 +19,7 @@ const { generateBaselineForecast } = require('../services/forecastService')
 const { getCameraBehavior } = require('../services/cameraBehavior')
 const { summarizeHealth } = require('../services/deviceHealth')
 const { buildHeatEvents } = require('../services/heatEvents')
+const { hourlyThi, weekBars } = require('../services/farmerCharts')
 
 const SENSOR_OFFLINE_MIN = 5  // กล่องส่งทุก 15 วินาที เงียบเกิน 5 นาที = ขาดการติดต่อ
 // ข้อความพยากรณ์จาก forecastService ขึ้นต้นด้วยชื่อระดับแบบหน้าแอดมิน (เช่น "⚠️ เครียดจากความร้อน:")
@@ -195,7 +196,7 @@ router.get('/me', verifyToken, requireFarm, async (req, res) => {
                 ORDER BY sr.recorded_at DESC
                 LIMIT 1
             `, [farm.id_farms]),
-            getFarm24h(farm.id_farms, profile).catch(() => ({ daily_summary: null })),
+            getFarm24h(farm.id_farms, profile).catch(() => ({ history: [], daily_summary: null })),
             generateBaselineForecast(farm).catch(() => null),
             getCameraBehavior(farm.id_farms).catch(() => null),
             db.query(`
@@ -263,6 +264,15 @@ router.get('/me', verifyToken, requireFarm, async (req, res) => {
                 window_end: d.window_end
             } : null,
             streak: stressStreak(week, profile),
+            // ข้อมูลกราฟ: THI รายชั่วโมง 24 ชม. ล่าสุด + ชั่วโมงร้อนแต่ละระดับ 7 วัน (ค่ารวมทั้งฟาร์ม)
+            charts: {
+                hourly: hourlyThi(
+                    (h24.history || []).map(b => ({ t: new Date(b.recorded_at), thi: b.thi, temp: b.temperature_c, hum: b.humidity_pct })),
+                    d?.window_end || null,
+                    profile
+                ),
+                week: weekBars(week)
+            },
             method: getMethod(profile),
             cooling: now ? getCoolingAdvice(now.humidity_pct) : null,
             forecast: forecast ? {
