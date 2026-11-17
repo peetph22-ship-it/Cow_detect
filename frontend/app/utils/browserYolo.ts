@@ -4,10 +4,19 @@
  * letterbox สีเทา 114 -> RGB CHW 0–1 -> output0 [1, 4+nc, N] -> NMS ไม่ดูคลาส -> กรอบเป็นสัดส่วน 0–1 ของภาพจริง
  * ต่างจาก server เล็กน้อยตรงวิธีย่อภาพ (canvas ของเบราว์เซอร์ vs sharp) ผลจึงอาจต่างกันเล็กน้อย
  */
-import * as ort from 'onnxruntime-web'
-
-// โหลดไฟล์ wasm ของ onnxruntime จาก CDN รุ่นเดียวกับแพ็กเกจ (Cloudflare Pages รับไฟล์ไม่เกิน 25MB)
-ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/'
+// โหลด onnxruntime-web จาก CDN ตอนใช้งานเท่านั้น ไม่รวมใน build:
+// ไฟล์ wasm ของมัน (~27MB) เกินขนาดไฟล์สูงสุดของ Cloudflare Pages (25MB) ทำให้ deploy ไม่ผ่าน
+const ORT_DIR = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/'
+let ortPromise: Promise<any> | null = null
+const loadOrt = () => {
+  if (!ortPromise) {
+    ortPromise = import(/* @vite-ignore */ `${ORT_DIR}ort.min.mjs`).then((ort) => {
+      ort.env.wasm.wasmPaths = ORT_DIR
+      return ort
+    }).catch((err) => { ortPromise = null; throw err })
+  }
+  return ortPromise
+}
 
 export interface ModelInfo {
   file: string
@@ -68,6 +77,7 @@ export const loadModel = async (info: ModelInfo, onProgress: (loadedBytes: numbe
     try { await cache?.put(key, new Response(bytes)) } catch { /* พื้นที่ cache ไม่พอ: ใช้ต่อได้ แค่ไม่จำ */ }
   }
 
+  const ort = await loadOrt()
   for (const ep of ['webgpu', 'wasm']) {
     try {
       const session = await ort.InferenceSession.create(bytes, { executionProviders: [ep] })
@@ -91,7 +101,7 @@ const iou = (a: any, b: any) => {
  * ตรวจจับ 1 เฟรม จากวิดีโอ/ภาพ/canvas
  * @param canvas canvas ขนาด imgsz × imgsz สำหรับใช้ซ้ำ
  */
-export const detectFrame = async (session: ort.InferenceSession, source: CanvasImageSource & { videoWidth?: number; videoHeight?: number; width?: number; height?: number }, info: ModelInfo, canvas: HTMLCanvasElement): Promise<Box[]> => {
+export const detectFrame = async (session: any, source: CanvasImageSource & { videoWidth?: number; videoHeight?: number; width?: number; height?: number }, info: ModelInfo, canvas: HTMLCanvasElement): Promise<Box[]> => {
   const S = info.imgsz
   const W = (source.videoWidth || source.width) as number
   const H = (source.videoHeight || source.height) as number
@@ -114,6 +124,7 @@ export const detectFrame = async (session: ort.InferenceSession, source: CanvasI
     chw[plane + i] = data[i * 4 + 1] / 255
     chw[2 * plane + i] = data[i * 4 + 2] / 255
   }
+  const ort = await loadOrt()
   const out = await session.run({ images: new ort.Tensor('float32', chw, [1, 3, S, S]) })
   const o = out.output0 ?? out[session.outputNames[0]]
   const d = o.data as Float32Array
