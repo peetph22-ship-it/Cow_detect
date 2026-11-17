@@ -77,10 +77,20 @@
 
     <!-- 3) วัว 1 ตัวทั้งวัน -->
     <section class="space-y-3 pt-2 border-t border-[#f0f4f2]">
-      <h4 class="text-sm font-black text-[#24433a]">3. จำลองวัว 1 ตัวตลอดวัน</h4>
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <h4 class="text-sm font-black text-[#24433a]">3. จำลองวัว 1 ตัวตลอดวัน</h4>
+        <div class="flex items-center gap-1.5 bg-[#f0f4f2] p-1 rounded-xl">
+          <button v-for="v in [{ key: 'timeline', label: 'แถบเวลา' }, { key: 'hourly', label: 'แท่งรายชั่วโมง' }]" :key="v.key" type="button"
+            class="px-3 py-1 rounded-lg text-xs font-bold cursor-pointer"
+            :class="cowView === v.key ? 'bg-[#24433a] text-white' : 'text-[#4e6057] hover:text-[#24433a]'"
+            @click="cowView = v.key">{{ v.label }}</button>
+        </div>
+      </div>
       <ClientOnly>
-        <ApexChart type="rangeBar" height="250" :options="cowOptions" :series="cowSeries" />
+        <ApexChart v-if="cowView === 'timeline'" type="rangeBar" height="250" :options="cowOptions" :series="cowSeries" />
+        <ApexChart v-else type="bar" height="280" :options="cowHourlyOptions" :series="cowHourlySeries" />
       </ClientOnly>
+      <p v-if="cowView === 'hourly'" class="text-[11px] text-[#718078]">แต่ละแท่ง = 60 นาทีของชั่วโมงนั้น แบ่งตามท่า (การเคลื่อนที่เกิดระหว่างยืน จึงไม่แยกเป็นแท่ง)</p>
       <div class="grid grid-cols-2 md:grid-cols-5 gap-2.5">
         <div v-for="c in cowCards" :key="c.key" class="rounded-2xl p-3 border" :style="{ background: c.color + '10', borderColor: c.color + '40' }">
           <span class="text-xs font-bold" :style="{ color: c.color }">{{ c.label }}</span>
@@ -94,6 +104,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { hourlyMinutes, hourlyBarOptions } from '~/utils/behaviorHourly'
 
 const CLASS = {
   standing: { th: 'ยืน', en: 'standing', color: '#f97316' },
@@ -256,6 +267,12 @@ const cowOptions = computed(() => ({
     }
   }
 }))
+const cowView = ref('timeline')
+const cowHourly = computed(() => hourlyMinutes(
+  cowBouts.value.map(b => ({ key: b.cls, startMs: DAY0 + b.start * 60e3, endMs: DAY0 + b.end * 60e3 })), DAY0, CLASS_KEYS))
+const cowHourlySeries = computed(() => CLASS_KEYS.map(k => ({ name: CLASS[k].th, data: cowHourly.value[k] })))
+const cowHourlyOptions = hourlyBarOptions(CLASS_KEYS.map(k => CLASS[k].color), 70)
+
 const cowCards = computed(() => cowRows.map(row => {
   const list = cowBouts.value.filter(b => b.cls === row.key)
   const total = list.reduce((a, b) => a + (b.end - b.start), 0)

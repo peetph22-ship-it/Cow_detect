@@ -59,9 +59,21 @@
         </span>
       </div>
 
-      <!-- แถบเวลาของแต่ละท่า -->
+      <!-- แถบเวลาของแต่ละท่า หรือแท่งนาทีรายชั่วโมง -->
+      <div class="flex justify-end">
+        <div class="flex items-center gap-1.5 bg-[#f0f4f2] p-1 rounded-xl">
+          <button v-for="v in [{ key: 'timeline', label: 'แถบเวลา' }, { key: 'hourly', label: 'แท่งรายชั่วโมง' }]" :key="v.key" type="button"
+            class="px-3 py-1 rounded-lg text-xs font-bold cursor-pointer"
+            :class="view === v.key ? 'bg-[#24433a] text-white' : 'text-[#4e6057] hover:text-[#24433a]'"
+            @click="view = v.key">{{ v.label }}</button>
+        </div>
+      </div>
       <ClientOnly>
-        <ApexChart type="rangeBar" height="270" :options="timelineOptions" :series="timelineSeries" />
+        <template v-if="view === 'hourly'">
+          <ApexChart type="bar" height="280" :options="hourlyOptions" :series="hourlySeries" />
+          <p class="text-[11px] text-[#718078]">แต่ละแท่ง = นาทีของแต่ละท่าในชั่วโมงนั้น (เต็ม 60) · แท่งที่สั้นกว่า 60 = ช่วงที่ไม่มีภาพจากกล้อง</p>
+        </template>
+        <ApexChart v-else type="rangeBar" height="270" :options="timelineOptions" :series="timelineSeries" />
         <!-- THI วันเดียวกัน ใช้แกนเวลาเดียวกัน -->
         <ApexChart v-if="thiSeries[0].data.length" type="line" height="170" :options="thiOptions" :series="thiSeries" />
         <p v-else class="text-xs text-center text-[#718078] py-2">วันนี้ไม่มีข้อมูล THI จากเซ็นเซอร์</p>
@@ -147,6 +159,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import axios from 'axios'
 import { getNodeApiBase } from '~/API/baseAPI'
 import CowTargetPicker from '~/components/Admin/cctv/CowTargetPicker.vue'
+import { hourlyMinutes, hourlyBarOptions } from '~/utils/behaviorHourly'
 
 const props = defineProps({
   farmId: { type: String, required: true }
@@ -258,6 +271,18 @@ const rowNote = (r) => [
   r.from_previous_day && 'ต่อจากเมื่อวาน',
   r.to_next_day && 'ต่อไปวันถัดไป'
 ].filter(Boolean).join(' · ')
+
+// แท่งรายชั่วโมง: เฉพาะท่า (การเคลื่อนที่เกิดระหว่างยืน จึงไม่แยกเป็นแท่ง)
+const view = ref('timeline')
+const HOURLY_KEYS = ['lying', 'standing', 'feeding', 'not_visible']
+const hourlySeries = computed(() => {
+  if (!data.value) return []
+  const mins = hourlyMinutes(
+    bouts.value.map(b => ({ key: b.behavior, startMs: new Date(b.start).getTime(), endMs: new Date(b.end).getTime() })),
+    new Date(data.value.window.from).getTime(), HOURLY_KEYS)
+  return HOURLY_KEYS.map(k => ({ name: ROW[k].label, data: mins[k] }))
+})
+const hourlyOptions = hourlyBarOptions(HOURLY_KEYS.map(k => ROW[k].color), AXIS_LABEL_WIDTH)
 
 const sinceText = (iso) => {
   const t = bkk(iso)
