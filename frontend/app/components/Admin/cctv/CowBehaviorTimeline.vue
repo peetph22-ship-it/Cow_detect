@@ -30,6 +30,9 @@
       </div>
     </div>
 
+    <!-- เลือกวัวที่จะติดตาม (คลิกจากภาพล่าสุดหรือภาพย้อนหลัง) -->
+    <CowTargetPicker :farm-id="farmId" @changed="onTargetChanged" />
+
     <div v-if="isLoading" class="h-[260px] flex items-center justify-center text-[#718078] bg-[#f8faf9] rounded-2xl animate-pulse">
       <v-icon icon="mdi-loading" size="24" class="animate-spin mr-2" />
       กำลังโหลดข้อมูล...
@@ -143,6 +146,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import axios from 'axios'
 import { getNodeApiBase } from '~/API/baseAPI'
+import CowTargetPicker from '~/components/Admin/cctv/CowTargetPicker.vue'
 
 const props = defineProps({
   farmId: { type: String, required: true }
@@ -211,6 +215,12 @@ const fetchData = async () => {
 watch(date, fetchData)
 watch(() => props.farmId, fetchData)
 onMounted(fetchData)
+
+// เลือกวัวใหม่แล้ว: ไปที่วันของภาพที่เลือก (คำนวณย้อนหลังเริ่มจากวันนั้น)
+const onTargetChanged = (day) => {
+  if (day && day !== date.value && day <= today) date.value = day
+  else fetchData()
+}
 
 // ทุกแถวแสดงเสมอ (แม้วันนั้นไม่มีท่านั้น) ด้วยจุดความยาว 0 ที่มองไม่เห็น
 const timelineSeries = computed(() => ROWS.map(r => {

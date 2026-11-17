@@ -22,7 +22,8 @@ stub('../app/config/db', {
             return { rows: [] }
         }
         if (sql.includes('UPDATE tb_devices')) return { rows: p[5] === DEV ? [{ id_devices: DEV, name_devices: 'box' }] : [] }
-        if (sql.includes('INSERT INTO cctv_behavior_telemetry') || sql.includes('FROM cctv_cameras')) return { rows: [] }
+        if (sql.includes('INSERT INTO cctv_behavior_telemetry')) return { rows: [{ id: 1 }] }
+        if (sql.includes('FROM cctv_cameras') || sql.includes('FROM tb_cow_tracking_targets')) return { rows: [] }
         throw new Error('unexpected query: ' + sql.slice(0, 80))
     },
     pool: { on() {} }
@@ -39,7 +40,7 @@ stub('../app/services/visionService', {
     },
     IMGSZ: 480, status: () => ({})
 })
-stub('../app/services/cameraSamples', { maybeSaveSample: async () => {}, buildSampleJson: () => ({}) })
+stub('../app/services/cameraSamples', { maybeSaveSample: async () => {}, saveLatest: async () => {}, buildSampleJson: () => ({}) })
 
 const express = require('express')
 const jwt = require('jsonwebtoken')

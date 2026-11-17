@@ -17,7 +17,8 @@ const db = require('../config/db')
 const { verifyDeviceKey } = require('../middleware/deviceAuthMiddleware')
 const { parseRecordedAt, checkTimeWindow } = require('../services/sensorIngest')
 const vision = require('../services/visionService')
-const { maybeSaveSample, buildSampleJson } = require('../services/cameraSamples')
+const { maybeSaveSample, saveLatest, buildSampleJson } = require('../services/cameraSamples')
+const cowTarget = require('../services/cowTargetTracker')
 
 // แปลง error ของ body parser (เช่น รูปเกิน 2MB) ให้ตอบเป็น JSON ที่ firmware อ่านได้
 const rawJpeg = express.raw({ type: ['image/jpeg', 'application/octet-stream'], limit: '2mb' })
@@ -105,7 +106,8 @@ const TELEMETRY_INSERT_WITH_DETECTIONS_SQL = `
             standing_count, lying_count, feeding_count, drinking_count,
             standing_pct, lying_pct, feeding_pct, drinking_pct,
             cow_comfort_index, ai_confidence_avg, is_simulation, detections)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, false, $15::jsonb)`
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, false, $15::jsonb)
+        RETURNING id`
 // ถ้าพบว่ายังไม่มีคอลัมน์ detections ครั้งหนึ่ง จะไม่ลองซ้ำจนกว่าจะรีสตาร์ตเซิร์ฟเวอร์ (หลังรัน migration)
 let detectionsColumnReady = true
 
@@ -133,10 +135,12 @@ const processSnapshot = async (device, capturedAt, jpeg) => {
         result.cci, result.confidence_avg
     ]
     // เก็บตำแหน่งกรอบของทุกภาพ (รูปแบบเดียวกับ HH.json ของภาพตัวอย่าง) แทนการเก็บวิดีโอ
-    const detectionsJson = JSON.stringify(buildSampleJson(capturedAt, result, vision.IMGSZ))
+    const detections = buildSampleJson(capturedAt, result, vision.IMGSZ)
+    let telemetryId = null
     try {
         if (!detectionsColumnReady) throw Object.assign(new Error('detections column not available'), { code: '42703' })
-        await db.query(TELEMETRY_INSERT_WITH_DETECTIONS_SQL, [...params, detectionsJson])
+        const ins = await db.query(TELEMETRY_INSERT_WITH_DETECTIONS_SQL, [...params, JSON.stringify(detections)])
+        telemetryId = ins.rows?.[0]?.id ?? null
     } catch (err) {
         if (err.code !== '42703') throw err
         // ยังไม่ได้รัน migrations/20261106_telemetry_detection_boxes.sql: บันทึกแบบเดิมไปก่อน ไม่ให้ข้อมูลหาย
@@ -146,7 +150,13 @@ const processSnapshot = async (device, capturedAt, jpeg) => {
     }
     console.log(`[Camera] ${device.serial || device.id}: ${result.total} cows ${JSON.stringify(counts)} cci=${result.cci} in ${result.timing_ms.total} ms`)
 
-    await maybeSaveSample(device.farmId, capturedAt, jpeg, result, vision.IMGSZ)
+    // ติดตามวัวเป้าหมายที่ผู้ดูแลคลิกเลือกไว้ (ถ้ามี) ต่ออีก 1 ภาพ
+    if (telemetryId) await cowTarget.onSnapshot(device.farmId, { id: telemetryId, camera_id: cameraId, timestamp: capturedAt, detections })
+
+    await Promise.all([
+        maybeSaveSample(device.farmId, capturedAt, jpeg, result, vision.IMGSZ),
+        saveLatest(device.farmId, capturedAt, jpeg, result, vision.IMGSZ)
+    ])
 }
 
 // สถานะ worker (ไม่มีข้อมูลลับ)

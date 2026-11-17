@@ -3,6 +3,7 @@
  * ใช้นับเทียบความแม่นของโมเดล และเป็น dataset โรงเรือนไทยสำหรับเทรน YOLO รอบถัดไป ภาพอื่นทั้งหมดถูกทิ้งหลังประมวลผล
  *
  * path: <farm_id>/<YYYY-MM-DD>/<HH>.jpg (เวลาไทย) ถ้ามีรูปของชั่วโมงนั้นแล้วจะไม่เขียนทับ
+ *       <farm_id>/latest.jpg + latest.json = ภาพล่าสุด เขียนทับทุกภาพ (ใช้คลิกเลือกวัวเป้าหมาย)
  *       <HH>.json ข้างกัน = ผลของโมเดลกับภาพนั้นภาพเดียว (จำนวนแต่ละท่า + กรอบเป็นสัดส่วน 0-1 บนภาพจริง)
  *       เขียนเฉพาะเมื่อภาพถูกบันทึกในรอบเดียวกัน ภาพกับผลจึงตรงกันเสมอ
  * env: CAMERA_SAMPLE_BUCKET (ค่าเริ่มต้น camera-samples), SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
@@ -100,6 +101,77 @@ const readSampleResult = async (samplePath) => {
     } catch (e) {
         return null
     }
+}
+
+/**
+ * ภาพล่าสุดของฟาร์ม: <farm_id>/latest.jpg + latest.json เขียนทับทุกภาพ (ไม่เพิ่มพื้นที่)
+ * ใช้ให้ผู้ดูแลคลิกเลือกวัวเป้าหมายจากภาพล่าสุด ไม่ throw
+ */
+const LATEST_JPG = (farmId) => `${farmId}/latest.jpg`
+const LATEST_JSON = (farmId) => `${farmId}/latest.json`
+
+const saveLatest = async (farmId, capturedAt, jpeg, result, imgsz) => {
+    const supabase = getClient()
+    if (!supabase || !farmId) return
+    try {
+        const json = Buffer.from(JSON.stringify(buildSampleJson(capturedAt, result, imgsz)))
+        const [a, b] = await Promise.all([
+            supabase.storage.from(BUCKET).upload(LATEST_JPG(farmId), jpeg, { contentType: 'image/jpeg', upsert: true }),
+            supabase.storage.from(BUCKET).upload(LATEST_JSON(farmId), json, { contentType: 'application/json', upsert: true })
+        ])
+        if (a.error || b.error) console.warn('[CameraSamples] latest upload failed:', (a.error || b.error).message)
+    } catch (err) {
+        console.warn('[CameraSamples] latest upload failed:', err.message)
+    }
+}
+
+const readJson = async (supabase, path) => {
+    try {
+        const { data: blob, error } = await supabase.storage.from(BUCKET).download(path)
+        return error || !blob ? null : JSON.parse(await blob.text())
+    } catch (e) {
+        return null
+    }
+}
+
+// ผลของโมเดลของภาพล่าสุด (อ่านฝั่ง server ตอนบันทึกการเลือกวัว ไม่เชื่อกรอบที่ client ส่งมา)
+const readLatestResult = async (farmId) => {
+    const supabase = getClient()
+    return supabase && farmId ? readJson(supabase, LATEST_JSON(farmId)) : null
+}
+
+// ภาพล่าสุดพร้อม Signed URL และกรอบ (null = ยังไม่มีภาพ)
+const getLatestImage = async (farmId) => {
+    const supabase = getClient()
+    if (!supabase || !farmId) return null
+    const meta = await readJson(supabase, LATEST_JSON(farmId))
+    if (!meta) return null
+    const { data } = await supabase.storage.from(BUCKET).createSignedUrl(LATEST_JPG(farmId), 3600)
+    if (!data?.signedUrl) return null
+    return { source: 'latest', captured_at: meta.captured_at, image_url: data.signedUrl, image_size: meta.image || null, boxes: Array.isArray(meta.boxes) ? meta.boxes : [] }
+}
+
+// ภาพตัวอย่างรายชั่วโมงของวันเดียว (เวลาไทย) สำหรับคลิกเลือกวัวจากภาพย้อนหลัง เรียงจากเก่าไปใหม่
+const listDaySamples = async (farmId, day) => {
+    const supabase = getClient()
+    if (!supabase || !farmId || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return []
+    const { data: files, error } = await supabase.storage.from(BUCKET).list(`${farmId}/${day}`, { limit: 60 })
+    if (error || !files) return []
+    const names = new Set(files.map(f => f.name))
+    const hours = [...names].filter(n => /^\d{2}\.jpg$/.test(n) && names.has(n.replace('.jpg', '.json'))).sort()
+    if (!hours.length) return []
+    const paths = hours.map(n => `${farmId}/${day}/${n}`)
+    const { data: signed } = await supabase.storage.from(BUCKET).createSignedUrls(paths, 3600)
+    const urls = new Map((signed || []).map(s => [s.path, s.signedUrl]))
+    const metas = await Promise.all(paths.map(p => readJson(supabase, p.replace(/\.jpg$/, '.json'))))
+    return paths.map((p, i) => ({
+        source: p,
+        captured_at: metas[i]?.captured_at || null,
+        hour_label: `${hours[i].slice(0, 2)}:00`,
+        image_url: urls.get(p) || null,
+        image_size: metas[i]?.image || null,
+        boxes: Array.isArray(metas[i]?.boxes) ? metas[i].boxes : []
+    })).filter(s => s.image_url && s.captured_at)
 }
 
 /**
@@ -202,4 +274,7 @@ const listFarmSamples = async (farmId, { limit = 24, maxDays = 14 } = {}) => {
     }
 }
 
-module.exports = { maybeSaveSample, samplePath, buildSampleJson, listFarmSamples, readSampleResult, countsFromMeta }
+module.exports = {
+    maybeSaveSample, samplePath, buildSampleJson, listFarmSamples, readSampleResult, countsFromMeta,
+    saveLatest, readLatestResult, getLatestImage, listDaySamples
+}
