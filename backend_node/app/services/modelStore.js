@@ -32,13 +32,36 @@ const checksumOk = async (file) => {
     return (await sha256File(file)) === expected
 }
 
-const download = async () => {
+const partNames = () => (PARTS === 1 ? [MODEL_FILE] : Array.from({ length: PARTS }, (_, i) => `${MODEL_FILE}.part${i + 1}`))
+
+const storageClient = () => {
     const url = process.env.SUPABASE_URL
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-    if (!url || !key) throw new Error(`ไม่พบไฟล์โมเดล ${LOCAL_PATH} และยังไม่ได้ตั้ง SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY สำหรับดาวน์โหลด`)
+    if (!url || !key) return null
     const { createClient } = require('@supabase/supabase-js')
-    const supabase = createClient(url, key, { auth: { persistSession: false } })
-    const names = PARTS === 1 ? [MODEL_FILE] : Array.from({ length: PARTS }, (_, i) => `${MODEL_FILE}.part${i + 1}`)
+    return createClient(url, key, { auth: { persistSession: false } })
+}
+
+/**
+ * ลิงก์ดาวน์โหลดชั่วคราวของไฟล์โมเดล (ทุกส่วน เรียงตามลำดับ) ให้เบราว์เซอร์ของ admin โหลดตรงจาก Supabase
+ * ใช้ตรวจจับในวิดีโอบนหน้า simulation โดยไม่ส่งวิดีโอขึ้น server คืน null ถ้ายังไม่ได้ตั้งค่า storage
+ */
+const signedModelUrls = async (expiresSec = 600) => {
+    const supabase = storageClient()
+    if (!supabase) return null
+    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrls(partNames(), expiresSec)
+    if (error) throw new Error(`สร้างลิงก์โมเดลไม่สำเร็จ: ${error.message}`)
+    return {
+        file: MODEL_FILE,
+        sha256: (process.env.YOLO_MODEL_SHA256 || '').trim().toLowerCase() || null,
+        parts: (data || []).map(d => d.signedUrl)
+    }
+}
+
+const download = async () => {
+    const supabase = storageClient()
+    if (!supabase) throw new Error(`ไม่พบไฟล์โมเดล ${LOCAL_PATH} และยังไม่ได้ตั้ง SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY สำหรับดาวน์โหลด`)
+    const names = partNames()
     if (PARTS > 1 && !process.env.YOLO_MODEL_SHA256) console.warn('[ModelStore] YOLO_MODEL_SHA256 not set - cannot verify joined parts')
     console.log(`[ModelStore] downloading ${BUCKET}/${names.join(', ')} ...`)
     const t0 = Date.now()
@@ -82,4 +105,4 @@ const ensureModel = () => {
     return inflight
 }
 
-module.exports = { ensureModel, LOCAL_PATH, MODEL_FILE }
+module.exports = { ensureModel, signedModelUrls, LOCAL_PATH, MODEL_FILE }

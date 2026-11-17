@@ -99,6 +99,10 @@ app.use('/api/farms/:farmId/cameras', cctvCameras)
 const cowTarget = require('./app/routes/Admin/cowTarget')
 app.use('/api/Admin/farms/:farmId/cow-target', cowTarget)
 
+// ลิงก์โมเดล YOLO ให้เบราว์เซอร์ admin ตรวจจับจากวิดีโอ (หน้า simulation)
+const visionAdmin = require('./app/routes/Admin/vision')
+app.use('/api/Admin/vision', visionAdmin)
+
 // farmer view: only the logged-in farmer's own farm
 const farmer = require('./app/routes/farmer')
 app.use('/api/farmer', farmer)

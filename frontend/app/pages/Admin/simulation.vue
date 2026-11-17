@@ -611,6 +611,9 @@
     <!-- 🟢 3.5 จำลองการตรวจจับพฤติกรรมแยกตามท่า + กราฟฝูง 24 ชม. + วัว 1 ตัวทั้งวัน (คำนวณในเบราว์เซอร์ ไม่เขียนฐานข้อมูล) -->
     <BehaviorSimulationPanel />
 
+    <!-- 🟢 3.6 ตรวจจับพฤติกรรมจากไฟล์วิดีโอด้วย YOLO ในเบราว์เซอร์ (วิดีโอไม่ถูกส่งขึ้น server) -->
+    <VideoDetectionPanel />
+
     <!-- 🟢 4. Simulated Behavioral Alerts Audit Table (ประวัติการแจ้งเตือนจำลอง) -->
     <div class="bg-white/80 backdrop-blur-xl rounded-[32px] p-6 md:p-8 border border-white/90 shadow-[0_8px_30px_rgba(36,67,58,0.04)] space-y-4">
       
@@ -761,6 +764,7 @@ import axios from 'axios'
 import { getNodeApiBase, getFastApiBase } from '~/API/baseAPI'
 import { calcThi, getRiskLevel, RISK_LABELS_TH } from '~/utils/heatStress'
 import BehaviorSimulationPanel from '~/components/Admin/simulation/BehaviorSimulationPanel.vue'
+import VideoDetectionPanel from '~/components/Admin/simulation/VideoDetectionPanel.vue'
 
 const Admin = `${getNodeApiBase()}/Admin`
 const fastApi = getFastApiBase()
