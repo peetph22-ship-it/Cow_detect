@@ -34,6 +34,7 @@ require.cache[dbPath] = {
         query: async (sql, p = []) => {
             queries.push(sql)
             if (sql.includes('FROM tb_farms')) return { rows: [FARM, EMPTY_FARM].includes(p[0]) ? [{ id_farms: p[0], hf_profile: null }] : [] }
+            if (sql.includes('FROM tb_cow_tracking_targets')) return { rows: [] }   // ยังไม่ได้เลือกวัว: ใช้ตัวที่มีข้อมูลล่าสุด
             if (sql.includes('FROM tb_cows WHERE id_cows')) return { rows: p[0] === COW && p[1] === FARM ? [{ id_cows: COW, tag_id: 'TH-012', name_cows: 'มะลิ' }] : [] }
             if (sql.includes('FROM tb_cow_behavior_observations o')) return { rows: p[0] === FARM ? [{ id_cows: COW, tag_id: 'TH-012', name_cows: 'มะลิ' }] : [] }
             if (sql.includes('FROM tb_cow_behavior_observations')) {

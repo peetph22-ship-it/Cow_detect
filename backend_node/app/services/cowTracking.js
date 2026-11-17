@@ -71,31 +71,47 @@ const matchTarget = (prev, boxes, opts = {}) => {
  * @returns {{observations: Array, lostAt: string|null}}  หลุดการติดตามแล้วจะหยุดสร้างแถว
  */
 const trackTarget = (frames, seed, opts = {}) => {
-    const o = { ...TRACK_DEFAULTS, ...opts }
-    let last = { box: seed.box, at: toMs(seed.at) }
-    let velocity = null   // การขยับของกรอบต่อมิลลิวินาที จาก 2 ภาพล่าสุดที่เจอวัว
+    let state = seedState(seed)
     const observations = []
     for (const f of frames) {
-        const at = toMs(f.observedAt)
-        if (at - last.at > o.maxLostSec * 1000) return { observations, lostAt: new Date(at).toISOString() }
-        // คาดตำแหน่งไม่เกิน 2 รอบถ่ายภาพล่าสุด (หายนานกว่านั้น วัวอาจหยุดหรือเลี้ยวไปแล้ว)
-        const dt = velocity ? Math.min(at - last.at, 2 * velocity.stepMs) : 0
-        const predicted = velocity ? shiftBox(last.box, velocity.dx * dt, velocity.dy * dt) : null
-        const m = matchTarget(last.box, f.boxes, { ...o, predicted })
-        const base = { observedAt: new Date(at).toISOString(), telemetryId: f.telemetryId ?? null, cameraId: f.cameraId ?? null, method: METHOD }
-        if (!m.box) {
-            observations.push({ ...base, behavior: 'not_visible', box: null, matchScore: null })
-            continue
-        }
-        const { x1, y1, x2, y2 } = m.box
-        observations.push({ ...base, behavior: CLASS_TO_BEHAVIOR[m.box.cls] || 'not_visible', box: { x1, y1, x2, y2 }, matchScore: Math.round(m.score * 1000) / 1000 })
-        const stepMs = at - last.at
-        const c0 = center(last.box)
-        const c1 = center({ x1, y1, x2, y2 })
-        velocity = stepMs > 0 ? { dx: (c1.x - c0.x) / stepMs, dy: (c1.y - c0.y) / stepMs, stepMs } : null
-        last = { box: { x1, y1, x2, y2 }, at }
+        const r = stepTarget(state, f, opts)
+        if (r.lost) return { observations, lostAt: new Date(toMs(f.observedAt)).toISOString() }
+        observations.push(r.observation)
+        state = r.state
     }
     return { observations, lostAt: null }
+}
+
+/**
+ * สถานะการติดตาม (เก็บเป็น JSON ในฐานข้อมูลได้): ตำแหน่งล่าสุดที่เจอวัว เวลา (ms) และความเร็วจาก 2 ภาพล่าสุด
+ * @param {{box: {x1,y1,x2,y2}, at}} seed  กรอบที่ผู้ใช้คลิกเลือก และเวลาของภาพนั้น
+ */
+const seedState = (seed) => ({ box: { x1: seed.box.x1, y1: seed.box.y1, x2: seed.box.x2, y2: seed.box.y2 }, at: toMs(seed.at), velocity: null })
+
+/**
+ * ติดตามต่อ 1 ภาพ (ใช้ทั้งตอนภาพเข้ามาสด ๆ และตอนคำนวณย้อนหลัง)
+ * @returns {{lost: true} | {lost: false, observation, state}}  lost = หายจากภาพนานเกิน maxLostSec
+ */
+const stepTarget = (state, frame, opts = {}) => {
+    const o = { ...TRACK_DEFAULTS, ...opts }
+    const at = toMs(frame.observedAt)
+    if (at - state.at > o.maxLostSec * 1000) return { lost: true }
+    // คาดตำแหน่งไม่เกิน 2 รอบถ่ายภาพล่าสุด (หายนานกว่านั้น วัวอาจหยุดหรือเลี้ยวไปแล้ว)
+    const v = state.velocity
+    const dt = v ? Math.min(at - state.at, 2 * v.stepMs) : 0
+    const predicted = v ? shiftBox(state.box, v.dx * dt, v.dy * dt) : null
+    const m = matchTarget(state.box, frame.boxes, { ...o, predicted })
+    const base = { observedAt: new Date(at).toISOString(), telemetryId: frame.telemetryId ?? null, cameraId: frame.cameraId ?? null, method: METHOD }
+    if (!m.box) return { lost: false, observation: { ...base, behavior: 'not_visible', box: null, matchScore: null }, state }
+    const box = { x1: m.box.x1, y1: m.box.y1, x2: m.box.x2, y2: m.box.y2 }
+    const stepMs = at - state.at
+    const c0 = center(state.box)
+    const c1 = center(box)
+    return {
+        lost: false,
+        observation: { ...base, behavior: CLASS_TO_BEHAVIOR[m.box.cls] || 'not_visible', box, matchScore: Math.round(m.score * 1000) / 1000 },
+        state: { box, at, velocity: stepMs > 0 ? { dx: (c1.x - c0.x) / stepMs, dy: (c1.y - c0.y) / stepMs, stepMs } : null }
+    }
 }
 
 const center = (b) => ({ x: (b.x1 + b.x2) / 2, y: (b.y1 + b.y2) / 2 })
@@ -254,5 +270,5 @@ const movementWithin = (segments, from, to) => {
 
 module.exports = {
     METHOD, TRACK_DEFAULTS, BOUT_DEFAULTS, MOVE_DEFAULTS,
-    matchScore, matchTarget, trackTarget, buildBouts, summarizeBouts, buildMovement, movementWithin
+    matchScore, matchTarget, trackTarget, seedState, stepTarget, buildBouts, summarizeBouts, buildMovement, movementWithin
 }

@@ -23,13 +23,26 @@ const dayWindow = (date) => {
 
 const formatInterval = (sec) => (sec >= 60 && sec % 60 === 0 ? `${sec / 60} นาที` : `${sec} วินาที`)
 
-// วัวที่ระบุ (ต้องอยู่ในฟาร์มนี้) หรือถ้าไม่ระบุ = ตัวที่มีข้อมูลล่าสุดของฟาร์ม (ระยะแรกติดตามตัวเดียว)
+// วัวที่ระบุ (ต้องอยู่ในฟาร์มนี้) หรือถ้าไม่ระบุ = ตัวที่เลือกติดตามล่าสุด / ตัวที่มีข้อมูลล่าสุดของฟาร์ม (ระยะแรกติดตามตัวเดียว)
 const findCow = async (farmId, cowId) => {
     if (cowId) {
         const { rows } = await db.query(
             `SELECT id_cows, tag_id, name_cows FROM tb_cows WHERE id_cows = $1 AND id_farms = $2 AND deleted_at IS NULL LIMIT 1`,
             [cowId, farmId])
         return rows[0] || null
+    }
+    try {
+        const { rows } = await db.query(`
+            SELECT c.id_cows, c.tag_id, c.name_cows
+            FROM tb_cow_tracking_targets t
+            JOIN tb_cows c ON c.id_cows = t.id_cows AND c.deleted_at IS NULL
+            WHERE t.id_farms = $1
+            ORDER BY t.active DESC, t.created_at DESC
+            LIMIT 1
+        `, [farmId])
+        if (rows[0]) return rows[0]
+    } catch (err) {
+        if (err.code !== '42P01') throw err   // ยังไม่ได้รัน migration 20261117: ใช้ตัวที่มีข้อมูลล่าสุดแทน
     }
     const { rows } = await db.query(`
         SELECT c.id_cows, c.tag_id, c.name_cows
