@@ -241,7 +241,7 @@ const isActiveRoute = (targetPath) => {
 const currentPageTitle = computed(() => {
   const path = route.path
   if (path === '/Admin' || path === '/Admin/') return 'ภาพรวมระบบ (Command Center)'
-  if (path === '/Admin/simulation' || path.startsWith('/Admin/simulation')) return 'สภาพแวดล้อมจำลอง (Simulation Sandbox)'
+  if (path === '/Admin/simulation' || path.startsWith('/Admin/simulation')) return 'สภาพแวดล้อมจำลอง (Simulation)'
   if (path === '/Admin/farms' || path === '/Admin/farms/') return 'จัดการข้อมูลฟาร์ม (Farm Roster)'
   if (path.startsWith('/Admin/farms/') || path.includes('/Admin/farm_detail')) return 'ข้อมูลโทรมาตรรายฟาร์ม (Barn Cockpit)'
   if (path.includes('/Admin/users')) return 'จัดการสมาชิก (User Management)'
