@@ -8,6 +8,7 @@ const router = express.Router()
 const db = require('../../config/db')
 const { verifyToken, requireRole } = require('../../middleware/authMiddleware')
 const { sendLineAlert, getAlertLogs, getFarmsAlertSummary } = require('../../services/lineAlertService')
+const { loadFarmEvents, lastReadingAt, connectionStatus } = require('../../services/heatEvents')
 
 // Helper function to check valid UUID
 const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str || '').trim())
@@ -24,6 +25,7 @@ router.get('/farms-summary', verifyToken, requireRole('admin'), async (req, res)
         const moderateFarms = farms.filter(f => f.alert_status === 'moderate').length
         const mildFarms = farms.filter(f => f.alert_status === 'mild').length
         const normalFarms = farms.filter(f => f.alert_status === 'normal').length
+        const offlineFarms = farms.filter(f => f.alert_status === 'offline').length
         const warningFarms = moderateFarms + mildFarms
 
         // สรุปประวัติแจ้งเตือนสะสมในระบบ
@@ -42,6 +44,7 @@ router.get('/farms-summary', verifyToken, requireRole('admin'), async (req, res)
                 mild: mildFarms,
                 warning: warningFarms,
                 normal: normalFarms,
+                offline: offlineFarms,
                 total_alerts_count: totalAlertsCount,
                 critical_alerts_count: criticalAlertsCount,
                 moderate_alerts_count: moderateAlertsCount,
@@ -79,7 +82,9 @@ router.get('/', verifyToken, requireRole('admin'), async (req, res) => {
                 warning: warningCount,
                 normal: 0
             },
-            alerts
+            alerts,
+            connection: connectionStatus(lastDataAt),
+            offline_events: offlineEvents
         })
     } catch (err) {
         console.error('[Admin Alerts List Error]:', err.message)
@@ -128,8 +133,13 @@ router.get(['/farm/:farmId', '/:farmId'], verifyToken, requireRole('admin'), asy
 
         const farm = farmRes.rows[0]
 
-        // 2. ดึงประวัติแจ้งเตือนเฉพาะฟาร์มนี้
-        const alerts = await getAlertLogs(limit, farmId)
+        // 2. ดึงประวัติแจ้งเตือนเฉพาะฟาร์มนี้ + สถานะการส่งข้อมูลและช่วงขาดการติดต่อ 7 วัน
+        const [alerts, events, lastDataAt] = await Promise.all([
+            getAlertLogs(limit, farmId),
+            loadFarmEvents({ id_farms: farmId, hf_profile: null }, 7),
+            lastReadingAt(farmId)
+        ])
+        const offlineEvents = events.filter(e => e.type === 'sensor_offline')
 
         const totalAlerts = alerts.length
         const criticalCount = alerts.filter(a => a.level === 'critical').length

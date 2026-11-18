@@ -18,7 +18,7 @@ const { getFarm24h } = require('../services/farmHistory')
 const { generateBaselineForecast } = require('../services/forecastService')
 const { getCameraBehavior } = require('../services/cameraBehavior')
 const { summarizeHealth } = require('../services/deviceHealth')
-const { buildHeatEvents } = require('../services/heatEvents')
+const { buildHeatEvents, lastReadingAt } = require('../services/heatEvents')
 const { hourlyThi, weekBars } = require('../services/farmerCharts')
 
 const SENSOR_OFFLINE_MIN = 5  // กล่องส่งทุก 15 วินาที เงียบเกิน 5 นาที = ขาดการติดต่อ
@@ -379,20 +379,11 @@ router.get('/history', verifyToken, requireFarm, async (req, res) => {
 router.get('/events', verifyToken, requireFarm, async (req, res) => {
     try {
         const buckets = await loadBuckets(req.farm.id_farms, 7)
-        const out = buildHeatEvents(buckets, req.thresholds, req.profile).slice(0, 40)
-        // ไม่มีข้อมูลเลยในรอบ 7 วัน: ส่งเวลาข้อมูลล่าสุดไปด้วย หน้าเว็บจะได้ไม่สรุปว่าอากาศปกติหรือกล่องทำงานปกติ
+        // ไม่มีข้อมูลเลยในรอบ 7 วัน: ใช้เวลาข้อมูลล่าสุด เพื่อให้มีเหตุการณ์ "ขาดการติดต่อ" ที่ยังไม่จบ
+        // และหน้าเว็บจะไม่สรุปว่าอากาศปกติหรือกล่องทำงานปกติ
         const lastBucket = buckets[buckets.length - 1]
-        let lastDataAt = lastBucket ? lastBucket.t : null
-        if (!lastDataAt) {
-            const { rows } = await db.query(
-                `SELECT MAX(sr.recorded_at) AS last
-                 FROM tb_sensor_readings sr
-                 LEFT JOIN tb_devices d ON d.id_devices = sr.id_devices
-                 WHERE (d.id_farms = $1 OR sr.id_farms = $1)`,
-                [req.farm.id_farms]
-            )
-            lastDataAt = rows[0]?.last || null
-        }
+        const lastDataAt = lastBucket ? lastBucket.t : await lastReadingAt(req.farm.id_farms)
+        const out = buildHeatEvents(buckets, req.thresholds, req.profile, { lastDataAt }).slice(0, 40)
         return res.json({ success: true, farm_id: req.farm.id_farms, has_data: buckets.length > 0, last_data_at: lastDataAt, events: out })
     } catch (err) {
         console.error('[Farmer API] /events error:', err.message)

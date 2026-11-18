@@ -7,7 +7,7 @@
 const axios = require('axios')
 const db = require('../config/db')
 const { getRiskLevel, getFarmProfile, toAlertLevel, calcThi } = require('./heatStress')
-const { loadFarmEvents } = require('./heatEvents')
+const { loadFarmEvents, connectionStatus } = require('./heatEvents')
 
 // เก็บ Alert Logs ในหน่วยความจำสำรองกรณีไม่มีตาราง tb_alerts
 const inMemoryAlertLogs = []
@@ -318,6 +318,8 @@ async function getFarmsAlertSummary() {
             const profile = getFarmProfile(farm)
             const events = await loadFarmEvents(farm, 7)
             const heatEvents = events.filter(e => e.type === 'heat')
+            const offlineEvents = events.filter(e => e.type === 'sensor_offline')
+            const connection = connectionStatus(farm.last_reading_time, now)
             const criticalAlerts = heatEvents.filter(e => e.level === 'severe').length
             const moderateAlerts = heatEvents.filter(e => e.level === 'moderate').length
             const lastAlertAt = heatEvents[0]?.start || null
@@ -332,7 +334,10 @@ async function getFarmsAlertSummary() {
                 moderate: ['moderate', '⚠️ เครียดจากความร้อน (Moderate)'],
                 severe: ['critical', '🚨 วิกฤต (Severe)']
             }
-            const [alertStatus, statusText] = STATUS[riskLevel] || STATUS.normal
+            // กล่องเงียบ: ห้ามสรุประดับความร้อนจากค่าเก่า (อาจเก่าหลายวัน) ให้แสดงว่าขาดการติดต่อแทน
+            const [alertStatus, statusText] = connection.status === 'live'
+                ? (STATUS[riskLevel] || STATUS.normal)
+                : connection.status === 'offline' ? ['offline', '📡 ขาดการติดต่อ'] : ['never', 'ยังไม่มีข้อมูล']
 
             return {
                 id_farms: farm.id_farms,
@@ -355,7 +360,11 @@ async function getFarmsAlertSummary() {
                 critical_alerts: criticalAlerts,
                 moderate_alerts: moderateAlerts,
                 mild_alerts: 0,
-                last_alert_at: lastAlertAt
+                last_alert_at: lastAlertAt,
+                // สถานะการส่งข้อมูล + ช่วงขาดการติดต่อ 7 วัน (นับแยกจากเหตุการณ์ความร้อน)
+                connection,
+                offline_events: offlineEvents.length,
+                offline_ongoing: offlineEvents.some(e => e.ongoing)
             }
         }))
 

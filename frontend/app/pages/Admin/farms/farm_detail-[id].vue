@@ -126,7 +126,7 @@
       </div>
       <div class="flex items-center gap-2 self-end sm:self-center">
         <span class="text-[11px] font-mono text-amber-800 bg-amber-100/80 px-3 py-1 rounded-xl font-bold border border-amber-300">
-          ล่าสุด: {{ formatTime(latestSensor?.recorded_at) }}
+          ล่าสุด: {{ formatDateTime(latestSensor?.recorded_at) }}
         </span>
       </div>
     </div>
@@ -150,7 +150,7 @@
                 <v-icon icon="mdi-fire-alert" size="18" :class="cockpitThiTheme.iconColor" />
               </span>
               <span class="text-xs font-black uppercase tracking-wider text-[#718078]">
-                ดัชนีความร้อนสะสม THI ปัจจุบัน
+                {{ staleWindowText ? `ดัชนีความร้อน THI ค่าล่าสุดที่มี (${formatDateTime(latestSensor?.recorded_at)} น.)` : 'ดัชนีความร้อนสะสม THI ปัจจุบัน' }}
               </span>
             </div>
 
@@ -334,7 +334,7 @@
         </div>
 
         <p class="text-[11px] text-[#718078] font-medium mt-3 pt-2 border-t border-[#f0f4f2] text-right">
-          ตรวจวัดล่าสุด: {{ formatTime(latestSensor?.recorded_at) }}
+          ตรวจวัดล่าสุด: {{ isDeviceOnline ? formatTime(latestSensor?.recorded_at) : formatDateTime(latestSensor?.recorded_at) }}
         </p>
       </div>
 
@@ -524,6 +524,14 @@
       <p class="text-[10.5px] text-[#a0aea6]">
         <a :href="outdoorWeather?.source?.url || 'https://open-meteo.com/'" target="_blank" rel="noopener" class="underline">{{ outdoorWeather?.source?.attribution || 'Weather data by Open-Meteo.com (CC BY 4.0)' }}</a>
       </p>
+    </div>
+
+    <!-- ข้อมูลเก่าเกิน 1 วัน: บอกช่วงเวลาจริงของสรุป/กราฟ/ตาราง 24 ชม. (หลังบ้านนับย้อนจากค่าล่าสุดที่มี ไม่ใช่จากตอนนี้) -->
+    <div
+      v-if="staleWindowText"
+      class="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-amber-50 border border-amber-200 text-xs font-bold text-amber-900">
+      <v-icon icon="mdi-calendar-clock" size="18" class="shrink-0" />
+      <span>สรุป กราฟ และตาราง 24 ชม. ด้านล่างเป็นข้อมูลช่วง {{ staleWindowText }} (ช่วง 24 ชม. สุดท้ายที่มีข้อมูล)</span>
     </div>
 
     <!-- 🟢 3. 24-Hour Rolling Summary Ribbon -->
@@ -2017,6 +2025,14 @@ const isDeviceOnline = computed(() => {
   if (!lastTime) return false
   const diffMs = nowTimestamp.value - new Date(lastTime).getTime()
   return diffMs >= -60000 && diffMs < 2 * 60 * 1000 // หากเกิน 2 นาทีโดยไม่มีข้อมูลใหม่ ถือว่า Offline
+})
+
+// ช่วง 24 ชม. ของสรุป เมื่อข้อมูลล่าสุดเก่ากว่า 1 วัน (null = ข้อมูลเป็นปัจจุบัน ไม่ต้องแสดง)
+const staleWindowText = computed(() => {
+  const end = dailySummary.value?.window_end
+  const start = dailySummary.value?.window_start
+  if (!end || !start || nowTimestamp.value - new Date(end).getTime() < 24 * 3600e3) return null
+  return `${formatDateTime(start)} – ${formatDateTime(end)} น.`
 })
 
 // Fetch Farm Telemetry Detail (Strict Real Data Mode)

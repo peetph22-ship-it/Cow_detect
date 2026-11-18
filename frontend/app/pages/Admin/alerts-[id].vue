@@ -28,14 +28,14 @@
             </h1>
             <span 
               class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black tracking-wide border"
-              :class="farm?.device_status === 'online' 
+              :class="isLive 
                 ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
                 : 'bg-stone-100 text-stone-700 border-stone-200'">
               <span 
                 class="w-2 h-2 rounded-full" 
-                :class="farm?.device_status === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-stone-400'">
+                :class="isLive ? 'bg-emerald-500 animate-pulse' : 'bg-stone-400'">
               </span>
-              <span>{{ farm?.device_status === 'online' ? 'IoT Online' : 'IoT Offline' }}</span>
+              <span>{{ isLive ? 'IoT Online' : 'IoT Offline' }}</span>
               <span v-if="farm?.device_serial" class="font-mono text-[10px] opacity-75">({{ farm.device_serial }})</span>
             </span>
           </div>
@@ -170,6 +170,56 @@
           <div class="text-2xl font-black text-[#F2BD7C] mt-0.5">20:00 น.</div>
           <div class="text-[10px] text-white/60">สรุปดัชนี THI &amp; การฟื้นตัว (ยังไม่ได้ส่ง LINE จริง)</div>
         </div>
+      </div>
+    </div>
+
+    <!-- 🟢 3.5 สถานะการส่งข้อมูล + ช่วงขาดการติดต่อ 7 วัน (แยกจากเหตุการณ์ความร้อนด้านล่าง) -->
+    <div
+      v-if="connection && (connection.status !== 'live' || offlineEvents.length)"
+      class="rounded-[28px] border p-5 md:p-6 space-y-4"
+      :class="connection.status === 'live' ? 'bg-white border-[#E4E8E5]' : 'bg-amber-50 border-amber-300'">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="flex items-start gap-3">
+          <div
+            class="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
+            :class="connection.status === 'live' ? 'bg-[#F6F7F5] text-[#142820]' : 'bg-amber-500 text-white'">
+            <v-icon icon="mdi-wifi-off" size="22" />
+          </div>
+          <div>
+            <h3 class="text-base md:text-lg font-black text-[#142820]">
+              {{ connection.status === 'offline'
+                ? `กล่องเซ็นเซอร์ขาดการติดต่อ ${formatDuration(connection.silent_min)}`
+                : connection.status === 'never' ? 'ฟาร์มนี้ยังไม่เคยมีข้อมูลเซ็นเซอร์' : 'ช่วงที่กล่องขาดการติดต่อใน 7 วัน' }}
+            </h3>
+            <p class="text-xs text-[#4E655B] font-medium mt-0.5">
+              <template v-if="connection.status === 'offline'">
+                ข้อมูลล่าสุด {{ formatDateTime(connection.last_data_at) }} ช่วงที่ไม่มีข้อมูลจะไม่นับเป็นเหตุการณ์ความร้อน
+                (ไม่ได้แปลว่าอากาศปกติ) ให้เกษตรกรตรวจปลั๊กไฟและ Wi-Fi ที่โรงเรือน
+              </template>
+              <template v-else-if="connection.status === 'never'">ตรวจว่าผูกกล่องกับฟาร์มนี้แล้ว และกล่องเปิดอยู่</template>
+              <template v-else>ตอนนี้กล่องส่งข้อมูลปกติ ด้านล่างคือช่วงที่ข้อมูลขาดหายเกิน 15 นาที</template>
+            </p>
+          </div>
+        </div>
+        <span class="text-xs font-bold text-[#142820] bg-white px-3 py-1.5 rounded-xl border border-[#E4E8E5]">
+          {{ offlineEvents.length }} ช่วงใน 7 วัน
+        </span>
+      </div>
+
+      <div v-if="offlineEvents.length" class="flex flex-col gap-2">
+        <div
+          v-for="e in offlineEvents.slice(0, 10)"
+          :key="String(e.start)"
+          class="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 rounded-2xl bg-[#F6F7F5] border border-[#E4E8E5] text-xs">
+          <span class="font-bold text-[#142820]">
+            {{ formatDateTime(e.start) }} – {{ e.ongoing ? 'ตอนนี้' : formatDateTime(e.end) }}
+          </span>
+          <span class="flex items-center gap-1.5">
+            <span class="font-extrabold text-[#142820]">{{ formatDuration(e.duration_min) }}</span>
+            <span v-if="e.ongoing" class="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-white">ยังไม่กลับมา</span>
+          </span>
+        </div>
+        <p v-if="offlineEvents.length > 10" class="text-[11px] font-bold text-[#718078]">แสดง 10 ช่วงล่าสุดจาก {{ offlineEvents.length }} ช่วง</p>
       </div>
     </div>
 
@@ -510,6 +560,10 @@ useHead({ title: 'Farm Alert History | CowCare AI' })
 
 const farm = ref(null)
 const alerts = ref([])
+// สถานะการส่งข้อมูลจากเวลาข้อมูลล่าสุดจริง (tb_devices.status อาจค้างเป็น online)
+const connection = ref(null)
+const offlineEvents = ref([])
+const isLive = computed(() => connection.value ? connection.value.status === 'live' : farm.value?.device_status === 'online')
 const stats = ref({ critical: 0, moderate: 0, warning: 0 })
 const isLoading = ref(true)
 const isSending = ref(false)
@@ -539,6 +593,8 @@ const fetchFarmAlerts = async () => {
     if (res.data && res.data.success) {
       farm.value = res.data.farm
       alerts.value = res.data.alerts || []
+      connection.value = res.data.connection || null
+      offlineEvents.value = res.data.offline_events || []
       stats.value = res.data.stats || { critical: 0, moderate: 0, warning: 0 }
     }
   } catch (err) {
@@ -579,6 +635,11 @@ const openTestModal = () => {
 
 const formatDuration = (min) => {
   if (!min) return 'ไม่กี่นาที'
+  if (min >= 1440) {
+    const days = Math.floor(min / 1440)
+    const hrs = Math.floor((min % 1440) / 60)
+    return `${days} วัน${hrs ? ` ${hrs} ชม.` : ''}`
+  }
   if (min >= 60) {
     const hrs = Math.floor(min / 60)
     const rem = min % 60

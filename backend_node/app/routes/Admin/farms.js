@@ -1,5 +1,17 @@
 const express = require('express')
 const router = express.Router()
+
+// ข้อความกล่องเงียบ: บอกเป็นวัน/ชม./นาที พร้อมวันที่และเวลาไทยของข้อมูลล่าสุด
+// (เดิมบอกแค่เวลา เช่น "504.6 ชั่วโมง (ล่าสุดเมื่อ 23:58)" ไม่รู้ว่าวันไหน)
+const gapMessage = (lastAt, diffMinutes) => {
+    const d = Math.floor(diffMinutes / 1440)
+    const h = Math.floor((diffMinutes % 1440) / 60)
+    const m = diffMinutes % 60
+    const dur = d > 0 ? `${d} วัน${h ? ` ${h} ชม.` : ''}` : h > 0 ? `${h} ชม.${m ? ` ${m} นาที` : ''}` : `${m} นาที`
+    const when = new Date(lastAt).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' })
+    const note = diffMinutes >= 24 * 60 ? ' สรุปและกราฟ 24 ชม. ในหน้านี้จึงเป็นข้อมูลช่วงก่อนกล่องหยุดส่ง ไม่ใช่ของวันนี้' : ''
+    return `⚠️ กล่องเซ็นเซอร์ไม่ได้ส่งข้อมูลมา ${dur} (ข้อมูลล่าสุด ${when} น.)${note}`
+}
 const db = require('../../config/db')
 const { verifyToken, requireRole } = require('../../middleware/authMiddleware')
 const { 
@@ -379,9 +391,7 @@ router.get('/:id/latest', verifyToken, requireRole('admin'), async (req, res) =>
             is_gap_detected: !isOnline,
             duration_minutes: diffMinutes,
             last_recorded_at: latest.recorded_at,
-            message: !isOnline 
-                ? `⚠️ ข้อมูลเซ็นเซอร์ขาดหายไป ${diffMinutes >= 60 ? `${(diffMinutes / 60).toFixed(1)} ชั่วโมง` : `${diffMinutes} นาที`} (ล่าสุดเมื่อ ${new Date(latest.recorded_at).toLocaleTimeString('th-TH')})`
-                : null
+            message: !isOnline ? gapMessage(latest.recorded_at, diffMinutes) : null
         }
 
         return res.json({
@@ -867,9 +877,7 @@ router.get('/:id', verifyToken, requireRole('admin'), async (req, res) => {
                 is_gap_detected: !isOnline,
                 duration_minutes: diffMinutes,
                 last_recorded_at: latestReading.recorded_at,
-                message: !isOnline 
-                    ? `⚠️ ข้อมูลเซ็นเซอร์ขาดหายไป ${diffMinutes >= 60 ? `${(diffMinutes / 60).toFixed(1)} ชั่วโมง` : `${diffMinutes} นาที`} (ล่าสุดเมื่อ ${new Date(latestReading.recorded_at).toLocaleTimeString('th-TH')})`
-                    : null
+                message: !isOnline ? gapMessage(latestReading.recorded_at, diffMinutes) : null
             }
         }
 

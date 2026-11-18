@@ -196,9 +196,12 @@
                 <td class="py-4 px-6 text-right">
                   <span 
                     class="font-black text-base"
-                    :class="getRiskLevel(farm.current_thi, farm.hf_profile) === 'severe' ? 'text-rose-600' : getRiskLevel(farm.current_thi, farm.hf_profile) === 'moderate' ? 'text-amber-600' : getRiskLevel(farm.current_thi, farm.hf_profile) === 'mild' ? 'text-orange-500' : 'text-emerald-700'">
+                    :class="thiColor(farm)">
                     {{ farm.current_thi ?? '-' }}
                   </span>
+                  <div v-if="farm.connection?.status === 'offline'" class="text-[10px] font-bold text-gray-500 mt-0.5">
+                    ค่าเมื่อ {{ silentText(farm.connection.silent_min) }}ที่แล้ว
+                  </div>
                 </td>
 
                 <!-- Alert Stats Summary -->
@@ -225,15 +228,9 @@
                 <td class="py-4 px-6 text-center">
                   <span 
                     class="px-2.5 py-1 rounded-full text-[11px] font-bold inline-flex items-center gap-1 border"
-                    :class="farm.alert_status === 'critical' 
-                      ? 'bg-rose-50 text-rose-700 border-rose-200' 
-                      : farm.alert_status === 'moderate' 
-                      ? 'bg-amber-50 text-amber-700 border-amber-200' 
-                      : farm.alert_status === 'mild' 
-                      ? 'bg-orange-50 text-orange-700 border-orange-200' 
-                      : 'bg-emerald-50 text-emerald-700 border-emerald-200'">
-                    <v-icon :icon="farm.alert_status === 'critical' ? 'mdi-alert-octagon' : farm.alert_status === 'moderate' ? 'mdi-alert' : 'mdi-check-circle'" size="13" />
-                    {{ farm.alert_status === 'critical' ? 'วิกฤต (Severe)' : farm.alert_status === 'moderate' ? 'เครียดความร้อน' : farm.alert_status === 'mild' ? 'เฝ้าระวัง' : 'ปกติ' }}
+                    :class="statusBadge(farm).cls">
+                    <v-icon :icon="statusBadge(farm).icon" size="13" />
+                    {{ statusBadge(farm).text }}
                   </span>
                 </td>
 
@@ -266,7 +263,7 @@
           <!-- Card Top Color Accent Bar based on Alert Status -->
           <div 
             class="h-2 w-full"
-            :class="farm.alert_status === 'critical' ? 'bg-rose-500' : farm.alert_status === 'moderate' ? 'bg-amber-500' : farm.alert_status === 'mild' ? 'bg-orange-400' : 'bg-emerald-500'">
+            :class="statusBadge(farm).bar">
           </div>
 
           <div class="p-6 space-y-4 flex-1">
@@ -287,15 +284,9 @@
               <!-- Severity Badge -->
               <span 
                 class="px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 inline-flex items-center gap-1 border"
-                :class="farm.alert_status === 'critical' 
-                  ? 'bg-rose-50 text-rose-700 border-rose-200' 
-                  : farm.alert_status === 'moderate' 
-                  ? 'bg-amber-50 text-amber-700 border-amber-200' 
-                  : farm.alert_status === 'mild' 
-                  ? 'bg-orange-50 text-orange-700 border-orange-200' 
-                  : 'bg-emerald-50 text-emerald-700 border-emerald-200'">
-                <v-icon :icon="farm.alert_status === 'critical' ? 'mdi-alert-octagon' : farm.alert_status === 'moderate' ? 'mdi-alert' : 'mdi-check-circle'" size="13" />
-                {{ farm.alert_status === 'critical' ? 'วิกฤต (Severe)' : farm.alert_status === 'moderate' ? 'เครียดความร้อน' : farm.alert_status === 'mild' ? 'เฝ้าระวัง' : 'ปกติ' }}
+                :class="statusBadge(farm).cls">
+                <v-icon :icon="statusBadge(farm).icon" size="13" />
+                {{ statusBadge(farm).text }}
               </span>
             </div>
 
@@ -316,10 +307,10 @@
             <!-- Current Telemetry Metrics -->
             <div class="grid grid-cols-3 gap-2 bg-[#F6F7F5] p-3 rounded-2xl border border-[#E4E8E5] text-center">
               <div>
-                <div class="text-[9px] text-[#718078] font-bold uppercase">THI ตอนนี้</div>
+                <div class="text-[9px] text-[#718078] font-bold uppercase">{{ farm.connection?.status === 'offline' ? `THI ${silentText(farm.connection.silent_min)}ก่อน` : 'THI ตอนนี้' }}</div>
                 <div 
                   class="text-base font-black mt-0.5"
-                  :class="getRiskLevel(farm.current_thi, farm.hf_profile) === 'severe' ? 'text-rose-600' : getRiskLevel(farm.current_thi, farm.hf_profile) === 'moderate' ? 'text-amber-600' : 'text-emerald-700'">
+                  :class="thiColor(farm)">
                   {{ farm.current_thi ?? '-' }}
                 </div>
               </div>
@@ -495,6 +486,32 @@ const filteredFarms = computed(() => {
     return matchName || matchProv || matchFarmer || matchSerial
   })
 })
+
+// ระยะเวลาที่กล่องเงียบ (นาที) เป็นข้อความสั้น
+const silentText = (min) => {
+  if (min == null) return ''
+  if (min >= 1440) return `${Math.floor(min / 1440)} วัน`
+  if (min >= 60) return `${Math.floor(min / 60)} ชม. `
+  return `${min} นาที`
+}
+
+// สีค่า THI: ค่าเก่าจากกล่องที่เงียบเป็นสีเทา ไม่ให้ดูเหมือนเตือนอยู่ตอนนี้
+const thiColor = (farm) => {
+  if (farm.connection && farm.connection.status !== 'live') return 'text-gray-400'
+  const r = getRiskLevel(farm.current_thi, farm.hf_profile)
+  return r === 'severe' ? 'text-rose-600' : r === 'moderate' ? 'text-amber-600' : r === 'mild' ? 'text-orange-500' : 'text-emerald-700'
+}
+
+// ป้ายสถานะฟาร์ม: กล่องเงียบต้องขึ้นว่าขาดการติดต่อ ไม่ใช่ระดับความร้อนจากค่าเก่า
+const statusBadge = (farm) => {
+  const s = farm.alert_status
+  if (s === 'offline') return { cls: 'bg-gray-100 text-gray-700 border-gray-300', icon: 'mdi-wifi-off', text: `ขาดการติดต่อ ${silentText(farm.connection?.silent_min)}`.trim(), bar: 'bg-gray-400' }
+  if (s === 'never') return { cls: 'bg-gray-50 text-gray-500 border-gray-200', icon: 'mdi-help-circle-outline', text: 'ยังไม่มีข้อมูล', bar: 'bg-gray-300' }
+  if (s === 'critical') return { cls: 'bg-rose-50 text-rose-700 border-rose-200', icon: 'mdi-alert-octagon', text: 'วิกฤต (Severe)', bar: 'bg-rose-500' }
+  if (s === 'moderate') return { cls: 'bg-amber-50 text-amber-700 border-amber-200', icon: 'mdi-alert', text: 'เครียดความร้อน', bar: 'bg-amber-500' }
+  if (s === 'mild') return { cls: 'bg-orange-50 text-orange-700 border-orange-200', icon: 'mdi-check-circle', text: 'เฝ้าระวัง', bar: 'bg-orange-400' }
+  return { cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: 'mdi-check-circle', text: 'ปกติ', bar: 'bg-emerald-500' }
+}
 
 const formatTimeAgo = (isoStr) => {
   if (!isoStr) return 'N/A'
