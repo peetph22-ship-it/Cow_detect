@@ -7,7 +7,7 @@
         </div>
         <div>
           <h2 class="text-base sm:text-lg font-black text-[#142820] leading-tight">
-            ความร้อนในคอก 24 ชม. ที่ผ่านมา
+            {{ stale ? 'ความร้อนในคอก 24 ชม. ล่าสุดที่มีข้อมูล' : 'ความร้อนในคอก 24 ชม. ที่ผ่านมา' }}
           </h2>
           <p class="text-xs text-[#64766D] font-medium">
             เส้นยิ่งสูงยิ่งร้อน สีพื้นหลังบอกระดับ (ค่าเฉลี่ยรายชั่วโมงของทั้งฟาร์ม)
@@ -16,13 +16,24 @@
       </div>
     </div>
 
+    <!-- ข้อมูลเก่า: บอกวันที่ของข้อมูลชัดๆ ไม่ให้เข้าใจว่าเป็นของวันนี้ -->
+    <div
+      v-if="stale"
+      class="p-3 sm:p-3.5 rounded-2xl bg-[#FFFBEB] border border-[#FDE68A] text-xs sm:text-sm font-bold text-[#92400E] flex items-start gap-2.5">
+      <v-icon icon="mdi-clock-alert-outline" size="20" class="shrink-0 mt-0.5" />
+      <span>
+        กราฟนี้เป็นข้อมูลวันที่ {{ rangeText }} ไม่ใช่ของวันนี้
+        กล่องเซ็นเซอร์ไม่ได้ส่งข้อมูลมา {{ staleText }} ตรวจว่าเสียบปลั๊กและต่อ Wi-Fi อยู่หรือไม่
+      </span>
+    </div>
+
     <template v-if="hasData">
       <!-- สรุปสั้นๆ ให้อ่านได้โดยไม่ต้องดูกราฟ -->
       <div class="grid grid-cols-2 gap-2.5 sm:gap-3">
         <div class="p-3 sm:p-3.5 rounded-2xl border" :class="peakStyle.chip">
           <div class="text-[11px] font-extrabold opacity-90">ร้อนที่สุด</div>
           <div class="text-base sm:text-lg font-black mt-0.5 tabular-nums">
-            {{ peak ? `${thaiHour(peak.t)} น.` : '—' }}
+            {{ peak ? `${stale ? `${thaiDateShort(peak.t)} ` : ''}${thaiHour(peak.t)} น.` : '—' }}
           </div>
           <div class="text-[11px] font-bold mt-0.5">THI {{ peak?.thi ?? '—' }} · {{ levelName(peak?.level) }}</div>
         </div>
@@ -69,6 +80,31 @@ const missingHours = computed(() => points.value.length - withData.value.length)
 const chartHeight = ref(0)
 onMounted(() => { chartHeight.value = window.innerWidth < 640 ? 220 : 260 })
 
+// ข้อมูลล่าสุดเก่ากว่า 2 ชม. = กล่องหยุดส่ง (หลังบ้านส่ง 24 ชม. สุดท้ายที่มีข้อมูล ซึ่งอาจเป็นวันก่อนๆ)
+const STALE_MS = 2 * 3600e3
+const clock = ref(Date.now())
+const stale = computed(() => {
+  const last = withData.value[withData.value.length - 1]
+  return Boolean(last) && clock.value - (new Date(last.t).getTime() + 3600e3) > STALE_MS
+})
+const thaiDateShort = iso => new Date(iso).toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short' })
+const rangeText = computed(() => {
+  const pts = points.value
+  if (!pts.length) return ''
+  const a = thaiDateShort(pts[0].t)
+  const b = thaiDateShort(pts[pts.length - 1].t)
+  return a === b ? a : `${a} – ${b}`
+})
+const staleText = computed(() => {
+  const last = withData.value[withData.value.length - 1]
+  if (!last) return ''
+  const h = Math.floor((clock.value - new Date(last.t).getTime() - 3600e3) / 3600e3)
+  return h >= 48 ? `${Math.floor(h / 24)} วันแล้ว` : `${Math.max(2, h)} ชม. แล้ว`
+})
+let clockTimer = null
+onMounted(() => { clockTimer = setInterval(() => { clock.value = Date.now() }, 60e3) })
+onBeforeUnmount(() => clearInterval(clockTimer))
+
 const lastIdx = computed(() => {
   for (let i = points.value.length - 1; i >= 0; i--) if (points.value[i].thi != null) return i
   return -1
@@ -109,7 +145,7 @@ const options = computed(() => {
         const p = pts[dataPointIndex]
         if (!p || p.thi == null) return ''
         return `<div style="padding:8px 10px;font-size:12px;line-height:1.5">
-          <div style="font-weight:800">${thaiHour(p.t)} น.</div>
+          <div style="font-weight:800">${stale.value ? `${thaiDateShort(p.t)} ` : ''}${thaiHour(p.t)} น.</div>
           <div>THI <b>${p.thi}</b> · <span style="color:${LEVEL_COLOR[p.level]};font-weight:800">${levelName(p.level)}</span></div>
           <div style="color:#4E655B">${p.temp}°C · ความชื้น ${p.hum}%</div>
         </div>`
