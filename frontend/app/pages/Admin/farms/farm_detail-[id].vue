@@ -933,6 +933,28 @@
         </div>
       </div>
 
+      <!-- ข้อมูลเก่า / มีช่วงขาดหาย: บอกติดกับกราฟ (ป้ายเตือนด้านบนสุดของหน้าอยู่ไกลเกินไป) -->
+      <div v-if="activeChartTab !== 'lstm_forecast' && (staleWindowText || chartGaps.length)" class="flex flex-col gap-2">
+        <div
+          v-if="staleWindowText"
+          class="flex items-start gap-2 px-4 py-2.5 rounded-2xl bg-amber-50 border border-amber-200 text-xs font-bold text-amber-900">
+          <v-icon icon="mdi-clock-alert-outline" size="18" class="shrink-0" />
+          <span>
+            กราฟนี้เป็นข้อมูลช่วง {{ staleWindowText }} ไม่ใช่ของวันนี้
+            กล่องเซ็นเซอร์ไม่ได้ส่งข้อมูลมา {{ silentDurationText }}
+          </span>
+        </div>
+        <div
+          v-if="chartGaps.length"
+          class="flex items-start gap-2 px-4 py-2.5 rounded-2xl bg-[#f6f7f5] border border-[#e5ece9] text-xs font-bold text-[#4e6057]">
+          <v-icon icon="mdi-wifi-off" size="18" class="shrink-0" />
+          <span>
+            ช่วงไม่มีข้อมูล (แถบสีเทา เส้นขาด):
+            {{ chartGaps.map(g => `${formatClock(g.startAt)}–${formatClock(g.endAt)} (${formatGapDuration(g.min)})`).join(', ') }}
+          </span>
+        </div>
+      </div>
+
       <!-- ApexChart Area -->
       <div class="h-[340px] md:h-[380px] w-full">
         <ClientOnly>
@@ -1523,9 +1545,16 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-[#f0f4f2] bg-white">
+            <template v-for="row in tableRows" :key="row.key">
+            <!-- แถวคั่น: ช่วงที่กล่องไม่ได้ส่งข้อมูล -->
+            <tr v-if="row._gap" class="bg-[#f6f7f5]">
+              <td colspan="7" class="py-2.5 px-5 text-center text-[11px] font-black text-[#6b7280]">
+                <v-icon icon="mdi-wifi-off" size="14" class="mr-1" />
+                ไม่มีข้อมูล {{ formatClock(row.startAt) }} – {{ formatClock(row.endAt) }} ({{ formatGapDuration(row.min) }})
+              </td>
+            </tr>
             <tr 
-              v-for="(row, idx) in historyList" 
-              :key="row.id || idx" 
+              v-else
               class="hover:bg-[#f8faf9] transition-colors relative">
               
               <!-- Left Mini Color Accent Bar according to THI Risk Level -->
@@ -1534,7 +1563,7 @@
                   class="absolute left-0 top-0 bottom-0 w-1 rounded-r"
                   :class="getRowAccentBarClass(row.thi)">
                 </span>
-                <span class="font-mono tabular-nums">{{ historyList.length - idx }}</span>
+                <span class="font-mono tabular-nums">{{ row._n }}</span>
               </td>
 
               <!-- Date & Time -->
@@ -1574,6 +1603,7 @@
                 {{ row.serial_no || device?.serial_no || '-' }}
               </td>
             </tr>
+            </template>
 
             <!-- Empty Row -->
             <tr v-if="historyList.length === 0">
@@ -2380,11 +2410,95 @@ const chartCategories = computed(() => {
     return [...pastCats, ...futureCats]
   }
 
-  return historyList.value.map((h, i) => {
-    if (!h.recorded_at) return `${i + 1}:00`
-    const d = new Date(h.recorded_at)
-    return isNaN(d.getTime()) ? `${i + 1}:00` : d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
+  // ป้ายเวลาซ้ำได้ (ช่วง 24 ชม. เริ่มและจบที่เวลาเดียวกันคนละวัน) เติมอักขระมองไม่เห็นให้ไม่ซ้ำ
+  // เพราะ annotation ของแกนแบบ category อ้างตำแหน่งด้วยข้อความป้าย
+  const seen = new Map()
+  return chartRows.value.map((h, i) => {
+    const d = h.recorded_at ? new Date(h.recorded_at) : null
+    const base = d && !isNaN(d.getTime()) ? d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : `${i + 1}`
+    const n = seen.get(base) || 0
+    seen.set(base, n + 1)
+    return base + '\u200b'.repeat(n)
   })
+})
+
+// ---------- แกนเวลาตามจริง: เติมช่องว่างทุก 5 นาทีในช่วงที่ไม่มีข้อมูล ----------
+// เดิมจุดข้อมูลเรียงติดกันเป็นลำดับ ช่วงที่กล่องเงียบ 10 ชม. จึงหายไปจากกราฟและเส้นลากต่อกันเหมือนข้อมูลครบ
+const SLOT_MS = 5 * 60 * 1000
+const GAP_MARK_MS = 15 * 60 * 1000   // เงียบเกิน 15 นาที = ช่วงขาดหาย (เกณฑ์เดียวกับระบบแจ้งเตือน)
+const MAX_FILL = 600                 // กันกราฟใหญ่ผิดปกติ (24 ชม. มีไม่เกิน 288 ช่อง)
+const sortedHistory = computed(() => [...historyList.value]
+  .filter(h => h.recorded_at && !isNaN(new Date(h.recorded_at).getTime()))
+  .sort((a, b) => new Date(a.recorded_at) - new Date(b.recorded_at)))
+
+const chartRows = computed(() => {
+  const rows = []
+  let filled = 0
+  const src = sortedHistory.value
+  for (let i = 0; i < src.length; i++) {
+    const cur = src[i]
+    const prev = src[i - 1]
+    if (prev) {
+      const pt = new Date(prev.recorded_at).getTime()
+      const ct = new Date(cur.recorded_at).getTime()
+      for (let t = pt + SLOT_MS; ct - t >= SLOT_MS / 2 && filled < MAX_FILL; t += SLOT_MS, filled++) {
+        rows.push({ recorded_at: new Date(t).toISOString(), thi: null, temperature_c: null, humidity_pct: null, _gap: true })
+      }
+    }
+    rows.push(cur)
+  }
+  return rows
+})
+
+// ช่วงขาดหายเกิน 15 นาที: ใช้ระบายแถบสีเทาในกราฟ และบอกเป็นข้อความ
+const chartGaps = computed(() => {
+  const out = []
+  const src = sortedHistory.value
+  for (let i = 1; i < src.length; i++) {
+    const a = new Date(src[i - 1].recorded_at).getTime()
+    const b = new Date(src[i].recorded_at).getTime()
+    if (b - a > GAP_MARK_MS) out.push({ startAt: new Date(a + SLOT_MS), endAt: new Date(b), min: Math.round((b - a - SLOT_MS) / 60000) })
+  }
+  return out
+})
+
+const formatClock = (d) => {
+  const dt = new Date(d)
+  const spansDays = staleWindowText.value || (sortedHistory.value.length && new Date(sortedHistory.value[0].recorded_at).toDateString() !== new Date(sortedHistory.value[sortedHistory.value.length - 1].recorded_at).toDateString())
+  const time = dt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
+  return spansDays ? `${dt.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })} ${time}` : time
+}
+
+const formatGapDuration = (min) => {
+  if (min >= 1440) return `${Math.floor(min / 1440)} วัน${Math.floor((min % 1440) / 60) ? ` ${Math.floor((min % 1440) / 60)} ชม.` : ''}`
+  if (min >= 60) return `${Math.floor(min / 60)} ชม.${min % 60 ? ` ${min % 60} นาที` : ''}`
+  return `${min} นาที`
+}
+
+const silentDurationText = computed(() => {
+  const last = latestSensor.value?.recorded_at
+  if (!last) return ''
+  return formatGapDuration(Math.max(0, Math.floor((nowTimestamp.value - new Date(last).getTime()) / 60000)))
+})
+
+// ตารางประวัติ: แทรกแถวคั่นตรงช่วงที่ไม่มีข้อมูลเกิน 15 นาที (ลำดับเดียวกับ historyList)
+const tableRows = computed(() => {
+  const out = []
+  const src = historyList.value
+  for (let i = 0; i < src.length; i++) {
+    const prev = src[i - 1]
+    const cur = src[i]
+    if (prev?.recorded_at && cur?.recorded_at) {
+      const a = new Date(prev.recorded_at).getTime()
+      const b = new Date(cur.recorded_at).getTime()
+      if (Math.abs(b - a) > GAP_MARK_MS) {
+        const [lo, hi] = a < b ? [a, b] : [b, a]
+        out.push({ _gap: true, key: `gap-${lo}`, startAt: new Date(lo + SLOT_MS), endAt: new Date(hi), min: Math.round((hi - lo - SLOT_MS) / 60000) })
+      }
+    }
+    out.push({ ...cur, _n: src.length - i, key: cur.id || `row-${i}` })
+  }
+  return out
 })
 
 const chartSeries = computed(() => {
@@ -2424,7 +2538,8 @@ const chartSeries = computed(() => {
 
   if (!historyList.value || historyList.value.length === 0) return []
 
-  const thiData = historyList.value.map(h => {
+  // ใช้แถวที่เติมช่องว่างแล้ว: ช่วงไม่มีข้อมูลเป็น null เส้นจึงขาดแทนการลากต่อ
+  const thiData = chartRows.value.map(h => {
     if (h.thi !== null && h.thi !== undefined && !isNaN(Number(h.thi))) return Number(Number(h.thi).toFixed(1))
     if (h.temperature_c != null && h.humidity_pct != null) {
       const t = Number(h.temperature_c)
@@ -2433,8 +2548,8 @@ const chartSeries = computed(() => {
     }
     return null
   })
-  const tempData = historyList.value.map(h => h.temperature_c != null ? Number(Number(h.temperature_c).toFixed(1)) : null)
-  const humData = historyList.value.map(h => h.humidity_pct != null ? Number(Number(h.humidity_pct).toFixed(1)) : null)
+  const tempData = chartRows.value.map(h => h.temperature_c != null ? Number(Number(h.temperature_c).toFixed(1)) : null)
+  const humData = chartRows.value.map(h => h.humidity_pct != null ? Number(Number(h.humidity_pct).toFixed(1)) : null)
 
   if (activeChartTab.value === 'thi') {
     return [
@@ -2481,6 +2596,38 @@ const chartSeries = computed(() => {
   ]
 })
 
+// ตำแหน่งของป้ายแกน x แต่ละอัน และระยะห่างของป้ายที่แสดง (ประมาณ 12 ป้ายทั้งแกน)
+const categoryIndex = computed(() => new Map(chartCategories.value.map((c, i) => [c, i])))
+const categoryStep = computed(() => Math.max(1, Math.round(chartCategories.value.length / 12)))
+const gapEdgeLabels = computed(() => new Set(gapAnnotations.value.flatMap(g => [g.x, g.x2])))
+
+// แถบสีเทาในกราฟตรงช่วงที่ไม่มีข้อมูล (ตำแหน่งอ้างด้วยป้ายแกน x ของช่องแรก/ช่องสุดท้ายที่ว่าง)
+const gapAnnotations = computed(() => {
+  const cats = chartCategories.value
+  const rows = chartRows.value
+  if (activeChartTab.value === 'lstm_forecast' || !rows.length) return []
+  return chartGaps.value.map(g => {
+    const startIdx = rows.findIndex(r => r._gap && new Date(r.recorded_at).getTime() >= g.startAt.getTime())
+    let endIdx = startIdx
+    while (endIdx + 1 < rows.length && rows[endIdx + 1]._gap) endIdx++
+    if (startIdx < 0) return null
+    return {
+      x: cats[Math.max(0, startIdx - 1)],
+      x2: cats[Math.min(rows.length - 1, endIdx + 1)],
+      fillColor: '#9ca3af',
+      opacity: 0.18,
+      borderColor: 'transparent',
+      label: {
+        text: `ไม่มีข้อมูล ${formatGapDuration(g.min)}`,
+        orientation: 'horizontal',
+        position: 'top',
+        borderWidth: 0,
+        style: { background: '#6b7280', color: '#fff', fontSize: '10px', fontWeight: 700 }
+      }
+    }
+  }).filter(Boolean)
+})
+
 const chartOptions = computed(() => {
   const isThiOnly = activeChartTab.value === 'thi'
   const isBoth = activeChartTab.value === 'both'
@@ -2519,9 +2666,17 @@ const chartOptions = computed(() => {
     dataLabels: { enabled: false },
     xaxis: {
       categories: chartCategories.value,
+      // ห้ามตั้ง tickAmount: ApexCharts จะเปลี่ยนแกน category เป็นตัวเลข แล้วแถบช่วงขาดหาย (อ้างด้วยป้าย) ผิดตำแหน่ง
+      // แกน 24 ชม. มีถึง 288 ช่อง: ซ่อนป้ายด้วย formatter ให้เหลือประมาณทุก 2 ชม.
       labels: {
         style: { fontSize: '11px', colors: '#718078' },
-        rotate: -30
+        rotate: isForecast ? -30 : 0,
+        hideOverlappingLabels: true,
+        formatter: isForecast ? undefined : (val) => {
+          // ป้ายขอบช่วงขาดหายต้องคงไว้: ApexCharts หาตำแหน่งแถบสีเทาจากป้ายที่ผ่าน formatter แล้ว
+          const i = categoryIndex.value.get(val)
+          return i == null || i % categoryStep.value === 0 || gapEdgeLabels.value.has(val) ? val : ''
+        }
       },
       axisBorder: { show: false },
       axisTicks: { show: false }
@@ -2533,6 +2688,7 @@ const chartOptions = computed(() => {
       }
     },
     annotations: isThiOnly || isBoth || isForecast ? {
+      xaxis: isForecast ? [] : gapAnnotations.value,
       yaxis: [
         {
           y: farmThresholds.value.mild,
@@ -2565,10 +2721,20 @@ const chartOptions = computed(() => {
           }
         }
       ]
-    } : {},
+    } : { xaxis: gapAnnotations.value },
     tooltip: {
       theme: 'light',
-      shared: true
+      shared: true,
+      // ป้ายแกนเป็นแค่เวลา: tooltip บอกวันที่ด้วย และบอกเมื่อจุดนั้นไม่มีข้อมูล
+      x: isForecast ? {} : {
+        formatter: (_val, opts) => {
+          const row = chartRows.value[opts?.dataPointIndex]
+          if (!row) return ''
+          const dt = new Date(row.recorded_at)
+          const txt = `${dt.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })} ${dt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.`
+          return row._gap ? `${txt} · ไม่มีข้อมูล` : txt
+        }
+      }
     },
     grid: {
       borderColor: '#f0f4f2',
