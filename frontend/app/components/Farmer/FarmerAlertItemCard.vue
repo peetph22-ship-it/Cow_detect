@@ -23,7 +23,7 @@
         </div>
 
         <div class="text-xs text-[#4E655B] font-bold mt-0.5 flex items-center gap-1.5 tabular-nums">
-          <span>{{ thaiTime(event.start) }} – {{ event.end ? thaiTime(event.end) : 'ปัจจุบัน' }} น.</span>
+          <span>{{ rangeText }}</span>
         </div>
       </div>
     </div>
@@ -45,13 +45,27 @@
 </template>
 
 <script setup>
-import { thaiTime } from '~/composables/useFarmer'
+import { thaiTime, thaiDate } from '~/composables/useFarmer'
 
 const props = defineProps({
   event: {
     type: Object,
     required: true
   }
+})
+
+// ช่วงเวลาของเหตุการณ์: ข้ามวันต้องมีวันที่กำกับ (เดิม 24 ชม. ขึ้นว่า "00:02 – 00:02 น.")
+// ยังไม่จบ: "09:02 น. – ตอนนี้" (เดิม "09:02 – ปัจจุบัน น.")
+const bkkDay = (iso) => new Date(iso).toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' })
+const shortDate = (iso) => thaiDate(iso, { day: 'numeric', month: 'short' })
+const rangeText = computed(() => {
+  const { start, end } = props.event
+  const endAt = end || new Date().toISOString()
+  const crossDay = bkkDay(start) !== bkkDay(endAt)
+  const from = crossDay ? `${shortDate(start)} ${thaiTime(start)} น.` : `${thaiTime(start)} น.`
+  if (!end) return `${from} – ตอนนี้`
+  if (crossDay) return `${from} – ${shortDate(end)} ${thaiTime(end)} น.`
+  return `${thaiTime(start)} – ${thaiTime(end)} น.`
 })
 
 const cardClass = computed(() => {

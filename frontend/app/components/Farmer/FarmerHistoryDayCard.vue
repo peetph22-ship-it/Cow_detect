@@ -7,12 +7,13 @@
         <!-- วันที่ -->
         <div class="flex flex-wrap items-center gap-2">
           <h3 class="text-base sm:text-lg font-black text-[#1B342D]">
-            {{ day.is_today ? 'วันนี้' : thaiDate(day.date, { weekday: 'long', day: 'numeric', month: 'short' }) }}
+            {{ thaiDate(day.date, { weekday: 'long', day: 'numeric', month: 'short' }) }}
           </h3>
+          <!-- หัวการ์ดเป็นวันที่เสมอ ป้ายบอกว่าเป็นวันนี้และยังไม่ครบวัน (เดิมขึ้น "วันนี้" ซ้ำ 2 ที่) -->
           <span
             v-if="day.is_today"
             class="text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-[#1B342D] text-[#FFFDF7]">
-            วันนี้
+            วันนี้ (ถึงตอนนี้)
           </span>
         </div>
 

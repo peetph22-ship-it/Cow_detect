@@ -18,9 +18,10 @@ const items = computed(() => {
   const t = thresholds.value
   return [
     { level: 'normal', range: `ต่ำกว่า ${t.mild}` },
-    { level: 'mild', range: `${t.mild}–${t.moderate}` },
-    { level: 'moderate', range: `${t.moderate}–${t.severe}` },
-    { level: 'severe', range: `${t.severe} ขึ้นไป` }
+    // เขียนแบบเดียวกับหน้า "ฟาร์มฉัน" (74–75 / 76–81 / ≥ 82) ไม่ให้ค่าขอบอยู่ 2 ระดับ
+    { level: 'mild', range: `${t.mild}–${t.moderate - 1}` },
+    { level: 'moderate', range: `${t.moderate}–${t.severe - 1}` },
+    { level: 'severe', range: `≥ ${t.severe}` }
   ].map(i => ({ ...i, name: RISK_SHORT[i.level], color: LEVEL_COLOR[i.level] }))
 })
 </script>
