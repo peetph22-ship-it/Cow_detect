@@ -1,0 +1,7 @@
+# CBVD-5 (CC0) แปลงด้วย tools/convert_cbvd5.py - test = มุมกล้องที่ไม่เคยใช้ฝึก (group 2)
+train: train/images
+val: val/images
+test: test/images
+
+nc: 4
+names: ['drinking', 'feeding', 'lying down', 'standing']
