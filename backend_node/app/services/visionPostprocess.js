@@ -1,7 +1,7 @@
 /**
  * YOLO26m (Ultralytics, end2end=False) post-processing - pure functions, ทดสอบได้โดยไม่ต้องมีโมเดล
  *
- * output0 shape [1, 4 + nc, N]: แถว 0..3 = cx, cy, w, h (พิกเซลในภาพ letterbox), แถว 4.. = คะแนนแต่ละคลาส
+ * output0 shape [1, 4 + nc, N]: แถว 0..3 = cx, cy, w, h (พิกเซลในภาพ imgsz x imgsz ที่เข้าโมเดล), แถว 4.. = คะแนนแต่ละคลาส
  * โมเดลนี้ export แบบไม่ใช่ NMS-free จึงต้องทำ NMS เอง (ค่าที่ใช้จริงดู DETECT_OPTS)
  */
 
@@ -14,6 +14,14 @@ const CLASS_NAMES = ['drinking', 'feeding', 'lying down', 'standing']
  * แบบไม่ดูท่าเหลือ 0 คู่ จำนวนวัวรวมคลาดน้อยลงเล็กน้อย (0.93 -> 0.90 ตัว/ภาพ) จำนวนวัวนอนคลาดเท่าเดิม (0.47)
  */
 const DETECT_OPTS = Object.freeze({ conf: 0.25, iouThr: 0.7, agnostic: true })
+
+/**
+ * วิธีย่อภาพก่อนเข้าโมเดล: ยืดเต็มกรอบ imgsz x imgsz (ไม่คงสัดส่วน) ให้ตรงกับภาพที่ใช้ฝึก
+ * (ชุดข้อมูล Roboflow ถูก "Resize to 640x640 (Stretch)") ต้องใช้แบบเดียวกันทั้ง visionWorker,
+ * scripts/eval_counts.js และหน้า simulator (frontend/app/utils/browserYolo.ts)
+ * ถ้าฝึกโมเดลใหม่ด้วยภาพที่คงสัดส่วน ต้องเปลี่ยนกลับเป็น letterbox ทุกที่พร้อมกัน
+ */
+const RESIZE_MODE = 'stretch'
 
 const iou = (a, b) => {
     const x1 = Math.max(a.x1, b.x1)
@@ -84,23 +92,21 @@ const summarize = (detections) => {
 }
 
 /**
- * แปลงกรอบจากพิกัดภาพ letterbox (imgsz x imgsz) เป็นสัดส่วน 0-1 บนภาพจริง (width x height)
+ * แปลงกรอบจากพิกัดภาพที่เข้าโมเดล (imgsz x imgsz) เป็นสัดส่วน 0-1 บนภาพจริง
+ * ภาพถูกยืดเต็มกรอบ (RESIZE_MODE) ทั้งภาพจริงจึงตรงกับ 0..imgsz ทั้งสองแกน: หารด้วย imgsz ได้เลย ไม่มีแถบเทาให้หักออก
  * ไว้วาดทับภาพตัวอย่างและนำเข้าเครื่องมือตีกรอบ เช่น Roboflow
  */
-const toImageBoxes = (detections, width, height, imgsz) => {
-    const s = Math.min(imgsz / width, imgsz / height)
-    const px = (imgsz - width * s) / 2
-    const py = (imgsz - height * s) / 2
+const toImageBoxes = (detections, imgsz) => {
     const clamp = (v) => Math.min(1, Math.max(0, v))
     const r4 = (v) => Math.round(v * 1e4) / 1e4
     return detections.map(d => ({
         cls: CLASS_NAMES[d.cls],
         score: Math.round(d.score * 1000) / 1000,
-        x1: r4(clamp((d.x1 - px) / s / width)),
-        y1: r4(clamp((d.y1 - py) / s / height)),
-        x2: r4(clamp((d.x2 - px) / s / width)),
-        y2: r4(clamp((d.y2 - py) / s / height))
+        x1: r4(clamp(d.x1 / imgsz)),
+        y1: r4(clamp(d.y1 / imgsz)),
+        x2: r4(clamp(d.x2 / imgsz)),
+        y2: r4(clamp(d.y2 / imgsz))
     }))
 }
 
-module.exports = { CLASS_NAMES, DETECT_OPTS, iou, decodeDetections, summarize, toImageBoxes }
+module.exports = { CLASS_NAMES, DETECT_OPTS, RESIZE_MODE, iou, decodeDetections, summarize, toImageBoxes }

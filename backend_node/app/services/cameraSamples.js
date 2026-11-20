@@ -39,6 +39,8 @@ const buildSampleJson = (capturedAt, result, imgsz) => ({
     model: MODEL_FILE,
     imgsz,
     detect_opts: result.detect_opts || null,
+    // วิธีย่อภาพเข้าโมเดล (ภาพก่อน 2026-11-20 ไม่มีฟิลด์นี้ = letterbox) ไว้แยกผลตอนตรวจ/วัดความแม่นยำย้อนหลัง
+    resize: result.resize || null,
     image: result.image || null,
     total: result.total,
     counts: result.counts,

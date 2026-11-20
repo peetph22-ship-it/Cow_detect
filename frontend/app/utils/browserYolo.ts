@@ -1,7 +1,8 @@
 /**
  * รัน YOLO (โมเดลเดียวกับ server) ในเบราว์เซอร์ สำหรับตรวจจับจากวิดีโอในหน้า simulation
  * ขั้นตอนตรงกับ backend_node/app/services/visionWorker.js + visionPostprocess.js:
- * letterbox สีเทา 114 -> RGB CHW 0–1 -> output0 [1, 4+nc, N] -> NMS ไม่ดูคลาส -> กรอบเป็นสัดส่วน 0–1 ของภาพจริง
+ * ย่อภาพตามที่ server ใช้ (info.resize: 'stretch' ยืดเต็มกรอบเหมือนภาพฝึก / ไม่มีค่า = letterbox สีเทา 114 แบบ server รุ่นเก่า)
+ * -> RGB CHW 0–1 -> output0 [1, 4+nc, N] -> NMS ไม่ดูคลาส -> กรอบเป็นสัดส่วน 0–1 ของภาพจริง
  * ต่างจาก server เล็กน้อยตรงวิธีย่อภาพ (canvas ของเบราว์เซอร์ vs sharp) ผลจึงอาจต่างกันเล็กน้อย
  */
 // โหลด onnxruntime-web จาก CDN ตอนใช้งานเท่านั้น ไม่รวมใน build:
@@ -25,6 +26,7 @@ export interface ModelInfo {
   imgsz: number
   class_names: string[]
   detect_opts: { conf: number; iouThr: number; agnostic: boolean }
+  resize?: 'stretch' | 'letterbox'
 }
 export interface Box { cls: string; score: number; x1: number; y1: number; x2: number; y2: number }
 
@@ -105,9 +107,11 @@ export const detectFrame = async (session: any, source: CanvasImageSource & { vi
   const S = info.imgsz
   const W = (source.videoWidth || source.width) as number
   const H = (source.videoHeight || source.height) as number
+  // stretch: ภาพเต็ม S x S (สัดส่วนเปลี่ยน) / letterbox: ย่อคงสัดส่วนแล้ววางกลาง
+  const stretch = info.resize === 'stretch'
   const scale = Math.min(S / W, S / H)
-  const dw = W * scale
-  const dh = H * scale
+  const dw = stretch ? S : W * scale
+  const dh = stretch ? S : H * scale
   const px = (S - dw) / 2
   const py = (S - dh) / 2
   canvas.width = S
@@ -152,12 +156,13 @@ export const detectFrame = async (session: any, source: CanvasImageSource & { vi
     kept.push(c)
   }
   const clamp = (v: number) => Math.min(1, Math.max(0, v))
+  // พิกัดในกรอบ S x S -> สัดส่วนของภาพจริง (ใช้ได้ทั้งสองแบบ: หักขอบเทา px/py แล้วหารด้วยขนาดภาพที่วาดจริง)
   return kept.map(k => ({
     cls: info.class_names[k.cls],
     score: k.score,
-    x1: clamp((k.x1 - px) / scale / W),
-    y1: clamp((k.y1 - py) / scale / H),
-    x2: clamp((k.x2 - px) / scale / W),
-    y2: clamp((k.y2 - py) / scale / H)
+    x1: clamp((k.x1 - px) / dw),
+    y1: clamp((k.y1 - py) / dh),
+    x2: clamp((k.x2 - px) / dw),
+    y2: clamp((k.y2 - py) / dh)
   }))
 }

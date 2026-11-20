@@ -10,7 +10,7 @@ const fs = require('fs')
 const path = require('path')
 const ort = require('onnxruntime-node')
 const sharp = require('sharp')
-const { CLASS_NAMES, iou, decodeDetections } = require('../app/services/visionPostprocess')
+const { CLASS_NAMES, iou, decodeDetections, toImageBoxes } = require('../app/services/visionPostprocess')
 
 const dir = process.argv[2]
 const modelPath = process.argv[3] || path.resolve(__dirname, '../app/weights/yolo26m_480.onnx')
@@ -27,11 +27,11 @@ const VARIANTS = [
     { name: 'ไม่ดูท่า IoU 0.5', opts: { iouThr: 0.5, agnostic: true } }
 ]
 
-// เหมือน visionWorker.preprocess และคืนขนาดภาพจริงไว้แปลงพิกัดกลับ
+// เหมือน visionWorker.preprocess (ยืดเต็มกรอบตาม RESIZE_MODE) และคืนขนาดภาพจริง
 const preprocess = async (file) => {
     const img = sharp(file).rotate()
     const { data, info } = await img
-        .resize(IMG, IMG, { fit: 'contain', background: { r: 114, g: 114, b: 114 }, kernel: 'linear' })
+        .resize(IMG, IMG, { fit: 'fill', kernel: 'linear' })
         .removeAlpha().raw().toBuffer({ resolveWithObject: true })
     const meta = await sharp(file).rotate().toBuffer({ resolveWithObject: true }).then(r => r.info)
     const plane = IMG * IMG
@@ -45,13 +45,8 @@ const preprocess = async (file) => {
     return { chw, W: meta.width, H: meta.height }
 }
 
-// พิกัด letterbox 480 -> สัดส่วนบนภาพจริง
-const toNorm = (d, W, H) => {
-    const s = Math.min(IMG / W, IMG / H)
-    const px = (IMG - W * s) / 2
-    const py = (IMG - H * s) / 2
-    return { cls: d.cls, score: d.score, x1: (d.x1 - px) / s / W, y1: (d.y1 - py) / s / H, x2: (d.x2 - px) / s / W, y2: (d.y2 - py) / s / H }
-}
+// พิกัดภาพเข้าโมเดล 480 -> สัดส่วนบนภาพจริง (ใช้ฟังก์ชันเดียวกับ server) คงเลขคลาสไว้เทียบกับเฉลย
+const toNorm = (d) => ({ ...toImageBoxes([d], IMG)[0], cls: d.cls, score: d.score })
 
 const readLabels = (file) => {
     if (!fs.existsSync(file)) return []
@@ -99,7 +94,7 @@ const crossClassDup = (preds, thr = 0.7) => {
         gtCows += gts.length; gtLying += gL
 
         VARIANTS.forEach((v, k) => {
-            const preds = decodeDetections(out.data, out.dims, v.opts).map(d => toNorm(d, W, H))
+            const preds = decodeDetections(out.data, out.dims, v.opts).map(toNorm)
             const pL = preds.filter(p => p.cls === LYING).length
             const s = stats[k]
             s.absTotal += Math.abs(preds.length - gts.length)

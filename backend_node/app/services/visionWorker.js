@@ -6,11 +6,13 @@
 const { parentPort, workerData } = require('worker_threads')
 const ort = require('onnxruntime-node')
 const sharp = require('sharp')
-const { DETECT_OPTS, decodeDetections, summarize, toImageBoxes } = require('./visionPostprocess')
+const { DETECT_OPTS, RESIZE_MODE, decodeDetections, summarize, toImageBoxes } = require('./visionPostprocess')
 
 const IMG = workerData.imgsz || 480
 
-// ภาพ letterbox แบบเดียวกับ Ultralytics: ย่อคงสัดส่วน วางกลาง เติมสีเทา 114
+// ยืดภาพเต็มกรอบ IMG x IMG (ไม่คงสัดส่วน) ให้เหมือนภาพที่ใช้ฝึก: ชุดข้อมูล Roboflow ถูก "Resize to 640x640 (Stretch)"
+// เดิมใช้ letterbox (คงสัดส่วน + แถบเทา) วัวในภาพกล้อง 16:9 จึงดูกว้างกว่าที่โมเดลเคยเห็น
+// วัดกับภาพทดสอบ 203 ภาพที่จำลองเป็นภาพกล้อง 16:9: recall 0.73 -> 0.78, นับวัวคลาด 1.13 -> 0.92 ตัว/ภาพ
 // คืนขนาดภาพจริง (หลังหมุนตาม EXIF) ไว้แปลงพิกัดกรอบกลับ
 const preprocess = async (jpeg) => {
     const meta = await sharp(jpeg).metadata()
@@ -19,7 +21,7 @@ const preprocess = async (jpeg) => {
     const height = swap ? meta.width : meta.height
     const { data, info } = await sharp(jpeg)
         .rotate()  // หมุนตาม EXIF
-        .resize(IMG, IMG, { fit: 'contain', background: { r: 114, g: 114, b: 114 }, kernel: 'linear' })
+        .resize(IMG, IMG, { fit: 'fill', kernel: 'linear' })
         .removeAlpha()
         .raw()
         .toBuffer({ resolveWithObject: true })
@@ -64,9 +66,10 @@ const preprocess = async (jpeg) => {
                 result: {
                     ...summarize(detections),
                     detections,
-                    boxes: toImageBoxes(detections, width, height, IMG),
+                    boxes: toImageBoxes(detections, IMG),
                     image: { width, height },
                     detect_opts: opts,
+                    resize: RESIZE_MODE,
                     timing_ms: { preprocess: t1 - t0, inference: t2 - t1, total: Date.now() - t0 }
                 }
             })
