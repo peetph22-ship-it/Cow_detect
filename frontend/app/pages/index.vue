@@ -22,19 +22,19 @@
 
           <!-- Modern Balanced Headline -->
           <h1 class="text-4xl sm:text-5xl lg:text-[52px] font-extrabold text-[#142820] leading-[1.18] tracking-tight">
-            ดูแลโคนมก่อนเกิดวิกฤตความร้อน 
+            รู้ว่าคอกร้อนแค่ไหน
             <span class="text-transparent bg-clip-text bg-gradient-to-r from-[#142820] via-[#2B5946] to-[#D87939] block mt-1">
-              ด้วยระบบพยากรณ์ล่วงหน้าอัจฉริยะ
+              และวัวตัวที่คุณเลือกนอน ยืน กิน นานเท่าไหร่
             </span>
           </h1>
 
           <!-- Easy-to-read Subtitle -->
           <p class="text-base sm:text-lg text-[#5A6B63] leading-relaxed max-w-xl font-normal">
-            ผสานเซนเซอร์ <span class="text-[#142820] font-semibold">IoT (SHT20 RS485)</span>, กล้องตรวจจับพฤติกรรม <span class="text-[#142820] font-semibold">YOLO26m ONNX</span> และระบบพยากรณ์ THI ล่วงหน้า 3 วัน (Open-Meteo ECMWF + ปรับค่าเพี้ยนจากเซ็นเซอร์ฟาร์ม) <span class="text-[#142820] font-semibold">· ต้นแบบ ทดสอบในบ้านแล้ว</span>
+            วัดอุณหภูมิ ความชื้น และ <span class="text-[#142820] font-semibold">THI</span> ในคอกด้วยเซ็นเซอร์ SHT20 พยากรณ์ล่วงหน้า 3 วัน (ECMWF + ปรับค่าเพี้ยนจากเซ็นเซอร์ฟาร์ม) และ<span class="text-[#142820] font-semibold">ติดตามท่าทางวัวเป้าหมาย 1 ตัว</span>จากกล้องวงจรปิดด้วย YOLO26m — คลิกเลือกวัวบนภาพครั้งเดียว ทุกช่วงพฤติกรรมบันทึก THI ขณะนั้น <span class="text-[#142820] font-semibold">· ต้นแบบ อยู่ระหว่างเตรียมทดลองในฟาร์ม</span>
           </p>
 
           <!-- Clean Inline Highlights instead of Heavy Boxes -->
-          <div class="grid grid-cols-3 gap-4 pt-1 max-w-lg">
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-1 max-w-2xl">
             <div class="border-l-2 border-[#D87939] pl-3">
               <div class="text-xl font-extrabold text-[#142820] tabular-nums">THI 74–76</div>
               <div class="text-xs text-[#6E7E76]">จุดเริ่มเครียดโคนมลูกผสมไทย</div>
@@ -43,9 +43,13 @@
               <div class="text-xl font-extrabold text-[#142820] tabular-nums">3 วัน</div>
               <div class="text-xs text-[#6E7E76]">แนวโน้มความร้อนล่วงหน้า</div>
             </div>
+            <div class="border-l-2 border-[#2B5946] pl-3">
+              <div class="text-xl font-extrabold text-[#142820]">วัว 1 ตัว</div>
+              <div class="text-xs text-[#6E7E76]">คลิกเลือกบนภาพ ผูกเบอร์หู</div>
+            </div>
             <div class="border-l-2 border-[#10B981] pl-3">
               <div class="text-xl font-extrabold text-[#142820] tabular-nums">ไม่แตะตัววัว</div>
-              <div class="text-xs text-[#6E7E76]">เซ็นเซอร์ + กล้องในโรงเรือน</div>
+              <div class="text-xs text-[#6E7E76]">เซ็นเซอร์ + กล้องวงจรปิด</div>
             </div>
           </div>
 
@@ -257,47 +261,56 @@
               <div class="flex items-center justify-between text-xs text-white/70 pb-3 border-b border-white/10">
                 <span class="flex items-center gap-2 font-mono">
                   <span class="w-2 h-2 rounded-full bg-[#10B981]"></span>
-                  YOLO26m Vision + SHT20 Sensor
+                  YOLO26m · SHT20
                 </span>
                 <span class="px-2.5 py-0.5 rounded-full bg-white/10 text-[10px] font-semibold text-white/80">
                   ตัวอย่างการแสดงผล (ข้อมูลจำลอง)
                 </span>
               </div>
 
-              <div class="grid grid-cols-2 gap-3">
-                <div 
-                  v-for="cow in cowBehaviors" 
-                  :key="cow.id"
-                  class="p-3.5 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-                  <div class="flex justify-between items-center text-[11px] text-white/60 font-mono mb-1">
-                    <span>{{ cow.id }}</span>
-                    <span class="text-[#F2BD7C]">{{ cow.conf }}</span>
-                  </div>
-                  <div class="text-sm font-bold text-white">{{ cow.label }}</div>
-                  <div class="text-[11px] text-white/60 mt-0.5">{{ cow.sub }}</div>
+              <!-- ตัวอย่างไทม์ไลน์วัวเป้าหมาย 1 ตัว (ข้อมูลจำลอง) -->
+              <div class="flex items-center justify-between">
+                <div class="text-sm font-bold text-white">วัวเป้าหมาย <span class="font-mono text-[#F2BD7C]">#1023</span></div>
+                <div class="text-[11px] text-white/60">09:00–15:00 น.</div>
+              </div>
+              <div class="flex h-7 rounded-lg overflow-hidden text-[10px] font-bold">
+                <div
+                  v-for="(b, bIdx) in demoBouts"
+                  :key="bIdx"
+                  class="flex items-center justify-center"
+                  :style="{ width: b.pct + '%', background: b.color, color: '#fff' }"
+                  :title="`${b.label} ${b.min} นาที · THI ${b.thi}`">
+                  {{ b.pct >= 12 ? b.short : '' }}
+                </div>
+              </div>
+              <div class="grid grid-cols-3 gap-2">
+                <div v-for="t in demoTotals" :key="t.label" class="p-3 rounded-2xl bg-white/5 border border-white/10">
+                  <div class="text-[11px] text-white/60">{{ t.label }}</div>
+                  <div class="text-sm font-bold text-white tabular-nums">{{ t.value }}</div>
+                  <div class="text-[11px] text-[#F2BD7C] tabular-nums">{{ t.sub }}</div>
                 </div>
               </div>
             </div>
 
-            <!-- Visual 1: RECOMMEND (LINE Proactive Chat) -->
+            <!-- Visual 1: ANALYZE (คำแนะนำบนหน้าเว็บ) -->
             <div v-else-if="activeLayer === 1" class="bg-[#FAF9F5] rounded-3xl p-6 border border-[#142820]/8 space-y-4">
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2.5">
-                  <div class="w-9 h-9 rounded-2xl bg-[#06C755] text-white flex items-center justify-center font-black text-xs">
-                    LINE
+                  <div class="w-9 h-9 rounded-2xl bg-[#142820] text-white flex items-center justify-center">
+                    <v-icon icon="mdi-weather-sunny-alert" size="18" />
                   </div>
                   <div>
-                    <div class="text-xs font-extrabold text-[#142820]">CowCare AI Assistant</div>
-                    <div class="text-[11px] text-[#6E7E76]">แผนงานแจ้งเตือนผ่าน LINE (ตัวอย่างข้อความ)</div>
+                    <div class="text-xs font-extrabold text-[#142820]">หน้าเกษตรกร CowCare AI</div>
+                    <div class="text-[11px] text-[#6E7E76]">คำแนะนำบนหน้าเว็บ (ตัวอย่างข้อความ)</div>
                   </div>
                 </div>
                 <span class="text-[11px] font-bold text-[#D87939] bg-[#FFF7ED] px-2.5 py-1 rounded-full">
-                  ตัวอย่าง (แผนงาน LINE)
+                  ข้อมูลจำลอง
                 </span>
               </div>
 
               <div class="p-4 rounded-2xl bg-white border border-[#142820]/6 text-xs text-[#142820] leading-relaxed shadow-sm space-y-2">
-                <div class="font-bold text-[#D87939]">⚠️ ตัวอย่างข้อความแจ้งเตือน (ข้อมูลจำลอง — แผนงานส่งผ่าน LINE)</div>
+                <div class="font-bold text-[#D87939]">⚠️ ตัวอย่างคำแนะนำ (ข้อมูลจำลอง)</div>
                 <p class="text-[#4A5A52]">
                   พยากรณ์ THI เฉลี่ยรายวันล่วงหน้าอยู่ที่ <strong>78.5 (เครียดจากความร้อน)</strong> แนวโน้มยังร้อนต่อเนื่อง
                 </p>
@@ -468,7 +481,7 @@
         </p>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         <div 
           v-for="(paper, idx) in citations" 
           :key="idx"
@@ -505,7 +518,7 @@
             พร้อมยกระดับการดูแลฟาร์มโคนมของคุณหรือยัง?
           </h2>
           <p class="text-xs sm:text-sm text-white/75">
-            เข้าสู่ระบบเพื่อตรวจสอบค่า THI แบบเรียลไทม์ ดูกราฟพยากรณ์ล่วงหน้า และจัดการอุปกรณ์ IoT ในเครือข่าย
+            เข้าสู่ระบบเพื่อดูค่า THI แบบเรียลไทม์ กราฟพยากรณ์ล่วงหน้า และไทม์ไลน์พฤติกรรมของวัวเป้าหมาย
           </p>
         </div>
 
@@ -530,9 +543,9 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { calcThi, getRiskLevel, thresholdLabels } from '~/utils/heatStress'
 
 useHead({
-  title: 'CowCare AI — ระบบพยากรณ์และเฝ้าระวังความเครียดจากความร้อนในโคนม',
+  title: 'CowCare AI — ความร้อนในคอกและพฤติกรรมโคนมรายตัว',
   meta: [
-    { name: 'description', content: 'ต้นแบบระบบเฝ้าระวังความเครียดจากความร้อนในโคนมไทยด้วย IoT + Computer Vision (อยู่ระหว่างทดสอบภาคสนาม)' }
+    { name: 'description', content: 'ต้นแบบระบบวัดความร้อนในคอก (THI) พยากรณ์ 3 วัน และติดตามท่าทางวัวเป้าหมายรายตัวจากกล้องวงจรปิด สำหรับฟาร์มโคนมไทย (อยู่ระหว่างทดสอบภาคสนาม)' }
   ]
 })
 
@@ -603,22 +616,23 @@ const archLayers = [
     tabTitle: 'รับรู้สภาพแวดล้อม (Sense)',
     badge: 'LAYER 01 • EDGE & IOT SENSING',
     icon: 'mdi-access-point',
-    title: 'เก็บข้อมูลในคอกโดยไม่ต้องติดอุปกรณ์บนตัววัว',
-    desc: 'ลดต้นทุนให้เกษตรกรรายย่อยด้วยการใช้กล้องวงจรปิด Dahua ร่วมกับโมเดล YOLO26m นับวัวแยกตามท่า และใช้เซ็นเซอร์ SHT20 (ตระกูล XY-MD02 RS485, ±0.3°C / ±3% RH) วัดอุณหภูมิ-ความชื้นผ่านสาย RS485',
+    title: 'วัดความร้อนในคอก และติดตามวัวเป้าหมายโดยไม่แตะตัววัว',
+    desc: 'เซ็นเซอร์ SHT20 (XY-MD02 RS485, ±0.3°C / ±3% RH) วัดอุณหภูมิ-ความชื้นทุก 15 วินาที และกล้องวงจรปิด Dahua ส่งภาพตามรอบที่ตั้งจากหน้าเว็บ โมเดล YOLO26m ตรวจท่าของวัวทุกตัวในภาพ แล้วระบบติดตามวัวเป้าหมาย 1 ตัวที่คุณคลิกเลือก',
     points: [
-      'บอร์ดดึงภาพจากกล้องทุก 10 นาที นับวัวแยกตาม 4 ท่า: นอนพัก, ยืน, กินอาหาร, ดื่มน้ำ',
-      'ไม่ต้องซื้อปลอกคออัจฉริยะราคาแพง ไม่ทำให้วัวเครียด',
-      'เก็บข้อมูลไว้ในบอร์ดเมื่อเน็ตหลุด แล้วทยอยส่งเมื่อเน็ตกลับมา พร้อมรายงานสถานะกล่องทุก 5 นาที'
+      'ตรวจจับ 4 ท่า (นอน ยืน กิน ดื่ม) ของวัวทุกตัว ทุก 1–10 นาที ตั้งรอบถ่ายภาพจากหน้าเว็บได้',
+      'คลิกเลือกวัวเป้าหมายบนภาพล่าสุดหรือภาพย้อนหลัง ผูกเบอร์หู แล้วระบบติดตามต่อจากตำแหน่ง ถ้าไม่แน่ใจจะบอกว่า "ไม่เห็นในภาพ" ไม่เดา',
+      'ไม่ต้องใช้ปลอกคออัจฉริยะ เน็ตหลุดเก็บข้อมูลไว้ในกล่องแล้วส่งย้อนหลัง พร้อมแจ้งเตือนเมื่อกล่องขาดการติดต่อ'
     ]
   },
   {
     id: 'recommend',
-    tabTitle: 'วิเคราะห์และเตือนล่วงหน้า (Recommend)',
+    tabTitle: 'วิเคราะห์และเตือนล่วงหน้า (Analyze)',
     badge: 'LAYER 02 • 3-DAY FORECAST & ADVISORY',
     icon: 'mdi-brain',
     title: 'พยากรณ์ล่วงหน้า 3 วันและแนะนำตามบริบทโรงเรือนไทย',
     desc: 'พยากรณ์ THI เฉลี่ยรายวันล่วงหน้า 3 วันจาก Open-Meteo ECMWF ร่วมกับการหักลบค่าเพี้ยนจากเซ็นเซอร์จริงของฟาร์มย้อนหลัง 3–14 วัน ตามเกณฑ์โคนมลูกผสมไทย (THI 74 / 76 / 82) พร้อมคำนวณช่วงร้อนที่สุดและเย็นที่สุดจากข้อมูลจริงของฟาร์ม',
     points: [
+      'ทุกช่วงนอน/ยืน/กินของวัวเป้าหมายมี THI ขณะนั้น เห็นว่าวัวนอนพักน้อยลงตอนคอกร้อนหรือไม่',
       'พยากรณ์ THI ล่วงหน้า 3 วัน (ECMWF + ปรับค่าเพี้ยนจากเซ็นเซอร์ฟาร์ม 3–14 วัน)',
       'ใช้เกณฑ์โคนมลูกผสมไทย (THI 74 / 76 / 82) และคำนวณช่วงร้อนสุดจากข้อมูลฟาร์มจริง',
       'ความชื้นตั้งแต่ 75% ขึ้นไป แนะนำราดน้ำตัววัวร่วมกับพัดลม แทนการพ่นหมอก'
@@ -639,11 +653,19 @@ const archLayers = [
   }
 ]
 
-const cowBehaviors = [
-  { id: 'CLASS 01', label: 'Lying down (นอนพัก)', sub: 'นับจำนวนวัวนอนเคี้ยวเอื้อง', conf: 'ท่าที่ 1' },
-  { id: 'CLASS 02', label: 'Standing (ยืน)', sub: 'นับจำนวนวัวยืนในคอก', conf: 'ท่าที่ 2' },
-  { id: 'CLASS 03', label: 'Feeding (กินอาหาร)', sub: 'นับจำนวนวัวที่รางอาหาร', conf: 'ท่าที่ 3' },
-  { id: 'CLASS 04', label: 'Drinking (ดื่มน้ำ)', sub: 'นับจำนวนวัวที่อ่างน้ำ', conf: 'ท่าที่ 4' }
+// ตัวอย่างไทม์ไลน์วัวเป้าหมาย 6 ชม. (ข้อมูลจำลอง ไม่ใช่ผลวัดจริง) สีตรงกับการ์ดพฤติกรรมในหน้า farm_detail
+const BEHAVIOR_COLOR = { lying: '#3b82f6', standing: '#f97316', feeding: '#10b981' }
+const demoBouts = [
+  { label: 'นอน', short: 'นอน', key: 'lying', min: 95, thi: 74 },
+  { label: 'กิน', short: 'กิน', key: 'feeding', min: 30, thi: 76 },
+  { label: 'ยืน', short: 'ยืน', key: 'standing', min: 120, thi: 79 },
+  { label: 'นอน', short: 'นอน', key: 'lying', min: 40, thi: 80 },
+  { label: 'ยืน', short: 'ยืน', key: 'standing', min: 75, thi: 81 }
+].map(b => ({ ...b, color: BEHAVIOR_COLOR[b.key], pct: (b.min / 360) * 100 }))
+const demoTotals = [
+  { label: 'นอน', value: '2 ชม. 15 น.', sub: 'THI เฉลี่ย 75.8' },
+  { label: 'ยืน', value: '3 ชม. 15 น.', sub: 'THI เฉลี่ย 79.8' },
+  { label: 'กิน', value: '30 นาที', sub: 'THI เฉลี่ย 76.0' }
 ]
 
 // 3. Reactive vs Proactive Interactive Comparison
@@ -651,7 +673,7 @@ const comparisonMode = ref('proactive')
 const activeComparisonSteps = computed(() => {
   if (comparisonMode.value === 'proactive') {
     return [
-      { day: 'ล่วงหน้า', event: 'ดูพยากรณ์ THI ล่วงหน้า 3 วันบนเว็บ (แผนงานแจ้งเตือนผ่าน LINE)', outcome: 'เตรียมพร้อมทันที', statusClass: 'text-[#10B981]' },
+      { day: 'ล่วงหน้า', event: 'ดูพยากรณ์ THI ล่วงหน้า 3 วันบนหน้าเว็บ', outcome: 'เตรียมพร้อมทันที', statusClass: 'text-[#10B981]' },
       { day: 'วันที่อากาศร้อน', event: 'เปิดพัดลมดักไว้ก่อนตามคำแนะนำช่วงเวลาร้อนสุดของฟาร์ม', outcome: 'ลดความเครียดสะสม', statusClass: 'text-[#10B981]' },
       { day: 'หลายวันถัดมา', event: 'โคนมมีโอกาสกินอาหารและพักผ่อนได้ใกล้เคียงปกติ', outcome: 'ลดความเสี่ยงน้ำนมลด', statusClass: 'text-[#F2BD7C]' }
     ]
@@ -688,6 +710,12 @@ const citations = [
     metric: 'สมการมาตรฐาน THI',
     summary: 'ใช้สมการดัชนีอุณหภูมิและความชื้นของ NRC (1971) ตัวเดียวกับที่งานวิจัยโคนมในประเทศไทยใช้อ้างอิง โดยปรับใช้ที่ค่าเกณฑ์ของโคนมลูกผสมไทย',
     authors: 'NRC (1971); Sae-tiao et al. (2019)'
+  },
+  {
+    journal: 'Scientific Reports (2024)',
+    metric: 'ชุดข้อมูลพฤติกรรมวัว CBVD-5',
+    summary: 'ภาพจากกล้องวงจรปิดในคอก 7 ตัว ตีกรอบท่ายืน นอน กิน ดื่ม ใช้ฝึกและทดสอบโมเดลตรวจท่าทาง โดยแยกมุมกล้องที่ใช้ทดสอบออกจากชุดฝึก',
+    authors: 'Li et al. (2024)'
   }
 ]
 
