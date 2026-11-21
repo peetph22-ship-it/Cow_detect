@@ -255,6 +255,13 @@
                     <template v-if="device.health_summary.uptime_h != null"> · เปิดมา {{ device.health_summary.uptime_h }} ชม.</template>
                   </div>
                   <div v-for="w in device.health_summary?.warnings || []" :key="w" class="text-[10px] text-amber-700">⚠ {{ w }}</div>
+                  <button
+                    v-if="device.collect?.active"
+                    class="mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 inline-flex items-center gap-1 cursor-pointer hover:bg-emerald-100"
+                    @click="openCollect(device)">
+                    <v-icon icon="mdi-image-multiple" size="12" />
+                    เก็บทุกภาพถึง {{ clockText(device.collect.until) }}
+                  </button>
                 </div>
               </td>
 
@@ -286,7 +293,16 @@
               <!-- Actions -->
               <td class="py-4 px-6 text-right">
                 <div class="flex items-center justify-end gap-2">
-                  <button 
+                  <button
+                    v-if="!device.is_camera"
+                    @click="openCollect(device)"
+                    class="p-2 rounded-xl transition-colors cursor-pointer"
+                    :class="device.collect?.active ? 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100' : 'text-[#718078] hover:text-[#142820] hover:bg-[#F2F4F2]'"
+                    title="เก็บภาพทุกภาพ (วันดูหน้างาน / วันเก็บข้อมูล)"
+                    aria-label="เก็บภาพทุกภาพ">
+                    <v-icon icon="mdi-image-multiple-outline" size="16" />
+                  </button>
+                  <button
                     @click="openEditModal(device)"
                     class="p-2 rounded-xl text-[#718078] hover:text-[#142820] hover:bg-[#F2F4F2] transition-colors cursor-pointer"
                     title="แก้ไขอุปกรณ์">
@@ -413,6 +429,13 @@
       </div>
     </v-dialog>
 
+    <!-- 🟢 Modal: เก็บภาพทุกภาพ -->
+    <CollectModeDialog
+      v-model="showCollect"
+      :device="collectDevice"
+      @changed="fetchDevices"
+      @edit-interval="editIntervalFromCollect" />
+
   </div>
 </template>
 
@@ -421,6 +444,7 @@ import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import { getNodeApiBase } from '../../API/baseAPI'
 import { getRiskLevel } from '~/utils/heatStress'
+import CollectModeDialog from '~/components/Admin/cctv/CollectModeDialog.vue'
 
 const Admin = `${getNodeApiBase()}/Admin`
 
@@ -575,6 +599,19 @@ const confirmDelete = async (dev) => {
     alert(err.response?.data?.message || 'เกิดข้อผิดพลาดในการลบอุปกรณ์')
   }
 }
+
+// โหมดเก็บภาพทุกภาพ (กล่องเซ็นเซอร์ที่ดึงภาพจากกล้อง)
+const showCollect = ref(false)
+const collectDevice = ref(null)
+const openCollect = (dev) => {
+  collectDevice.value = dev
+  showCollect.value = true
+}
+const editIntervalFromCollect = () => {
+  showCollect.value = false
+  if (collectDevice.value) openEditModal(collectDevice.value)
+}
+const clockText = (iso) => iso ? `${new Date(iso).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })} น.` : '-'
 
 const copySerial = (serial) => {
   if (navigator?.clipboard) {

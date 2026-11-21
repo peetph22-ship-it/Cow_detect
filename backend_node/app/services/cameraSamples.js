@@ -6,6 +6,7 @@
  *       <farm_id>/latest.jpg + latest.json = ภาพล่าสุด เขียนทับทุกภาพ (ใช้คลิกเลือกวัวเป้าหมาย)
  *       <HH>.json ข้างกัน = ผลของโมเดลกับภาพนั้นภาพเดียว (จำนวนแต่ละท่า + กรอบเป็นสัดส่วน 0-1 บนภาพจริง)
  *       เขียนเฉพาะเมื่อภาพถูกบันทึกในรอบเดียวกัน ภาพกับผลจึงตรงกันเสมอ
+ *       collect/<farm_id>/<YYYY-MM-DD>/<HHMMSS>.jpg (+ .json) = ทุกภาพระหว่างเปิดโหมดเก็บภาพทุกภาพ
  * env: CAMERA_SAMPLE_BUCKET (ค่าเริ่มต้น camera-samples), SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
  */
 const BUCKET = process.env.CAMERA_SAMPLE_BUCKET || 'camera-samples'
@@ -42,10 +43,55 @@ const buildSampleJson = (capturedAt, result, imgsz) => ({
     // วิธีย่อภาพเข้าโมเดล (ภาพก่อน 2026-11-20 ไม่มีฟิลด์นี้ = letterbox) ไว้แยกผลตอนตรวจ/วัดความแม่นยำย้อนหลัง
     resize: result.resize || null,
     image: result.image || null,
+    // เวลาประมวลผลต่อภาพ: total = ในโมเดล (ย่อภาพ + YOLO), end_to_end = ตั้งแต่ server รับภาพจนได้ผล (รวมรอคิวภาพก่อนหน้า)
+    timing_ms: result.timing_ms || null,
     total: result.total,
     counts: result.counts,
     boxes: result.boxes || []
 })
+
+/**
+ * โหมดเก็บภาพทุกภาพ (tb_devices.collect_until): collect/<farm_id>/<YYYY-MM-DD>/<HHMMSS>.jpg (+ .json) เวลาไทย
+ * แยกจากภาพรายชั่วโมง (<farm_id>/<YYYY-MM-DD>/<HH>.jpg) ดาวน์โหลดด้วย scripts/download_collected.js
+ */
+const COLLECT_PREFIX = 'collect'
+const collectPath = (farmId, capturedAt) => {
+    const bkk = new Date(capturedAt.getTime() + 7 * 3600 * 1000).toISOString()
+    return `${COLLECT_PREFIX}/${farmId}/${bkk.slice(0, 10)}/${bkk.slice(11, 19).replace(/:/g, '')}.jpg`
+}
+
+// status: ok = มีผลของโมเดล, busy = server กำลังประมวลผลภาพก่อนหน้า (ตอบกล่อง 429), error = โมเดลทำงานไม่สำเร็จ
+const buildCollectJson = (capturedAt, { status, result = null, imgsz = null, error = null }) => (
+    status === 'ok' && result
+        ? { ...buildSampleJson(capturedAt, result, imgsz), status: 'ok' }
+        : { version: 1, captured_at: capturedAt.toISOString(), model: MODEL_FILE, status, error: error || null }
+)
+
+const uploadCollected = async (path, body, contentType) => {
+    const supabase = getClient()
+    if (!supabase) return { saved: false, reason: 'storage_not_configured' }
+    try {
+        // upsert: กล่องส่งภาพเวลาเดิมซ้ำ = ภาพเดิม เขียนทับได้
+        const { error } = await supabase.storage.from(BUCKET).upload(path, body, { contentType, upsert: true })
+        if (error) throw error
+        return { saved: true, path }
+    } catch (err) {
+        console.warn('[CameraSamples] collect upload failed:', err.message)
+        return { saved: false, reason: err.message }
+    }
+}
+
+// ไม่ throw (ล้มเหลวแค่ log) เหมือนภาพตัวอย่าง
+const saveCollectedImage = async (farmId, capturedAt, jpeg) => {
+    if (!farmId) return { saved: false, reason: 'no_farm' }
+    return uploadCollected(collectPath(farmId, capturedAt), jpeg, 'image/jpeg')
+}
+
+const saveCollectedResult = async (farmId, capturedAt, json) => {
+    if (!farmId) return { saved: false, reason: 'no_farm' }
+    const path = collectPath(farmId, capturedAt).replace(/\.jpg$/, '.json')
+    return uploadCollected(path, Buffer.from(JSON.stringify(json)), 'application/json')
+}
 
 /**
  * เก็บรูปถ้ายังไม่มีของชั่วโมงนี้ แล้วเก็บผลของโมเดล (ถ้ามี result) ไว้ข้างกัน
@@ -277,6 +323,8 @@ const listFarmSamples = async (farmId, { limit = 24, maxDays = 14 } = {}) => {
 }
 
 module.exports = {
+    BUCKET, COLLECT_PREFIX,
     maybeSaveSample, samplePath, buildSampleJson, listFarmSamples, readSampleResult, countsFromMeta,
-    saveLatest, readLatestResult, getLatestImage, listDaySamples
+    saveLatest, readLatestResult, getLatestImage, listDaySamples,
+    collectPath, buildCollectJson, saveCollectedImage, saveCollectedResult
 }

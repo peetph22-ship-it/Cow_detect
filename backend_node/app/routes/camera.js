@@ -10,6 +10,7 @@
  * -> บันทึกจำนวนวัวต่อพฤติกรรม -> ทิ้งภาพ
  * ตอบทันทีเพราะบน Render ฟรี (CPU 0.1) YOLO ใช้ ~30 วินาที/รูป ถ้าให้บอร์ดรอ HTTPS จะค้างนานและงานส่งเซ็นเซอร์ต้องรอตาม
  * เก็บภาพตัวอย่างชั่วโมงละ 1 รูป พร้อมผลของโมเดลกับภาพนั้น (services/cameraSamples.js)
+ * โหมดเก็บภาพทุกภาพ (tb_devices.collect_until): เก็บทุกภาพ รวมภาพที่ประมวลผลไม่ทัน (กล่องไม่ส่งภาพที่ได้ 429 ซ้ำ)
  */
 const express = require('express')
 const router = express.Router()
@@ -17,8 +18,11 @@ const db = require('../config/db')
 const { verifyDeviceKey } = require('../middleware/deviceAuthMiddleware')
 const { parseRecordedAt, checkTimeWindow } = require('../services/sensorIngest')
 const vision = require('../services/visionService')
-const { maybeSaveSample, saveLatest, buildSampleJson } = require('../services/cameraSamples')
+const {
+    maybeSaveSample, saveLatest, buildSampleJson, buildCollectJson, saveCollectedImage, saveCollectedResult
+} = require('../services/cameraSamples')
 const cowTarget = require('../services/cowTargetTracker')
+const { isCollecting } = require('../services/collectMode')
 
 // แปลง error ของ body parser (เช่น รูปเกิน 2MB) ให้ตอบเป็น JSON ที่ firmware อ่านได้
 const rawJpeg = express.raw({ type: ['image/jpeg', 'application/octet-stream'], limit: '2mb' })
@@ -39,16 +43,27 @@ const resolveDevice = async (req) => {
     return rows[0] ? { id: rows[0].id_devices, farmId: rows[0].id_farms, serial } : null
 }
 
-// to_jsonb: ยังไม่ได้รัน migration 20261116 ก็ไม่ error (ได้ null = ใช้ค่าในเฟิร์มแวร์)
-const getCameraInterval = async (deviceId) => {
+// รอบถ่ายภาพ + โหมดเก็บภาพทุกภาพ ใน query เดียว
+// to_jsonb: ยังไม่ได้รัน migration 20261116 / 20261121 ก็ไม่ error (ได้ null = ใช้ค่าในเฟิร์มแวร์ / ไม่เก็บทุกภาพ)
+const getCameraSettings = async (deviceId) => {
     try {
-        const { rows } = await db.query(`SELECT (to_jsonb(d)->>'camera_interval_sec')::int AS s FROM tb_devices d WHERE id_devices = $1`, [deviceId])
-        return rows[0]?.s || null
+        const { rows } = await db.query(
+            `SELECT (to_jsonb(d)->>'camera_interval_sec')::int AS s, to_jsonb(d)->>'collect_until' AS collect_until
+             FROM tb_devices d WHERE id_devices = $1`,
+            [deviceId]
+        )
+        return { interval: rows[0]?.s || null, collectUntil: rows[0]?.collect_until || null }
     } catch (err) {
-        console.warn('[Camera] read camera interval failed:', err.message)
-        return null
+        console.warn('[Camera] read camera settings failed:', err.message)
+        return { interval: null, collectUntil: null }
     }
 }
+
+// ภาพที่ประมวลผลไม่ทันระหว่างโหมดเก็บภาพทุกภาพ: เก็บภาพไว้ (ไม่มีผลของโมเดล) ไม่ throw
+const keepUnprocessed = (farmId, capturedAt, jpeg, status, error = null) => Promise.all([
+    saveCollectedImage(farmId, capturedAt, jpeg),
+    saveCollectedResult(farmId, capturedAt, buildCollectJson(capturedAt, { status, error }))
+]).catch(err => console.warn('[Camera] keep unprocessed snapshot failed:', err.message))
 
 router.post(
     '/snapshot',
@@ -77,19 +92,23 @@ router.post(
         }
 
         // รอบถ่ายภาพที่ตั้งจากหน้าเว็บ ส่งกลับไปให้กล่องใช้รอบถัดไป (ไม่มีค่า = กล่องใช้ค่าในเฟิร์มแวร์)
-        const interval = await getCameraInterval(device.id)
-        const next = interval ? { next_interval_sec: interval } : {}
+        const receivedAt = new Date()
+        const settings = await getCameraSettings(device.id)
+        const next = settings.interval ? { next_interval_sec: settings.interval } : {}
+        const collect = isCollecting(settings, receivedAt)
+        const jpeg = req.body
 
         if (!vision.canAccept()) {
+            // โหมดเก็บภาพทุกภาพ: ประมวลผลไม่ทันก็ยังเก็บภาพไว้ (กล่องข้ามภาพนี้ ไม่ส่งซ้ำ)
+            if (collect) keepUnprocessed(device.farmId, capturedAt, jpeg, 'busy')
             res.set('Retry-After', '60')
             return res.status(429).json({ success: false, message: 'กำลังประมวลผลภาพก่อนหน้า ลองใหม่ภายหลัง', ...next })
         }
 
-        const jpeg = req.body
         res.status(202).json({ success: true, accepted: true, captured_at: Math.floor(capturedAt.getTime() / 1000), ...next })
 
         // ประมวลผลเบื้องหลัง (บอร์ดไม่ต้องรอ) ผลลัพธ์ดูได้จากตาราง cctv_behavior_telemetry
-        processSnapshot(device, capturedAt, jpeg).catch(err => console.error('[Camera] processing failed:', err.message))
+        processSnapshot(device, capturedAt, jpeg, { collect, receivedAt }).catch(err => console.error('[Camera] processing failed:', err.message))
     }
 )
 
@@ -111,14 +130,30 @@ const TELEMETRY_INSERT_WITH_DETECTIONS_SQL = `
 // ถ้าพบว่ายังไม่มีคอลัมน์ detections ครั้งหนึ่ง จะไม่ลองซ้ำจนกว่าจะรีสตาร์ตเซิร์ฟเวอร์ (หลังรัน migration)
 let detectionsColumnReady = true
 
-const processSnapshot = async (device, capturedAt, jpeg) => {
+// opts.collect = โหมดเก็บภาพทุกภาพเปิดอยู่ตอนรับภาพ, opts.receivedAt = เวลาที่ server รับภาพ (ใช้วัดเวลาประมวลผลรวมรอคิว)
+const processSnapshot = async (device, capturedAt, jpeg, opts = {}) => {
+    const receivedMs = (opts.receivedAt || new Date()).getTime()
+    // อัปโหลดภาพไปพร้อมกับประมวลผล: ภาพไม่หายแม้โมเดลหรือฐานข้อมูลล้มเหลว
+    const collectImage = opts.collect ? saveCollectedImage(device.farmId, capturedAt, jpeg) : null
     let result
     try {
         result = await vision.detect(jpeg)
     } catch (err) {
-        if (err instanceof vision.VisionBusyError) return console.warn('[Camera] dropped snapshot: vision queue full')
+        const busy = err instanceof vision.VisionBusyError
+        if (opts.collect) {
+            await Promise.all([
+                collectImage,
+                saveCollectedResult(device.farmId, capturedAt, buildCollectJson(capturedAt, { status: busy ? 'busy' : 'error', error: busy ? null : err.message }))
+            ])
+        }
+        if (busy) return console.warn('[Camera] dropped snapshot: vision queue full')
         throw err
     }
+    result.timing_ms = { ...(result.timing_ms || {}), end_to_end: Date.now() - receivedMs }
+    // ผลของภาพที่เก็บ: บันทึกก่อนงานฐานข้อมูล (ฐานข้อมูลล้มก็ยังได้ภาพพร้อมผล)
+    const collectResult = opts.collect
+        ? collectImage.then(() => saveCollectedResult(device.farmId, capturedAt, buildCollectJson(capturedAt, { status: 'ok', result, imgsz: vision.IMGSZ })))
+        : null
 
     let cameraId = null
     try {
@@ -155,7 +190,8 @@ const processSnapshot = async (device, capturedAt, jpeg) => {
 
     await Promise.all([
         maybeSaveSample(device.farmId, capturedAt, jpeg, result, vision.IMGSZ),
-        saveLatest(device.farmId, capturedAt, jpeg, result, vision.IMGSZ)
+        saveLatest(device.farmId, capturedAt, jpeg, result, vision.IMGSZ),
+        collectResult
     ])
 }
 

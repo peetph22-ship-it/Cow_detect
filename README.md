@@ -57,6 +57,7 @@
 │           → cowTracking (จับคู่ตำแหน่ง, รวมช่วงพฤติกรรม, การเดิน)                      │
 │           → cowBehaviorTimeline (ไทม์ไลน์ + THI ของแต่ละช่วง + สรุปเวลา)              │
 │  ภาพตัวอย่างรายชั่วโมง + JSON ผลโมเดล → Supabase Storage (camera-samples)            │
+│  โหมดเก็บภาพทุกภาพ (ช่วงเวลาที่ตั้ง) → camera-samples/collect/ (วันดูหน้างาน/วันเก็บข้อมูล)  │
 │  งานสรุปรายวัน 20:00 น. (รันบน Render หรือเมื่อ ENABLE_DAILY_CRON=1 เท่านั้น)          │
 └─────────────────────────────────────────┬─────────────────────────────────────────┘
                                           │ REST API (JWT)
@@ -169,6 +170,7 @@ $$\text{THI} = (1.8 \times T + 32) - (0.55 - 0.0055 \times \text{RH}) \times (1.
 | `tb_cow_behavior_observations` | ผลติดตามวัวเป้าหมายทีละภาพ |
 | `tb_camera_sample_audits` | ผลตรวจภาพแบบไม่ดูคำตอบ (ความแม่นยำจริง) |
 | Storage `models` / `camera-samples` | ไฟล์โมเดล ONNX / ภาพตัวอย่างรายชั่วโมง + JSON ผลโมเดล |
+| Storage `camera-samples/collect/` | ทุกภาพระหว่างเปิดโหมดเก็บภาพทุกภาพ (`tb_devices.collect_until`) + JSON ผลโมเดลและเวลาประมวลผล |
 
 **กติกา:** แก้ schema ผ่านไฟล์ใน `backend_node/migrations` → รันใน Supabase SQL Editor → ตรวจผลแบบอ่านอย่างเดียว
 
@@ -183,7 +185,8 @@ testYOLO26/
 │   ├── app/services/              # heat*, forecastService, vision*, cowTracking, cowTargetTracker,
 │   │                              # cowBehaviorTimeline, cameraSamples, farmerCharts, deviceHealth ...
 │   ├── migrations/                # SQL สำหรับ Supabase
-│   └── scripts/                   # test_*.js (เทสต์), eval_counts.js (วัดผลโมเดล)
+│   └── scripts/                   # test_*.js (เทสต์), eval_counts.js (วัดผลโมเดล),
+│                                  # rehearsal_report.js (รายงานซ้อม อ่านอย่างเดียว), download_collected.js (ดึงภาพที่เก็บ)
 ├── frontend/                      # Nuxt 4 (Cloudflare Pages)
 │   └── app/  pages/ components/ composables/ utils/ (browserYolo.ts, farmerCharts.ts ...)
 ├── firmware/cowcare_sensor/       # ESP32-S3 firmware 1.5.0 (ค่าเน็ต/กล้องใน secrets.h)
@@ -208,6 +211,10 @@ cd frontend && npm install && NUXT_PUBLIC_NODE_API_BASE=http://localhost:5099/ap
 
 # เทสต์ทั้งหมด
 for f in backend_node/scripts/test_*.js; do node "$f" || echo "FAIL $f"; done
+
+# รายงานซ้อมกล่อง/กล้อง (อ่านอย่างเดียว) และดึงภาพจากโหมดเก็บภาพทุกภาพ
+node backend_node/scripts/rehearsal_report.js --device ESP32-S3-01
+node backend_node/scripts/download_collected.js --farm <farm_id>   # ต้องมี SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY ใน .env
 ```
 
 | ตัวแปร (`backend_node/.env`) | ค่าเริ่มต้น | คำอธิบาย |

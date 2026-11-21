@@ -57,3 +57,5 @@ backend/app/active_learning_samples/*
 # CBVD-5 dataset (Kaggle, CC0): images stay local (3+ GB); tools, camera groups, YOLO labels and split are committed
 backend/training_archive/cbvd5/raw/
 backend/training_archive/cbvd5/yolo/*/images/
+# farm images from collection mode (scripts/download_collected.js): farm data stays local
+backend/training_archive/farm_collect/

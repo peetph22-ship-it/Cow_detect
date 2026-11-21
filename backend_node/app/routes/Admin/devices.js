@@ -11,6 +11,11 @@ const { generateDeviceKey, hashDeviceKey } = require('../../middleware/deviceAut
 const { summarizeHealth } = require('../../services/deviceHealth')
 const { calcThi } = require('../../services/heatStress')
 const { INTERVAL_MIN: CAMERA_INTERVAL_MIN } = require('../../services/cameraBehavior')
+const { MAX_MINUTES: COLLECT_MAX_MINUTES, DEFAULT_IMAGE_KB, parseCollectMinutes, collectState } = require('../../services/collectMode')
+const { BUCKET: SAMPLE_BUCKET, COLLECT_PREFIX } = require('../../services/cameraSamples')
+
+const COLLECT_MIGRATION = 'migrations/20261121_device_collect_mode.sql'
+const STORAGE_LIMIT_MB = 1024  // Supabase ฟรี
 
 // Helper function to check valid UUID
 const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str || '').trim())
@@ -34,6 +39,8 @@ router.get('/', verifyToken, requireRole('admin'), async (req, res) => {
                 to_jsonb(d)->>'last_heartbeat_at' AS last_heartbeat_at,
                 to_jsonb(d)->'health' AS health,
                 (to_jsonb(d)->>'camera_interval_sec')::int AS camera_interval_sec,
+                to_jsonb(d)->>'collect_started_at' AS collect_started_at,
+                to_jsonb(d)->>'collect_until' AS collect_until,
                 f.id_farms,
                 f.name_farms,
                 f.province,
@@ -106,9 +113,10 @@ router.get('/', verifyToken, requireRole('admin'), async (req, res) => {
             })
             const temp = dev.temperature_c != null ? Number(dev.temperature_c) : null
             const hum = dev.humidity_pct != null ? Number(dev.humidity_pct) : null
-            const { health: _raw, ...rest } = dev
+            const { health: _raw, collect_started_at: _cs, collect_until: _cu, ...rest } = dev
             return {
                 ...rest,
+                collect: collectState(dev, new Date(now)),
                 thi: calcThi(temp, hum),
                 computed_status: diffMin != null && diffMin < 5 ? 'online' : 'offline',
                 minutes_since_seen: diffMin != null ? Math.round(diffMin) : null,
@@ -315,6 +323,114 @@ router.post('/:id/rotate-key', verifyToken, requireRole('admin'), async (req, re
     } catch (err) {
         console.error('[Admin Rotate Device Key Error]:', err.message)
         res.status(500).json({ success: false, message: 'ไม่สามารถสร้าง API Key ได้: ' + err.message })
+    }
+})
+
+// -----------------------------------------------------------------
+// 3.2 GET/POST: /api/Admin/devices/:id/collect
+// โหมดเก็บภาพทุกภาพ (ใช้วันดูหน้างานและวันเก็บข้อมูล) ภาพไปอยู่ที่ camera-samples/collect/<farm>/<date>/
+// POST { minutes: 1–720 } = เปิด/ต่อเวลานับจากตอนนี้ (กำลังเปิดอยู่ = เวลาเริ่มเดิม), { minutes: 0 } = หยุดทันที
+// -----------------------------------------------------------------
+const COLLECT_ROW_SQL = `
+    SELECT d.id_devices, d.id_farms,
+           (to_jsonb(d)->>'camera_interval_sec')::int AS camera_interval_sec,
+           to_jsonb(d)->>'collect_started_at' AS collect_started_at,
+           to_jsonb(d)->>'collect_until' AS collect_until
+    FROM tb_devices d WHERE d.id_devices = $1`
+
+// จำนวน/ขนาดภาพที่เก็บได้ตั้งแต่เริ่มรอบล่าสุด และพื้นที่ Storage ทั้งหมด (อ่านจาก storage.objects; อ่านไม่ได้ = null)
+const collectUsage = async (farmId, startedAt) => {
+    const out = { saved: null, storage_used_mb: null }
+    try {
+        if (farmId && startedAt) {
+            const { rows } = await db.query(
+                `SELECT count(*)::int AS images,
+                        COALESCE(sum((metadata->>'size')::bigint), 0)::bigint AS bytes,
+                        max(created_at) AS last_at
+                 FROM storage.objects
+                 WHERE bucket_id = $1 AND name LIKE $2 AND name LIKE '%.jpg' AND created_at >= $3`,
+                [SAMPLE_BUCKET, `${COLLECT_PREFIX}/${farmId}/%`, startedAt]
+            )
+            const r = rows[0] || {}
+            out.saved = { images: r.images || 0, mb: Math.round(Number(r.bytes || 0) / 1048576 * 10) / 10, last_at: r.last_at || null }
+        }
+        const total = await db.query(`SELECT COALESCE(sum((metadata->>'size')::bigint), 0)::bigint AS bytes FROM storage.objects`)
+        out.storage_used_mb = Math.round(Number(total.rows[0]?.bytes || 0) / 1048576)
+    } catch (err) {
+        console.warn('[Admin Devices] collect usage unavailable:', err.message)
+    }
+    return out
+}
+
+router.get('/:id/collect', verifyToken, requireRole('admin'), async (req, res) => {
+    const { id } = req.params
+    if (!isUUID(id)) return res.status(400).json({ success: false, message: 'รหัสอุปกรณ์ไม่ถูกต้อง' })
+    try {
+        const { rows } = await db.query(COLLECT_ROW_SQL, [id])
+        if (!rows.length) return res.status(404).json({ success: false, message: 'ไม่พบอุปกรณ์' })
+        const row = rows[0]
+        const collect = collectState(row)
+        const usage = await collectUsage(row.id_farms, collect.started_at)
+        res.json({
+            success: true,
+            collect,
+            id_farms: row.id_farms,
+            camera_interval_sec: row.camera_interval_sec,
+            max_minutes: COLLECT_MAX_MINUTES,
+            image_kb_estimate: DEFAULT_IMAGE_KB,
+            storage_limit_mb: STORAGE_LIMIT_MB,
+            folder: row.id_farms ? `${SAMPLE_BUCKET}/${COLLECT_PREFIX}/${row.id_farms}/` : null,
+            ...usage
+        })
+    } catch (err) {
+        console.error('[Admin Collect Status Error]:', err.message)
+        res.status(500).json({ success: false, message: 'อ่านสถานะการเก็บภาพไม่สำเร็จ: ' + err.message })
+    }
+})
+
+router.post('/:id/collect', verifyToken, requireRole('admin'), async (req, res) => {
+    const { id } = req.params
+    if (!isUUID(id)) return res.status(400).json({ success: false, message: 'รหัสอุปกรณ์ไม่ถูกต้อง' })
+    const minutes = parseCollectMinutes(req.body?.minutes)
+    if (minutes === null) {
+        return res.status(400).json({ success: false, message: `ระยะเวลาเก็บภาพต้องเป็นจำนวนเต็ม 0–${COLLECT_MAX_MINUTES} นาที (0 = หยุด)` })
+    }
+    try {
+        const dev = await db.query(`SELECT id_devices, id_farms FROM tb_devices WHERE id_devices = $1`, [id])
+        if (!dev.rows.length) return res.status(404).json({ success: false, message: 'ไม่พบอุปกรณ์' })
+        // กล่องที่ไม่ผูกฟาร์ม server ไม่รับภาพอยู่แล้ว (routes/camera.js) เปิดไปก็ไม่ได้ภาพ
+        if (minutes > 0 && !dev.rows[0].id_farms) {
+            return res.status(400).json({ success: false, message: 'ผูกอุปกรณ์กับฟาร์มก่อน ภาพจากกล่องที่ยังไม่ผูกฟาร์มจะไม่ถูกรับ' })
+        }
+
+        const upd = minutes > 0
+            ? await db.query(
+                `UPDATE tb_devices
+                 SET collect_started_at = CASE WHEN collect_until > NOW() AND collect_started_at IS NOT NULL
+                                               THEN collect_started_at ELSE NOW() END,
+                     collect_until = NOW() + ($2::int * INTERVAL '1 minute')
+                 WHERE id_devices = $1
+                 RETURNING collect_started_at, collect_until`,
+                [id, minutes])
+            : await db.query(
+                `UPDATE tb_devices
+                 SET collect_until = CASE WHEN collect_until > NOW() THEN NOW() ELSE collect_until END
+                 WHERE id_devices = $1
+                 RETURNING collect_started_at, collect_until`,
+                [id])
+
+        const collect = collectState(upd.rows[0])
+        res.json({
+            success: true,
+            message: minutes > 0 ? `เปิดเก็บภาพทุกภาพ ${minutes} นาที` : 'หยุดเก็บภาพทุกภาพแล้ว',
+            collect
+        })
+    } catch (err) {
+        if (err.code === '42703') {
+            return res.status(409).json({ success: false, message: `ยังเปิดโหมดเก็บภาพไม่ได้: ต้องรัน ${COLLECT_MIGRATION} ก่อน` })
+        }
+        console.error('[Admin Collect Error]:', err.message)
+        res.status(500).json({ success: false, message: 'ตั้งค่าการเก็บภาพไม่สำเร็จ: ' + err.message })
     }
 })
 
