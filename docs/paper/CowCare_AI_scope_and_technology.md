@@ -1,14 +1,14 @@
 # CowCare AI — ขอบเขตงานและเทคโนโลยีที่ใช้ (Hardware & Software)
 
-*CowCare AI · ร่างสำหรับ paper · 6 พ.ย. 2569*
+*CowCare AI · ร่างสำหรับ paper · 6 พ.ย. 2569 · ปรับปรุงจุดตรวจ D1: 21 พ.ย. 2569*
 
 ร่างนี้เขียนจากโค้ดและเฟิร์มแวร์จริงใน repository (commit `5753503`) ทุกตัวเลขตรวจกับซอร์สโค้ดแล้ว ข้อมูลที่ยังไม่มี เช่น รุ่นกล้อง และผลทดสอบความแม่นยำของเซ็นเซอร์ ทำเครื่องหมาย **\[ต้องเติม\]** ไว้ หัวข้อ 7 เป็นร่างภาษาอังกฤษสำหรับใช้ใน paper
 
-> **สถานะสำคัญ:** ทุกส่วนในขอบเขตพัฒนาเสร็จและทดสอบในบ้านแล้ว (ยกเว้นการเก็บตำแหน่งกรอบของทุกภาพ ซึ่งรอรัน migration ฐานข้อมูล) แต่**ยังไม่ได้ติดตั้งที่ฟาร์มโคนม** ผลภาคสนามจึงยังไม่มี
+> **สถานะสำคัญ (21 พ.ย. 2569):** แนวทางปรับจากท่าทางระดับฝูงเป็น **THI ในคอก + ท่าทางของวัวเป้าหมาย 1 ตัว** ที่คลิกเลือกบนภาพ (หัวข้อ 5.4) ระบบพัฒนาและทดสอบในบ้านแล้ว แต่**ยังไม่ได้ติดตั้งที่ฟาร์มโคนม** — ดูหน้างาน ≈ 25 พ.ย. 2569 แล้วเก็บข้อมูล 1 วัน 4–6 ชม. (กล้องทุก 1 นาที) ผลภาคสนามจึงยังไม่มี
 
 ## 1. ขอบเขตงาน (Scope of work)
 
-**วัตถุประสงค์:** พัฒนาระบบต้นทุนต่ำสำหรับฟาร์มโคนมรายย่อย ที่วัดสภาพอากาศ*ในคอก*อย่างต่อเนื่อง ประเมินระดับความเสี่ยงความเครียดจากความร้อนด้วยดัชนี THI ตามเกณฑ์งานวิจัยโคนมไทย พยากรณ์ THI ล่วงหน้า 3 วันที่ปรับให้เข้ากับคอกนั้น และใช้ภาพจากกล้องประเมินท่าทางของฝูงเป็นข้อมูลประกอบ โดยเกษตรกรไม่ต้องกรอกข้อมูลรายวัน
+**วัตถุประสงค์:** พัฒนาระบบต้นทุนต่ำสำหรับฟาร์มโคนมรายย่อย ที่วัดสภาพอากาศ*ในคอก*อย่างต่อเนื่อง ประเมินระดับความเสี่ยงความเครียดจากความร้อนด้วยดัชนี THI ตามเกณฑ์งานวิจัยโคนมไทย พยากรณ์ THI ล่วงหน้า 3 วันที่ปรับให้เข้ากับคอกนั้น และติดตามท่าทางของวัวเป้าหมาย 1 ตัว (นอน ยืน กิน) จากกล้องวงจรปิด โดยบันทึก THI ขณะเกิดทุกช่วงพฤติกรรม เกษตรกรไม่ต้องกรอกข้อมูลรายวันและไม่ต้องติดอุปกรณ์บนตัววัว
 
 ### ในขอบเขต
 
@@ -17,19 +17,19 @@
 3.  สรุปตัวชี้วัดความร้อนสะสม: ชั่วโมงร้อน ชั่วโมงกลางคืนที่ THI ต่ำกว่าเกณฑ์ วันร้อนติดกัน เหตุการณ์ความร้อน และความครบถ้วนของข้อมูล พร้อมบันทึกสรุปประจำวันอัตโนมัติ
 4.  ติดตามสถานะกล่องเซ็นเซอร์ (สัญญาณ Wi-Fi หน่วยความจำ คิวค้างส่ง สถานะเซ็นเซอร์) ทุก 5 นาที เพื่อรู้ปัญหาก่อนข้อมูลหาย
 5.  พยากรณ์ THI เฉลี่ยรายวันล่วงหน้า 1–3 วัน โดยปรับพยากรณ์ ECMWF ด้วยค่าเพี้ยนที่เรียนจากเซ็นเซอร์ในคอก
-6.  ตรวจจับท่าทางระดับฝูงจากภาพนิ่งทุก 10 นาที 4 คลาส (ยืน นอน กิน ดื่ม) ด้วย YOLO เก็บเป็นตัวเลขและตำแหน่งกรอบ (JSON) แทนวิดีโอ เพื่อใช้เป็นข้อมูลมิติที่ 2 คู่กับ THI (ดูการทำงานในหัวข้อ 5.4)
-7.  วิเคราะห์ความสัมพันธ์ระหว่างสัดส่วนท่านอนกับ THI เพื่อหาค่า THI ที่วัวในคอกเริ่มนอนน้อยลง
+6.  ตรวจจับท่าทาง 4 คลาส (ยืน นอน กิน ดื่ม) ของวัวทุกตัวในภาพนิ่งด้วย YOLO ตามรอบที่ตั้งจากหน้าเว็บ (15 วินาที–60 นาที; วันเก็บข้อมูลใช้ 1 นาที) เก็บเป็นตัวเลขและตำแหน่งกรอบ (JSON) แทนวิดีโอ แล้ว**ติดตามวัวเป้าหมาย 1 ตัว**ที่ผู้ดูแลคลิกเลือกบนภาพ (ผูกเบอร์หู) สร้างไทม์ไลน์ นอน/ยืน/กิน/เดิน พร้อม THI ของแต่ละช่วง (ดูหัวข้อ 5.4)
+7.  วิเคราะห์ความสัมพันธ์ระหว่างสัดส่วนท่านอนกับ THI เพื่อหาค่า THI ที่วัวในคอกเริ่มนอนน้อยลง (โค้ดพร้อม แต่ต้องมีข้อมูล ≥ 14 วัน จึงทำหลังส่ง paper ฉบับนี้ ซึ่งใช้ข้อมูล 1 วันเชิงพรรณนา)
 8.  เทียบสภาพในคอกกับอากาศภายนอกจากแบบจำลองที่พิกัดฟาร์ม
 9.  หน้าเว็บสำหรับเกษตรกร (มือถือ ผู้สูงอายุ) และผู้ดูแลระบบ พร้อมเครื่องมือตรวจความแม่นยำของกล้องแบบ blind audit
 
 ### นอกขอบเขต (ข้อจำกัด / งานในอนาคต)
 
-- การติดตามโครายตัว อุณหภูมิร่างกาย อัตราการหายใจ และการตรวจจับการหอบ
+- ติดตามโคทุกตัวพร้อมกัน และการจำตัวโคจากลายหรือเครื่องหมาย (ระบบติดตามได้ 1 ตัวต่อฟาร์มด้วยตำแหน่ง) อุณหภูมิร่างกาย อัตราการหายใจ และการตรวจจับการหอบ
 - การวินิจฉัยโรค และการเชื่อมข้อมูลปริมาณน้ำนม
 - การควบคุมพัดลมหรือระบบพ่นน้ำอัตโนมัติ
 - การแจ้งเตือนผ่าน LINE และผู้ช่วย Generative AI สำหรับผู้ดูแลและสัตวแพทย์ (ออกแบบแล้ว ยังไม่พัฒนา)
 - หลายเซ็นเซอร์หรือหลายกล้องในคอกเดียว (ฐานข้อมูลรองรับ แต่การประมวลผลรองรับ 1 + 1 ต่อคอก)
-- การบันทึกวิดีโอต่อเนื่อง (ใช้ภาพนิ่งทุก 10 นาที) และการวัดปริมาณอาหารหรือน้ำที่กินจริง (คลาส "กิน/ดื่ม" บอกแค่ท่าทาง)
+- การบันทึกวิดีโอต่อเนื่อง (ใช้ภาพนิ่งทุก 1–10 นาที) และการวัดปริมาณอาหารหรือน้ำที่กินจริง (คลาส "กิน/ดื่ม" บอกแค่ท่าทาง)
 - การปรับเกณฑ์ THI อัตโนมัติจากผลวิเคราะห์ท่าทาง (ต้องให้ผู้เชี่ยวชาญพิจารณาก่อน)
 - พยากรณ์ด้วยโมเดลอนุกรมเวลา (LSTM/GRU) ที่เรียนรู้ส่วนที่วิธีปรับค่าเพี้ยนยังคลาดเคลื่อน (ทดลองเมื่อมีข้อมูลในคอกต่อเนื่องหลายเดือน และเปิดใช้เฉพาะเมื่อ MAE ย้อนหลังต่ำกว่าวิธีปัจจุบันทั้ง 3 ระยะ; LSTM และ GRU ขนาดเล็กที่ทดสอบกับสถานีกลางแจ้งยังแพ้วิธีปัจจุบันทั้ง 3 ระยะ ดูหัวข้อ 5.3)
 
@@ -37,7 +37,7 @@
 
 เทียบกับแนวทางที่มีอยู่ 4 แบบ คือ บริการพยากรณ์ THI จากอากาศภายนอก เครื่องวัด THI แบบ IoT อุปกรณ์สวมใส่รายตัว และงานที่ใช้กล้องตรวจพฤติกรรม ทุกข้อระบุหลักฐานและข้อควรระวังไว้ เพื่อไม่ให้อ้างเกินจริงใน paper
 
-> **สรุปในประโยคเดียว:** งานนี้รวมการวัดในคอก การพยากรณ์ THI *ของคอกนั้น*ล่วงหน้า 1–3 วันที่ปรับตัวเองจากเซ็นเซอร์ในคอก และท่าทางของฝูงจากกล้อง ไว้ในอุปกรณ์ต้นทุนต่ำชุดเดียว โดยใช้เกณฑ์ THI จากงานวิจัยโคนมลูกผสมไทย สำหรับฟาร์มโคนมรายย่อย
+> **สรุปในประโยคเดียว:** งานนี้รวมการวัดในคอก การพยากรณ์ THI *ของคอกนั้น*ล่วงหน้า 1–3 วันที่ปรับตัวเองจากเซ็นเซอร์ในคอก และท่าทางของวัวเป้าหมายรายตัวจากกล้องวงจรปิด (คลิกเลือกครั้งเดียว) ไว้ในอุปกรณ์ต้นทุนต่ำชุดเดียว โดยใช้เกณฑ์ THI จากงานวิจัยโคนมลูกผสมไทย สำหรับฟาร์มโคนมรายย่อย
 
 ### 2.1 วัดในคอก และพยากรณ์ THI ของคอกนั้นล่วงหน้า 1–3 วัน (จุดเด่นหลัก)
 
@@ -52,11 +52,11 @@
 - **งานนี้:** ใช้เกณฑ์ 74 / 76 / 82 จากงานวิจัยโคนมลูกผสมโฮลสไตน์ไทย (Boonkum et al., 2011; 2024) และโปรไฟล์ 72 / 74 / 80 สำหรับฝูงสายเลือดโฮลสไตน์สูง (≥ 87.5%) อิง Duangjinda et al. ตั้งค่าได้รายฟาร์ม
 - **ข้อควรระวัง:** เกณฑ์ไทยมาจาก THI เฉลี่ยรายวันของสถานีอุตุนิยมวิทยา ขณะที่งานในต่างประเทศพบว่าในคอกร้อนกว่าสถานี (Schüller et al., 2013) การใช้เกณฑ์นี้กับข้อมูลในคอกจึงต้องตรวจสอบ (หัวข้อ 6.1)
 
-### 2.3 ข้อมูล 2 มิติจากกล่องเดียว: สภาพแวดล้อมและท่าทางของฝูง
+### 2.3 ข้อมูล 2 มิติจากกล่องเดียว: สภาพแวดล้อมในคอก และท่าทางของวัวเป้าหมายรายตัว
 
 - **แนวทางที่มีอยู่:** อุปกรณ์สวมใส่รายตัว (ปลอกคอ ป้ายหู โบลัสในกระเพาะ) ให้ข้อมูลจากตัวสัตว์รายตัว แต่ต้องติดกับโคทุกตัว ค่าใช้จ่ายจึงเพิ่มตามจำนวนโค ส่วนงานที่ใช้กล้องร่วมกับ deep learning ของ Shu et al. (2023) พบว่าดัชนีท่านอนและท่ายืนระดับฝูงตอบสนองต่อความร้อนมากที่สุด และเปลี่ยนที่ระดับอากาศต่ำกว่าพฤติกรรมอื่น สอดคล้องกับ Allen et al. (2015) ที่พบว่าโคที่อุณหภูมิร่างกายสูงยืนนานขึ้นและนอนลงน้อยลง
-- **งานนี้:** ใช้ตัวชี้วัดแนวเดียวกัน (สัดส่วนท่านอนของฝูง) แต่ออกแบบให้ใช้งานต่อเนื่องในฟาร์มรายย่อย ESP32 ตัวเดียวกับเซ็นเซอร์ดึงภาพนิ่งทุก 10 นาทีแล้วส่งออกเอง ไม่ต้องมีคอมพิวเตอร์ที่ฟาร์มและไม่ต้องเปิดพอร์ตเราเตอร์ เก็บผลเป็นตัวเลขและตำแหน่งกรอบแทนวิดีโอ (≈ 60 KB/วัน เมื่อมีวัว 2 ตัวในภาพ เทียบวิดีโอ ≈ 10 GB/วัน) แล้ววิเคราะห์คู่กับ THI ที่วัดในคอกเดียวกัน เพื่อหาค่า THI ที่วัวในคอกนั้นเริ่มนอนน้อยลง
-- **ข้อควรระวัง:** การใช้ท่าทางระดับฝูงจากกล้องเป็นตัวชี้วัดความเครียดจากความร้อน**ไม่ใช่แนวคิดใหม่** (Shu et al., 2023) สิ่งที่ต่างคือวิธีติดตั้งและการใช้ร่วมกับเซ็นเซอร์และพยากรณ์ ความแม่นยำในคอกไทยยังไม่ได้วัด (mAP50 0.720 มาจากชุดข้อมูลสาธารณะ) และการวิเคราะห์ต้องมีข้อมูลอย่างน้อย 14 วัน
+- **งานนี้:** ใช้ตัวชี้วัดแนวเดียวกัน (การนอน/ยืน) แต่ระดับ**วัวรายตัวโดยไม่ติดอุปกรณ์บนตัว**: ผู้ดูแลคลิกเลือกวัวเป้าหมายบนภาพจากกล้องวงจรปิด ระบบติดตามต่อจากตำแหน่ง และบันทึกเวลานอน/ยืน/กิน/เดิน พร้อม THI ขณะนั้น ESP32 ตัวเดียวกับเซ็นเซอร์ดึงภาพนิ่งแล้วส่งออกเอง ไม่ต้องมีคอมพิวเตอร์ที่ฟาร์มและไม่ต้องเปิดพอร์ตเราเตอร์ เก็บผลเป็นตัวเลขและตำแหน่งกรอบแทนวิดีโอ (≈ 0.4 KB ต่อภาพที่มีวัว 2 ตัว เทียบวิดีโอ ≈ 10 GB/วัน) ส่วนสัดส่วนท่านอนระดับฝูงยังคำนวณเป็นข้อมูลเสริม
+- **ข้อควรระวัง:** การใช้ท่าทางจากกล้องเป็นตัวชี้วัดความเครียดจากความร้อน**ไม่ใช่แนวคิดใหม่** (Shu et al., 2023) สิ่งที่ต่างคือวิธีติดตั้ง การติดตามวัวรายตัวด้วยคลิกเดียว และการใช้ร่วมกับเซ็นเซอร์และพยากรณ์ การติดตามใช้ตำแหน่งอย่างเดียว (ไม่จำลายวัว) จึงอาจสลับตัวเมื่อวัวอยู่ชิดกัน ความแม่นยำในคอกไทยยังไม่ได้วัด: mAP50 0.720 วัดบนชุดทดสอบสาธารณะที่มาจากกล้องเดียวกับชุดฝึก (198/203 ภาพ) และ 22% เกือบซ้ำกับภาพฝึก จึงสูงกว่าความแม่นในคอกใหม่ (หัวข้อ 6.1) ข้อมูล 1 วันใช้ได้เชิงพรรณนา ส่วนการหาจุด THI ที่วัวนอนน้อยลงต้องมีข้อมูล ≥ 14 วัน
 
 ### 2.4 ต้นทุนต่อคอก ไม่ใช่ต่อตัว
 
@@ -93,10 +93,11 @@
 1.  Allen, J. D., Hall, L. W., Collier, R. J., & Smith, J. F. (2015). Effect of core body temperature, time of day, and climate conditions on behavioral patterns of lactating dairy cows experiencing mild to moderate heat stress. *Journal of Dairy Science, 98*(1), 118–127.
 2.  Armstrong, D. V. (1994). Heat stress interaction with shade and cooling. *Journal of Dairy Science, 77*, 2044–2050.
 3.  Choquehuanca-Zevallos, J. J., & Mayhua-López, E. T. (2021). A low-cost IoT platform for heat stress monitoring in dairy cattle. *2021 IEEE 6th International Conference on Computer and Communication Systems (ICCCS)*. <https://doi.org/10.1109/ICCCS52626.2021.9449243>
-4.  Schüller, L. K., Burfeind, O., & Heuwieser, W. (2013). Comparison of ambient temperature, relative humidity, and temperature-humidity index between on-farm measurements and official meteorological data. *Journal of Dairy Science, 96*(12), 6347–6354. <https://doi.org/10.3168/jds.2013-6736>
-5.  Shu, H., Bindelle, J., Guo, L., & Gu, X. (2023). Determining the onset of heat stress in a dairy herd based on automated behaviour recognition. *Biosystems Engineering, 226*, 238–251.
-6.  Dairy Australia. Dairy Forecast Service. **\[ต้องเติม: URL และวันที่เข้าถึง\]**
-7.  Kitasato University. Livestock Weather (แอปพยากรณ์ THI สำหรับปศุสัตว์). **\[ต้องเติม: URL และวันที่เข้าถึง\]**
+4.  Li, K., Fan, D., Wu, H., & Zhao, A. (2024). A new dataset for video-based cow behavior recognition. *Scientific Reports, 14*, 18702. https://doi.org/10.1038/s41598-024-65953-x
+5.  Schüller, L. K., Burfeind, O., & Heuwieser, W. (2013). Comparison of ambient temperature, relative humidity, and temperature-humidity index between on-farm measurements and official meteorological data. *Journal of Dairy Science, 96*(12), 6347–6354. <https://doi.org/10.3168/jds.2013-6736>
+6.  Shu, H., Bindelle, J., Guo, L., & Gu, X. (2023). Determining the onset of heat stress in a dairy herd based on automated behaviour recognition. *Biosystems Engineering, 226*, 238–251.
+7.  Dairy Australia. Dairy Forecast Service. **\[ต้องเติม: URL และวันที่เข้าถึง\]**
+8.  Kitasato University. Livestock Weather (แอปพยากรณ์ THI สำหรับปศุสัตว์). **\[ต้องเติม: URL และวันที่เข้าถึง\]**
 
 > ตรวจจากบทคัดย่อและหน้าฐานข้อมูลวิชาการเมื่อ 6 พ.ย. 2569 ยังไม่ได้อ่านฉบับเต็ม ควรอ่านฉบับเต็มก่อนอ้างตัวเลขใน paper ส่วนบริการพยากรณ์ข้อ 6–7 ตรวจจากแหล่งข้อมูลรองเท่านั้น เอกสารของเกณฑ์ไทย (Boonkum et al.; Duangjinda et al.) อ้างไว้ในหัวข้อ 5.1
 
@@ -184,8 +185,9 @@ flowchart LR
 | โมเดลตั้งต้น | YOLO26m แบบ pretrained ของ Ultralytics (`yolo26m.pt`) |
 | ชุดข้อมูล | Roboflow "cow-behavior-analysiws" v2 (CC BY 4.0) 1,877 ภาพ แบ่งเป็น train 1,473 / valid 201 / test 203 ภาพ 4 คลาส ภาพถูกปรับเป็น 640×640 แบบยืด (stretch) — ไม่ใช่ภาพจากคอกในไทย |
 | การฝึก | Fine-tune 30 epochs, ภาพ 640 px, batch 16 บน Apple Silicon (MPS) เลือก weights ที่ดีที่สุดจากชุด valid |
-| ใช้งานจริง | Export เป็น ONNX ขนาดภาพ 480 px, confidence ≥ 0.25, NMS แบบไม่ดูคลาส IoU 0.7 |
-| ผลบนชุดทดสอบ (203 ภาพ, 933 กรอบ, ไม่ได้ใช้ฝึก) | **mAP50 = 0.720, mAP50–95 = 0.410**, Precision 0.672, Recall 0.723 (โมเดล ONNX 480 px ที่ใช้จริง) · เทียบโมเดลต้นฉบับ 640 px: mAP50 0.725, mAP50–95 0.419 |
+| ใช้งานจริง | Export เป็น ONNX ขนาดภาพ 480 px (ย่อแบบยืดเต็มกรอบเหมือนภาพฝึก), confidence ≥ 0.25, NMS แบบไม่ดูคลาส IoU 0.7 |
+| ผลบนชุดทดสอบ (203 ภาพ, 933 กรอบ, ไม่ได้ใช้ฝึก) | **mAP50 = 0.720, mAP50–95 = 0.410**, Precision 0.672, Recall 0.723 (โมเดล ONNX 480 px ที่ใช้จริง) · เทียบโมเดลต้นฉบับ 640 px: mAP50 0.725, mAP50–95 0.419 · ⚠️ ภาพทดสอบ 198/203 มาจากกล้องเดียวกับชุดฝึก และ 45 ภาพ (22%) เกือบซ้ำกับภาพฝึก (วัวอยู่ตำแหน่งและท่าเดิม) ตัวเลขนี้จึงเป็นความแม่นในคอกเดิม |
+| ตรวจซ้ำแบบเข้มงวด (21 พ.ย. 2569, conf 0.25, ขั้นตอนเดียวกับเซิร์ฟเวอร์) | ภาพที่ไม่ซ้ำกับชุดฝึก 120 ภาพ (จำลองภาพกล้อง 16:9): Precision 0.80, Recall 0.72, นับคลาด 1.27 ตัว/ภาพ · ภาพที่โมเดลไม่เคยเห็นจากมุมกล้องหนึ่งของ CBVD-5 (Li et al., 2024) 154 ภาพ: Precision 0.82, Recall 0.70 · เมื่อเจอวัวแล้วระบุท่าถูก 93–99% (ยกเว้นดื่ม) ความผิดพลาดหลักคือหาวัวไม่ครบ โดยเฉพาะวัวตัวเล็ก/ไกล |
 | AP50 รายคลาส | กิน 0.93 · ยืน 0.80 · นอน 0.79 · **ดื่ม 0.37** (คลาสดื่มยังแม่นยำต่ำ) |
 | ความแม่นยำการนับ | นับวัวรวมคลาดเฉลี่ย 0.90 ตัวต่อภาพ, นับวัวนอนคลาดเฉลี่ย 0.47 ตัวต่อภาพ (ชุดทดสอบเดียวกัน ตั้งค่าแบบใช้งานจริง) |
 
@@ -263,17 +265,30 @@ T = อุณหภูมิ (°C), RH = ความชื้นสัมพั
 
 **แนวคิด:** เซ็นเซอร์บอก*สาเหตุ* คือสภาพแวดล้อมร้อนแค่ไหน ส่วนกล้องบอก*ผลที่เกิดกับวัว* คือวัวตอบสนองต่อความร้อนหรือไม่ วัวที่ร้อนมักยืนมากขึ้นและนอนน้อยลงเพื่อระบายความร้อน การมีข้อมูลทั้งสองมิติจึงช่วยประเมินความเครียดจากความร้อนได้ครบกว่าการดู THI อย่างเดียว
 
-**วิธีตรวจจับ:** ใช้ **Object Detection ด้วย YOLO26m** ซึ่งหากรอบรอบวัวแต่ละตัวและบอกท่าทางในขั้นตอนเดียว ท่าทางเป็น "คลาส" ของกรอบ มี 4 คลาส คือ ยืน นอน กิน ดื่ม ไม่ใช่การจำแนกทั้งภาพ ไม่ใช่การหาจุดข้อต่อ (pose estimation) และไม่ได้ติดตามวัวรายตัว (tracking)
+**วิธีตรวจจับ:** ใช้ **Object Detection ด้วย YOLO26m** ซึ่งหากรอบรอบวัวแต่ละตัวและบอกท่าทางในขั้นตอนเดียว ท่าทางเป็น "คลาส" ของกรอบ มี 4 คลาส คือ ยืน นอน กิน ดื่ม ไม่ใช่การจำแนกทั้งภาพ และไม่ใช่การหาจุดข้อต่อ (pose estimation) จากนั้น**ติดตามวัวเป้าหมาย 1 ตัว**ข้ามภาพด้วยตำแหน่ง (ด้านล่าง)
 
 | ขั้น | เกิดอะไรขึ้น |
 |----|----|
-| 1\. ถ่ายภาพ | ทุก 10 นาที ESP32 ขอภาพนิ่ง JPEG จากกล้องในเครือข่ายเดียวกัน แล้วส่งขึ้น cloud |
-| 2\. เตรียมภาพ | ย่อเป็น 480×480 แบบคงสัดส่วน (letterbox) เติมขอบสีเทา แปลงค่าสีเป็น 0–1 |
+| 1\. ถ่ายภาพ | ตามรอบที่ตั้งจากหน้าเว็บ (15 วินาที–60 นาที; วันเก็บข้อมูลใช้ 1 นาที, ค่าเริ่มต้น 10 นาที) ESP32 ขอภาพนิ่ง JPEG จากกล้องในเครือข่ายเดียวกัน แล้วส่งขึ้น cloud |
+| 2\. เตรียมภาพ | ย่อเป็น 480×480 แบบยืดเต็มกรอบ (stretch) ให้ตรงกับภาพที่ใช้ฝึก แปลงค่าสีเป็น 0–1 (เดิมใช้ letterbox ทำให้ภาพกล้อง 16:9 ต่างจากภาพฝึก เปลี่ยนเมื่อ 20 พ.ย. 2569: recall บนภาพจำลองกล้อง 16:9 เพิ่มจาก 0.73 เป็น 0.78) |
 | 3\. ทำนาย | YOLO26m (ONNX) ให้กรอบที่เป็นไปได้จำนวนมาก แต่ละกรอบมีตำแหน่งและคะแนนของทั้ง 4 คลาส |
 | 4\. กรอง | ตัดกรอบที่ความมั่นใจต่ำกว่า 0.25 |
 | 5\. ตัดกรอบซ้ำ | NMS แบบไม่ดูคลาส (IoU 0.7) กันวัวตัวเดียวถูกนับ 2 ครั้งจากกรอบต่างท่าที่ซ้อนกัน |
 | 6\. สรุปตัวเลข | นับวัวแต่ละท่า คำนวณ % และสัดส่วนท่านอน = นอน ÷ (นอน + ยืน) × 100 |
 | 7\. บันทึก | เก็บตัวเลข + ตำแหน่งกรอบ (JSON) ของทุกภาพ แล้วทิ้งภาพ ยกเว้นภาพแรกของแต่ละชั่วโมงที่เก็บไว้ให้คนนับเทียบ (การเก็บ JSON ทุกภาพเริ่มทำงานหลังรัน migration เพิ่มคอลัมน์ `detections`) |
+
+**การติดตามวัวเป้าหมาย 1 ตัว (วิธี `position-v2`):**
+
+| ขั้น | เกิดอะไรขึ้น |
+|----|----|
+| 1\. เลือกวัว | ผู้ดูแลคลิกวัวบนภาพล่าสุดหรือภาพย้อนหลัง และใส่เบอร์หู/ชื่อ ระบบคำนวณย้อนหลังจากภาพนั้นถึงปัจจุบัน แล้วติดตามต่อทุกภาพใหม่ (1 ตัวต่อฟาร์ม) |
+| 2\. จับคู่ข้ามภาพ | กล้องติดตาย จึงเลือกกรอบในภาพใหม่ที่ซ้อนทับ (น้ำหนัก 0.7) และใกล้ตำแหน่งล่าสุด (0.3) มากที่สุด และเทียบกับตำแหน่งที่คาดไว้ตอนวัวเดิน |
+| 3\. ไม่เดา | ถ้ามี 2 กรอบได้คะแนนใกล้กัน (ห่างไม่ถึง 0.15) หรือไม่มีกรอบที่ใกล้พอ = "ไม่เห็นในภาพ"; หายเกิน 15 นาที = หลุดการติดตาม ต้องเลือกใหม่ |
+| 4\. ช่วงพฤติกรรม | รวมภาพติดกันที่ท่าเดียวกันเป็นช่วง นอน / ยืน / กิน (ดื่มรวมกับยืน เพราะคลาสดื่มแม่นต่ำ) ตัดช่วงที่จุดกึ่งกลางระหว่างภาพ หายได้ 1 ภาพโดยไม่ตัดช่วง และภาพห่างเกิน 2.5 เท่าของรอบปกติ = ไม่มีข้อมูล |
+| 5\. THI และการเดิน | แต่ละช่วงมี THI เฉลี่ย ต่ำสุด สูงสุด จากค่าเฉลี่ย 5 นาทีของเซ็นเซอร์ในคอกช่วงเดียวกัน และนับการเดินจากระยะที่ตำแหน่งเท้า (กลางขอบล่างของกรอบ) ขยับเทียบกับขนาดตัว เกินระดับการสั่นของกรอบตอนวัวนอนนิ่ง |
+| 6\. บันทึก | ผลทีละภาพลง `tb_cow_behavior_observations` ผูกกับวัวใน `tb_cows` (เบอร์หู) ส่วนกรอบวัวทุกตัวยังเก็บไว้ใช้เลือกวัวย้อนหลังและแก้ตัว |
+
+ข้อจำกัด: ติดตามด้วยตำแหน่งอย่างเดียว ถ้าวัวเป้าหมายนอนตรงตำแหน่งที่วัวตัวอื่นเพิ่งยืนอยู่ อาจสลับตัว (กำลังทำแถบภาพยืนยันและการแก้ตัวกลางทาง) ภาพยิ่งถี่ วัวยิ่งขยับน้อยระหว่างภาพและจับคู่ง่ายขึ้น วันเก็บข้อมูลจึงใช้ภาพทุก 1 นาที
 
 **สิ่งที่บันทึก (แทนการเก็บวิดีโอ):**
 
@@ -286,9 +301,9 @@ T = อุณหภูมิ (°C), RH = ความชื้นสัมพั
 
 การเก็บผลตรวจจับแทนวิดีโอทำให้ใช้พื้นที่และอินเทอร์เน็ตน้อยมาก เหมาะกับฟาร์มรายย่อย และไม่เก็บภาพบุคคลในฟาร์ม ตำแหน่งกรอบยังใช้วิเคราะห์ย้อนหลังได้ เช่น วัวรวมกลุ่มใต้พัดลมหรือที่ร่มเมื่ออากาศร้อน
 
-**การเทียบกับความเครียดจากความร้อน:** จับคู่สัดส่วนท่านอนรายชั่วโมงกับ THI รายชั่วโมง ตัดชั่วโมงรีดนมและให้อาหาร ตัดผลของเวลาในวัน แล้วหาจุดหักด้วย broken-line regression ช่วงความเชื่อมั่นแบบ day-block bootstrap (200 รอบ) รายงานจุดหักก็ต่อเมื่อผ่านเงื่อนไขทางสถิติ ต้องมีข้อมูล ≥ 14 วัน และ ≥ 150 ชั่วโมงคู่ ผลคือค่า THI ที่วัวในคอกนั้นเริ่มนอนน้อยลง ใช้เทียบกับเกณฑ์จากงานวิจัย
+**การเทียบกับความเครียดจากความร้อน:** จับคู่สัดส่วนท่านอนรายชั่วโมงกับ THI รายชั่วโมง ตัดชั่วโมงรีดนมและให้อาหาร ตัดผลของเวลาในวัน แล้วหาจุดหักด้วย broken-line regression ช่วงความเชื่อมั่นแบบ day-block bootstrap (200 รอบ) รายงานจุดหักก็ต่อเมื่อผ่านเงื่อนไขทางสถิติ ต้องมีข้อมูล ≥ 14 วัน และ ≥ 150 ชั่วโมงคู่ ผลคือค่า THI ที่วัวในคอกนั้นเริ่มนอนน้อยลง ใช้เทียบกับเกณฑ์จากงานวิจัย (ต้องใช้ข้อมูลหลายวัน จึงพักไว้หลังส่ง paper ฉบับนี้ ซึ่งใช้ข้อมูล 1 วัน)
 
-**การตรวจความแม่นยำ:** ผู้ดูแลนับวัวในภาพตัวอย่างโดยไม่เห็นคำตอบของโมเดล (blind audit) ระบบคำนวณค่าคลาดเคลื่อนแยกตามท่า ถ้ายังตรวจไม่ถึง 30 ภาพ ระบบระบุว่ายังไม่ทราบความแม่นยำ · ผลกับชุดทดสอบ 203 ภาพของ Roboflow (ไม่ได้ใช้ฝึก): mAP50 0.720 และการตัดกรอบซ้ำแบบไม่ดูคลาสลดกรณีวัวตัวเดียวได้ 2 กรอบจาก 11 คู่เหลือ 0 นับวัวรวมคลาดเฉลี่ย 0.90 ตัว/ภาพ และนับวัวนอนคลาด 0.47 ตัว/ภาพ (รายละเอียดในหัวข้อ 4 ส่วน ④)
+**การตรวจความแม่นยำ:** ผู้ดูแลนับวัวในภาพตัวอย่างโดยไม่เห็นคำตอบของโมเดล (blind audit) ระบบคำนวณค่าคลาดเคลื่อนแยกตามท่า ถ้ายังตรวจไม่ถึง 30 ภาพ ระบบระบุว่ายังไม่ทราบความแม่นยำ · ผลกับชุดทดสอบ 203 ภาพของ Roboflow (ไม่ได้ใช้ฝึก): mAP50 0.720 และการตัดกรอบซ้ำแบบไม่ดูคลาสลดกรณีวัวตัวเดียวได้ 2 กรอบจาก 11 คู่เหลือ 0 นับวัวรวมคลาดเฉลี่ย 0.90 ตัว/ภาพ และนับวัวนอนคลาด 0.47 ตัว/ภาพ (รายละเอียดในหัวข้อ 4 ส่วน ④) — ตัวเลขชุดนี้วัดในคอกเดียวกับภาพฝึก ภาพที่ไม่ซ้ำกับชุดฝึกได้ Recall 0.72 และนับคลาด 1.27 ตัว/ภาพ ความแม่นในคอกไทยจะวัดด้วยภาพจากวันดูหน้างานและวันเก็บข้อมูล
 
 > **เครื่องมือภาพสด (แยกจากการเก็บข้อมูล):** ใช้วิดีโอ RTSP + YOLO + ByteTrack ให้หมายเลขวัวต่อเนื่องข้ามเฟรม ประมาณ 9 เฟรมต่อวินาที ใช้ได้เฉพาะในเครือข่ายเดียวกับกล้อง สำหรับให้ผู้ดูแลตรวจมุมกล้อง ไม่ได้บันทึกเป็นข้อมูลวิจัย
 
@@ -298,11 +313,11 @@ T = อุณหภูมิ (°C), RH = ความชื้นสัมพั
 
 ### 6.1 การทดสอบและความถูกต้องของผล
 
-1.  **ยังไม่ได้ติดตั้งในฟาร์มโคนม:** ระบบทดสอบในบ้านเท่านั้น จึงยังไม่มีผลจากสภาพคอกจริง
+1.  **ยังไม่ได้ติดตั้งในฟาร์มโคนม:** ระบบทดสอบในบ้านเท่านั้น ข้อมูลภาคสนามของ paper ฉบับนี้จะเป็นการเก็บ 1 วัน 4–6 ชม. (กรณีศึกษา)
 2.  **ความแม่นยำของเซ็นเซอร์ยังไม่ได้ยืนยัน:** อยู่ระหว่างทดสอบเทียบกับเครื่องวัดอ้างอิง
 3.  **ผลทดสอบพยากรณ์เป็นการเทียบกับอากาศภายนอก:** ใช้สถานีสนามบินเชียงใหม่ ไม่ใช่ข้อมูลในคอก และการทดสอบใช้ค่าเฉลี่ยของค่าเพี้ยน ขณะที่ระบบปัจจุบันใช้มัธยฐาน จึงต้องประเมินซ้ำกับระบบรุ่นปัจจุบันและข้อมูลในคอก
 4.  **ค่าเพี้ยนระดับภูมิภาคมาจากสถานีเดียว:** ยังไม่ได้ทดสอบกับพื้นที่อื่นนอกเชียงใหม่
-5.  **โมเดลกล้องยังไม่ได้วัดความแม่นยำในโรงเรือนไทย:** เทรนจากชุดข้อมูลสาธารณะ (Roboflow) ที่ไม่ใช่ภาพจากคอกในไทย ภาพฝึกถูกปรับเป็นสี่เหลี่ยมจัตุรัสแบบยืด ขณะที่ภาพจริงย่อแบบคงสัดส่วน ยังไม่ได้ทำ blind audit กับภาพจริง ภาพกลางคืน (อินฟราเรด) อาจทำให้แม่นยำน้อยลง และคลาส "ดื่ม" แม่นยำต่ำ (AP50 0.37)
+5.  **โมเดลกล้องยังไม่ได้วัดความแม่นยำในโรงเรือนไทย:** เทรนจากชุดข้อมูลสาธารณะ (Roboflow) ที่ไม่ใช่ภาพจากคอกในไทย ชุดทดสอบเดิมมาจากกล้องเดียวกับชุดฝึกและ 22% เกือบซ้ำกับภาพฝึก (mAP50 0.720 จึงสูงเกินจริงสำหรับคอกใหม่) และชุดฝึกตีกรอบไม่ครบ (เทียบกับ CBVD-5 บนภาพเดียวกัน 969 ภาพ: วัว 2,481 ตัวไม่มีกรอบ, 281 กรอบรวมวัวหลายตัว) ซึ่งสอนให้โมเดลมองข้ามวัวบางตัว ผลตรวจแบบเข้มงวด Recall 0.70–0.72 วัวตัวเล็ก/ไกลถูกพลาดบ่อย คลาส "ดื่ม" แม่นยำต่ำ (AP50 0.37) และภาพกลางคืน (อินฟราเรด) อาจทำให้แม่นยำน้อยลง (ปัญหาย่อภาพไม่ตรงกับภาพฝึกแก้แล้วเมื่อ 20 พ.ย. 2569)
 6.  **เกณฑ์ THI มาจากงานวิจัยที่ใช้ THI เฉลี่ยรายวันจากสถานีอุตุนิยมวิทยา:** การนำมาใช้กับข้อมูลในคอกราย 5 นาทียังไม่ได้รับการตรวจสอบ
 7.  **ฟาร์มเดียว (pilot):** ผลสรุปเป็นกรณีศึกษา ยังใช้เป็นข้อสรุปทั่วไปไม่ได้
 
@@ -311,9 +326,9 @@ T = อุณหภูมิ (°C), RH = ความชื้นสัมพั
 1.  **เซ็นเซอร์ 1 จุดต่อคอก:** ไม่แสดงความแตกต่างของอุณหภูมิในแต่ละบริเวณของโรงเรือน
 2.  **THI ไม่รวมความเร็วลมและรังสีความร้อน:** และยังไม่มีอุปกรณ์กันแดดหรือกันรังสีสำหรับหัวโพรบ
 3.  **ไม่มีข้อมูลจากตัวสัตว์:** ไม่มีอุณหภูมิร่างกาย อัตราการหายใจ การหอบ การเคี้ยวเอื้อง หรือปริมาณน้ำนม จึงสรุปผลต่อสุขภาพหรือผลผลิตไม่ได้
-4.  **ภาพนิ่งทุก 10 นาที:** นับเป็นภาพรวมทั้งฝูง ติดตามโครายตัวและพฤติกรรมช่วงสั้นไม่ได้ การแจ้งเตือนพฤติกรรมผิดปกติรายตัว (เช่น ยืนนาน) มีแค่โค้ดต้นแบบ และต้องมีคอมพิวเตอร์ประมวลผลที่ฟาร์ม
+4.  **ติดตามวัวได้ทีละ 1 ตัวด้วยตำแหน่ง:** ไม่จำลายหรือเครื่องหมายของวัว ถ้าวัวอยู่ชิดกันหรือย้ายไปตำแหน่งที่วัวตัวอื่นเพิ่งอยู่ อาจสลับตัว และพฤติกรรมที่สั้นกว่ารอบถ่ายภาพจะไม่ถูกบันทึก
 5.  **สัดส่วนท่านอนไม่ใช่ดัชนีความสบายที่ผ่านการรับรอง:** ได้รับผลจากเวลาให้อาหาร การรีดนม การบังกันในภาพ และความผิดพลาดของโมเดล
-6.  **การวิเคราะห์สัดส่วนท่านอนเทียบ THI** ต้องมีข้อมูลอย่างน้อย 14 วัน และเป็นความสัมพันธ์เชิงสำรวจในฟาร์มเดียว
+6.  **ข้อมูล 1 วัน (4–6 ชม.) ใช้ได้เชิงพรรณนา:** ช่วง THI ในวันเดียวแคบ จึงยังสรุปความสัมพันธ์ THI–พฤติกรรมเชิงสถิติไม่ได้ การวิเคราะห์สัดส่วนท่านอนเทียบ THI ต้องมีข้อมูลอย่างน้อย 14 วัน และเป็นความสัมพันธ์เชิงสำรวจในฟาร์มเดียว
 7.  **ยังรองรับเซ็นเซอร์ 1 ตัวและกล้อง 1 ตัวต่อคอก:** ฐานข้อมูลรองรับหลายตัว แต่การประมวลผลยังไม่รองรับ
 
 ### 6.3 ฮาร์ดแวร์และการติดตั้ง
@@ -345,27 +360,27 @@ T = อุณหภูมิ (°C), RH = ความชื้นสัมพั
 
 ### System scope
 
-We developed a low-cost monitoring system for smallholder dairy farms that measures air temperature and relative humidity inside the barn, classifies heat-stress risk with the temperature–humidity index (THI) using thresholds derived from Thai Holstein crossbred studies, forecasts the barn's daily mean THI one to three days ahead, and estimates herd-level posture from periodic camera snapshots. Farmers do not enter data manually. The system does not track individual animals, measure physiological variables (body temperature, respiration rate, panting), diagnose disease, or control cooling equipment.
+We developed a low-cost monitoring system for smallholder dairy farms that measures air temperature and relative humidity inside the barn, classifies heat-stress risk with the temperature–humidity index (THI) using thresholds derived from Thai Holstein crossbred studies, forecasts the barn's daily mean THI one to three days ahead, and follows the posture of one target cow, selected with a single click on a camera image, from periodic snapshots of an ordinary surveillance camera, recording the in-barn THI for every behavioural bout. Farmers do not enter data manually and no device is attached to the animals. The system follows one cow per farm by position only (no visual re-identification) and does not measure physiological variables (body temperature, respiration rate, panting), diagnose disease, or control cooling equipment.
 
 ### Contributions relative to existing approaches
 
-Heat-stress forecasts offered to dairy farmers, such as Dairy Australia's Dairy Forecast Service and the Livestock Weather app of Kitasato University, are based on outdoor weather at the farm location, yet conditions inside barns can differ markedly: Schüller et al. (2013) found barn air on average 6.4 °C warmer than at the nearest official weather station, with 64 days of mean THI ≥ 72 in the barn versus 4 at the station over 756 days. Low-cost in-barn THI monitors (e.g., Choquehuanca-Zevallos and Mayhua-López, 2021) focus on current conditions, and a camera-based study showed that herd-level lying and standing respond most strongly and earliest to heat stress (Shu et al., 2023). This work integrates these elements for smallholder farms: (1) it forecasts the barn's own daily mean THI one to three days ahead by correcting ECMWF forecasts with a bias learned continuously from the in-barn sensor, which nearly halved the one-day-ahead error of the raw forecast in a retrospective test against an outdoor station (MAE 1.34 to 0.69); (2) it classifies risk with thresholds from studies of Thai Holstein crossbreds instead of thresholds developed for Holstein cows elsewhere (e.g., THI 72; Armstrong, 1994); and (3) it adds herd-level posture from a camera through the same microcontroller, without an on-farm computer and without storing video. The system also reports data coverage and detector accuracy explicitly, so that missing data is never presented as a safe condition. Bias correction and posture-based heat-stress indicators are established techniques; the contribution lies in the barn-specific, self-calibrating forecast and in the integration of these elements in a single low-cost unit.
+Heat-stress forecasts offered to dairy farmers, such as Dairy Australia's Dairy Forecast Service and the Livestock Weather app of Kitasato University, are based on outdoor weather at the farm location, yet conditions inside barns can differ markedly: Schüller et al. (2013) found barn air on average 6.4 °C warmer than at the nearest official weather station, with 64 days of mean THI ≥ 72 in the barn versus 4 at the station over 756 days. Low-cost in-barn THI monitors (e.g., Choquehuanca-Zevallos and Mayhua-López, 2021) focus on current conditions, and a camera-based study showed that herd-level lying and standing respond most strongly and earliest to heat stress (Shu et al., 2023). This work integrates these elements for smallholder farms: (1) it forecasts the barn's own daily mean THI one to three days ahead by correcting ECMWF forecasts with a bias learned continuously from the in-barn sensor, which nearly halved the one-day-ahead error of the raw forecast in a retrospective test against an outdoor station (MAE 1.34 to 0.69); (2) it classifies risk with thresholds from studies of Thai Holstein crossbreds instead of thresholds developed for Holstein cows elsewhere (e.g., THI 72; Armstrong, 1994); and (3) it adds the posture of an individual target cow, followed across snapshots after a single click, with the same microcontroller fetching the images, without an on-farm computer, wearable sensors or stored video. The system also reports data coverage and detector accuracy explicitly, so that missing data is never presented as a safe condition. Bias correction and posture-based heat-stress indicators are established techniques; the contribution lies in the barn-specific, self-calibrating forecast and in the integration of these elements in a single low-cost unit.
 
 ### Hardware
 
-Each barn unit consists of an ESP32-S3 N16R8 microcontroller (16 MB flash, 8 MB PSRAM), an SHT20 temperature–humidity probe with an RS485 interface read over Modbus RTU (9600 baud) through a TTL–RS485 converter, a 2.4-inch 320×240 TFT display (ST7789), a 12 V 2 A adapter with a 12 V to 3.3/5 V step-down regulator, and an enclosure, with a total component cost of about 1,477 THB (approx. USD **\[ต้องเติม: อัตราแลกเปลี่ยน\]**). An IP camera on the farm network is optional; a Dahua IP camera was used during development. The firmware samples the sensor every 2 s, applies range and CRC checks and an exponential moving average (α = 0.7), and transmits one time-stamped reading every 15 s over HTTPS. Readings that cannot be sent are queued in on-board flash (up to 2 MB, about three weeks) and uploaded in batches when connectivity returns. Every 10 min the same microcontroller retrieves a JPEG snapshot from the camera over the local network and uploads it, so no on-farm computer or inbound network access is required. A heartbeat every 5 min reports signal strength, memory, queue length and sensor health.
+Each barn unit consists of an ESP32-S3 N16R8 microcontroller (16 MB flash, 8 MB PSRAM), an SHT20 temperature–humidity probe with an RS485 interface read over Modbus RTU (9600 baud) through a TTL–RS485 converter, a 2.4-inch 320×240 TFT display (ST7789), a 12 V 2 A adapter with a 12 V to 3.3/5 V step-down regulator, and an enclosure, with a total component cost of about 1,477 THB (approx. USD **\[ต้องเติม: อัตราแลกเปลี่ยน\]**). An IP camera on the farm network supplies the images (a Dahua IP camera was used during development). The firmware samples the sensor every 2 s, applies range and CRC checks and an exponential moving average (α = 0.7), and transmits one time-stamped reading every 15 s over HTTPS. Readings that cannot be sent are queued in on-board flash (up to 2 MB, about three weeks) and uploaded in batches when connectivity returns. At an interval set from the web interface (15 s to 60 min; 1 min during the field recording), the same microcontroller retrieves a JPEG snapshot from the camera over the local network and uploads it, so no on-farm computer or inbound network access is required. A heartbeat every 5 min reports signal strength, memory, queue length and sensor health.
 
 ### Software
 
-A Node.js/Express service ingests readings into PostgreSQL (Supabase), averages them into 5-min buckets, and derives heat hours, night-time hours below the warning threshold, consecutive hot days, heat events (THI at or above the moderate threshold for at least 30 min) and data coverage. Snapshots are analysed with a YOLO26m detector exported to ONNX (480 px input, four classes: standing, lying, feeding, drinking) running in a worker thread; one sample image per hour is retained with its predictions for blinded human audit. The detector was fine-tuned from pretrained YOLO26m weights on a public cow-behaviour dataset of 1,877 images (Roboflow; 1,473/201/203 train/validation/test) for 30 epochs; on the held-out test set the deployed model achieved mAP50 of 0.720 and mAP50–95 of 0.410 (AP50: feeding 0.93, standing 0.80, lying 0.79, drinking 0.37). The barn THI forecast corrects ECMWF IFS (0.25°) forecasts from Open-Meteo with a per-lead-time bias, computed as the median difference between past forecasts and the barn's observed daily mean THI over the previous 14 days. In a 354-day retrospective test against hourly observations from the Chiang Mai airport station (WMO 48327, Meteostat), this reduced the one-day-ahead mean absolute error from 1.34 (raw ECMWF) to 0.69 THI units, outperforming a 72-h persistence baseline (1.10), a regional bias correction (0.77) and small LSTM (0.81) and GRU (0.88) models. A Nuxt/Vue web application hosted on Cloudflare Pages provides a simplified mobile view for farmers and a detailed view for administrators.
+A Node.js/Express service ingests readings into PostgreSQL (Supabase), averages them into 5-min buckets, and derives heat hours, night-time hours below the warning threshold, consecutive hot days, heat events (THI at or above the moderate threshold for at least 30 min) and data coverage. Snapshots are analysed with a YOLO26m detector exported to ONNX (480 px input, four classes: standing, lying, feeding, drinking) running in a worker thread; one sample image per hour is retained with its predictions for blinded human audit. The detector was fine-tuned from pretrained YOLO26m weights on a public cow-behaviour dataset of 1,877 images (Roboflow; 1,473/201/203 train/validation/test) for 30 epochs; on the dataset's test split the deployed model achieved mAP50 of 0.720 and mAP50–95 of 0.410 (AP50: feeding 0.93, standing 0.80, lying 0.79, drinking 0.37). Because 198 of the 203 test images come from the training cameras and 22% are near-duplicates of training frames, we re-evaluated the deployed pipeline (confidence 0.25) on non-duplicate frames (precision 0.80, recall 0.72, mean count error 1.27 cows per image) and on 154 frames not used in training from one camera view of the CBVD-5 dataset (Li et al., 2024; precision 0.82, recall 0.70); when a cow was detected, its posture was correct in 93–99% of cases (drinking excluded). The barn THI forecast corrects ECMWF IFS (0.25°) forecasts from Open-Meteo with a per-lead-time bias, computed as the median difference between past forecasts and the barn's observed daily mean THI over the previous 14 days. In a 354-day retrospective test against hourly observations from the Chiang Mai airport station (WMO 48327, Meteostat), this reduced the one-day-ahead mean absolute error from 1.34 (raw ECMWF) to 0.69 THI units, outperforming a 72-h persistence baseline (1.10), a regional bias correction (0.77) and small LSTM (0.81) and GRU (0.88) models. A Nuxt/Vue web application hosted on Cloudflare Pages provides a simplified mobile view for farmers and a detailed view for administrators.
 
-### Camera-based posture monitoring
+### Camera-based tracking of a target cow
 
-The camera provides a second, animal-based dimension alongside the environmental THI: heat-stressed cows tend to stand more and lie less. Every 10 min a snapshot is letterboxed to 480×480 px and passed to a YOLO26m object detector that localises each cow and assigns one of four posture classes (standing, lying, feeding, drinking) in a single step. Detections below a confidence of 0.25 are discarded, and class-agnostic non-maximum suppression (IoU 0.7) prevents one cow from being counted twice under different postures. For each snapshot the system stores posture counts, the lying ratio (lying / (lying + standing)) and the full set of normalised bounding boxes as JSON (about 0.4 KB per image with two cows), instead of video, which reduces storage by several orders of magnitude and avoids retaining images of people. One image per hour is kept for blinded human counting to measure detector error in the barn. Hourly lying ratios are paired with hourly THI, milking and feeding hours are excluded, time-of-day effects are removed, and a broken-line regression with day-block bootstrap confidence intervals estimates the THI at which lying time begins to decline.
+The camera provides a second, animal-based dimension alongside the environmental THI: heat-stressed cows tend to stand more and lie less. Each snapshot is resized to 480×480 px (stretched, matching the training images) and passed to a YOLO26m object detector that localises each cow and assigns one of four posture classes (standing, lying, feeding, drinking) in a single step. Detections below a confidence of 0.25 are discarded, and class-agnostic non-maximum suppression (IoU 0.7) prevents one cow from being counted twice under different postures. All normalised bounding boxes are stored as JSON instead of video (about 0.4 KB per image with two cows). An administrator selects one target cow by clicking it on the latest or an earlier image and enters its ear tag; because the camera is fixed, the cow is then followed across snapshots by position, using a score that combines box overlap (weight 0.7) and proximity (weight 0.3) and a predicted position for walking cows. When two candidate boxes score within 0.15 of each other, or none is close enough, the frame is recorded as not visible rather than guessed, and the track ends after 15 min without a match. Consecutive frames with the same posture form lying, standing and feeding bouts (drinking is merged with standing because of its low detection accuracy); a single missing frame does not split a bout, and gaps longer than 2.5 snapshot intervals are treated as missing data. Each bout carries the mean, minimum and maximum in-barn THI over its duration, and walking is derived from the displacement of the foot point (bottom centre of the box) relative to body size, above the box jitter measured while the cow lies still. One image per hour is kept for blinded human counting to measure detector error in the barn.
 
 ### Limitations
 
-The system has so far been tested only outside a dairy barn; sensor accuracy against a reference instrument, in-barn forecast accuracy and detector accuracy on Thai barn images are still to be measured. The forecast evaluation used an outdoor weather station rather than barn data. The THI thresholds were derived from daily station data and have not been validated for 5-min in-barn readings. A single sensor per barn does not capture spatial variation, and THI ignores wind speed and radiation. The system records no animal-based measures (body temperature, respiration, rumination, milk yield) and therefore cannot attribute health or production effects. Camera analysis uses snapshots every 10 min and is limited to herd-level posture. The prototype depends on farm internet access (sensor readings are buffered for about three weeks; images are not), has no battery backup, and runs on free-tier cloud services with limited inference throughput.
+The system has so far been tested only outside a dairy barn; sensor accuracy against a reference instrument, in-barn forecast accuracy and detector accuracy on Thai barn images are still to be measured. The forecast evaluation used an outdoor weather station rather than barn data. The THI thresholds were derived from daily station data and have not been validated for 5-min in-barn readings. A single sensor per barn does not capture spatial variation, and THI ignores wind speed and radiation. The system records no animal-based measures (body temperature, respiration, rumination, milk yield) and therefore cannot attribute health or production effects. The detector was trained on public images from other barns; its recall on unseen frames was about 0.70, and small or distant cows are often missed. Tracking follows a single cow by position only and may switch to a neighbouring cow when animals are close, and behaviours shorter than the snapshot interval are missed. The field data reported here cover a single day (4–6 h), so the relationship between behaviour and THI is described rather than tested statistically. The prototype depends on farm internet access (sensor readings are buffered for about three weeks; images are not), has no battery backup, and runs on free-tier cloud services with limited inference throughput.
 
 > หมายเหตุ: ประโยคผลทดสอบพยากรณ์ควรระบุใน paper ว่าเป็นการทดสอบกับสถานีอากาศภายนอก และต้องเพิ่มผลจากคอกจริงหลังติดตั้ง
 
