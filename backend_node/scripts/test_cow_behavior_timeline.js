@@ -157,8 +157,9 @@ const server = app.listen(0, async () => {
         assert.ok(snap.disp.includes('cow_TH-012_2026-11-15_snapshots.csv'))
         assert.deepStrictEqual([...snap.buf.subarray(0, 3)], [0xef, 0xbb, 0xbf], 'BOM so Excel reads Thai')
         assert.ok(snap.text.startsWith('# farm='))
-        const lines = snap.text.trim().split('\n')
-        assert.strictEqual(lines[1], 'cow_tag,cow_name,system_cow_id,observed_at_th,behavior,behavior_th,match_score,box_x1,box_y1,box_x2,box_y2,thi_5min,temperature_c,humidity_pct')
+        const lines = snap.text.trim().split('\n').filter(l => !l.startsWith('# ตำแหน่ง') && !l.startsWith('# moved_body'))
+        assert.ok(snap.text.includes('# ตำแหน่ง: zone'), 'explains the position columns')
+        assert.strictEqual(lines[1], 'cow_tag,cow_name,system_cow_id,observed_at_th,behavior,behavior_th,match_score,zone,center_x_pct,center_y_pct,width_pct,height_pct,moved_body,movement,box_x1,box_y1,box_x2,box_y2,thi_5min,temperature_c,humidity_pct')
         assert.strictEqual(lines.length - 2, obs.filter(o => o.observed_at >= new Date(bkk('2026-11-15T00:00:00')) && o.observed_at < new Date(bkk('2026-11-16T00:00:00'))).length, 'one row per snapshot of that day only')
         assert.ok(lines[2].startsWith('TH-012,มะลิ,,2026-11-15 00:00:00,lying,นอน,'), lines[2])   // ภาพก่อนมีเลขวัว: system_cow_id ว่าง
         assert.ok(lines[2].endsWith(',78,30,70'), 'THI/temp/humidity of that 5-minute bucket')

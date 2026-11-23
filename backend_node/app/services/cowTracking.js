@@ -307,7 +307,42 @@ const stepCowIds = (state, frame, opts = {}) => {
     return { ids, state: { tracks, nextId } }
 }
 
+/**
+ * ตำแหน่งวัวแบบอ่านง่าย (ใช้ใน CSV ทั้ง simulator และ farm_detail) คู่กับพิกัด x1..y2 เดิม
+ * zone = ช่องในภาพ 3x3 (บนซ้าย ... กลางภาพ ... ล่างขวา), ค่าเป็น % ของภาพ (0 = ซ้าย/บน, 100 = ขวา/ล่าง)
+ */
+const ROW_TH = ['บน', 'กลาง', 'ล่าง']
+const COL_TH = ['ซ้าย', 'กลาง', 'ขวา']
+const pct1 = (v) => Math.round(v * 1000) / 10
+const describePosition = (box) => {
+    if (!box) return null
+    const cx = (box.x1 + box.x2) / 2
+    const cy = (box.y1 + box.y2) / 2
+    const third = (v) => Math.min(2, Math.max(0, Math.floor(v * 3)))
+    const r = third(cy)
+    const c = third(cx)
+    return {
+        zone: r === 1 && c === 1 ? 'กลางภาพ' : `${ROW_TH[r]}${COL_TH[c]}`,
+        centerXPct: pct1(cx),
+        centerYPct: pct1(cy),
+        widthPct: pct1(box.x2 - box.x1),
+        heightPct: pct1(box.y2 - box.y1)
+    }
+}
+
+// เท้าขยับจากภาพก่อนหน้าเท่าไร (เท่าของขนาดตัว วิธีเดียวกับ buildMovement) และคำอธิบาย
+// เกณฑ์ "เคลื่อนที่" = เกณฑ์ตั้งต้นของ buildMovement (ในกราฟอาจใช้เกณฑ์ที่วัดจากการสั่นของภาพแทน)
+const describeMove = (prevBox, box) => {
+    if (!prevBox || !box) return { movedBody: null, movement: null }
+    const d = step(prevBox, box)
+    return {
+        movedBody: Math.round(d * 100) / 100,
+        movement: d < 0.1 ? 'อยู่ที่เดิม' : d < MOVE_DEFAULTS.defaultThreshold ? 'ขยับเล็กน้อย' : 'เคลื่อนที่'
+    }
+}
+
 module.exports = {
     METHOD, TRACK_DEFAULTS, BOUT_DEFAULTS, MOVE_DEFAULTS,
-    matchScore, matchTarget, trackTarget, seedState, stepTarget, stepCowIds, buildBouts, summarizeBouts, buildMovement, movementWithin
+    matchScore, matchTarget, trackTarget, seedState, stepTarget, stepCowIds, buildBouts, summarizeBouts, buildMovement, movementWithin,
+    describePosition, describeMove
 }

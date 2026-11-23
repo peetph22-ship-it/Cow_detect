@@ -9,7 +9,7 @@
  * ช่วงที่ไม่มีแถบเลย = ไม่มีภาพจากกล้อง ไม่เดาค่า
  */
 const db = require('../config/db')
-const { METHOD, BOUT_DEFAULTS, buildBouts, summarizeBouts, buildMovement, movementWithin } = require('./cowTracking')
+const { METHOD, BOUT_DEFAULTS, buildBouts, summarizeBouts, buildMovement, movementWithin, describePosition, describeMove } = require('./cowTracking')
 const { loadBuckets, bkkDate, round1, BUCKET_MIN } = require('./heatMetrics')
 const { getFarmProfile, getThresholds } = require('./heatStress')
 
@@ -225,12 +225,26 @@ const buildCowBehaviorCsv = async (farm, { date, cowId, kind = 'snapshots', now 
     } else {
         // เลขวัวที่ระบบตั้ง (boxes[].id ใน telemetry) ของกรอบที่ติดตามได้ในแต่ละภาพ ไว้เทียบกับภาพที่เก็บไว้
         const ids = await trackIdsFor(day.snapshots || [])
-        header = ['cow_tag', 'cow_name', 'system_cow_id', 'observed_at_th', 'behavior', 'behavior_th', 'match_score', 'box_x1', 'box_y1', 'box_x2', 'box_y2', 'thi_5min', 'temperature_c', 'humidity_pct']
-        rows = (day.snapshots || []).map((s, i) => [...cowCols, ids[i], bkkText(s.observed_at), s.behavior, BEHAVIOR_TH[s.behavior], s.match_score,
-            r4(s.box?.x1), r4(s.box?.y1), r4(s.box?.x2), r4(s.box?.y2), s.thi, s.temperature_c, s.humidity_pct])
+        // ตำแหน่งอ่านง่าย (zone, %, การขยับจากภาพก่อนหน้า) คู่กับพิกัดดิบ box_x1..y2
+        header = ['cow_tag', 'cow_name', 'system_cow_id', 'observed_at_th', 'behavior', 'behavior_th', 'match_score',
+            'zone', 'center_x_pct', 'center_y_pct', 'width_pct', 'height_pct', 'moved_body', 'movement',
+            'box_x1', 'box_y1', 'box_x2', 'box_y2', 'thi_5min', 'temperature_c', 'humidity_pct']
+        let prevBox = null
+        rows = (day.snapshots || []).map((s, i) => {
+            const pos = describePosition(s.box)
+            const mv = describeMove(prevBox, s.box)
+            if (s.box) prevBox = s.box
+            return [...cowCols, ids[i], bkkText(s.observed_at), s.behavior, BEHAVIOR_TH[s.behavior], s.match_score,
+                pos?.zone, pos?.centerXPct, pos?.centerYPct, pos?.widthPct, pos?.heightPct, mv.movedBody, mv.movement,
+                r4(s.box?.x1), r4(s.box?.y1), r4(s.box?.x2), r4(s.box?.y2), s.thi, s.temperature_c, s.humidity_pct]
+        })
     }
     const meta = `# farm=${farm.id_farms},date=${day.date},method=${day.method},interval_sec=${day.interval_sec ?? ''},times=Asia/Bangkok`
-    const csv = '\uFEFF' + [meta, header.join(','), ...rows.map(r => r.map(csvCell).join(','))].join('\n') + '\n'
+    const notes = kind === 'bouts' ? [] : [
+        '# ตำแหน่ง: zone = ช่องในภาพ 3x3 (บนซ้าย...กลางภาพ...ล่างขวา) · center/width/height = % ของภาพ (0 = ซ้าย/บน 100 = ขวา/ล่าง)',
+        '# moved_body = เท้าขยับจากภาพก่อนหน้ากี่เท่าของขนาดตัว (อยู่ที่เดิม < 0.1 ≤ ขยับเล็กน้อย < 0.25 ≤ เคลื่อนที่) · box_x1..y2 = มุมกรอบ (สัดส่วน 0–1)'
+    ]
+    const csv = '\uFEFF' + [meta, ...notes, header.join(','), ...rows.map(r => r.map(csvCell).join(','))].join('\n') + '\n'
     const tag = String(day.cow.tag_id || 'cow').replace(/[^\w-]+/g, '_')
     return { filename: `cow_${tag}_${day.date}_${kind}.csv`, csv }
 }
