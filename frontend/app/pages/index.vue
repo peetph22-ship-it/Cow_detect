@@ -24,7 +24,7 @@
           <h1 class="text-4xl sm:text-5xl lg:text-[52px] font-extrabold text-[#142820] leading-[1.18] tracking-tight">
             รู้ว่าคอกร้อนแค่ไหน
             <span class="text-transparent bg-clip-text bg-gradient-to-r from-[#142820] via-[#2B5946] to-[#D87939] block mt-1">
-              และวัวตัวที่คุณเลือกนอน ยืน กิน นานเท่าไหร่
+              และนอน ยืน กิน นานเท่าไหร่
             </span>
           </h1>
 
