@@ -37,6 +37,9 @@
           <option :value="1">1 วินาที</option>
           <option :value="2">2 วินาที</option>
           <option :value="5">5 วินาที</option>
+          <option :value="10">10 วินาที</option>
+          <option :value="30">30 วินาที</option>
+          <option :value="60">60 วินาที (เท่ากล้องจริง)</option>
         </select>
       </label>
       <button type="button" :disabled="!canAnalyse"
@@ -61,15 +64,38 @@
     <!-- วิดีโอ + กรอบ -->
     <div v-show="videoUrl" class="relative w-full rounded-2xl overflow-hidden bg-black">
       <video ref="videoEl" :src="videoUrl" class="w-full h-auto block" controls muted playsinline preload="auto" @timeupdate="onTime" @seeked="onTime" @loadedmetadata="onMeta" @error="onVideoError"></video>
-      <div class="absolute inset-0 pointer-events-none">
-        <div v-for="(b, i) in currentBoxes" :key="i" class="absolute rounded-sm"
-          :style="{ left: b.x1 * 100 + '%', top: b.y1 * 100 + '%', width: (b.x2 - b.x1) * 100 + '%', height: (b.y2 - b.y1) * 100 + '%', border: `2px solid ${CLASS[key(b.cls)].color}` }">
-          <span class="absolute -top-[17px] left-[-2px] px-1 rounded-t text-[10px] font-bold text-white whitespace-nowrap" :style="{ background: CLASS[key(b.cls)].color }">
-            {{ CLASS[key(b.cls)].th }} {{ b.score.toFixed(2) }}
+      <div class="absolute inset-0" :class="pickMode ? 'cursor-crosshair bg-black/10' : 'pointer-events-none'">
+        <div v-for="b in labeledBoxes" :key="b.idx" class="absolute rounded-sm"
+          :class="pickMode ? 'cursor-pointer hover:bg-white/25' : ''"
+          :style="{ left: b.x1 * 100 + '%', top: b.y1 * 100 + '%', width: (b.x2 - b.x1) * 100 + '%', height: (b.y2 - b.y1) * 100 + '%',
+                    border: `${b.isTarget ? 4 : 2}px solid ${b.isTarget ? '#facc15' : CLASS[key(b.cls)].color}`, opacity: target && !b.isTarget && !pickMode ? 0.45 : 1 }"
+          @click.stop="pickBox(b)">
+          <span class="absolute -top-[17px] left-[-2px] px-1 rounded-t text-[10px] font-bold whitespace-nowrap"
+            :style="{ background: b.isTarget ? '#facc15' : CLASS[key(b.cls)].color, color: b.isTarget ? '#24433a' : '#fff' }">
+            {{ b.isTarget ? 'เป้าหมาย · ' : !target || pickMode ? `#${b.idx} ` : '' }}{{ CLASS[key(b.cls)].th }} {{ b.score.toFixed(2) }}
           </span>
         </div>
       </div>
+      <div v-if="pickMode" class="absolute top-2 left-2 right-2 text-center">
+        <span class="inline-block px-3 py-1.5 rounded-lg bg-[#24433a]/90 text-white text-xs font-bold">คลิกกรอบวัวที่ต้องการติดตาม (เลขในกรอบเป็นเลขชั่วคราวของเฟรมนี้)</span>
+      </div>
+      <div v-else-if="targetBanner" class="absolute top-2 left-2">
+        <span class="inline-block px-2.5 py-1 rounded-lg text-[11px] font-bold" :class="targetBanner.cls">{{ targetBanner.text }}</span>
+      </div>
     </div>
+
+    <!-- ติดตามวัว 1 ตัว -->
+    <div v-if="frames.length && !analysing" class="flex flex-wrap items-center gap-2.5">
+      <button type="button" class="px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+        :class="pickMode ? 'bg-amber-100 text-amber-800' : 'bg-[#facc15] text-[#24433a] hover:bg-[#eab308]'"
+        :disabled="!pickMode && !currentFrame?.boxes.length" @click="pickMode ? (pickMode = false) : startPick()">
+        <v-icon icon="mdi-target" size="16" />{{ pickMode ? 'ยกเลิกการเลือก' : target ? 'เลือกวัวเป้าหมายใหม่' : '4. เลือกวัวเป้าหมาย 1 ตัว' }}
+      </button>
+      <span v-if="!target && !pickMode" class="text-[11px] text-[#718078]">หยุดวิดีโอที่เฟรมที่เห็นวัวชัด แล้วกดปุ่มนี้ ระบบจะติดตามตัวนั้นไปจนจบวิดีโอ</span>
+      <span v-if="!pickMode && !currentFrame?.boxes.length && !target" class="text-[11px] text-amber-700">เฟรมนี้ไม่มีกรอบวัว เลื่อนไปเฟรมอื่นก่อน</span>
+    </div>
+    <TargetCowReview v-if="target" :target="target" :duration="duration" :current-t="currentTime" :reviews="reviews" :video-name="videoName"
+      @seek="seekTo" @review="(k, v) => (reviews = { ...reviews, [k]: v })" @import-reviews="(m) => (reviews = { ...reviews, ...m })" @clear="clearTarget" />
 
     <!-- จำนวนแต่ละคลาสของเฟรมปัจจุบัน -->
     <div v-if="frames.length" class="grid grid-cols-2 md:grid-cols-4 gap-2.5">
@@ -90,7 +116,8 @@
 
     <p class="text-[11px] text-[#718078] leading-relaxed">
       ความแม่นของโมเดลบนชุดทดสอบสาธารณะ: mAP50 72% (กิน 93% · ยืน 80% · นอน 79% · ดื่ม 37%) ยังไม่ได้วัดกับภาพคอกในไทย ·
-      ผลอาจต่างจาก server เล็กน้อยเพราะเบราว์เซอร์ย่อภาพคนละวิธี · ไม่มีการติดตามวัวข้ามเฟรมในส่วนนี้ (นับต่อเฟรม)
+      ย่อภาพแบบยืดเหมือน server · การติดตามวัวเป้าหมายใช้โค้ดชุดเดียวกับ server (เทสต์อัตโนมัติยืนยันว่าผลตรงกัน) ·
+      วิดีโอตรวจถี่กว่ากล้องจริง ถ้าอยากเห็นผลแบบหน้างานให้ตรวจทุก 60 วินาที
     </p>
   </div>
 </template>
@@ -99,6 +126,8 @@
 import { ref, computed, onBeforeUnmount } from 'vue'
 import axios from 'axios'
 import { getNodeApiBase } from '~/API/baseAPI'
+import { trackTarget, buildBouts } from '~/utils/cowTracking'
+import TargetCowReview from '~/components/Admin/simulation/TargetCowReview.vue'
 
 // อ่าน API base ตอน setup เท่านั้น
 const Admin = `${getNodeApiBase()}/Admin`
@@ -162,6 +191,7 @@ const onFile = (e) => {
   videoName.value = f.name
   frames.value = []
   duration.value = 0
+  clearTarget()
 }
 const onMeta = () => { duration.value = videoEl.value?.duration || 0; videoError.value = '' }
 // เช่น MP4 แบบ MPEG-4 Part 2 ที่ Chrome เปิดไม่ได้
@@ -185,6 +215,8 @@ const analyse = async () => {
   analysing.value = true
   cancelled.value = false
   frames.value = []
+  clearTarget()
+  analysedStep.value = stepSec.value
   v.pause()
   const canvas = document.createElement('canvas')
   try {
@@ -210,7 +242,7 @@ const currentFrame = computed(() => {
   if (!frames.value.length) return null
   let best = null
   for (const f of frames.value) if (!best || Math.abs(f.t - currentTime.value) < Math.abs(best.t - currentTime.value)) best = f
-  return Math.abs(best.t - currentTime.value) <= stepSec.value / 2 + 0.05 ? best : null
+  return Math.abs(best.t - currentTime.value) <= analysedStep.value / 2 + 0.05 ? best : null
 })
 const currentBoxes = computed(() => currentFrame.value?.boxes || [])
 const countOf = (boxes) => Object.fromEntries(CLASS_KEYS.map(k => [k, boxes.filter(b => key(b.cls) === k).length]))
@@ -236,6 +268,56 @@ const chartOptions = computed(() => ({
   tooltip: { shared: true, intersect: false, x: { formatter: (v) => `วินาทีที่ ${Number(v).toFixed(1)}` }, y: { formatter: (v) => `${v} ตัว` } },
   grid: { borderColor: '#f0f4f2', strokeDashArray: 4 }
 }))
+
+// ---------- ติดตามวัวเป้าหมาย 1 ตัว (โค้ดเดียวกับ server: utils/cowTracking.js สร้างจาก backend) ----------
+// เวลาในวิดีโอ (วินาที) -> เวลาสมมติ ให้ฟังก์ชันของ server ใช้ได้ตรง ๆ
+const T_BASE = Date.UTC(2000, 0, 1)
+const toIso = (t) => new Date(T_BASE + Math.round(t * 1000)).toISOString()
+const toSec = (iso) => (Date.parse(iso) - T_BASE) / 1000
+const analysedStep = ref(1)
+const pickMode = ref(false)
+const target = ref(null)
+const reviews = ref({})
+
+const clearTarget = () => { target.value = null; reviews.value = {}; pickMode.value = false }
+const startPick = () => { videoEl.value?.pause(); pickMode.value = true }
+const seekTo = (t) => { if (videoEl.value) videoEl.value.currentTime = Math.max(0, Math.min(t, duration.value)) }
+
+const pickBox = (b) => {
+  if (!pickMode.value || !currentFrame.value) return
+  const seedT = currentFrame.value.t
+  const fr = frames.value.filter(f => f.t >= seedT - 1e-6).map(f => ({ observedAt: toIso(f.t), boxes: f.boxes }))
+  const res = trackTarget(fr, { box: b, at: fr[0].observedAt })
+  const { bouts } = buildBouts(res.observations, { intervalSec: analysedStep.value })
+  target.value = {
+    seedT,
+    step: analysedStep.value,
+    lostAt: res.lostAt ? toSec(res.lostAt) : null,
+    observations: res.observations.map(o => ({ t: toSec(o.observedAt), behavior: o.behavior, box: o.box, matchScore: o.matchScore })),
+    bouts: bouts.map(x => ({ behavior: x.behavior, start: toSec(x.start), end: toSec(x.end) }))
+  }
+  reviews.value = {}
+  pickMode.value = false
+}
+
+const currentObs = computed(() => {
+  if (!target.value || !currentFrame.value) return null
+  return target.value.observations.find(o => Math.abs(o.t - currentFrame.value.t) < 1e-3) || null
+})
+const sameBox = (a, b) => a && b && a.x1 === b.x1 && a.y1 === b.y1 && a.x2 === b.x2 && a.y2 === b.y2
+// เลขชั่วคราวเรียงซ้ายไปขวาในเฟรมนี้ ช่วยเลือกตัว (ไม่ใช่เลขประจำตัววัว)
+const labeledBoxes = computed(() => [...currentBoxes.value]
+  .sort((a, b) => (a.x1 + a.x2) - (b.x1 + b.x2))
+  .map((b, i) => ({ ...b, idx: i + 1, isTarget: !pickMode.value && sameBox(b, currentObs.value?.box) })))
+const targetBanner = computed(() => {
+  const tg = target.value
+  if (!tg || !currentFrame.value) return null
+  const t = currentFrame.value.t
+  if (t < tg.seedT - 1e-6) return { text: 'ก่อนเฟรมที่เลือกวัว', cls: 'bg-white/85 text-[#4e6057]' }
+  if (tg.lostAt != null && t >= tg.lostAt - 1e-6) return { text: 'หลุดการติดตาม', cls: 'bg-rose-600 text-white' }
+  if (currentObs.value?.behavior === 'not_visible') return { text: 'ไม่เห็นวัวเป้าหมายในเฟรมนี้', cls: 'bg-amber-400 text-[#24433a]' }
+  return null
+})
 
 onBeforeUnmount(() => { cancelled.value = true; if (videoUrl.value) URL.revokeObjectURL(videoUrl.value) })
 </script>
