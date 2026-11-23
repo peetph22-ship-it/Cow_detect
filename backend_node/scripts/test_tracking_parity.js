@@ -62,12 +62,12 @@ const scene = (stepSec, n) => {
     }
     // ตำแหน่งอ่านง่ายใน CSV (ค่าจากไฟล์ CSV จริงของคลิปโรงเรือน)
     const A = { x1: 0.63, y1: 0.2545, x2: 0.803, y2: 0.5088 }
-    assert.deepStrictEqual(server.describePosition(A), { zone: 'กลางขวา', centerXPct: 71.7, centerYPct: 38.2, widthPct: 17.3, heightPct: 25.4 })
-    assert.strictEqual(server.describePosition({ x1: 0.4, y1: 0.4, x2: 0.6, y2: 0.6 }).zone, 'กลางภาพ')
-    assert.strictEqual(server.describePosition({ x1: 0, y1: 0.8, x2: 0.1, y2: 1 }).zone, 'ล่างซ้าย')
+    assert.deepStrictEqual(server.describePosition(A), { zone: 'middle-right', centerXPct: 71.7, centerYPct: 38.2, widthPct: 17.3, heightPct: 25.4 })
+    assert.strictEqual(server.describePosition({ x1: 0.4, y1: 0.4, x2: 0.6, y2: 0.6 }).zone, 'center')
+    assert.strictEqual(server.describePosition({ x1: 0, y1: 0.8, x2: 0.1, y2: 1 }).zone, 'bottom-left')
     assert.strictEqual(server.describePosition(null), null)
-    assert.deepStrictEqual(server.describeMove(A, { x1: 0.6287, y1: 0.2434, x2: 0.8032, y2: 0.5136 }), { movedBody: 0.02, movement: 'อยู่ที่เดิม' })
-    assert.strictEqual(server.describeMove(A, { x1: 0.3, y1: 0.2, x2: 0.45, y2: 0.5 }).movement, 'เคลื่อนที่')
+    assert.deepStrictEqual(server.describeMove(A, { x1: 0.6287, y1: 0.2434, x2: 0.8032, y2: 0.5136 }), { movedBody: 0.02, movement: 'still' })
+    assert.strictEqual(server.describeMove(A, { x1: 0.3, y1: 0.2, x2: 0.45, y2: 0.5 }).movement, 'moving')
     assert.deepStrictEqual(server.describeMove(null, A), { movedBody: null, movement: null })
     assert.deepStrictEqual(browser.describePosition(A), server.describePosition(A))
 

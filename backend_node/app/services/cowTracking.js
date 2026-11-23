@@ -309,10 +309,10 @@ const stepCowIds = (state, frame, opts = {}) => {
 
 /**
  * ตำแหน่งวัวแบบอ่านง่าย (ใช้ใน CSV ทั้ง simulator และ farm_detail) คู่กับพิกัด x1..y2 เดิม
- * zone = ช่องในภาพ 3x3 (บนซ้าย ... กลางภาพ ... ล่างขวา), ค่าเป็น % ของภาพ (0 = ซ้าย/บน, 100 = ขวา/ล่าง)
+ * zone = ช่องในภาพ 3x3 (top-left ... center ... bottom-right), ค่าเป็น % ของภาพ (0 = ซ้าย/บน, 100 = ขวา/ล่าง)
  */
-const ROW_TH = ['บน', 'กลาง', 'ล่าง']
-const COL_TH = ['ซ้าย', 'กลาง', 'ขวา']
+const ROW_EN = ['top', 'middle', 'bottom']
+const COL_EN = ['left', 'center', 'right']
 const pct1 = (v) => Math.round(v * 1000) / 10
 const describePosition = (box) => {
     if (!box) return null
@@ -322,7 +322,7 @@ const describePosition = (box) => {
     const r = third(cy)
     const c = third(cx)
     return {
-        zone: r === 1 && c === 1 ? 'กลางภาพ' : `${ROW_TH[r]}${COL_TH[c]}`,
+        zone: r === 1 && c === 1 ? 'center' : `${ROW_EN[r]}-${COL_EN[c]}`,
         centerXPct: pct1(cx),
         centerYPct: pct1(cy),
         widthPct: pct1(box.x2 - box.x1),
@@ -337,7 +337,7 @@ const describeMove = (prevBox, box) => {
     const d = step(prevBox, box)
     return {
         movedBody: Math.round(d * 100) / 100,
-        movement: d < 0.1 ? 'อยู่ที่เดิม' : d < MOVE_DEFAULTS.defaultThreshold ? 'ขยับเล็กน้อย' : 'เคลื่อนที่'
+        movement: d < 0.1 ? 'still' : d < MOVE_DEFAULTS.defaultThreshold ? 'slight' : 'moving'
     }
 }
 

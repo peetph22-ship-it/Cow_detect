@@ -196,7 +196,7 @@ const pct = (a, b) => (b ? `${Math.round(a / b * 1000) / 10}%` : '-')
 
 // ---------- CSV ----------
 // คอลัมน์ตำแหน่งอ่านง่าย (zone, %, การขยับ) มาก่อน พิกัดดิบ x1..y2 เก็บไว้ท้ายเพื่อคำนวณซ้ำได้
-const HEADER = ['t_sec', 'time', 'cow_id', 'system_behavior', 'behavior_th', 'match_score',
+const HEADER = ['t_sec', 'time', 'cow_id', 'system_behavior', 'match_score',
   'zone', 'center_x_pct', 'center_y_pct', 'width_pct', 'height_pct', 'moved_body', 'movement',
   'x1', 'y1', 'x2', 'y2', 'review']
 const mmss = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`
@@ -208,17 +208,18 @@ const exportCsv = () => {
     const pos = describePosition(o.box)
     const mv = describeMove(prevBox, o.box)
     if (o.box) prevBox = o.box
-    return [o.t.toFixed(2), mmss(o.t), props.target.cowId ? `#${props.target.cowId}` : '', o.behavior, LABELS[o.behavior], o.matchScore,
+    return [o.t.toFixed(2), mmss(o.t), props.target.cowId ? `#${props.target.cowId}` : '', o.behavior, o.matchScore,
       pos?.zone, pos?.centerXPct, pos?.centerYPct, pos?.widthPct, pos?.heightPct, mv.movedBody, mv.movement,
       r4(o.box?.x1), r4(o.box?.y1), r4(o.box?.x2), r4(o.box?.y2), props.reviews[keyOf(o.t)] || ''].map(csvCell).join(',')
   })
   const cow = props.target.cowId ? `#${props.target.cowId}` : ''
   const meta = [
     `# video=${(props.videoName || '').replace(/[,\n]/g, ' ')},cow_id=${cow},seed_t=${props.target.seedT.toFixed(2)},step_sec=${props.target.step},method=${METHOD}`,
-    '# ตำแหน่ง: zone = ช่องในภาพ 3x3 (บนซ้าย...กลางภาพ...ล่างขวา) · center/width/height = % ของภาพ (0 = ซ้าย/บน 100 = ขวา/ล่าง)',
-    '# moved_body = เท้าขยับจากภาพก่อนหน้ากี่เท่าของขนาดตัว (อยู่ที่เดิม < 0.1 ≤ ขยับเล็กน้อย < 0.25 ≤ เคลื่อนที่) · x1 y1 x2 y2 = มุมกรอบ (สัดส่วน 0–1)'
+    '# position: zone = cell in a 3x3 grid of the image (top-left ... center ... bottom-right); center/width/height = % of the image (0 = left/top, 100 = right/bottom)',
+    '# moved_body = how far the feet moved since the previous frame, in body lengths (still < 0.1 <= slight < 0.25 <= moving); x1 y1 x2 y2 = box corners (0-1 of the image)',
+    '# review: ok = right cow right pose, wrong_pose, wrong_cow, hidden_ok = really not visible, missed = visible but not found'
   ]
-  // BOM: Excel/Numbers อ่านภาษาไทยถูก
+  // BOM: Excel/Numbers อ่าน UTF-8 ถูก (ชื่อไฟล์วิดีโอภาษาไทย)
   const blob = new Blob(['\uFEFF' + [...meta, HEADER.join(','), ...rows].join('\n') + '\n'], { type: 'text/csv' })
   const a = document.createElement('a')
   a.href = URL.createObjectURL(blob)

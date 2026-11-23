@@ -157,16 +157,16 @@ const server = app.listen(0, async () => {
         assert.ok(snap.disp.includes('cow_TH-012_2026-11-15_snapshots.csv'))
         assert.deepStrictEqual([...snap.buf.subarray(0, 3)], [0xef, 0xbb, 0xbf], 'BOM so Excel reads Thai')
         assert.ok(snap.text.startsWith('# farm='))
-        const lines = snap.text.trim().split('\n').filter(l => !l.startsWith('# ตำแหน่ง') && !l.startsWith('# moved_body'))
-        assert.ok(snap.text.includes('# ตำแหน่ง: zone'), 'explains the position columns')
-        assert.strictEqual(lines[1], 'cow_tag,cow_name,system_cow_id,observed_at_th,behavior,behavior_th,match_score,zone,center_x_pct,center_y_pct,width_pct,height_pct,moved_body,movement,box_x1,box_y1,box_x2,box_y2,thi_5min,temperature_c,humidity_pct')
+        const lines = snap.text.trim().split('\n').filter(l => !l.startsWith('# position') && !l.startsWith('# moved_body'))
+        assert.ok(snap.text.includes('# position: zone'), 'explains the position columns')
+        assert.strictEqual(lines[1], 'cow_tag,cow_name,system_cow_id,observed_at_th,behavior,match_score,zone,center_x_pct,center_y_pct,width_pct,height_pct,moved_body,movement,box_x1,box_y1,box_x2,box_y2,thi_5min,temperature_c,humidity_pct')
         assert.strictEqual(lines.length - 2, obs.filter(o => o.observed_at >= new Date(bkk('2026-11-15T00:00:00')) && o.observed_at < new Date(bkk('2026-11-16T00:00:00'))).length, 'one row per snapshot of that day only')
-        assert.ok(lines[2].startsWith('TH-012,มะลิ,,2026-11-15 00:00:00,lying,นอน,'), lines[2])   // ภาพก่อนมีเลขวัว: system_cow_id ว่าง
+        assert.ok(lines[2].startsWith('TH-012,มะลิ,,2026-11-15 00:00:00,lying,'), lines[2])   // ภาพก่อนมีเลขวัว: system_cow_id ว่าง
         assert.ok(lines[2].endsWith(',78,30,70'), 'THI/temp/humidity of that 5-minute bucket')
         const bts = await raw(`/${FARM}/cow-behavior/export?date=2026-11-15&kind=bouts`)
         const bl = bts.text.trim().split('\n')
         assert.strictEqual(bl.length - 2, d.bouts.length, 'same bouts as the page')
-        assert.ok(bl[2].startsWith('TH-012,มะลิ,lying,นอน,2026-11-15 00:00:00,2026-11-15 01:29:30,89.5,78,78,78,moderate,,true,false'), bl[2])
+        assert.ok(bl[2].startsWith('TH-012,มะลิ,lying,2026-11-15 00:00:00,2026-11-15 01:29:30,89.5,78,78,78,moderate,,true,false'), bl[2])
 
         // ---- ภาพรายชั่วโมง + กรอบวัวเป้าหมาย ----
         assert.strictEqual((await get(`/${FARM}/cow-behavior/images?date=2026-11-15`, farmer)).status, 403)

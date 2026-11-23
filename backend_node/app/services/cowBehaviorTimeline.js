@@ -181,7 +181,6 @@ const getCowBehaviorDay = async (farm, opts = {}) => {
 }
 
 // ---------- ส่งออก CSV (เปิดด้วย Excel ได้: มี BOM ให้อ่านภาษาไทยถูก) ----------
-const BEHAVIOR_TH = { lying: 'นอน', standing: 'ยืน', feeding: 'กิน', drinking: 'ดื่มน้ำ', not_visible: 'ไม่เห็นในภาพ' }
 const csvCell = (v) => {
     if (v === null || v === undefined) return ''
     const s = String(v)
@@ -219,14 +218,14 @@ const buildCowBehaviorCsv = async (farm, { date, cowId, kind = 'snapshots', now 
     let header
     let rows
     if (kind === 'bouts') {
-        header = ['cow_tag', 'cow_name', 'behavior', 'behavior_th', 'start_th', 'end_th', 'duration_min', 'thi_avg', 'thi_min', 'thi_max', 'thi_level', 'moving_min', 'from_previous_day', 'to_next_day']
-        rows = day.bouts.map(b => [...cowCols, b.behavior, BEHAVIOR_TH[b.behavior], bkkText(b.start), bkkText(b.end), b.duration_min,
+        header = ['cow_tag', 'cow_name', 'behavior', 'start_th', 'end_th', 'duration_min', 'thi_avg', 'thi_min', 'thi_max', 'thi_level', 'moving_min', 'from_previous_day', 'to_next_day']
+        rows = day.bouts.map(b => [...cowCols, b.behavior, bkkText(b.start), bkkText(b.end), b.duration_min,
             b.thi?.avg, b.thi?.min, b.thi?.max, b.thi?.above, b.moving_min, b.from_previous_day, b.to_next_day])
     } else {
         // เลขวัวที่ระบบตั้ง (boxes[].id ใน telemetry) ของกรอบที่ติดตามได้ในแต่ละภาพ ไว้เทียบกับภาพที่เก็บไว้
         const ids = await trackIdsFor(day.snapshots || [])
         // ตำแหน่งอ่านง่าย (zone, %, การขยับจากภาพก่อนหน้า) คู่กับพิกัดดิบ box_x1..y2
-        header = ['cow_tag', 'cow_name', 'system_cow_id', 'observed_at_th', 'behavior', 'behavior_th', 'match_score',
+        header = ['cow_tag', 'cow_name', 'system_cow_id', 'observed_at_th', 'behavior', 'match_score',
             'zone', 'center_x_pct', 'center_y_pct', 'width_pct', 'height_pct', 'moved_body', 'movement',
             'box_x1', 'box_y1', 'box_x2', 'box_y2', 'thi_5min', 'temperature_c', 'humidity_pct']
         let prevBox = null
@@ -234,15 +233,15 @@ const buildCowBehaviorCsv = async (farm, { date, cowId, kind = 'snapshots', now 
             const pos = describePosition(s.box)
             const mv = describeMove(prevBox, s.box)
             if (s.box) prevBox = s.box
-            return [...cowCols, ids[i], bkkText(s.observed_at), s.behavior, BEHAVIOR_TH[s.behavior], s.match_score,
+            return [...cowCols, ids[i], bkkText(s.observed_at), s.behavior, s.match_score,
                 pos?.zone, pos?.centerXPct, pos?.centerYPct, pos?.widthPct, pos?.heightPct, mv.movedBody, mv.movement,
                 r4(s.box?.x1), r4(s.box?.y1), r4(s.box?.x2), r4(s.box?.y2), s.thi, s.temperature_c, s.humidity_pct]
         })
     }
     const meta = `# farm=${farm.id_farms},date=${day.date},method=${day.method},interval_sec=${day.interval_sec ?? ''},times=Asia/Bangkok`
     const notes = kind === 'bouts' ? [] : [
-        '# ตำแหน่ง: zone = ช่องในภาพ 3x3 (บนซ้าย...กลางภาพ...ล่างขวา) · center/width/height = % ของภาพ (0 = ซ้าย/บน 100 = ขวา/ล่าง)',
-        '# moved_body = เท้าขยับจากภาพก่อนหน้ากี่เท่าของขนาดตัว (อยู่ที่เดิม < 0.1 ≤ ขยับเล็กน้อย < 0.25 ≤ เคลื่อนที่) · box_x1..y2 = มุมกรอบ (สัดส่วน 0–1)'
+        '# position: zone = cell in a 3x3 grid of the image (top-left ... center ... bottom-right); center/width/height = % of the image (0 = left/top, 100 = right/bottom)',
+        '# moved_body = how far the feet moved since the previous image, in body lengths (still < 0.1 <= slight < 0.25 <= moving); box_x1..y2 = box corners (0-1 of the image)'
     ]
     const csv = '\uFEFF' + [meta, ...notes, header.join(','), ...rows.map(r => r.map(csvCell).join(','))].join('\n') + '\n'
     const tag = String(day.cow.tag_id || 'cow').replace(/[^\w-]+/g, '_')
