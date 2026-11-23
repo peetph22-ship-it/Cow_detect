@@ -59,7 +59,8 @@ const findCow = async (farmId, cowId) => {
  * @param {object} farm  แถวจาก tb_farms (ใช้ id_farms และโปรไฟล์เกณฑ์ THI)
  * @param {{date?: string, cowId?: string, now?: Date}} opts  date = 'YYYY-MM-DD' เวลาไทย (ไม่ระบุ = วันนี้), now ใช้ในการทดสอบ
  */
-const getCowBehaviorDay = async (farm, { date, cowId, now = new Date() } = {}) => {
+const getCowBehaviorDay = async (farm, opts = {}) => {
+    const { date, cowId, now = new Date() } = opts
     const day = date || bkkDate(now)
     const { from, to } = dayWindow(day)
     const profile = getFarmProfile(farm)
@@ -75,7 +76,7 @@ const getCowBehaviorDay = async (farm, { date, cowId, now = new Date() } = {}) =
     if (!cow) return { ...base, ...empty, cow: null, note_th: 'ยังไม่มีวัวที่ติดตามในฟาร์มนี้' }
 
     const { rows } = await db.query(`
-        SELECT observed_at, behavior, box_x1, box_y1, box_x2, box_y2
+        SELECT observed_at, behavior, box_x1, box_y1, box_x2, box_y2, match_score
         FROM tb_cow_behavior_observations
         WHERE id_cows = $1 AND method = $2 AND observed_at >= $3 AND observed_at < $4
         ORDER BY observed_at
@@ -134,9 +135,27 @@ const getCowBehaviorDay = async (farm, { date, cowId, now = new Date() } = {}) =
         : null
     const moved = movementWithin(segments, from, to)
 
+    // แถวรายภาพของวันนี้ (ใช้ส่งออก CSV) ส่งเฉพาะเมื่อขอ เพราะวันละได้ถึง 1,440 แถว
+    const snapshots = opts.includeSnapshots
+        ? rows.filter(r => new Date(r.observed_at) >= from && new Date(r.observed_at) < to).map(r => {
+            const t = new Date(r.observed_at).getTime()
+            const b = buckets.find(x => t >= x.t.getTime() && t < x.t.getTime() + BUCKET_MIN * 60e3)
+            return {
+                observed_at: new Date(t).toISOString(),
+                behavior: r.behavior,
+                match_score: r.match_score == null ? null : Number(r.match_score),
+                box: r.box_x1 == null ? null : { x1: Number(r.box_x1), y1: Number(r.box_y1), x2: Number(r.box_x2), y2: Number(r.box_y2) },
+                thi: b ? round1(b.thi) : null,
+                temperature_c: b && b.temp != null ? round1(b.temp) : null,
+                humidity_pct: b && b.hum != null ? round1(b.hum) : null
+            }
+        })
+        : undefined
+
     return {
         ...base,
         cow: cowOut,
+        ...(snapshots ? { snapshots } : {}),
         bouts: clipped,
         movement,
         current,
@@ -160,4 +179,77 @@ const getCowBehaviorDay = async (farm, { date, cowId, now = new Date() } = {}) =
     }
 }
 
-module.exports = { getCowBehaviorDay, dayWindow }
+// ---------- ส่งออก CSV (เปิดด้วย Excel ได้: มี BOM ให้อ่านภาษาไทยถูก) ----------
+const BEHAVIOR_TH = { lying: 'นอน', standing: 'ยืน', feeding: 'กิน', drinking: 'ดื่มน้ำ', not_visible: 'ไม่เห็นในภาพ' }
+const csvCell = (v) => {
+    if (v === null || v === undefined) return ''
+    const s = String(v)
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+}
+const bkkText = (iso) => {
+    const d = new Date(new Date(iso).getTime() + 7 * 3600e3).toISOString()
+    return `${d.slice(0, 10)} ${d.slice(11, 19)}`
+}
+const r4 = (v) => (v == null ? null : Math.round(v * 10000) / 10000)
+
+/**
+ * CSV ของวัวเป้าหมาย 1 วัน
+ * kind = 'snapshots': 1 แถว = 1 ภาพ (ท่า คะแนนจับคู่ กรอบ THI/อุณหภูมิ/ความชื้นช่วง 5 นาทีนั้น)
+ * kind = 'bouts':     1 แถว = 1 ช่วงพฤติกรรม (ตรงกับตารางและกราฟในหน้า farm_detail)
+ * @returns {{filename, csv} | null}  null = ยังไม่มีวัวที่ติดตาม
+ */
+const buildCowBehaviorCsv = async (farm, { date, cowId, kind = 'snapshots', now = new Date() } = {}) => {
+    const day = await getCowBehaviorDay(farm, { date, cowId, now, includeSnapshots: kind === 'snapshots' })
+    if (!day.cow) return null
+    const cowCols = [day.cow.tag_id, day.cow.name]
+    let header
+    let rows
+    if (kind === 'bouts') {
+        header = ['cow_tag', 'cow_name', 'behavior', 'behavior_th', 'start_th', 'end_th', 'duration_min', 'thi_avg', 'thi_min', 'thi_max', 'thi_level', 'moving_min', 'from_previous_day', 'to_next_day']
+        rows = day.bouts.map(b => [...cowCols, b.behavior, BEHAVIOR_TH[b.behavior], bkkText(b.start), bkkText(b.end), b.duration_min,
+            b.thi?.avg, b.thi?.min, b.thi?.max, b.thi?.above, b.moving_min, b.from_previous_day, b.to_next_day])
+    } else {
+        header = ['cow_tag', 'cow_name', 'observed_at_th', 'behavior', 'behavior_th', 'match_score', 'box_x1', 'box_y1', 'box_x2', 'box_y2', 'thi_5min', 'temperature_c', 'humidity_pct']
+        rows = (day.snapshots || []).map(s => [...cowCols, bkkText(s.observed_at), s.behavior, BEHAVIOR_TH[s.behavior], s.match_score,
+            r4(s.box?.x1), r4(s.box?.y1), r4(s.box?.x2), r4(s.box?.y2), s.thi, s.temperature_c, s.humidity_pct])
+    }
+    const meta = `# farm=${farm.id_farms},date=${day.date},method=${day.method},interval_sec=${day.interval_sec ?? ''},times=Asia/Bangkok`
+    const csv = '\uFEFF' + [meta, header.join(','), ...rows.map(r => r.map(csvCell).join(','))].join('\n') + '\n'
+    const tag = String(day.cow.tag_id || 'cow').replace(/[^\w-]+/g, '_')
+    return { filename: `cow_${tag}_${day.date}_${kind}.csv`, csv }
+}
+
+/**
+ * ภาพรายชั่วโมงของวันนั้น พร้อมกรอบของวัวเป้าหมายในภาพ (ไว้ตรวจด้วยตาว่าระบบติดตามถูกตัว)
+ * จับคู่ภาพกับผลติดตามด้วยเวลาที่ถ่าย (ภาพตัวอย่างคือภาพเดียวกับที่ใช้ติดตาม)
+ */
+const getCowDayImages = async (farm, { date, cowId } = {}) => {
+    const { listDaySamples } = require('./cameraSamples')
+    const cow = await findCow(farm.id_farms, cowId)
+    const images = await listDaySamples(farm.id_farms, date)
+    if (!cow || !images.length) return { cow: cow ? { id: cow.id_cows, tag_id: cow.tag_id, name: cow.name_cows } : null, images: images.map(i => ({ ...i, target: null })) }
+    const times = images.map(i => i.captured_at)
+    const { rows } = await db.query(`
+        SELECT observed_at, behavior, box_x1, box_y1, box_x2, box_y2, match_score
+        FROM tb_cow_behavior_observations
+        WHERE id_cows = $1 AND observed_at = ANY($2::timestamptz[])
+    `, [cow.id_cows, times])
+    const byTime = new Map(rows.map(r => [new Date(r.observed_at).getTime(), r]))
+    return {
+        cow: { id: cow.id_cows, tag_id: cow.tag_id, name: cow.name_cows },
+        images: images.map(i => {
+            const r = byTime.get(new Date(i.captured_at).getTime())
+            return {
+                ...i,
+                // null = ภาพนี้ไม่มีผลติดตาม (ก่อนเริ่มติดตาม/หลังหลุด), behavior not_visible = ติดตามอยู่แต่หาวัวไม่เจอ
+                target: r ? {
+                    behavior: r.behavior,
+                    match_score: r.match_score == null ? null : Number(r.match_score),
+                    box: r.box_x1 == null ? null : { x1: Number(r.box_x1), y1: Number(r.box_y1), x2: Number(r.box_x2), y2: Number(r.box_y2) }
+                } : null
+            }
+        })
+    }
+}
+
+module.exports = { getCowBehaviorDay, dayWindow, buildCowBehaviorCsv, getCowDayImages }

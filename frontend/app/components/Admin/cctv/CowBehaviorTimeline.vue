@@ -33,6 +33,17 @@
     <!-- เลือกวัวที่จะติดตาม (คลิกจากภาพล่าสุดหรือภาพย้อนหลัง) -->
     <CowTargetPicker :farm-id="farmId" @changed="onTargetChanged" />
 
+    <!-- ส่งออกข้อมูลวัวตัวนี้ทั้งวัน (เปิดด้วย Excel ได้) -->
+    <div v-if="data?.cow" class="flex flex-wrap items-center gap-2">
+      <span class="text-xs font-bold text-[#4e6057]">ส่งออก CSV วันที่ {{ date }}:</span>
+      <button v-for="k in [{ key: 'snapshots', label: 'รายภาพ (ทุกภาพ + THI)' }, { key: 'bouts', label: 'รายช่วงพฤติกรรม' }]" :key="k.key" type="button"
+        class="px-3 py-1.5 rounded-lg text-xs font-bold border border-[#e5ece9] bg-white text-[#24433a] hover:border-[#24433a]/40 cursor-pointer disabled:opacity-50 flex items-center gap-1"
+        :disabled="exporting === k.key" @click="exportCsv(k.key)">
+        <v-icon icon="mdi-file-delimited-outline" size="14" />{{ exporting === k.key ? 'กำลังสร้างไฟล์...' : k.label }}
+      </button>
+      <span v-if="exportError" class="text-xs font-bold text-rose-600">{{ exportError }}</span>
+    </div>
+
     <div v-if="isLoading" class="h-[260px] flex items-center justify-center text-[#718078] bg-[#f8faf9] rounded-2xl animate-pulse">
       <v-icon icon="mdi-loading" size="24" class="animate-spin mr-2" />
       กำลังโหลดข้อมูล...
@@ -144,6 +155,9 @@
         </div>
       </details>
 
+      <!-- ภาพยืนยันรายชั่วโมง + กรอบวัวเป้าหมาย -->
+      <CowDayImages :farm-id="farmId" :date="date" :cow-id="data.cow?.id || ''" :cow="data.cow" />
+
       <!-- หมายเหตุ -->
       <div class="text-[11px] text-[#718078] leading-relaxed bg-[#f8faf9] rounded-2xl px-4 py-3 space-y-1">
         <p>มีภาพของวัวตัวนี้ {{ fmtDur(data.summary.covered_min) }} จาก {{ fmtDur(data.summary.window_min) }}</p>
@@ -159,6 +173,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import axios from 'axios'
 import { getNodeApiBase } from '~/API/baseAPI'
 import CowTargetPicker from '~/components/Admin/cctv/CowTargetPicker.vue'
+import CowDayImages from '~/components/Admin/cctv/CowDayImages.vue'
 import { hourlyMinutes, hourlyBarOptions } from '~/utils/behaviorHourly'
 
 const props = defineProps({
@@ -222,6 +237,32 @@ const fetchData = async () => {
     error.value = err.response?.data?.message || 'ดึงข้อมูลพฤติกรรมวัวไม่สำเร็จ'
   } finally {
     isLoading.value = false
+  }
+}
+
+// ส่งออก CSV: ดึงเป็นไฟล์ผ่าน axios (ต้องแนบ token) แล้วให้เบราว์เซอร์บันทึก
+const exporting = ref('')
+const exportError = ref('')
+const exportCsv = async (kind) => {
+  exporting.value = kind
+  exportError.value = ''
+  try {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+    const res = await axios.get(`${Admin}/farms/${props.farmId}/cow-behavior/export`, {
+      params: { date: date.value, kind },
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      responseType: 'blob'
+    })
+    const name = /filename="([^"]+)"/.exec(res.headers['content-disposition'] || '')?.[1] || `cow_${date.value}_${kind}.csv`
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(res.data)
+    a.download = name
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000)
+  } catch (err) {
+    exportError.value = 'ส่งออกไม่สำเร็จ'
+  } finally {
+    exporting.value = ''
   }
 }
 

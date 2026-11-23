@@ -37,6 +37,10 @@ require.cache[dbPath] = {
             if (sql.includes('FROM tb_cow_tracking_targets')) return { rows: [] }   // ยังไม่ได้เลือกวัว: ใช้ตัวที่มีข้อมูลล่าสุด
             if (sql.includes('FROM tb_cows WHERE id_cows')) return { rows: p[0] === COW && p[1] === FARM ? [{ id_cows: COW, tag_id: 'TH-012', name_cows: 'มะลิ' }] : [] }
             if (sql.includes('FROM tb_cow_behavior_observations o')) return { rows: p[0] === FARM ? [{ id_cows: COW, tag_id: 'TH-012', name_cows: 'มะลิ' }] : [] }
+            if (sql.includes('observed_at = ANY')) {
+                const want = new Set(p[1].map(t => new Date(t).getTime()))
+                return { rows: obs.filter(o => want.has(o.observed_at.getTime())).map(o => ({ ...o, box_x1: 0.1, box_y1: 0.2, box_x2: 0.3, box_y2: 0.4, match_score: 0.9 })) }
+            }
             if (sql.includes('FROM tb_cow_behavior_observations')) {
                 const [, , from, to] = p
                 return { rows: obs.filter(o => o.observed_at >= new Date(from) && o.observed_at < new Date(to)) }
@@ -51,6 +55,15 @@ require.cache[dbPath] = {
         pool: { on() {} }
     }
 }
+
+// ภาพรายชั่วโมงจำลอง: 01:00 (ยืน), 03:30 (กล้องหลุด ไม่มีผลติดตาม)
+const samplesPath = require.resolve(path.resolve(__dirname, '../app/services/cameraSamples'))
+require.cache[samplesPath] = { id: samplesPath, filename: samplesPath, loaded: true, exports: {
+    listDaySamples: async (farmId, day) => farmId === FARM && day === '2026-11-15' ? [
+        { source: 'x/01.jpg', captured_at: new Date(bkk('2026-11-15T01:30:00')).toISOString(), hour_label: '01:00', image_url: 'https://img/1', image_size: null, boxes: [] },
+        { source: 'x/03.jpg', captured_at: new Date(bkk('2026-11-15T03:30:00')).toISOString(), hour_label: '03:00', image_url: 'https://img/3', image_size: null, boxes: [] }
+    ] : []
+} }
 
 const express = require('express')
 const jwt = require('jsonwebtoken')
@@ -132,6 +145,37 @@ const server = app.listen(0, async () => {
         const edge = await getCowBehaviorDay(farmRow, { date: '2026-11-15' })
         assert.deepStrictEqual(edge.bouts[0].thi, { avg: 76, max: 76, min: 76, above: 'moderate' })
         mockThi = 78.04
+
+        // ---- CSV ----
+        const raw = async (url, token = admin) => { const r = await fetch(base + url, { headers: token ? { Authorization: `Bearer ${token}` } : {} }); return { status: r.status, type: r.headers.get('content-type'), disp: r.headers.get('content-disposition'), buf: Buffer.from(await r.clone().arrayBuffer()), text: await r.text() } }
+        assert.strictEqual((await raw(`/${FARM}/cow-behavior/export?date=2026-11-15`, farmer)).status, 403)
+        assert.strictEqual((await raw(`/${FARM}/cow-behavior/export`)).status, 400, 'date required')
+        assert.strictEqual((await raw(`/${EMPTY_FARM}/cow-behavior/export?date=2026-11-15`)).status, 404)
+        const snap = await raw(`/${FARM}/cow-behavior/export?date=2026-11-15`)
+        assert.strictEqual(snap.status, 200)
+        assert.ok(snap.type.startsWith('text/csv'))
+        assert.ok(snap.disp.includes('cow_TH-012_2026-11-15_snapshots.csv'))
+        assert.deepStrictEqual([...snap.buf.subarray(0, 3)], [0xef, 0xbb, 0xbf], 'BOM so Excel reads Thai')
+        assert.ok(snap.text.startsWith('# farm='))
+        const lines = snap.text.trim().split('\n')
+        assert.strictEqual(lines[1], 'cow_tag,cow_name,observed_at_th,behavior,behavior_th,match_score,box_x1,box_y1,box_x2,box_y2,thi_5min,temperature_c,humidity_pct')
+        assert.strictEqual(lines.length - 2, obs.filter(o => o.observed_at >= new Date(bkk('2026-11-15T00:00:00')) && o.observed_at < new Date(bkk('2026-11-16T00:00:00'))).length, 'one row per snapshot of that day only')
+        assert.ok(lines[2].startsWith('TH-012,มะลิ,2026-11-15 00:00:00,lying,นอน,'), lines[2])
+        assert.ok(lines[2].endsWith(',78,30,70'), 'THI/temp/humidity of that 5-minute bucket')
+        const bts = await raw(`/${FARM}/cow-behavior/export?date=2026-11-15&kind=bouts`)
+        const bl = bts.text.trim().split('\n')
+        assert.strictEqual(bl.length - 2, d.bouts.length, 'same bouts as the page')
+        assert.ok(bl[2].startsWith('TH-012,มะลิ,lying,นอน,2026-11-15 00:00:00,2026-11-15 01:29:30,89.5,78,78,78,moderate,,true,false'), bl[2])
+
+        // ---- ภาพรายชั่วโมง + กรอบวัวเป้าหมาย ----
+        assert.strictEqual((await get(`/${FARM}/cow-behavior/images?date=2026-11-15`, farmer)).status, 403)
+        const im = await get(`/${FARM}/cow-behavior/images?date=2026-11-15`)
+        assert.strictEqual(im.status, 200)
+        assert.strictEqual(im.body.cow.tag_id, 'TH-012')
+        assert.deepStrictEqual(im.body.images[0].target, { behavior: 'standing', match_score: 0.9, box: { x1: 0.1, y1: 0.2, x2: 0.3, y2: 0.4 } })
+        assert.strictEqual(im.body.images[1].target, null, 'camera gap: no tracking result for that image')
+        const imEmpty = await get(`/${FARM}/cow-behavior/images?date=2026-11-14`)
+        assert.deepStrictEqual(imEmpty.body.images, [])
 
         console.log('cow_behavior_timeline_test: all passed')
     } catch (e) {

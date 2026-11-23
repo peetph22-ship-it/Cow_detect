@@ -27,7 +27,7 @@ const { getCameraBehavior } = require('../../services/cameraBehavior')
 const { getFarm24h } = require('../../services/farmHistory')
 const { dailySeries, stressStreak, bkkDate } = require('../../services/heatMetrics')
 const { getFarmOutdoorComparison } = require('../../services/outdoorWeather')
-const { getCowBehaviorDay, dayWindow } = require('../../services/cowBehaviorTimeline')
+const { getCowBehaviorDay, dayWindow, buildCowBehaviorCsv, getCowDayImages } = require('../../services/cowBehaviorTimeline')
 
 // คอลัมน์กล้องที่ส่งกลับให้หน้าเว็บได้ (ไม่มี password_encrypted)
 const CAMERA_PUBLIC_COLUMNS = `id, farm_id, camera_name, barn_unit, brand, model, ip_address, rtsp_port, http_port,
@@ -993,6 +993,53 @@ router.get('/:id/cow-behavior', verifyToken, requireRole('admin'), async (req, r
     } catch (err) {
         console.error('[Cow Behavior Route] error:', err.message)
         return res.status(500).json({ success: false, message: 'ดึงข้อมูลพฤติกรรมวัวไม่สำเร็จ' })
+    }
+})
+
+// ตรวจ id ฟาร์ม/วัว/วันที่ แบบเดียวกับ /cow-behavior แล้วคืนแถวฟาร์ม (ตอบ error เองแล้วคืน null)
+const cowDayParams = async (req, res) => {
+    const { id } = req.params
+    const { date, cowId } = req.query
+    if (!isUUID(id)) { res.status(400).json({ success: false, message: 'id ฟาร์มไม่ถูกต้อง' }); return null }
+    if (cowId && !isUUID(cowId)) { res.status(400).json({ success: false, message: 'id วัวไม่ถูกต้อง' }); return null }
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(dayWindow(date).from.getTime()) || bkkDate(dayWindow(date).from) !== date) {
+        res.status(400).json({ success: false, message: 'วันที่ต้องอยู่ในรูปแบบ YYYY-MM-DD' }); return null
+    }
+    const { rows } = await db.query(`SELECT * FROM tb_farms WHERE id_farms = $1 AND deleted_at IS NULL LIMIT 1`, [id])
+    if (!rows.length) { res.status(404).json({ success: false, message: 'ไม่พบข้อมูลฟาร์ม' }); return null }
+    return rows[0]
+}
+
+// GET: /api/Admin/farms/:id/cow-behavior/export?date=YYYY-MM-DD&kind=snapshots|bouts&cowId=uuid
+// CSV ของวัวเป้าหมาย 1 วัน (รายภาพ หรือรายช่วง) ไว้ใช้ในเปเปอร์/Excel
+router.get('/:id/cow-behavior/export', verifyToken, requireRole('admin'), async (req, res) => {
+    try {
+        const kind = req.query.kind === 'bouts' ? 'bouts' : 'snapshots'
+        const farm = await cowDayParams(req, res)
+        if (!farm) return
+        const out = await buildCowBehaviorCsv(farm, { date: req.query.date, cowId: req.query.cowId, kind })
+        if (!out) return res.status(404).json({ success: false, message: 'ยังไม่มีวัวที่ติดตามในฟาร์มนี้' })
+        res.set('Content-Type', 'text/csv; charset=utf-8')
+        res.set('Content-Disposition', `attachment; filename="${out.filename}"`)
+        res.set('Cache-Control', 'no-store')
+        return res.send(out.csv)
+    } catch (err) {
+        console.error('[Cow Behavior Export] error:', err.message)
+        return res.status(500).json({ success: false, message: 'ส่งออกข้อมูลพฤติกรรมวัวไม่สำเร็จ' })
+    }
+})
+
+// GET: /api/Admin/farms/:id/cow-behavior/images?date=YYYY-MM-DD&cowId=uuid
+// ภาพรายชั่วโมงของวันนั้น + กรอบวัวเป้าหมายในแต่ละภาพ (ตรวจด้วยตาว่าติดตามถูกตัว)
+router.get('/:id/cow-behavior/images', verifyToken, requireRole('admin'), async (req, res) => {
+    try {
+        const farm = await cowDayParams(req, res)
+        if (!farm) return
+        const out = await getCowDayImages(farm, { date: req.query.date, cowId: req.query.cowId })
+        return res.json({ success: true, date: req.query.date, ...out })
+    } catch (err) {
+        console.error('[Cow Behavior Images] error:', err.message)
+        return res.status(500).json({ success: false, message: 'ดึงภาพของวัวเป้าหมายไม่สำเร็จ' })
     }
 })
 

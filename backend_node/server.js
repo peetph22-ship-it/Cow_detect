@@ -37,7 +37,9 @@ app.use(cors({
         }
         return callback(new Error(`Origin ${origin} not allowed by CORS`))
     },
-    credentials: true
+    credentials: true,
+    // ให้หน้าเว็บ (คนละโดเมน) อ่านชื่อไฟล์ CSV ที่ส่งออกได้
+    exposedHeaders: ['Content-Disposition']
 }))
 
 app.use(express.json())
