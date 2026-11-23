@@ -65,20 +65,27 @@
     <!-- วิดีโอแนวตั้ง (กล้องมองลงจากเพดาน) สูงไม่เกิน 70% ของจอ จะได้เห็นและคลิกวัวได้ครบโดยไม่ต้องเลื่อน -->
     <div v-show="videoUrl" class="rounded-2xl overflow-hidden bg-black">
      <div class="relative mx-auto w-fit max-w-full">
-      <video ref="videoEl" :src="videoUrl" class="block max-w-full max-h-[70vh] w-auto h-auto" controls muted playsinline preload="auto" @timeupdate="onTime" @seeked="onTime" @loadedmetadata="onMeta" @error="onVideoError"></video>
+      <video ref="videoEl" :src="videoUrl" class="block max-w-full max-h-[70vh] w-auto h-auto" controls muted playsinline preload="auto" @timeupdate="onTime" @seeked="onTime" @pause="snapToFrame" @loadedmetadata="onMeta" @error="onVideoError"></video>
       <!-- กรอบวัวทุกตัว: เลขประจำตัวคงที่ทั้งวิดีโอ คลิกกรอบเพื่อเลือกวัวเป้าหมาย -->
       <div class="absolute inset-0 pointer-events-none">
         <div v-for="b in labeledBoxes" :key="b.id" class="absolute rounded-sm"
           :class="canPick ? 'pointer-events-auto cursor-pointer hover:bg-white/20' : ''"
           :title="canPick ? `เลือกวัว #${b.id} เป็นเป้าหมาย` : ''"
           :style="{ left: b.x1 * 100 + '%', top: b.y1 * 100 + '%', width: (b.x2 - b.x1) * 100 + '%', height: (b.y2 - b.y1) * 100 + '%',
-                    border: `${b.isTarget ? 4 : 2}px solid ${b.isTarget ? '#facc15' : CLASS[key(b.cls)].color}`, opacity: target && !b.isTarget ? 0.55 : 1 }"
+                    border: `${b.isTarget ? 4 : 2}px solid ${b.isTarget ? '#facc15' : CLASS[key(b.cls)].color}`, opacity: (target && !b.isTarget ? 0.55 : 1) * (stale ? 0.35 : 1) }"
           @click.stop="pickBox(b)">
           <span class="absolute -top-[18px] left-[-2px] px-1 rounded-t text-[10px] font-bold whitespace-nowrap"
             :style="{ background: b.isTarget ? '#facc15' : CLASS[key(b.cls)].color, color: b.isTarget ? '#24433a' : '#fff' }">
             {{ b.isTarget ? '🎯 ' : '' }}#{{ b.id }} {{ CLASS[key(b.cls)].th }} {{ b.score.toFixed(2) }}
           </span>
         </div>
+      </div>
+      <!-- กรอบมาจากเฟรมที่วิเคราะห์ไว้ ถ้าภาพเลื่อนไปจากเฟรมนั้น กรอบอาจไม่ตรงกับวัวที่เดินไปแล้ว -->
+      <div v-if="frameAge" class="absolute top-2 right-2 pointer-events-none">
+        <span class="inline-block px-2 py-1 rounded-lg text-[10px] font-bold tabular-nums"
+          :class="stale ? 'bg-amber-400 text-[#24433a]' : 'bg-black/60 text-white'">
+          กรอบจากวินาที {{ fmtClock(currentFrame.t) }}<template v-if="stale"> · ภาพเลื่อนไป {{ frameAge.toFixed(1) }} วิ (หยุดวิดีโอเพื่อดูให้ตรง)</template>
+        </span>
       </div>
       <div v-if="targetBanner" class="absolute top-2 left-2 pointer-events-none">
         <span class="inline-block px-2.5 py-1 rounded-lg text-[11px] font-bold" :class="targetBanner.cls">{{ targetBanner.text }}</span>
@@ -208,6 +215,15 @@ const onVideoError = () => {
   videoError.value = 'เบราว์เซอร์เปิดไฟล์วิดีโอนี้ไม่ได้ ลองใช้ไฟล์ MP4 (H.264) หรือ WebM เช่น วิดีโอจากมือถือ'
 }
 const onTime = () => { currentTime.value = videoEl.value?.currentTime || 0 }
+// หยุดวิดีโอ = กระโดดไปเฟรมที่วิเคราะห์ไว้ใกล้ที่สุด กรอบจะตรงกับภาพเสมอ (ระหว่างวิเคราะห์ไม่ยุ่ง)
+const snapToFrame = () => {
+  const v = videoEl.value
+  if (!v || analysing.value || !frames.value.length) return
+  let best = frames.value[0]
+  for (const f of frames.value) if (Math.abs(f.t - v.currentTime) < Math.abs(best.t - v.currentTime)) best = f
+  if (Math.abs(best.t - v.currentTime) > 0.05) v.currentTime = best.t
+}
+const fmtClock = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`
 
 const seek = (v, t) => new Promise((resolve) => {
   const done = () => { v.removeEventListener('seeked', done); resolve() }
@@ -250,6 +266,9 @@ const currentFrame = computed(() => {
   for (const f of frames.value) if (!best || Math.abs(f.t - currentTime.value) < Math.abs(best.t - currentTime.value)) best = f
   return Math.abs(best.t - currentTime.value) <= analysedStep.value / 2 + 0.05 ? best : null
 })
+// ระยะห่างระหว่างภาพที่เห็นกับเฟรมที่มาของกรอบ (วินาที) เกิน 0.5 วิ = กรอบอาจไม่ตรงกับวัวที่ขยับแล้ว
+const frameAge = computed(() => (currentFrame.value ? Math.abs(currentTime.value - currentFrame.value.t) : 0))
+const stale = computed(() => frameAge.value > 0.5)
 const currentBoxes = computed(() => currentFrame.value?.boxes || [])
 const countOf = (boxes) => Object.fromEntries(CLASS_KEYS.map(k => [k, boxes.filter(b => key(b.cls) === k).length]))
 const currentCounts = computed(() => countOf(currentBoxes.value))
