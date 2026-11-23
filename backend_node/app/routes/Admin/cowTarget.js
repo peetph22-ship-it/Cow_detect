@@ -35,7 +35,26 @@ const farmGuard = async (req, res, next) => {
 router.get('/', adminOnly, farmGuard, async (req, res) => {
     try {
         const [tracking, latest] = await Promise.all([getLatestTarget(req.params.farmId), getLatestImage(req.params.farmId)])
-        return res.json({ success: true, ...tracking, latest })
+        // วัวเป้าหมายในภาพล่าสุด (ไว้ไฮไลต์บนจอภาพล่าสุด): ผลติดตามของภาพเวลาเดียวกัน
+        let target_in_latest = null
+        if (tracking?.target?.cow?.id && latest?.captured_at) {
+            try {
+                const { rows } = await db.query(
+                    `SELECT behavior, box_x1, box_y1, box_x2, box_y2, match_score FROM tb_cow_behavior_observations
+                     WHERE id_cows = $1 AND observed_at = $2 LIMIT 1`, [tracking.target.cow.id, latest.captured_at])
+                const r = rows[0]
+                if (r) {
+                    target_in_latest = {
+                        behavior: r.behavior,
+                        match_score: r.match_score == null ? null : Number(r.match_score),
+                        box: r.box_x1 == null ? null : { x1: Number(r.box_x1), y1: Number(r.box_y1), x2: Number(r.box_x2), y2: Number(r.box_y2) }
+                    }
+                }
+            } catch (e) {
+                console.warn('[Cow Target] target in latest image:', e.message)
+            }
+        }
+        return res.json({ success: true, ...tracking, latest, target_in_latest })
     } catch (err) {
         console.error('[Cow Target] GET error:', err.message)
         return res.status(500).json({ success: false, message: 'ดึงสถานะการติดตามวัวไม่สำเร็จ' })

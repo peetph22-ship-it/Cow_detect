@@ -65,11 +65,11 @@
             <button v-for="(b, i) in image.boxes" :key="i" type="button"
               class="absolute rounded-md cursor-pointer transition-all"
               :style="boxStyle(b, i)"
-              :aria-label="`เลือกวัวตัวที่ ${i + 1} (${CLASS_TH[b.cls] || b.cls})`"
+              :aria-label="`เลือกวัว ${b.id ? '#' + b.id : 'ตัวที่ ' + (i + 1)} (${CLASS_TH[b.cls] || b.cls})`"
               @click="selected = i">
               <span class="absolute -top-5 left-0 px-1.5 py-0.5 rounded text-[10px] font-bold text-white whitespace-nowrap"
                 :style="{ background: selected === i ? '#24433a' : CLASS_COLOR[b.cls] || '#64748b' }">
-                {{ selected === i ? 'ตัวที่เลือก' : CLASS_TH[b.cls] || b.cls }}
+                {{ selected === i ? 'ตัวที่เลือก' : `${b.id ? `#${b.id} ` : ''}${CLASS_TH[b.cls] || b.cls}` }}
               </span>
             </button>
           </div>

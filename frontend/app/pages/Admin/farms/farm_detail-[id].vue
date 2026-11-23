@@ -1022,10 +1022,10 @@
           <div>
             <div class="flex items-center gap-2 flex-wrap">
               <h3 class="text-lg md:text-xl font-black text-[#24433a] tracking-tight">
-                Smart Barn Vision &amp; IP Camera
+                กล้องในคอก &amp; พฤติกรรมฝูง
               </h3>
               <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#D87939]/10 text-[#D87939] border border-[#D87939]/20 uppercase">
-                ByteTrack + YOLO Multi-Cow Telemetry
+                YOLO26 · ภาพนิ่งทุก 15–60 วินาที
               </span>
               <span 
                 v-if="multimodalStatus" 
@@ -1044,7 +1044,7 @@
               </span>
             </div>
             <p class="text-xs text-[#718078] mt-0.5 font-medium">
-              ระบบวิเคราะห์พฤติกรรมฝูงโคแบบเรียลไทม์ (ยืน, นอน, กิน, ดื่ม) คำนวณดัชนีความสบาย (CCI) และประเมินความเสี่ยงน้ำนมลดอัตโนมัติ
+              กล่องเซ็นเซอร์ดึงภาพนิ่งจากกล้องส่งขึ้นระบบ โมเดลตรวจท่าทาง (ยืน นอน กิน ดื่ม) และใส่เลขวัวทุกตัวในทุกภาพ · เลือกวัวเป้าหมายที่การ์ด "พฤติกรรมวัวรายตัว" ด้านล่าง
             </p>
           </div>
         </div>
@@ -1059,28 +1059,6 @@
               <span class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
             </div>
 
-            <!-- Flip Toggle (Mirroring) -->
-            <button
-              type="button"
-              @click="cameraFlip = !cameraFlip; onCameraChange()"
-              :class="cameraFlip ? 'bg-[#24433a] text-white shadow-xs' : 'bg-[#F6F7F5] text-[#718078] border border-[#E4E8E5] hover:text-[#24433a]'"
-              class="px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-              title="สลับโหมดกลับด้านภาพ (Flip Horizontal)">
-              <v-icon icon="mdi-flip-horizontal" size="14" />
-              <span>{{ cameraFlip ? 'กลับด้าน' : 'ปกติ' }}</span>
-            </button>
-
-            <!-- Toggle Stream Live Button -->
-            <button
-              type="button"
-              @click="toggleCameraStream"
-              class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-sm"
-              :class="isCameraStreamActive 
-                ? 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100' 
-                : 'bg-[#24433a] text-white hover:bg-[#1a322b]'">
-              <v-icon :icon="isCameraStreamActive ? 'mdi-stop' : 'mdi-play'" size="16" />
-              <span>{{ isCameraStreamActive ? 'ปิดสตรีมกล้องสด' : 'เปิดสตรีม AI กล้องสด' }}</span>
-            </button>
           </template>
 
           <template v-else>
@@ -1162,93 +1140,9 @@
       <!-- Main Vision AI Grid: Video Feed (7 Cols) + Cockpit Metrics (5 Cols) -->
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
-        <!-- Left: Video Stream Box (7 cols) -->
-        <div class="lg:col-span-7 bg-[#142820] rounded-2xl overflow-hidden shadow-md border border-[#24433a] relative min-h-[340px] flex flex-col justify-between text-white">
-          
-          <template v-if="primaryCamera">
-            <!-- Stream Overlay Top Bar -->
-            <div class="p-3 bg-black/50 backdrop-blur-xs flex items-center justify-between text-[11px] font-mono z-10 border-b border-white/10">
-              <div class="flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full" :class="isCameraStreamActive ? 'bg-emerald-400 animate-ping' : 'bg-amber-400'"></span>
-                <span class="font-bold truncate max-w-[220px]">FEED: {{ currentCameraSourceLabel }}</span>
-              </div>
-              <div class="flex items-center gap-2 text-white/80 shrink-0">
-                <span class="bg-white/10 px-2 py-0.5 rounded text-[10px]">RTSP Sub-Stream 360p</span>
-                <span class="bg-[#D87939] text-white px-2 py-0.5 rounded text-[10px] font-bold">ByteTrack + YOLO</span>
-              </div>
-            </div>
-
-            <!-- Video Player Content -->
-            <div class="flex-1 flex items-center justify-center p-4 relative">
-              <template v-if="isCameraStreamActive">
-                <img 
-                  :src="cameraStreamUrl" 
-                  @error="cameraFeedError = true"
-                  class="w-full h-auto max-h-[350px] rounded-xl object-contain mx-auto shadow-inner"
-                  alt="Live AI Stream"
-                />
-                <div v-if="cameraFeedError" class="absolute inset-0 bg-[#142820]/95 flex flex-col items-center justify-center p-6 text-center">
-                  <v-icon icon="mdi-camera-off" size="42" class="text-amber-400 mb-2" />
-                  <h4 class="text-sm font-bold text-white mb-1">ไม่พบสัญญาณสตรีมจากกล้อง</h4>
-                  <p class="text-xs text-white/70 max-w-xs leading-relaxed">
-                    FastAPI Vision Engine ยังไม่ได้เริ่มสตรีม หรือไม่สามารถเข้าถึง RTSP Sub-stream ที่กำหนดได้ (ตรวจเช็ค IP:Port และการเชื่อมต่อเครือข่าย)
-                  </p>
-                  <div class="flex items-center gap-2 mt-3">
-                    <button 
-                      @click="cameraFeedError = false; cameraStreamKey = Date.now()"
-                      class="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold text-white cursor-pointer">
-                      ลองใหม่อีกครั้ง
-                    </button>
-                  </div>
-                </div>
-              </template>
-
-              <!-- Offline / Inactive AI Camera View -->
-              <div v-else class="w-full py-8 flex flex-col items-center justify-center text-center space-y-3">
-                <div class="relative w-full max-w-sm h-44 bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center overflow-hidden">
-                  <v-icon icon="mdi-cow" size="48" class="text-white/20" />
-                </div>
-                <p class="text-xs text-white/70 font-medium max-w-xs">
-                  กล้องพร้อมสำหรับการตรวจจับแบบเรียลไทม์ กดปุ่ม <strong>"เปิดสตรีม AI กล้องสด"</strong> ด้านบนเพื่อเริ่มดูภาพ
-                </p>
-              </div>
-            </div>
-
-            <!-- Stream Overlay Bottom Info -->
-            <div class="p-3 bg-black/50 backdrop-blur-xs flex items-center justify-between text-[11px] text-white/80 z-10 border-t border-white/10">
-              <span>Frame-Skipping 8-10 FPS Target (ประหยัดพลังงาน &gt;70%)</span>
-              <span class="text-[#F2BD7C] font-mono font-bold">Latency &lt; 40ms</span>
-            </div>
-          </template>
-
-          <!-- 🟡 แจ้งเตือนเมื่อยังไม่ได้ติดตั้งกล้อง -->
-          <div v-else class="w-full flex-1 py-14 px-6 flex flex-col items-center justify-center text-center space-y-4">
-            <div class="w-18 h-18 rounded-3xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center shadow-inner">
-              <v-icon icon="mdi-cctv-off" size="42" class="text-amber-400" />
-            </div>
-            <div class="space-y-1.5 max-w-md">
-              <h3 class="text-base font-black text-white tracking-wide">ยังไม่ได้ติดตั้งกล้องวงจรปิดในฟาร์มนี้</h3>
-              <p class="text-xs text-white/70 leading-relaxed font-medium">
-                ฟาร์มนี้ยังไม่ได้ผูกกับกล้อง IP เพื่อตรวจจับพฤติกรรมโค (ยืน, นอน, กิน, ดื่ม) และคำนวณดัชนีความสบาย (CCI)
-              </p>
-            </div>
-            <div class="flex items-center gap-3 pt-2">
-              <button 
-                type="button" 
-                @click="isAddCameraModalOpen = true"
-                class="px-5 py-2.5 rounded-xl text-xs font-bold text-[#142820] bg-emerald-400 hover:bg-emerald-300 shadow-md hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer">
-                <v-icon icon="mdi-plus-circle" size="16" />
-                <span>+ ติดตั้งและผูกกล้องประจำฟาร์ม</span>
-              </button>
-              <button 
-                type="button" 
-                @click="isEditModalOpen = true"
-                class="px-4 py-2.5 rounded-xl text-xs font-bold text-white/80 hover:text-white bg-white/10 hover:bg-white/15 border border-white/10 transition-all cursor-pointer">
-                แก้ไขข้อมูลฟาร์ม
-              </button>
-            </div>
-          </div>
-
+        <!-- ซ้าย: ภาพล่าสุดจากกล้อง (ภาพนิ่งทุก 15–60 วิ ผ่านกล่องเซ็นเซอร์) + กรอบและเลขวัวทุกตัว -->
+        <div class="lg:col-span-7">
+          <CameraLatestView :farm-id="farmId" :camera="primaryCamera" @add-camera="isAddCameraModalOpen = true" />
         </div>
 
         <!-- Right: Vision Telemetry Cockpit (5 cols) -->
@@ -1367,140 +1261,6 @@
 
       </div>
 
-      <!-- Animal Behavior & Welfare Alerts Table -->
-      <div class="pt-4 border-t border-[#e5ece9] space-y-3">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div class="flex items-center gap-2">
-            <v-icon icon="mdi-shield-alert-outline" size="18" class="text-rose-600" />
-            <h4 class="text-xs font-black uppercase tracking-wider text-[#24433a]">
-              รายการเตือนภัยสวัสดิภาพสัตว์รายตัว (Animal Behavior &amp; Welfare Alerts)
-            </h4>
-            <span 
-              v-if="activeAlertsCount > 0"
-              class="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[10px] font-black animate-pulse">
-              {{ activeAlertsCount }} เหตุการณ์ต้องติดตาม
-            </span>
-          </div>
-
-          <span class="text-[11px] text-[#718078] font-medium">
-            ตรวจจับความผิดปกติ: ยืนแช่เกิน 3 ชม. / แม่โคนอนนิ่งไม่ลุก / อาหารตก
-          </span>
-        </div>
-
-        <div class="overflow-x-auto rounded-2xl border border-[#e5ece9]">
-          <table class="w-full text-left text-xs whitespace-nowrap">
-            <thead class="bg-[#fafcfb] border-b border-[#e5ece9] text-[#4e6057] font-black uppercase text-[10.5px]">
-              <tr>
-                <th class="py-3 px-4">ความรุนแรง</th>
-                <th class="py-3 px-4">ประเภทเหตุการณ์</th>
-                <th class="py-3 px-4">โคหมายเลข (Track ID)</th>
-                <th class="py-3 px-4">ระยะเวลาต่อเนื่อง</th>
-                <th class="py-3 px-4">THI ขณะเกิดเหตุ</th>
-                <th class="py-3 px-4">ข้อความแจ้งเตือน</th>
-                <th class="py-3 px-4 text-center">การจัดการ &amp; Human Feedback</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-[#f0f4f2] bg-white">
-              <tr 
-                v-for="alert in cameraAlerts" 
-                :key="alert.id"
-                class="hover:bg-[#f8faf9] transition-colors"
-                :class="alert.is_resolved ? 'opacity-70 bg-gray-50/50' : ''">
-                
-                <!-- Severity -->
-                <td class="py-2.5 px-4">
-                  <span 
-                    class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase"
-                    :class="alert.severity === 'severe' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'">
-                    {{ alert.severity || 'warning' }}
-                  </span>
-                </td>
-
-                <!-- Type -->
-                <td class="py-2.5 px-4 font-bold text-[#24433a]">
-                  {{ formatAlertType(alert.alert_type) }}
-                </td>
-
-                <!-- Track ID -->
-                <td class="py-2.5 px-4 font-mono font-bold text-[#1f3d34]">
-                  {{ alert.track_id ? `#${alert.track_id}` : 'ฝูงรวม' }}
-                </td>
-
-                <!-- Duration -->
-                <td class="py-2.5 px-4 font-mono">
-                  {{ alert.duration_minutes ? `${alert.duration_minutes} นาที` : '-' }}
-                </td>
-
-                <!-- THI at event -->
-                <td class="py-2.5 px-4 font-mono font-bold text-amber-700">
-                  {{ alert.thi_at_event || '-' }}
-                </td>
-
-                <!-- Message -->
-                <td class="py-2.5 px-4 text-[#4e6057] max-w-xs truncate" :title="alert.message_th">
-                  {{ alert.message_th || '-' }}
-                </td>
-
-                <!-- Action & Human Feedback -->
-                <td class="py-2.5 px-4 text-center">
-                  <div class="flex items-center justify-center gap-1.5 flex-wrap">
-                    <!-- Resolve Button -->
-                    <button 
-                      v-if="!alert.is_resolved"
-                      type="button" 
-                      @click="resolveCameraAlert(alert.id)"
-                      :disabled="isResolvingAlert"
-                      class="px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-[10.5px] font-bold transition-all cursor-pointer">
-                      แก้แล้ว
-                    </button>
-                    <span v-else class="text-[10px] text-[#718078] font-medium">
-                      ✅ แก้แล้ว
-                    </span>
-
-                    <!-- Human Feedback (Accurate / False Alarm) -->
-                    <div class="flex items-center gap-1 border-l pl-1.5 border-[#e5ece9]">
-                      <template v-if="alert.is_accurate === true">
-                        <span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold" title="ยืนยันแล้วว่าเป็นการแจ้งเตือนที่ถูกต้อง">
-                          👍 แม่นยำ
-                        </span>
-                      </template>
-                      <template v-else-if="alert.is_accurate === false">
-                        <span class="px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 text-[10px] font-bold" title="บันทึกแล้วว่าเป็น False Alarm">
-                          👎 แจ้งเตือนหลอก
-                        </span>
-                      </template>
-                      <template v-else>
-                        <button 
-                          type="button"
-                          @click="submitAlertFeedback(alert, true)"
-                          title="ยืนยันว่าพฤติกรรมนี้ถูกต้องจริง (True Positive)"
-                          class="px-1.5 py-0.5 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-[10px] font-bold transition-all cursor-pointer">
-                          👍
-                        </button>
-                        <button 
-                          type="button"
-                          @click="submitAlertFeedback(alert, false)"
-                          title="ระบุว่าการตรวจจับนี้คลาดเคลื่อน (False Alarm)"
-                          class="px-1.5 py-0.5 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-bold transition-all cursor-pointer">
-                          👎
-                        </button>
-                      </template>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-
-              <!-- Empty Alerts -->
-              <tr v-if="cameraAlerts.length === 0">
-                <td colspan="7" class="py-6 text-center text-[#718078]">
-                  <v-icon icon="mdi-check-decagram-outline" size="22" class="text-emerald-500 inline mr-1" />
-                  <span>ไม่พบสัญญาณความผิดปกติในฝูงโค (สวัสดิภาพสัตว์อยู่ในเกณฑ์ปกติ)</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
 
       <!-- ส่วนนับเทียบภาพตัวอย่าง (Model Audit) และวิเคราะห์ % วัวนอนรายชั่วโมงเทียบ THI -->
       <CameraAuditAndThiAnalysis v-if="farmId" :farm-id="farmId" />
@@ -1655,6 +1415,7 @@ import AddCameraModal from '~/components/Admin/cctv/AddCameraModal.vue'
 import SystemAccuracyModal from '~/components/Admin/cctv/SystemAccuracyModal.vue'
 import CameraAuditAndThiAnalysis from '~/components/Admin/cctv/CameraAuditAndThiAnalysis.vue'
 import CowBehaviorTimeline from '~/components/Admin/cctv/CowBehaviorTimeline.vue'
+import CameraLatestView from '~/components/Admin/cctv/CameraLatestView.vue'
 import HeatMethodNote from '~/components/common/HeatMethodNote.vue'
 import { calcThi, getRiskLevel, getThresholds, normalizeProfile, RISK_LABELS_TH, PROFILE_LABELS } from '~/utils/heatStress'
 
@@ -2748,7 +2509,6 @@ onMounted(() => {
   fetchFarmDetail()
   fetchMultimodalStatus()
   fetchRegisteredCameras()
-  fetchCameraAlerts()
   if (isAutoSync.value) {
     startAutoSync()
   }

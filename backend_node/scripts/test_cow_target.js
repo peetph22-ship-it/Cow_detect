@@ -50,9 +50,12 @@ const query = async (sql, p = []) => {
         for (let i = 0; i < p.length; i += 12) {
             const [idF, idC, cam, tel, obsAt, beh, x1, y1, x2, y2, score, method] = p.slice(i, i + 12)
             if (db.obs.some(o => o.id_cows === idC && o.observed_at === obsAt && o.method === method)) continue
-            db.obs.push({ id_farms: idF, id_cows: idC, telemetry_id: tel, observed_at: obsAt, behavior: beh, box_x1: x1, method })
+            db.obs.push({ id_farms: idF, id_cows: idC, telemetry_id: tel, observed_at: obsAt, behavior: beh, box_x1: x1, box_y1: y1, box_x2: x2, box_y2: y2, match_score: score, method })
         }
         return { rows: [] }
+    }
+    if (sql.includes('WHERE id_cows = $1 AND observed_at = $2 LIMIT 1')) {
+        return { rows: db.obs.filter(o => o.id_cows === p[0] && new Date(o.observed_at).getTime() === new Date(p[1]).getTime()).slice(0, 1) }
     }
     if (sql.includes('SET state = $2::jsonb')) {
         const t = db.targets.find(x => x.id === p[0])
@@ -127,6 +130,9 @@ const server = app.listen(0, async () => {
         r = await call('GET', `/${FARM}/cow-target`)
         assert.strictEqual(r.body.target.active, true); assert.strictEqual(r.body.target.cow.tag_id, 'TH-012')
         assert.strictEqual(r.body.target.last_seen_at, at(29).toISOString()); assert.strictEqual(r.body.latest.image_url, 'https://img/latest.jpg')
+        // วัวเป้าหมายในภาพล่าสุด (ภาพเวลาเดียวกับผลติดตาม) ไว้ไฮไลต์บนจอภาพล่าสุด
+        assert.strictEqual(r.body.target_in_latest.behavior, 'lying')
+        assert.ok(r.body.target_in_latest.box.x1 < 0.6, 'the target, not the neighbour')
 
         // ภาพใหม่เข้ามา: ติดตามต่อ 1 ภาพ / ภาพเก่าที่ประมวลผลแล้วไม่ซ้ำ
         const row = { id: 200, farm_id: FARM, camera_id: null, timestamp: at(30), detections: { boxes: [stand(0.50), NEIGHBOUR] } }
