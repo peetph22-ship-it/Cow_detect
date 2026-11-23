@@ -60,7 +60,7 @@ require.cache[dbPath] = {
 const samplesPath = require.resolve(path.resolve(__dirname, '../app/services/cameraSamples'))
 require.cache[samplesPath] = { id: samplesPath, filename: samplesPath, loaded: true, exports: {
     listDaySamples: async (farmId, day) => farmId === FARM && day === '2026-11-15' ? [
-        { source: 'x/01.jpg', captured_at: new Date(bkk('2026-11-15T01:30:00')).toISOString(), hour_label: '01:00', image_url: 'https://img/1', image_size: null, boxes: [] },
+        { source: 'x/01.jpg', captured_at: new Date(bkk('2026-11-15T01:30:00')).toISOString(), hour_label: '01:00', image_url: 'https://img/1', image_size: null, boxes: [{ id: 4, x1: 0.5, y1: 0.5, x2: 0.6, y2: 0.6 }, { id: 7, x1: 0.1, y1: 0.2, x2: 0.3, y2: 0.4 }] },
         { source: 'x/03.jpg', captured_at: new Date(bkk('2026-11-15T03:30:00')).toISOString(), hour_label: '03:00', image_url: 'https://img/3', image_size: null, boxes: [] }
     ] : []
 } }
@@ -158,9 +158,9 @@ const server = app.listen(0, async () => {
         assert.deepStrictEqual([...snap.buf.subarray(0, 3)], [0xef, 0xbb, 0xbf], 'BOM so Excel reads Thai')
         assert.ok(snap.text.startsWith('# farm='))
         const lines = snap.text.trim().split('\n')
-        assert.strictEqual(lines[1], 'cow_tag,cow_name,observed_at_th,behavior,behavior_th,match_score,box_x1,box_y1,box_x2,box_y2,thi_5min,temperature_c,humidity_pct')
+        assert.strictEqual(lines[1], 'cow_tag,cow_name,system_cow_id,observed_at_th,behavior,behavior_th,match_score,box_x1,box_y1,box_x2,box_y2,thi_5min,temperature_c,humidity_pct')
         assert.strictEqual(lines.length - 2, obs.filter(o => o.observed_at >= new Date(bkk('2026-11-15T00:00:00')) && o.observed_at < new Date(bkk('2026-11-16T00:00:00'))).length, 'one row per snapshot of that day only')
-        assert.ok(lines[2].startsWith('TH-012,มะลิ,2026-11-15 00:00:00,lying,นอน,'), lines[2])
+        assert.ok(lines[2].startsWith('TH-012,มะลิ,,2026-11-15 00:00:00,lying,นอน,'), lines[2])   // ภาพก่อนมีเลขวัว: system_cow_id ว่าง
         assert.ok(lines[2].endsWith(',78,30,70'), 'THI/temp/humidity of that 5-minute bucket')
         const bts = await raw(`/${FARM}/cow-behavior/export?date=2026-11-15&kind=bouts`)
         const bl = bts.text.trim().split('\n')
@@ -172,7 +172,7 @@ const server = app.listen(0, async () => {
         const im = await get(`/${FARM}/cow-behavior/images?date=2026-11-15`)
         assert.strictEqual(im.status, 200)
         assert.strictEqual(im.body.cow.tag_id, 'TH-012')
-        assert.deepStrictEqual(im.body.images[0].target, { behavior: 'standing', match_score: 0.9, box: { x1: 0.1, y1: 0.2, x2: 0.3, y2: 0.4 } })
+        assert.deepStrictEqual(im.body.images[0].target, { cow_track_id: 7, behavior: 'standing', match_score: 0.9, box: { x1: 0.1, y1: 0.2, x2: 0.3, y2: 0.4 } })
         assert.strictEqual(im.body.images[1].target, null, 'camera gap: no tracking result for that image')
         const imEmpty = await get(`/${FARM}/cow-behavior/images?date=2026-11-14`)
         assert.deepStrictEqual(imEmpty.body.images, [])

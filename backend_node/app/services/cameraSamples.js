@@ -47,7 +47,9 @@ const buildSampleJson = (capturedAt, result, imgsz) => ({
     timing_ms: result.timing_ms || null,
     total: result.total,
     counts: result.counts,
-    boxes: result.boxes || []
+    // boxes[].id = เลขวัวที่ระบบตั้ง (คงที่ข้ามภาพ ไม่ใช่เบอร์หู), next_cow_id = เลขถัดไปของฟาร์มนี้
+    boxes: result.boxes || [],
+    ...(result.next_cow_id ? { next_cow_id: result.next_cow_id } : {})
 })
 
 /**

@@ -23,6 +23,7 @@ const {
 } = require('../services/cameraSamples')
 const cowTarget = require('../services/cowTargetTracker')
 const { isCollecting } = require('../services/collectMode')
+const { assignBoxIds } = require('../services/cowIdAssign')
 
 // แปลง error ของ body parser (เช่น รูปเกิน 2MB) ให้ตอบเป็น JSON ที่ firmware อ่านได้
 const rawJpeg = express.raw({ type: ['image/jpeg', 'application/octet-stream'], limit: '2mb' })
@@ -150,6 +151,8 @@ const processSnapshot = async (device, capturedAt, jpeg, opts = {}) => {
         throw err
     }
     result.timing_ms = { ...(result.timing_ms || {}), end_to_end: Date.now() - receivedMs }
+    // เลขวัวทุกตัว (คงที่ข้ามภาพ) ก่อนบันทึก ภาพที่เก็บ/telemetry/ภาพล่าสุดจะได้มีเลขตรงกัน
+    if (detectionsColumnReady) await assignBoxIds(device.farmId, capturedAt, result)
     // ผลของภาพที่เก็บ: บันทึกก่อนงานฐานข้อมูล (ฐานข้อมูลล้มก็ยังได้ภาพพร้อมผล)
     const collectResult = opts.collect
         ? collectImage.then(() => saveCollectedResult(device.farmId, capturedAt, buildCollectJson(capturedAt, { status: 'ok', result, imgsz: vision.IMGSZ })))

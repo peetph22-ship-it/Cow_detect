@@ -76,7 +76,7 @@ const getCowBehaviorDay = async (farm, opts = {}) => {
     if (!cow) return { ...base, ...empty, cow: null, note_th: 'ยังไม่มีวัวที่ติดตามในฟาร์มนี้' }
 
     const { rows } = await db.query(`
-        SELECT observed_at, behavior, box_x1, box_y1, box_x2, box_y2, match_score
+        SELECT observed_at, behavior, box_x1, box_y1, box_x2, box_y2, match_score, telemetry_id
         FROM tb_cow_behavior_observations
         WHERE id_cows = $1 AND method = $2 AND observed_at >= $3 AND observed_at < $4
         ORDER BY observed_at
@@ -142,6 +142,7 @@ const getCowBehaviorDay = async (farm, opts = {}) => {
             const b = buckets.find(x => t >= x.t.getTime() && t < x.t.getTime() + BUCKET_MIN * 60e3)
             return {
                 observed_at: new Date(t).toISOString(),
+                telemetry_id: r.telemetry_id ?? null,
                 behavior: r.behavior,
                 match_score: r.match_score == null ? null : Number(r.match_score),
                 box: r.box_x1 == null ? null : { x1: Number(r.box_x1), y1: Number(r.box_y1), x2: Number(r.box_x2), y2: Number(r.box_y2) },
@@ -192,6 +193,19 @@ const bkkText = (iso) => {
 }
 const r4 = (v) => (v == null ? null : Math.round(v * 10000) / 10000)
 
+// กรอบที่ตรงกัน (ผลติดตามคัดลอกพิกัดจากกรอบในภาพนั้น)
+const sameBox = (a, b) => a && b && ['x1', 'y1', 'x2', 'y2'].every(k => Math.abs(Number(a[k]) - Number(b[k])) < 1e-6)
+const idOfBox = (boxes, box) => (box && Array.isArray(boxes) ? boxes.find(b => sameBox(b, box))?.id ?? null : null)
+
+// เลขวัวที่ระบบตั้งของกรอบที่ติดตามได้ในแต่ละแถว (ภาพก่อนมีระบบเลขวัว = null)
+const trackIdsFor = async (snapshots) => {
+    const tIds = [...new Set(snapshots.map(s => s.telemetry_id).filter(x => x != null))]
+    if (!tIds.length) return snapshots.map(() => null)
+    const { rows } = await db.query(`SELECT id, detections->'boxes' AS boxes FROM cctv_behavior_telemetry WHERE id = ANY($1::bigint[])`, [tIds])
+    const byT = new Map(rows.map(r => [String(r.id), r.boxes]))
+    return snapshots.map(s => idOfBox(byT.get(String(s.telemetry_id)), s.box))
+}
+
 /**
  * CSV ของวัวเป้าหมาย 1 วัน
  * kind = 'snapshots': 1 แถว = 1 ภาพ (ท่า คะแนนจับคู่ กรอบ THI/อุณหภูมิ/ความชื้นช่วง 5 นาทีนั้น)
@@ -209,8 +223,10 @@ const buildCowBehaviorCsv = async (farm, { date, cowId, kind = 'snapshots', now 
         rows = day.bouts.map(b => [...cowCols, b.behavior, BEHAVIOR_TH[b.behavior], bkkText(b.start), bkkText(b.end), b.duration_min,
             b.thi?.avg, b.thi?.min, b.thi?.max, b.thi?.above, b.moving_min, b.from_previous_day, b.to_next_day])
     } else {
-        header = ['cow_tag', 'cow_name', 'observed_at_th', 'behavior', 'behavior_th', 'match_score', 'box_x1', 'box_y1', 'box_x2', 'box_y2', 'thi_5min', 'temperature_c', 'humidity_pct']
-        rows = (day.snapshots || []).map(s => [...cowCols, bkkText(s.observed_at), s.behavior, BEHAVIOR_TH[s.behavior], s.match_score,
+        // เลขวัวที่ระบบตั้ง (boxes[].id ใน telemetry) ของกรอบที่ติดตามได้ในแต่ละภาพ ไว้เทียบกับภาพที่เก็บไว้
+        const ids = await trackIdsFor(day.snapshots || [])
+        header = ['cow_tag', 'cow_name', 'system_cow_id', 'observed_at_th', 'behavior', 'behavior_th', 'match_score', 'box_x1', 'box_y1', 'box_x2', 'box_y2', 'thi_5min', 'temperature_c', 'humidity_pct']
+        rows = (day.snapshots || []).map((s, i) => [...cowCols, ids[i], bkkText(s.observed_at), s.behavior, BEHAVIOR_TH[s.behavior], s.match_score,
             r4(s.box?.x1), r4(s.box?.y1), r4(s.box?.x2), r4(s.box?.y2), s.thi, s.temperature_c, s.humidity_pct])
     }
     const meta = `# farm=${farm.id_farms},date=${day.date},method=${day.method},interval_sec=${day.interval_sec ?? ''},times=Asia/Bangkok`
@@ -243,6 +259,7 @@ const getCowDayImages = async (farm, { date, cowId } = {}) => {
                 ...i,
                 // null = ภาพนี้ไม่มีผลติดตาม (ก่อนเริ่มติดตาม/หลังหลุด), behavior not_visible = ติดตามอยู่แต่หาวัวไม่เจอ
                 target: r ? {
+                    cow_track_id: idOfBox(i.boxes, r.box_x1 == null ? null : { x1: r.box_x1, y1: r.box_y1, x2: r.box_x2, y2: r.box_y2 }),
                     behavior: r.behavior,
                     match_score: r.match_score == null ? null : Number(r.match_score),
                     box: r.box_x1 == null ? null : { x1: Number(r.box_x1), y1: Number(r.box_y1), x2: Number(r.box_x2), y2: Number(r.box_y2) }

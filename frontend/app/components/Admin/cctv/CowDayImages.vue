@@ -18,7 +18,7 @@
           <div v-if="img.target?.box" class="absolute border-[3px] border-[#facc15] rounded-sm" :style="boxStyle(img.target.box)"></div>
         </div>
         <div class="flex items-center justify-between gap-1 px-2 py-1 bg-white text-[10px]">
-          <span class="font-black text-[#24433a] tabular-nums">{{ img.hour_label }}</span>
+          <span class="font-black text-[#24433a] tabular-nums">{{ img.hour_label }}<template v-if="img.target?.cow_track_id"> · #{{ img.target.cow_track_id }}</template></span>
           <span class="font-bold truncate" :style="{ color: badge(img).color }">{{ badge(img).text }}</span>
         </div>
       </button>
@@ -29,10 +29,12 @@
       <div v-if="open" class="bg-white rounded-[24px] overflow-hidden">
         <div class="relative bg-black">
           <img :src="open.image_url" :alt="`ภาพเวลา ${open.hour_label}`" class="w-full h-auto block" />
-          <div v-for="(b, i) in open.boxes" :key="i" class="absolute border border-white/60 rounded-sm" :style="boxStyle(b)"></div>
+          <div v-for="(b, i) in open.boxes" :key="i" class="absolute border border-white/60 rounded-sm" :style="boxStyle(b)">
+            <span v-if="b.id" class="absolute top-0 left-0 px-1 text-[10px] font-bold bg-black/60 text-white">#{{ b.id }}</span>
+          </div>
           <div v-if="open.target?.box" class="absolute border-4 border-[#facc15] rounded-sm" :style="boxStyle(open.target.box)">
             <span class="absolute -top-6 left-[-4px] px-1.5 py-0.5 rounded-t text-[11px] font-black bg-[#facc15] text-[#24433a] whitespace-nowrap">
-              {{ cowLabel }} · {{ BEHAVIOR_TH[open.target.behavior] || open.target.behavior }}
+              {{ cowLabel }}<template v-if="open.target.cow_track_id"> (#{{ open.target.cow_track_id }})</template> · {{ BEHAVIOR_TH[open.target.behavior] || open.target.behavior }}
             </span>
           </div>
         </div>
@@ -40,7 +42,7 @@
           <span class="font-bold text-[#24433a]">{{ open.hour_label }} น. · ถ่ายเมื่อ {{ clock(open.captured_at) }}</span>
           <span class="text-[#4e6057]">
             {{ badge(open).text }}<template v-if="open.target?.match_score != null"> · คะแนนจับคู่ {{ open.target.match_score.toFixed(2) }}</template>
-            · กรอบสีขาว = วัวตัวอื่นที่โมเดลเห็น
+            · กรอบสีขาว = วัวตัวอื่นที่โมเดลเห็น · #เลข = เลขวัวที่ระบบตั้ง (คงที่ข้ามภาพ ไม่ใช่เบอร์หู)
           </span>
           <button type="button" class="px-3 py-1.5 rounded-lg font-bold bg-[#f0f4f2] hover:bg-[#e5ece9] cursor-pointer" @click="open = null">ปิด</button>
         </div>

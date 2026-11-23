@@ -279,7 +279,46 @@ const movementWithin = (segments, from, to) => {
     return { movingMin: round1(minutes), distanceBody: round1(distance), moves }
 }
 
+/**
+ * เลขประจำตัวชั่วคราวของวัวทุกตัว (ใช้ทั้งตอนรับภาพบน server และหน้า simulator)
+ * จับคู่กรอบในภาพใหม่กับวัวที่เห็นล่าสุดด้วย matchScore ทั้งภาพพร้อมกัน (คู่คะแนนสูงสุดได้ก่อน ไม่มีเลขซ้ำในภาพเดียว)
+ * วัวที่หายไปไม่เกิน maxLostSec แล้วกลับมาที่เดิม = เลขเดิม, กรอบที่ไม่ตรงกับใคร = เลขใหม่ (เรียงซ้ายไปขวา)
+ * เลขนี้ระบบตั้งเอง ไม่ใช่เบอร์หู (เบอร์หูผูกกับวัวเป้าหมายใน tb_cows)
+ * @param {{tracks: Array<{id, box, at}>, nextId: number}} state  at = ms
+ * @param {{observedAt, boxes}} frame
+ * @returns {{ids: number[], state}}
+ */
+const stepCowIds = (state, frame, opts = {}) => {
+    const o = { ...TRACK_DEFAULTS, ...opts }
+    const at = toMs(frame.observedAt)
+    const tracks = (state?.tracks || []).filter(tr => at - tr.at <= o.maxLostSec * 1000).map(tr => ({ ...tr }))
+    let nextId = Math.max(state?.nextId || 1, ...tracks.map(tr => tr.id + 1))
+    const boxes = frame.boxes || []
+    const pairs = []
+    tracks.forEach((tr, ti) => boxes.forEach((b, bi) => {
+        const s = matchScore(tr.box, b, o.maxShift)
+        if (s >= o.minScore) pairs.push({ ti, bi, s })
+    }))
+    pairs.sort((a, b) => b.s - a.s)
+    const ids = new Array(boxes.length).fill(0)
+    const used = new Set()
+    for (const p of pairs) {
+        if (used.has(p.ti) || ids[p.bi]) continue
+        used.add(p.ti)
+        ids[p.bi] = tracks[p.ti].id
+        tracks[p.ti].box = { x1: boxes[p.bi].x1, y1: boxes[p.bi].y1, x2: boxes[p.bi].x2, y2: boxes[p.bi].y2 }
+        tracks[p.ti].at = at
+    }
+    boxes.map((b, bi) => ({ b, bi })).filter(x => !ids[x.bi])
+        .sort((a, b) => (a.b.x1 + a.b.x2) - (b.b.x1 + b.b.x2))
+        .forEach(({ b, bi }) => {
+            ids[bi] = nextId++
+            tracks.push({ id: ids[bi], box: { x1: b.x1, y1: b.y1, x2: b.x2, y2: b.y2 }, at })
+        })
+    return { ids, state: { tracks, nextId } }
+}
+
 export {
     METHOD, TRACK_DEFAULTS, BOUT_DEFAULTS, MOVE_DEFAULTS,
-    matchScore, matchTarget, trackTarget, seedState, stepTarget, buildBouts, summarizeBouts, buildMovement, movementWithin
+    matchScore, matchTarget, trackTarget, seedState, stepTarget, stepCowIds, buildBouts, summarizeBouts, buildMovement, movementWithin
 }
