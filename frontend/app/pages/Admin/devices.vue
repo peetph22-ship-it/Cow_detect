@@ -404,7 +404,7 @@
               </select>
               <p class="text-[11px] text-[#718078] mt-1.5 leading-relaxed">
                 กล่องจะใช้รอบใหม่หลังส่งภาพครั้งถัดไป ไม่ต้องไปแฟลชที่ฟาร์ม (เฟิร์มแวร์ 1.5.0 ขึ้นไป<template v-if="formDevice.fw_version"> · กล่องนี้ {{ formDevice.fw_version }}</template>)
-                · ถี่กว่า 1 นาที server ฟรีประมวลผลไม่ทัน ภาพบางส่วนจะถูกข้าม
+                · server ฟรีทันที่ 1 นาที (30 วินาทีเฉียดฉิว) ส่วน 15 วินาทีต้องใช้ Render 0.5 CPU ไม่งั้นภาพจะถูกข้าม
               </p>
             </div>
 
@@ -466,6 +466,7 @@ const isEditMode = ref(false)
 // null = ใช้ค่าที่ตั้งในเฟิร์มแวร์ (ปกติ 10 นาที)
 const CAMERA_INTERVALS = [
   { value: null, label: 'ตามค่าในเฟิร์มแวร์ (ปกติ 10 นาที)' },
+  { value: 15, label: '15 วินาที (ต้องใช้ Render แบบเสียเงิน 0.5 CPU)' },
   { value: 30, label: '30 วินาที' },
   { value: 60, label: '1 นาที' },
   { value: 120, label: '2 นาที' },
