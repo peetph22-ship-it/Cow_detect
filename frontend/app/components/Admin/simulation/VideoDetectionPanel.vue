@@ -62,37 +62,42 @@
     </div>
 
     <!-- วิดีโอ + กรอบ -->
-    <div v-show="videoUrl" class="relative w-full rounded-2xl overflow-hidden bg-black">
-      <video ref="videoEl" :src="videoUrl" class="w-full h-auto block" controls muted playsinline preload="auto" @timeupdate="onTime" @seeked="onTime" @loadedmetadata="onMeta" @error="onVideoError"></video>
-      <div class="absolute inset-0" :class="pickMode ? 'cursor-crosshair bg-black/10' : 'pointer-events-none'">
-        <div v-for="b in labeledBoxes" :key="b.idx" class="absolute rounded-sm"
-          :class="pickMode ? 'cursor-pointer hover:bg-white/25' : ''"
+    <!-- วิดีโอแนวตั้ง (กล้องมองลงจากเพดาน) สูงไม่เกิน 70% ของจอ จะได้เห็นและคลิกวัวได้ครบโดยไม่ต้องเลื่อน -->
+    <div v-show="videoUrl" class="rounded-2xl overflow-hidden bg-black">
+     <div class="relative mx-auto w-fit max-w-full">
+      <video ref="videoEl" :src="videoUrl" class="block max-w-full max-h-[70vh] w-auto h-auto" controls muted playsinline preload="auto" @timeupdate="onTime" @seeked="onTime" @loadedmetadata="onMeta" @error="onVideoError"></video>
+      <!-- กรอบวัวทุกตัว: เลขประจำตัวคงที่ทั้งวิดีโอ คลิกกรอบเพื่อเลือกวัวเป้าหมาย -->
+      <div class="absolute inset-0 pointer-events-none">
+        <div v-for="b in labeledBoxes" :key="b.id" class="absolute rounded-sm"
+          :class="canPick ? 'pointer-events-auto cursor-pointer hover:bg-white/20' : ''"
+          :title="canPick ? `เลือกวัว #${b.id} เป็นเป้าหมาย` : ''"
           :style="{ left: b.x1 * 100 + '%', top: b.y1 * 100 + '%', width: (b.x2 - b.x1) * 100 + '%', height: (b.y2 - b.y1) * 100 + '%',
-                    border: `${b.isTarget ? 4 : 2}px solid ${b.isTarget ? '#facc15' : CLASS[key(b.cls)].color}`, opacity: target && !b.isTarget && !pickMode ? 0.45 : 1 }"
+                    border: `${b.isTarget ? 4 : 2}px solid ${b.isTarget ? '#facc15' : CLASS[key(b.cls)].color}`, opacity: target && !b.isTarget ? 0.55 : 1 }"
           @click.stop="pickBox(b)">
-          <span class="absolute -top-[17px] left-[-2px] px-1 rounded-t text-[10px] font-bold whitespace-nowrap"
+          <span class="absolute -top-[18px] left-[-2px] px-1 rounded-t text-[10px] font-bold whitespace-nowrap"
             :style="{ background: b.isTarget ? '#facc15' : CLASS[key(b.cls)].color, color: b.isTarget ? '#24433a' : '#fff' }">
-            {{ b.isTarget ? 'เป้าหมาย · ' : !target || pickMode ? `#${b.idx} ` : '' }}{{ CLASS[key(b.cls)].th }} {{ b.score.toFixed(2) }}
+            {{ b.isTarget ? '🎯 ' : '' }}#{{ b.id }} {{ CLASS[key(b.cls)].th }} {{ b.score.toFixed(2) }}
           </span>
         </div>
       </div>
-      <div v-if="pickMode" class="absolute top-2 left-2 right-2 text-center">
-        <span class="inline-block px-3 py-1.5 rounded-lg bg-[#24433a]/90 text-white text-xs font-bold">คลิกกรอบวัวที่ต้องการติดตาม (เลขในกรอบเป็นเลขชั่วคราวของเฟรมนี้)</span>
-      </div>
-      <div v-else-if="targetBanner" class="absolute top-2 left-2">
+      <div v-if="targetBanner" class="absolute top-2 left-2 pointer-events-none">
         <span class="inline-block px-2.5 py-1 rounded-lg text-[11px] font-bold" :class="targetBanner.cls">{{ targetBanner.text }}</span>
       </div>
+     </div>
     </div>
 
-    <!-- ติดตามวัว 1 ตัว -->
-    <div v-if="frames.length && !analysing" class="flex flex-wrap items-center gap-2.5">
-      <button type="button" class="px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-        :class="pickMode ? 'bg-amber-100 text-amber-800' : 'bg-[#facc15] text-[#24433a] hover:bg-[#eab308]'"
-        :disabled="!pickMode && !currentFrame?.boxes.length" @click="pickMode ? (pickMode = false) : startPick()">
-        <v-icon icon="mdi-target" size="16" />{{ pickMode ? 'ยกเลิกการเลือก' : target ? 'เลือกวัวเป้าหมายใหม่' : '4. เลือกวัวเป้าหมาย 1 ตัว' }}
-      </button>
-      <span v-if="!target && !pickMode" class="text-[11px] text-[#718078]">หยุดวิดีโอที่เฟรมที่เห็นวัวชัด แล้วกดปุ่มนี้ ระบบจะติดตามตัวนั้นไปจนจบวิดีโอ</span>
-      <span v-if="!pickMode && !currentFrame?.boxes.length && !target" class="text-[11px] text-amber-700">เฟรมนี้ไม่มีกรอบวัว เลื่อนไปเฟรมอื่นก่อน</span>
+    <!-- เลือกวัวเป้าหมาย 1 ตัว: คลิกกรอบบนวิดีโอ หรือกดเลขวัวด้านล่าง -->
+    <div v-if="frames.length && !analysing" class="flex flex-wrap items-center gap-2">
+      <span class="text-xs font-bold text-[#24433a]">
+        <v-icon icon="mdi-target" size="15" class="text-amber-500" />
+        {{ target ? `กำลังติดตามวัว #${target.cowId} · เลือกตัวอื่นได้:` : '4. เลือกวัวเป้าหมาย (คลิกกรอบบนวิดีโอ หรือกดเลข):' }}
+      </span>
+      <button v-for="b in chipBoxes" :key="b.id" type="button"
+        class="px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer"
+        :class="b.isTarget ? 'bg-[#facc15] border-[#eab308] text-[#24433a]' : 'bg-white border-[#e5ece9] text-[#24433a] hover:border-[#24433a]/40'"
+        @click="pickBox(b)">#{{ b.id }} {{ CLASS[key(b.cls)].th }}</button>
+      <span v-if="!chipBoxes.length" class="text-[11px] text-amber-700">เฟรมนี้ไม่มีกรอบวัว เลื่อนวิดีโอไปเฟรมอื่น</span>
+      <span class="w-full text-[10px] text-[#718078]">เลขวัว (#) คงที่ทั้งวิดีโอ ช่วยให้รู้ว่าตัวไหนเป็นตัวไหน · ระบบติดตามจากเฟรมที่เลือกไปจนจบวิดีโอด้วยวิธีเดียวกับ server</span>
     </div>
     <TargetCowReview v-if="target" :target="target" :duration="duration" :current-t="currentTime" :reviews="reviews" :video-name="videoName"
       @seek="seekTo" @review="(k, v) => (reviews = { ...reviews, [k]: v })" @import-reviews="(m) => (reviews = { ...reviews, ...m })" @clear="clearTarget" />
@@ -127,6 +132,7 @@ import { ref, computed, onBeforeUnmount } from 'vue'
 import axios from 'axios'
 import { getNodeApiBase } from '~/API/baseAPI'
 import { trackTarget, buildBouts } from '~/utils/cowTracking'
+import { assignCowIds } from '~/utils/cowIds'
 import TargetCowReview from '~/components/Admin/simulation/TargetCowReview.vue'
 
 // อ่าน API base ตอน setup เท่านั้น
@@ -275,21 +281,22 @@ const T_BASE = Date.UTC(2000, 0, 1)
 const toIso = (t) => new Date(T_BASE + Math.round(t * 1000)).toISOString()
 const toSec = (iso) => (Date.parse(iso) - T_BASE) / 1000
 const analysedStep = ref(1)
-const pickMode = ref(false)
 const target = ref(null)
 const reviews = ref({})
 
-const clearTarget = () => { target.value = null; reviews.value = {}; pickMode.value = false }
-const startPick = () => { videoEl.value?.pause(); pickMode.value = true }
+const clearTarget = () => { target.value = null; reviews.value = {} }
+const canPick = computed(() => frames.value.length > 0 && !analysing.value)
 const seekTo = (t) => { if (videoEl.value) videoEl.value.currentTime = Math.max(0, Math.min(t, duration.value)) }
 
 const pickBox = (b) => {
-  if (!pickMode.value || !currentFrame.value) return
+  if (!canPick.value || !currentFrame.value) return
+  videoEl.value?.pause()
   const seedT = currentFrame.value.t
   const fr = frames.value.filter(f => f.t >= seedT - 1e-6).map(f => ({ observedAt: toIso(f.t), boxes: f.boxes }))
   const res = trackTarget(fr, { box: b, at: fr[0].observedAt })
   const { bouts } = buildBouts(res.observations, { intervalSec: analysedStep.value })
   target.value = {
+    cowId: b.id,
     seedT,
     step: analysedStep.value,
     lostAt: res.lostAt ? toSec(res.lostAt) : null,
@@ -297,7 +304,6 @@ const pickBox = (b) => {
     bouts: bouts.map(x => ({ behavior: x.behavior, start: toSec(x.start), end: toSec(x.end) }))
   }
   reviews.value = {}
-  pickMode.value = false
 }
 
 const currentObs = computed(() => {
@@ -306,9 +312,13 @@ const currentObs = computed(() => {
 })
 const sameBox = (a, b) => a && b && a.x1 === b.x1 && a.y1 === b.y1 && a.x2 === b.x2 && a.y2 === b.y2
 // เลขชั่วคราวเรียงซ้ายไปขวาในเฟรมนี้ ช่วยเลือกตัว (ไม่ใช่เลขประจำตัววัว)
-const labeledBoxes = computed(() => [...currentBoxes.value]
-  .sort((a, b) => (a.x1 + a.x2) - (b.x1 + b.x2))
-  .map((b, i) => ({ ...b, idx: i + 1, isTarget: !pickMode.value && sameBox(b, currentObs.value?.box) })))
+// เลขวัวคงที่ทั้งวิดีโอ (utils/cowIds.js) คำนวณครั้งเดียวหลังวิเคราะห์
+const cowIds = computed(() => (analysing.value ? [] : assignCowIds(frames.value)))
+const labeledBoxes = computed(() => {
+  const i = currentFrame.value ? frames.value.indexOf(currentFrame.value) : -1
+  return currentBoxes.value.map((b, j) => ({ ...b, id: cowIds.value[i]?.[j] ?? j + 1, isTarget: sameBox(b, currentObs.value?.box) }))
+})
+const chipBoxes = computed(() => [...labeledBoxes.value].sort((a, b) => a.id - b.id))
 const targetBanner = computed(() => {
   const tg = target.value
   if (!tg || !currentFrame.value) return null

@@ -3,7 +3,7 @@
     <!-- หัว -->
     <div class="flex flex-wrap items-start justify-between gap-2">
       <div>
-        <h4 class="text-sm font-black text-[#24433a]">วัวเป้าหมาย</h4>
+        <h4 class="text-sm font-black text-[#24433a]">วัวเป้าหมาย<template v-if="target.cowId"> #{{ target.cowId }}</template></h4>
         <p class="text-[11px] text-[#718078]">
           เลือกที่วินาที {{ target.seedT.toFixed(1) }} · ติดตามด้วยวิธีเดียวกับ server ({{ METHOD }}) · ตรวจทุก {{ target.step }} วินาที
         </p>
