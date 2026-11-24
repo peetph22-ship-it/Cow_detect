@@ -93,7 +93,7 @@
             </div>
           </div>
           <ApexChart type="line" height="260" :options="lineOptions" :series="lineSeries" />
-          <p class="text-[11px] text-[#718078]">แต่ละเส้น = นาทีที่อยู่ในท่านั้นในแต่ละชั่วโมง (เต็ม 60) · เส้นหยุด = ยังไม่มีภาพชั่วโมงนั้น · การเดินดูได้ในตารางด้านล่าง</p>
+          <p class="text-[11px] text-[#718078]">เส้นสะสม: ตั้งแต่ 00:00 อยู่ในท่านั้นมาแล้วรวมกี่ชั่วโมง · เส้นชัน = ช่วงที่อยู่ท่านั้น เส้นแบน = ทำอย่างอื่น · ปลายเส้นตรงกับตัวเลขรวมด้านบน</p>
         </template>
         <ApexChart v-else type="rangeBar" height="270" :options="timelineOptions" :series="timelineSeries" />
         <!-- THI วันเดียวกัน ใช้แกนเวลาเดียวกัน -->
@@ -436,22 +436,26 @@ const boutTooltip = (row, b, startMs, endMs) => {
   </div>`
 }
 
-// กราฟเส้น: นาทีของแต่ละท่าในแต่ละชั่วโมง เส้นบาง หนึ่งเส้นต่อท่า (ไม่มี "เคลื่อนที่" เพราะการเดินเกิดระหว่างยืน)
+// กราฟเส้นสะสม: ตั้งแต่ 00:00 วัวอยู่ในแต่ละท่ามาแล้วรวมกี่ชั่วโมง เส้นขึ้นอย่างเดียว ไม่ตัดไปมา
+// ปลายเส้น = ตัวเลขรวมด้านบน (ไม่มี "เคลื่อนที่" เพราะการเดินเกิดระหว่างยืน)
 const LINE_ROWS = ROWS.filter(r => ['lying', 'standing', 'feeding'].includes(r.key))
+const STEP_MS = 10 * 60e3
 const lineSeries = computed(() => {
-  if (!data.value) return []
-  const dayStart = new Date(data.value.window.from).getTime()
-  const keys = [...LINE_ROWS.map(r => r.key), 'not_visible']
-  const mins = hourlyMinutes(
-    bouts.value.map(b => ({ key: b.behavior, startMs: new Date(b.start).getTime(), endMs: new Date(b.end).getTime() })),
-    dayStart, keys)
-  // ชั่วโมงที่ไม่มีภาพเลย = null เส้นจะหยุดตรงนั้น (ไม่ลากลงศูนย์ให้เข้าใจผิด)
-  const hasData = (h) => keys.some(k => mins[k][h] > 0)
-  const x = (h) => bkk(data.value.window.from) + h * 3600e3 + 1800e3
-  return LINE_ROWS.map(r => ({
-    name: r.label,
-    data: Array.from({ length: 24 }, (_, h) => ({ x: x(h), y: hasData(h) ? Math.round(mins[r.key][h]) : null }))
-  }))
+  if (!data.value || !bouts.value.length) return []
+  const from = new Date(data.value.window.from).getTime()
+  const parsed = bouts.value.map(b => ({ key: b.behavior, s: new Date(b.start).getTime(), e: new Date(b.end).getTime() }))
+  const lastEnd = Math.max(...parsed.map(b => b.e))
+  const shift = bkk(data.value.window.from) - from
+  return LINE_ROWS.map(r => {
+    const mine = parsed.filter(b => b.key === r.key)
+    const pts = []
+    for (let t = from; t < lastEnd + STEP_MS; t += STEP_MS) {
+      const at = Math.min(t, lastEnd)
+      const min = mine.reduce((n, b) => n + Math.max(0, Math.min(b.e, at) - b.s), 0) / 60e3
+      pts.push({ x: at + shift, y: Math.round((min / 60) * 100) / 100 })
+    }
+    return { name: r.label, data: pts }
+  })
 })
 const lineHeadline = computed(() => {
   const m = data.value?.summary?.minutes || {}
@@ -465,14 +469,14 @@ const lineOptions = computed(() => ({
   dataLabels: { enabled: false },
   legend: { show: true, position: 'bottom', horizontalAlign: 'left', fontSize: '12px', markers: { shape: 'circle', size: 5 }, itemMargin: { horizontal: 10 } },
   xaxis: xaxis.value,
-  yaxis: { min: 0, max: 60, tickAmount: 2, labels: { minWidth: AXIS_LABEL_WIDTH, maxWidth: AXIS_LABEL_WIDTH, formatter: (v) => `${Math.round(v)} นาที`, style: { fontSize: '11px', colors: '#a6b5aa' } } },
+  yaxis: { min: 0, forceNiceScale: true, tickAmount: 3, labels: { minWidth: AXIS_LABEL_WIDTH, maxWidth: AXIS_LABEL_WIDTH, formatter: (v) => `${Number(v).toFixed(0)} ชม.`, style: { fontSize: '11px', colors: '#a6b5aa' } } },
   grid: { borderColor: '#f0f4f2', xaxis: { lines: { show: false } }, yaxis: { lines: { show: true } }, padding: { right: 18 } },
   responsive: MOBILE,
   tooltip: {
     shared: true,
     intersect: false,
-    x: { formatter: (ts) => `${fmtTime(ts - 1800e3)}–${fmtTime(ts + 1800e3)} น.` },
-    y: { formatter: (v) => (v == null ? 'ไม่มีภาพ' : `${v} นาที`) }
+    x: { formatter: (ts) => `ถึง ${fmtTime(ts)} น.` },
+    y: { formatter: (v) => (v == null ? '-' : `รวม ${fmtDur(v * 60)}`) }
   }
 }))
 
