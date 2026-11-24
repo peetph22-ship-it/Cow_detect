@@ -85,15 +85,18 @@
           <p class="text-[11px] text-[#718078]">เส้นน้ำเงิน = % ของเวลาที่เห็นวัวแล้วนอน ในแต่ละชั่วโมง (แกนซ้าย) · เส้นส้ม = THI เฉลี่ยรายชั่วโมง (แกนขวา) · เส้นขาด = ชั่วโมงที่เห็นวัวไม่ถึง {{ MIN_SEEN_MIN }} นาที</p>
         </template>
         <template v-else-if="view === 'line'">
-          <!-- ตัวเลขสรุปใหญ่ + เส้นบางหนึ่งเส้นต่อท่า (นาทีต่อชั่วโมง) + คำอธิบายสีด้านล่าง -->
-          <div class="flex flex-wrap items-end gap-x-6 gap-y-1 px-1">
-            <div v-for="h in lineHeadline" :key="h.key">
-              <div class="text-[11px] font-bold text-[#718078]">{{ h.label }}</div>
-              <div class="text-xl md:text-2xl font-black tabular-nums" :style="{ color: h.color }">{{ h.value }}</div>
+          <!-- แยกกราฟละ 1 ท่า เส้นจะไม่ทับกัน · ทุกกราฟใช้สเกลชั่วโมงเดียวกันและแกนเวลาเดียวกับกราฟ THI ด้านล่าง -->
+          <div class="space-y-1">
+            <div v-for="(r, i) in lineSeries" :key="r.key">
+              <div class="flex items-baseline gap-2 pl-1">
+                <span class="w-2.5 h-2.5 rounded-full self-center" :style="{ background: r.color }"></span>
+                <span class="text-sm font-black" :style="{ color: r.color }">{{ r.label }}</span>
+                <span class="text-sm font-black text-[#24433a] tabular-nums">รวม {{ r.total }}</span>
+              </div>
+              <ApexChart type="area" :height="i === lineSeries.length - 1 ? 125 : 100" :options="lineOptionsFor(i)" :series="[{ name: r.label, data: r.data }]" />
             </div>
           </div>
-          <ApexChart type="line" height="260" :options="lineOptions" :series="lineSeries" />
-          <p class="text-[11px] text-[#718078]">เส้นสะสม: ตั้งแต่ 00:00 อยู่ในท่านั้นมาแล้วรวมกี่ชั่วโมง · เส้นชัน = ช่วงที่อยู่ท่านั้น เส้นแบน = ทำอย่างอื่น · ปลายเส้นตรงกับตัวเลขรวมด้านบน</p>
+          <p class="text-[11px] text-[#718078]">แต่ละกราฟ = ตั้งแต่ 00:00 วัวอยู่ในท่านั้นมาแล้วรวมกี่ชั่วโมง · เส้นชัน = กำลังอยู่ท่านั้น · เส้นแบน = ทำอย่างอื่น · มุมหักของเส้น = เวลาที่เปลี่ยนท่าจริง</p>
         </template>
         <ApexChart v-else type="rangeBar" height="270" :options="timelineOptions" :series="timelineSeries" />
         <!-- THI วันเดียวกัน ใช้แกนเวลาเดียวกัน -->
@@ -439,46 +442,45 @@ const boutTooltip = (row, b, startMs, endMs) => {
 // กราฟเส้นสะสม: ตั้งแต่ 00:00 วัวอยู่ในแต่ละท่ามาแล้วรวมกี่ชั่วโมง เส้นขึ้นอย่างเดียว ไม่ตัดไปมา
 // ปลายเส้น = ตัวเลขรวมด้านบน (ไม่มี "เคลื่อนที่" เพราะการเดินเกิดระหว่างยืน)
 const LINE_ROWS = ROWS.filter(r => ['lying', 'standing', 'feeding'].includes(r.key))
-const STEP_MS = 10 * 60e3
 const lineSeries = computed(() => {
   if (!data.value || !bouts.value.length) return []
   const from = new Date(data.value.window.from).getTime()
   const parsed = bouts.value.map(b => ({ key: b.behavior, s: new Date(b.start).getTime(), e: new Date(b.end).getTime() }))
   const lastEnd = Math.max(...parsed.map(b => b.e))
   const shift = bkk(data.value.window.from) - from
+  // จุดของกราฟ = ทุกจังหวะที่เปลี่ยนท่า (ต้นและปลายของทุกช่วง) ระหว่างจุดเส้นตรงพอดี เพราะในช่วงหนึ่งท่าไม่เปลี่ยน
+  const times = [...new Set([from, lastEnd, ...parsed.flatMap(b => [b.s, b.e])])].filter(t => t >= from && t <= lastEnd).sort((a, b) => a - b)
+  const m = data.value.summary?.minutes || {}
   return LINE_ROWS.map(r => {
     const mine = parsed.filter(b => b.key === r.key)
-    const pts = []
-    for (let t = from; t < lastEnd + STEP_MS; t += STEP_MS) {
-      const at = Math.min(t, lastEnd)
-      const min = mine.reduce((n, b) => n + Math.max(0, Math.min(b.e, at) - b.s), 0) / 60e3
-      pts.push({ x: at + shift, y: Math.round((min / 60) * 100) / 100 })
-    }
-    return { name: r.label, data: pts }
+    const cum = (t) => mine.reduce((n, b) => n + Math.max(0, Math.min(b.e, t) - Math.max(b.s, from)), 0) / 3600e3
+    return { key: r.key, label: r.label, color: r.color, total: fmtDur(m[r.key]), data: times.map(t => ({ x: t + shift, y: Math.round(cum(t) * 1000) / 1000 })) }
   })
 })
-const lineHeadline = computed(() => {
-  const m = data.value?.summary?.minutes || {}
-  return LINE_ROWS.map(r => ({ key: r.key, label: `${r.label}รวม`, color: r.color, value: fmtDur(m[r.key]) }))
-})
-const lineOptions = computed(() => ({
-  chart: { fontFamily: 'inherit', toolbar: { show: false }, zoom: { enabled: false }, animations: { enabled: false } },
-  colors: LINE_ROWS.map(r => r.color),
-  stroke: { curve: 'straight', width: 2 },
-  markers: { size: 0, hover: { size: 4 } },
-  dataLabels: { enabled: false },
-  legend: { show: true, position: 'bottom', horizontalAlign: 'left', fontSize: '12px', markers: { shape: 'circle', size: 5 }, itemMargin: { horizontal: 10 } },
-  xaxis: xaxis.value,
-  yaxis: { min: 0, forceNiceScale: true, tickAmount: 3, labels: { minWidth: AXIS_LABEL_WIDTH, maxWidth: AXIS_LABEL_WIDTH, formatter: (v) => `${Number(v).toFixed(0)} ชม.`, style: { fontSize: '11px', colors: '#a6b5aa' } } },
-  grid: { borderColor: '#f0f4f2', xaxis: { lines: { show: false } }, yaxis: { lines: { show: true } }, padding: { right: 18 } },
-  responsive: MOBILE,
-  tooltip: {
-    shared: true,
-    intersect: false,
-    x: { formatter: (ts) => `ถึง ${fmtTime(ts)} น.` },
-    y: { formatter: (v) => (v == null ? '-' : `รวม ${fmtDur(v * 60)}`) }
+// สเกลชั่วโมงเท่ากันทุกกราฟ ความชันจะเทียบกันได้ (ชันเท่ากัน = อยู่ท่านั้นต่อเนื่องเหมือนกัน)
+const lineMaxH = computed(() => Math.max(1, Math.ceil(Math.max(0, ...lineSeries.value.flatMap(r => r.data.map(p => p.y))))))
+const lineOptionsFor = (i) => {
+  const last = i === lineSeries.value.length - 1
+  const r = lineSeries.value[i]
+  return {
+    chart: { fontFamily: 'inherit', toolbar: { show: false }, zoom: { enabled: false }, animations: { enabled: false }, group: 'cow-line', id: `cow-line-${r.key}` },
+    colors: [r.color],
+    stroke: { curve: 'straight', width: 2 },
+    fill: { type: 'solid', opacity: 0.08 },
+    markers: { size: 0, hover: { size: 4 } },
+    dataLabels: { enabled: false },
+    legend: { show: false },
+    xaxis: { ...xaxis.value, labels: { ...xaxis.value.labels, show: last } },
+    yaxis: { min: 0, max: lineMaxH.value, tickAmount: 1, labels: { minWidth: AXIS_LABEL_WIDTH, maxWidth: AXIS_LABEL_WIDTH, formatter: (v) => (v ? `${Math.round(v)} ชม.` : '0'), style: { fontSize: '10px', colors: '#a6b5aa' } } },
+    grid: { borderColor: '#f0f4f2', xaxis: { lines: { show: true } }, yaxis: { lines: { show: false } }, padding: { top: -6, bottom: 0, right: 18 } },
+    responsive: MOBILE,
+    tooltip: {
+      intersect: false,
+      x: { formatter: (ts) => `ถึง ${fmtTime(ts)} น.` },
+      y: { formatter: (v) => (v == null ? '-' : `รวม ${fmtDur(v * 60)}`) }
+    }
   }
-}))
+}
 
 const thiSeries = computed(() => [{
   name: 'THI',
