@@ -1600,7 +1600,7 @@ const herdLyingOptions = computed(() => ({
   yaxis: { min: 0, max: 100, tickAmount: 2, labels: { formatter: (v) => `${Math.round(v)}%`, style: { fontSize: '10px', colors: '#a6b5aa' } } },
   annotations: { yaxis: [{ y: 85, borderColor: '#10b981', strokeDashArray: 4, label: { text: 'เกณฑ์ 85%', position: 'right', textAnchor: 'end', borderColor: '#10b981', style: { color: '#fff', background: '#10b981', fontSize: '10px', fontWeight: 700 } } }] },
   grid: { borderColor: '#f0f4f2', padding: { left: 4, right: 8 } },
-  legend: { show: true, showForSingleSeries: true, position: 'bottom', horizontalAlign: 'left', fontSize: '11px', markers: { shape: 'circle', size: 5 } },
+  legend: { show: false },   // เส้นเดียว ชื่อกราฟบอกอยู่แล้ว
   tooltip: {
     custom: ({ dataPointIndex, w }) => {
       const p = w.config.series[0].data[dataPointIndex]
