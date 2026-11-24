@@ -1235,25 +1235,22 @@
             </div>
           </div>
 
-          <!-- % โคนอนพัก รายชั่วโมง 24 ชม. (ค่าเฉลี่ยจากภาพทุก {{ cameraBehavior?.interval_min || 10 }} นาที) -->
-          <div class="p-4 rounded-[22px] bg-white border border-[#e5ece9] shadow-xs space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-black text-[#24433a]">% โคนอนพัก รายชั่วโมง (24 ชม.)</span>
-              <span class="text-[10px] text-[#718078]">ภาพทุก {{ cameraBehavior?.interval_min || 10 }} นาที</span>
-            </div>
-            <div v-if="cameraHourly.length" class="flex items-end gap-[3px] h-20">
-              <div
-                v-for="h in cameraHourly"
-                :key="h.hour"
-                class="flex-1 rounded-t bg-blue-500/80 hover:bg-blue-600 transition-colors min-h-[2px]"
-                :style="{ height: `${Math.max(2, h.lying_pct ?? 0)}%` }"
-                :title="`${formatHour(h.hour)} น. · นอน ${h.lying_pct ?? '-'}% · วัวเฉลี่ย ${h.avg_cows ?? '-'} ตัว · ${h.images} ภาพ`">
+          <!-- % โคนอนพัก รายชั่วโมง 24 ชม.: กราฟเส้นเทียบเกณฑ์ CCI 85% · ชั่วโมงที่ไม่มีภาพ = เส้นขาด -->
+          <div class="p-4 rounded-[22px] bg-white border border-[#e5ece9] shadow-xs space-y-1">
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <span class="text-xs font-black text-[#24433a]">% โคนอนพัก รายชั่วโมง (24 ชม.)</span>
+                <div v-if="herdLyingAvg != null" class="text-2xl font-black text-[#24433a] tabular-nums leading-tight">{{ herdLyingAvg }}%
+                  <span class="text-[11px] font-bold text-[#718078]">เฉลี่ย 24 ชม.</span>
+                </div>
               </div>
+              <span v-if="cameraHourly.length" class="text-[10px] text-[#718078]">{{ cameraHourlyImages }} ภาพ</span>
             </div>
-            <div v-if="cameraHourly.length" class="flex justify-between text-[10px] text-[#718078] font-mono">
-              <span>{{ formatHour(cameraHourly[0].hour) }}</span>
-              <span>{{ formatHour(cameraHourly[cameraHourly.length - 1].hour) }}</span>
-            </div>
+            <ClientOnly v-if="cameraHourly.length">
+              <ApexChart type="line" height="190" :options="herdLyingOptions" :series="herdLyingSeries" />
+              <template #fallback><div class="h-[190px]"></div></template>
+            </ClientOnly>
+            <p v-if="cameraHourly.length" class="text-[10px] text-[#718078]">เส้นประเขียว = เกณฑ์สากล 85% (ต่ำกว่าเส้น = โคนอนพักน้อย) · เส้นขาด = ชั่วโมงที่ไม่มีภาพ</p>
             <p v-else class="text-[11px] text-[#718078]">ยังไม่มีภาพจากกล้องใน 24 ชม. ที่ผ่านมา</p>
           </div>
 
@@ -1563,6 +1560,57 @@ const farmStreak = ref(null)
 const farmMethod = ref(null)
 const editingCamera = ref(null)
 const cameraHourly = computed(() => cameraBehavior.value?.hourly || [])
+const cameraHourlyImages = computed(() => cameraHourly.value.reduce((n, h) => n + (Number(h.images) || 0), 0).toLocaleString('th-TH'))
+// กราฟเส้น % นอนรายชั่วโมง: เติมชั่วโมงที่ไม่มีภาพเป็น null (เส้นขาด) เวลาไทยเสมอ (+7 ชม. แล้วอ่านแบบ UTC)
+const HOUR_MS = 3600e3
+const herdLyingSeries = computed(() => {
+  const rows = cameraHourly.value
+  if (!rows.length) return [{ name: '% นอน', data: [] }]
+  const byHour = new Map(rows.map(h => [new Date(h.hour).getTime(), h]))
+  const first = new Date(rows[0].hour).getTime()
+  const last = new Date(rows[rows.length - 1].hour).getTime()
+  const data = []
+  for (let t = first; t <= last; t += HOUR_MS) {
+    const h = byHour.get(t)
+    data.push({ x: t + 7 * HOUR_MS, y: h?.lying_pct ?? null, cows: h?.avg_cows, images: h?.images })
+  }
+  return [{ name: '% โคนอนพัก', data }]
+})
+const herdLyingAvg = computed(() => {
+  const v = cameraHourly.value.map(h => h.lying_pct).filter(x => x != null)
+  return v.length ? Math.round(v.reduce((a, b) => a + Number(b), 0) / v.length) : null
+})
+const herdLyingOptions = computed(() => ({
+  chart: { fontFamily: 'inherit', toolbar: { show: false }, zoom: { enabled: false }, animations: { enabled: false }, sparkline: { enabled: false } },
+  colors: ['#3b82f6'],
+  stroke: { curve: 'straight', width: 2 },
+  markers: { size: 0, hover: { size: 4 } },
+  dataLabels: { enabled: false },
+  xaxis: {
+    type: 'datetime',
+    labels: { datetimeUTC: true, rotate: 0, hideOverlappingLabels: true, formatter: (v) => new Date(Number(v)).toISOString().slice(11, 16), style: { fontSize: '10px', colors: '#718078' } },
+    // ช่วง 24 ชม. พอดี + 8 ขีด = ขีดทุก 3 ชม. ตรงต้นชั่วโมง
+    min: herdLyingSeries.value[0].data[0]?.x,
+    max: (herdLyingSeries.value[0].data[0]?.x ?? 0) + 24 * HOUR_MS,
+    tickAmount: 8,
+    axisBorder: { show: false },
+    axisTicks: { show: false },
+    tooltip: { enabled: false }
+  },
+  yaxis: { min: 0, max: 100, tickAmount: 2, labels: { formatter: (v) => `${Math.round(v)}%`, style: { fontSize: '10px', colors: '#a6b5aa' } } },
+  annotations: { yaxis: [{ y: 85, borderColor: '#10b981', strokeDashArray: 4, label: { text: 'เกณฑ์ 85%', position: 'right', textAnchor: 'end', borderColor: '#10b981', style: { color: '#fff', background: '#10b981', fontSize: '10px', fontWeight: 700 } } }] },
+  grid: { borderColor: '#f0f4f2', padding: { left: 4, right: 8 } },
+  legend: { show: true, showForSingleSeries: true, position: 'bottom', horizontalAlign: 'left', fontSize: '11px', markers: { shape: 'circle', size: 5 } },
+  tooltip: {
+    custom: ({ dataPointIndex, w }) => {
+      const p = w.config.series[0].data[dataPointIndex]
+      if (!p) return ''
+      const hh = new Date(p.x).toISOString().slice(11, 16)
+      return `<div style="padding:6px 10px;font-size:12px;line-height:1.6"><b>${hh} น.</b><br>` +
+        (p.y == null ? 'ไม่มีภาพชั่วโมงนี้' : `นอน <b style="color:#3b82f6">${Math.round(p.y)}%</b> · วัวเฉลี่ย ${p.cows ?? '-'} ตัว · ${p.images} ภาพ`) + '</div>'
+    }
+  }
+}))
 
 const liveCciScore = computed(() => {
   const v = cameraBehavior.value?.latest?.cci
