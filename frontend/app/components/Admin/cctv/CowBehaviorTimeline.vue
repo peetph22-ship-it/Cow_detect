@@ -97,6 +97,16 @@
           <p class="text-[11px] text-[#718078]">แต่ละเส้น = ตั้งแต่ 00:00 อยู่ในท่านั้นมาแล้วรวมกี่ชั่วโมง · ช่วงที่เส้นชัน = กำลังอยู่ท่านั้น · ช่วงที่เส้นแบน = ทำอย่างอื่น · ชี้ที่กราฟเพื่อดูยอดของทั้ง 3 ท่า ณ เวลานั้น</p>
         </template>
         <ApexChart v-else type="rangeBar" height="270" :options="timelineOptions" :series="timelineSeries" />
+        <!-- การเดิน: กราฟแยก (การเดินเกิดระหว่างยืน จึงไม่ใส่เป็นเส้นที่ 4) ใช้แกนเวลาเดียวกับ THI -->
+        <div v-if="walkSeries.length" class="pt-2 border-t border-[#f0f4f2]">
+          <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-1">
+            <span class="inline-block w-3 h-3 rounded-[3px] self-center" :style="{ background: ROW.moving.color }"></span>
+            <span class="text-sm font-black text-[#24433a]">การเดิน (โดยประมาณ)</span>
+            <span class="text-xs text-[#4e6057]">รวม <b class="text-[#24433a]">{{ fmtDur(data.summary?.moving_min) }}</b> · {{ data.summary?.moves ?? 0 }} ครั้ง · ระยะประมาณ {{ data.summary?.distance_body ?? 0 }} ช่วงตัว</span>
+          </div>
+          <ApexChart type="bar" height="170" :options="walkOptions" :series="walkSeries" />
+          <p class="text-[11px] text-[#718078]">แท่ง = นาทีที่เดินในแต่ละชั่วโมง · นับเฉพาะตอนที่กรอบของวัวขยับระหว่าง 2 ภาพติดกันเกินเกณฑ์ จึงมักต่ำกว่าจริง (เดินไปกลับระหว่างภาพมองไม่เห็น) · ยังไม่ได้เทียบกับวิดีโอ</p>
+        </div>
         <!-- THI วันเดียวกัน ใช้แกนเวลาเดียวกัน -->
         <ApexChart v-if="thiSeries[0].data.length" type="line" height="170" :options="thiOptions" :series="thiSeries" />
         <p v-else class="text-xs text-center text-[#718078] py-2">วันนี้ไม่มีข้อมูล THI จากเซ็นเซอร์</p>
@@ -498,6 +508,58 @@ const lineOptions = computed(() => ({
     }
   }
 }))
+
+// นาทีที่เดินในแต่ละชั่วโมง (ช่วงเดินที่คร่อมชั่วโมงแบ่งตามเวลาจริง) ชั่วโมงที่แทบไม่เห็นวัว = ไม่มีแท่ง
+const walkSeries = computed(() => {
+  const moves = data.value?.movement || []
+  if (!data.value || !moves.length) return []
+  const dayStart = new Date(data.value.window.from).getTime()
+  const toBouts = (list, key) => list.map(b => ({ key: key || b.behavior, startMs: new Date(b.start).getTime(), endMs: new Date(b.end).getTime() }))
+  const walk = hourlyMinutes(toBouts(moves, 'moving'), dayStart, ['moving']).moving
+  const seen = hourlyMinutes(toBouts(bouts.value), dayStart, ['lying', 'standing', 'feeding'])
+  const count = Array(24).fill(0), dist = Array(24).fill(0)
+  for (const m of moves) {
+    const h = Math.floor((new Date(m.start).getTime() - dayStart) / 3600e3)
+    if (h >= 0 && h < 24) { count[h]++; dist[h] += Number(m.distance_body) || 0 }
+  }
+  const x = (h) => bkk(data.value.window.from) + h * 3600e3 + 1800e3
+  return [{
+    name: 'เดิน',
+    data: Array.from({ length: 24 }, (_, h) => {
+      const seenMin = seen.lying[h] + seen.standing[h] + seen.feeding[h]
+      return { x: x(h), y: seenMin >= MIN_SEEN_MIN ? Math.round(walk[h] * 10) / 10 : null, count: count[h], dist: Math.round(dist[h] * 10) / 10, seen: Math.round(seenMin) }
+    })
+  }]
+})
+const walkOptions = computed(() => {
+  const top = Math.max(0, ...(walkSeries.value[0]?.data || []).map(p => p.y || 0))
+  const step = top <= 10 ? 5 : top <= 30 ? 10 : 20
+  const max = Math.max(step, Math.ceil(top / step) * step)
+  return {
+    chart: { fontFamily: 'inherit', toolbar: { show: false }, zoom: { enabled: false }, animations: { enabled: false } },
+    colors: [ROW.moving.color],
+    plotOptions: { bar: { columnWidth: '55%', borderRadius: 4, borderRadiusApplication: 'end' } },
+    states: { hover: { filter: { type: 'lighten', value: 0.1 } } },
+    dataLabels: { enabled: false },
+    legend: { show: false },
+    xaxis: xaxis.value,
+    yaxis: { min: 0, max, tickAmount: max / step, labels: { minWidth: AXIS_LABEL_WIDTH, maxWidth: AXIS_LABEL_WIDTH, formatter: (v) => (v ? `${Math.round(v)} นาที` : '0'), style: { fontSize: '11px', colors: '#718078' } } },
+    grid: { borderColor: '#eef2f0', xaxis: { lines: { show: false } }, padding: { right: PLOT_PAD_RIGHT } },
+    responsive: MOBILE,
+    tooltip: {
+      intersect: false,
+      custom: ({ dataPointIndex }) => {
+        const p = walkSeries.value[0]?.data[dataPointIndex]
+        if (!p) return ''
+        const head = `<div style="color:#718078">${fmtTime(p.x - 1800e3)}–${fmtTime(p.x + 1800e3)} น.</div>`
+        const body = p.y == null
+          ? `<span style="color:#718078">เห็นวัวแค่ ${p.seen} นาที (น้อยเกินไป)</span>`
+          : `<b style="color:#24433a;font-size:14px">${fmtDur(p.y)}</b> <span style="color:#718078">เดิน · ${p.count} ครั้ง · ≈ ${p.dist} ช่วงตัว</span>`
+        return `<div style="padding:8px 12px;font-size:12px;line-height:1.6">${head}${body}</div>`
+      }
+    }
+  }
+})
 
 const thiSeries = computed(() => [{
   name: 'THI',
