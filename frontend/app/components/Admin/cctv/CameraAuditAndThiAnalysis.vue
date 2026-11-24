@@ -293,7 +293,9 @@
       <div v-else class="p-6 rounded-2xl bg-[#fafcfb] border border-[#e5ece9] text-center space-y-1.5">
         <v-icon icon="mdi-image-off-outline" size="28" class="text-[#718078] mx-auto" />
         <p v-if="samplesError" class="text-xs font-bold text-rose-700">โหลดภาพตัวอย่างไม่สำเร็จ: {{ samplesError }}</p>
-        <p v-else-if="!samplesData.storage_configured" class="text-xs font-bold text-amber-800">ยังไม่ได้ตั้งค่า Supabase Storage บนเซิร์ฟเวอร์ (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY) จึงดึงภาพตัวอย่างไม่ได้</p>
+        <!-- ยังไม่ได้คำตอบจากเซิร์ฟเวอร์ (Render ที่หลับอยู่ใช้เวลาตื่นได้ถึง 1 นาที) อย่าเพิ่งเตือนว่าไม่ได้ตั้งค่า -->
+        <p v-else-if="isLoadingSamples || samplesData.storage_configured == null" class="text-xs font-bold text-[#718078]">กำลังโหลดรายการภาพตัวอย่าง...</p>
+        <p v-else-if="samplesData.storage_configured === false" class="text-xs font-bold text-amber-800">ยังไม่ได้ตั้งค่า Supabase Storage บนเซิร์ฟเวอร์ (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY) จึงดึงภาพตัวอย่างไม่ได้</p>
         <p v-else-if="samplesData.error" class="text-xs font-bold text-rose-700">อ่านรายการภาพจาก Storage ไม่สำเร็จ: {{ samplesData.error }}</p>
         <p v-else class="text-xs font-bold text-[#24433a]">ยังไม่มีภาพตัวอย่างรายชั่วโมงใน bucket <code class="font-mono">camera-samples</code> สำหรับฟาร์มนี้</p>
         <p class="text-[11px] text-[#718078]">
@@ -470,7 +472,7 @@ const showBoxes = ref(false)
 const isLoadingSamples = ref(false)
 const isSavingAudit = ref(false)
 const samplesData = ref({
-  storage_configured: false,
+  storage_configured: null,   // null = ยังไม่ได้คำตอบจากเซิร์ฟเวอร์
   migration_required: false,
   migration_file: 'backend_node/migrations/20261028_camera_sample_audits.sql',
   summary: { audited_count: 0, metrics: null },
