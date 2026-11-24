@@ -81,8 +81,17 @@
       </div>
       <ClientOnly>
         <template v-if="view === 'hourly'">
+          <!-- รวมทีละกี่ชั่วโมง: วัวตัวเดียวนอนทีละ 1–2 ชม. รายชั่วโมงจึงแกว่ง 0/100% รวม 3 ชม. เห็นแนวโน้มชัดกว่า -->
+          <div class="flex items-center gap-2 px-1">
+            <span class="text-xs font-bold text-[#718078]">รวมทีละ</span>
+            <div class="flex items-center gap-1 bg-[#f0f4f2] p-1 rounded-lg">
+              <button v-for="n in [1, 3]" :key="n" type="button" class="px-2.5 py-0.5 rounded-md text-xs font-bold cursor-pointer"
+                :class="binHours === n ? 'bg-white text-[#24433a] shadow-xs' : 'text-[#4e6057] hover:text-[#24433a]'"
+                @click="binHours = n">{{ n }} ชม.</button>
+            </div>
+          </div>
           <ApexChart type="line" height="280" :options="hourlyLyingOptions" :series="hourlyLyingSeries" />
-          <p class="text-[11px] text-[#718078]">% ของเวลาที่เห็นวัวแล้วนอน ในแต่ละชั่วโมง · เทียบกับกราฟ THI ด้านล่างซึ่งใช้แกนเวลาเดียวกัน · เส้นขาด = ชั่วโมงที่เห็นวัวไม่ถึง {{ MIN_SEEN_MIN }} นาที</p>
+          <p class="text-[11px] text-[#718078]">% ของเวลาที่เห็นวัวแล้วนอน ในแต่ละช่วง {{ binHours }} ชม. · เทียบกับกราฟ THI ด้านล่างซึ่งใช้แกนเวลาเดียวกัน · เส้นขาด = ช่วงที่เห็นวัวไม่ถึง {{ MIN_SEEN_MIN * binHours }} นาที</p>
         </template>
         <template v-else-if="view === 'line'">
           <!-- คำอธิบายเส้น + ยอดรวมทั้งวัน (ตัวหนังสือสีเข้ม สีของท่าอยู่ที่ขีดหน้าชื่อ) -->
@@ -344,17 +353,22 @@ const VIEWS = [{ key: 'line', label: 'กราฟเส้น' }, { key: 'timel
 const view = ref('line')
 // % นอนรายชั่วโมง เทียบ THI: หารด้วยเวลาที่เห็นวัว (ไม่นับช่วงไม่เห็นในภาพ) ชั่วโมงที่เห็นน้อยเกินไป = ไม่แสดง
 const MIN_SEEN_MIN = 10
+const binHours = ref(3)   // ค่าเริ่มต้น 3 ชม. (รายชั่วโมงแกว่งมากสำหรับวัวตัวเดียว)
 const hourlyLyingSeries = computed(() => {
   if (!data.value) return []
   const dayStart = new Date(data.value.window.from).getTime()
   const mins = hourlyMinutes(
     bouts.value.map(b => ({ key: b.behavior, startMs: new Date(b.start).getTime(), endMs: new Date(b.end).getTime() })),
     dayStart, ['lying', 'standing', 'feeding'])
-  const x = (h) => bkk(data.value.window.from) + h * 3600e3 + 1800e3   // กลางชั่วโมง
+  const n = binHours.value
   const lying = []
-  for (let h = 0; h < 24; h++) {
-    const seen = mins.lying[h] + mins.standing[h] + mins.feeding[h]
-    lying.push({ x: x(h), y: seen >= MIN_SEEN_MIN ? Math.round((mins.lying[h] / seen) * 100) : null, seen: Math.round(seen), lyingMin: Math.round(mins.lying[h]) })
+  for (let h = 0; h < 24; h += n) {
+    const hrs = Array.from({ length: n }, (_, i) => h + i)
+    const sum = (k) => hrs.reduce((t, i) => t + mins[k][i], 0)
+    const seen = sum('lying') + sum('standing') + sum('feeding')
+    // จุดอยู่กลางช่วง · half = ครึ่งความกว้างช่วง ใช้บอกเวลาในป้าย
+    const half = (n * 3600e3) / 2
+    lying.push({ x: bkk(data.value.window.from) + h * 3600e3 + half, half, y: seen >= MIN_SEEN_MIN * n ? Math.round((sum('lying') / seen) * 100) : null, seen: Math.round(seen), lyingMin: Math.round(sum('lying')) })
   }
   return [{ name: '% นอน', data: lying }]
 })
@@ -376,7 +390,7 @@ const hourlyLyingOptions = computed(() => ({
       const l = hourlyLyingSeries.value[0]?.data[dataPointIndex]
       if (!l) return ''
       const value = l.y == null ? `<span style="color:#718078">เห็นวัวแค่ ${l.seen} นาที (น้อยเกินไป)</span>` : `<b style="color:#24433a;font-size:14px">${l.y}%</b> <span style="color:#718078">นอน (${l.lyingMin} จาก ${l.seen} นาทีที่เห็นวัว)</span>`
-      return `<div style="padding:8px 12px;font-size:12px;line-height:1.6"><div style="color:#718078">${fmtTime(l.x - 1800e3)}–${fmtTime(l.x + 1800e3)} น.</div>${value}</div>`
+      return `<div style="padding:8px 12px;font-size:12px;line-height:1.6"><div style="color:#718078">${fmtTime(l.x - l.half)}–${fmtTime(l.x + l.half)} น.</div>${value}</div>`
     }
   }
 }))
