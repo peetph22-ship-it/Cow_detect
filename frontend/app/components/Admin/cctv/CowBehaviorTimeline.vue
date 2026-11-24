@@ -70,10 +70,10 @@
         </span>
       </div>
 
-      <!-- แถบเวลาของแต่ละท่า หรือแท่งนาทีรายชั่วโมง -->
+      <!-- กราฟเส้น (ค่าเริ่มต้น), แถบเวลาแบบเดิม หรือแท่งนาทีรายชั่วโมง -->
       <div class="flex justify-end">
         <div class="flex items-center gap-1.5 bg-[#f0f4f2] p-1 rounded-xl">
-          <button v-for="v in [{ key: 'timeline', label: 'แถบเวลา' }, { key: 'hourly', label: 'แท่งรายชั่วโมง' }]" :key="v.key" type="button"
+          <button v-for="v in VIEWS" :key="v.key" type="button"
             class="px-3 py-1 rounded-lg text-xs font-bold cursor-pointer"
             :class="view === v.key ? 'bg-[#24433a] text-white' : 'text-[#4e6057] hover:text-[#24433a]'"
             @click="view = v.key">{{ v.label }}</button>
@@ -83,6 +83,10 @@
         <template v-if="view === 'hourly'">
           <ApexChart type="bar" height="280" :options="hourlyOptions" :series="hourlySeries" />
           <p class="text-[11px] text-[#718078]">แต่ละแท่ง = นาทีของแต่ละท่าในชั่วโมงนั้น (เต็ม 60) · แท่งที่สั้นกว่า 60 = ช่วงที่ไม่มีภาพจากกล้อง</p>
+        </template>
+        <template v-else-if="view === 'line'">
+          <ApexChart type="line" height="270" :options="lineOptions" :series="lineSeries" />
+          <p class="text-[11px] text-[#718078]">เส้นสีเทา = ลำดับการเปลี่ยนท่าตลอดวัน (เส้นตั้ง = จังหวะเปลี่ยนท่า) · เส้นหนาสี = ช่วงที่อยู่ในท่านั้น · เส้นขาด = ไม่มีภาพจากกล้อง · การเดินดูได้ที่ป้ายของช่วงยืนและตารางด้านล่าง</p>
         </template>
         <ApexChart v-else type="rangeBar" height="270" :options="timelineOptions" :series="timelineSeries" />
         <!-- THI วันเดียวกัน ใช้แกนเวลาเดียวกัน -->
@@ -314,7 +318,9 @@ const rowNote = (r) => [
 ].filter(Boolean).join(' · ')
 
 // แท่งรายชั่วโมง: เฉพาะท่า (การเคลื่อนที่เกิดระหว่างยืน จึงไม่แยกเป็นแท่ง)
-const view = ref('timeline')
+// เปลี่ยนค่าเริ่มต้นกลับเป็น 'timeline' ได้ ถ้าไม่ใช้กราฟเส้น
+const VIEWS = [{ key: 'line', label: 'กราฟเส้น' }, { key: 'timeline', label: 'แถบเวลา' }, { key: 'hourly', label: 'แท่งรายชั่วโมง' }]
+const view = ref('line')
 const HOURLY_KEYS = ['lying', 'standing', 'feeding', 'not_visible']
 const hourlySeries = computed(() => {
   if (!data.value) return []
@@ -355,21 +361,76 @@ const timelineOptions = computed(() => ({
   tooltip: {
     custom: ({ seriesIndex, dataPointIndex, w }) => {
       const p = w.config.series[seriesIndex].data[dataPointIndex]
-      if (!p?.bout) return ''
-      const b = p.bout
-      const extra = [
-        thiText(b.thi),
-        // ปัดนาทีก่อนลบ เดิน + ยืนนิ่ง จะได้เท่ากับเวลารวมที่แสดงพอดี
-        b.moving_min != null && `เดิน ${fmtDur(b.moving_min)} · ยืนนิ่ง ${fmtDur(Math.round(b.duration_min) - Math.round(b.moving_min))}`,
-        b.distance_body != null && `ระยะประมาณ ${b.distance_body} ช่วงตัว`,
-        b.from_previous_day && 'ต่อจากเมื่อวาน',
-        b.to_next_day && 'ต่อไปวันถัดไป'
-      ].filter(Boolean).join('<br>')
-      return `<div style="padding:8px 12px;font-size:12px;line-height:1.6">
-        <b style="color:${ROWS[seriesIndex].color}">${ROWS[seriesIndex].label}</b><br>
-        ${fmtTime(p.y[0])} – ${fmtTime(p.y[1])} · ${fmtDur(b.duration_min)}
-        ${extra ? `<br><span style="color:#718078">${extra}</span>` : ''}
-      </div>`
+      return p?.bout ? boutTooltip(ROWS[seriesIndex], p.bout, p.y[0], p.y[1]) : ''
+    }
+  }
+}))
+
+const boutTooltip = (row, b, startMs, endMs) => {
+  const extra = [
+    thiText(b.thi),
+    // ปัดนาทีก่อนลบ เดิน + ยืนนิ่ง จะได้เท่ากับเวลารวมที่แสดงพอดี
+    b.moving_min != null && `เดิน ${fmtDur(b.moving_min)} · ยืนนิ่ง ${fmtDur(Math.round(b.duration_min) - Math.round(b.moving_min))}`,
+    b.distance_body != null && `ระยะประมาณ ${b.distance_body} ช่วงตัว`,
+    b.from_previous_day && 'ต่อจากเมื่อวาน',
+    b.to_next_day && 'ต่อไปวันถัดไป'
+  ].filter(Boolean).join('<br>')
+  return `<div style="padding:8px 12px;font-size:12px;line-height:1.6">
+    <b style="color:${row.color}">${row.label}</b><br>
+    ${fmtTime(startMs)} – ${fmtTime(endMs)} · ${fmtDur(b.duration_min)}
+    ${extra ? `<br><span style="color:#718078">${extra}</span>` : ''}
+  </div>`
+}
+
+// กราฟเส้นแบบขั้นบันได: แกนตั้งคือท่า (บนสุด = นอน เรียงเหมือนแถบเวลา) แกนนอนคือเวลา
+// ไม่มีแถว "เคลื่อนที่" เพราะการเดินเกิดระหว่างยืน (ดูได้ในตารางและป้ายตอนชี้ที่ช่วงยืน)
+const LINE_ROWS = ROWS.filter(r => r.key !== 'moving')
+const LEVEL = Object.fromEntries(LINE_ROWS.map((r, i) => [r.key, LINE_ROWS.length - 1 - i]))
+const GAP_MS = 2 * 60e3   // ห่างกันเกิน 2 นาที = ไม่มีภาพช่วงนั้น ตัดเส้นให้ขาด
+// ทุกเส้นใช้จุดเวลาชุดเดียวกัน (ApexCharts จับคู่จุดของแต่ละเส้นตามลำดับ)
+const linePoints = computed(() => {
+  const pts = []
+  let prevEnd = null
+  for (const b of [...bouts.value].sort((a, c) => new Date(a.start) - new Date(c.start))) {
+    const s = bkk(b.start), e = bkk(b.end)
+    if (prevEnd != null && s - prevEnd > GAP_MS) pts.push({ x: prevEnd + 1, bout: null })
+    pts.push({ x: s, bout: b }, { x: e, bout: b })
+    prevEnd = e
+  }
+  return pts
+})
+const lineSeries = computed(() => [
+  // เส้นเทาบาง: ลำดับท่าทั้งวัน เส้นตั้ง = จังหวะเปลี่ยนท่า
+  { name: 'ลำดับท่า', data: linePoints.value.map(p => ({ x: p.x, y: p.bout ? LEVEL[p.bout.behavior] : null })) },
+  // เส้นสีหนา: แต่ละท่าเฉพาะช่วงที่อยู่ในท่านั้น
+  ...LINE_ROWS.map(r => ({
+    name: r.label,
+    data: linePoints.value.map(p => ({ x: p.x, y: p.bout?.behavior === r.key ? LEVEL[r.key] : null }))
+  }))
+])
+
+const lineOptions = computed(() => ({
+  chart: { fontFamily: 'inherit', toolbar: { show: false }, zoom: { enabled: false }, animations: { enabled: false } },
+  colors: ['#c3cfc8', ...LINE_ROWS.map(r => r.color)],
+  stroke: { width: [1.5, ...LINE_ROWS.map(() => 7)], curve: ['stepline', ...LINE_ROWS.map(() => 'straight')], lineCap: 'butt' },
+  markers: { size: 0 },
+  dataLabels: { enabled: false },
+  legend: { show: false },
+  xaxis: xaxis.value,
+  yaxis: {
+    min: 0,
+    max: LINE_ROWS.length - 1,
+    tickAmount: LINE_ROWS.length - 1,
+    labels: { minWidth: AXIS_LABEL_WIDTH, maxWidth: AXIS_LABEL_WIDTH, formatter: (v) => LINE_ROWS[LINE_ROWS.length - 1 - Math.round(v)]?.label || '', style: { fontSize: '12px', fontWeight: 700, colors: '#24433a' } }
+  },
+  grid: { borderColor: '#f0f4f2', strokeDashArray: 4, xaxis: { lines: { show: true } }, padding: { top: 10, bottom: 4, right: 18 } },
+  responsive: MOBILE,
+  tooltip: {
+    shared: false,
+    intersect: false,
+    custom: ({ dataPointIndex }) => {
+      const b = linePoints.value[dataPointIndex]?.bout
+      return b ? boutTooltip(ROW[b.behavior], b, bkk(b.start), bkk(b.end)) : ''
     }
   }
 }))
