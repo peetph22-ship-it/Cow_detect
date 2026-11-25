@@ -52,7 +52,7 @@
             <span v-if="today?.max_temp != null && today?.min_temp != null">
               วันนี้ {{ today.min_temp }}° – {{ today.max_temp }}°C
             </span>
-            <span v-else>วัดจากหัววัด SHT20</span>
+            <span v-else>วัดจากหัววัด SHT40</span>
           </div>
         </div>
 
