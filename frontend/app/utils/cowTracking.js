@@ -34,7 +34,8 @@ const TRACK_DEFAULTS = Object.freeze({
     minScore: 0.3,          // คะแนนต่ำกว่านี้ไม่ถือว่าเป็นตัวเดิม
     ambiguityMargin: 0.15,  // กรอบที่ 2 ได้คะแนนห่างจากกรอบที่ 1 ไม่ถึงค่านี้ = ไม่แน่ใจว่าตัวไหน
     maxShift: 0.5,          // ระยะขยับที่ยังนับว่าใกล้ (เท่าของเส้นทแยงกรอบเดิม)
-    maxLostSec: 15 * 60
+    maxLostSec: 15 * 60,    // หาวัวไม่เจอนานเกินนี้ (นับเฉพาะช่วงที่มีภาพเข้ามา) = หลุดการติดตาม
+    outageGapSec: 5 * 60    // ภาพห่างจากภาพก่อนเกินนี้ = กล้อง/เน็ตหลุด ไม่นับเป็นเวลาที่หาวัวไม่เจอ
 })
 
 const BOUT_DEFAULTS = Object.freeze({
@@ -106,14 +107,19 @@ const seedState = (seed) => ({ box: { x1: seed.box.x1, y1: seed.box.y1, x2: seed
 const stepTarget = (state, frame, opts = {}) => {
     const o = { ...TRACK_DEFAULTS, ...opts }
     const at = toMs(frame.observedAt)
-    if (at - state.at > o.maxLostSec * 1000) return { lost: true }
+    // เวลาที่หาวัวไม่เจอ: นับเฉพาะช่วงที่ภาพเข้ามาต่อเนื่อง ช่วงกล้อง/เน็ตหลุด (ภาพห่างเกิน outageGapSec) ไม่นับ
+    // (เดิมนับจากเวลาที่เห็นวัวครั้งล่าสุด เน็ตหลุด 15 นาทีจึงหลุดการติดตามทั้งที่วัวยังอยู่ที่เดิม)
+    const lastFrame = state.frameAt ?? state.at
+    const gap = Math.max(0, at - lastFrame)
+    const missedMs = (state.missedMs ?? 0) + (gap > o.outageGapSec * 1000 ? 0 : gap)
+    if (missedMs > o.maxLostSec * 1000) return { lost: true }
     // คาดตำแหน่งไม่เกิน 2 รอบถ่ายภาพล่าสุด (หายนานกว่านั้น วัวอาจหยุดหรือเลี้ยวไปแล้ว)
     const v = state.velocity
     const dt = v ? Math.min(at - state.at, 2 * v.stepMs) : 0
     const predicted = v ? shiftBox(state.box, v.dx * dt, v.dy * dt) : null
     const m = matchTarget(state.box, frame.boxes, { ...o, predicted })
     const base = { observedAt: new Date(at).toISOString(), telemetryId: frame.telemetryId ?? null, cameraId: frame.cameraId ?? null, method: METHOD }
-    if (!m.box) return { lost: false, observation: { ...base, behavior: 'not_visible', box: null, matchScore: null }, state }
+    if (!m.box) return { lost: false, observation: { ...base, behavior: 'not_visible', box: null, matchScore: null }, state: { ...state, frameAt: at, missedMs } }
     const box = { x1: m.box.x1, y1: m.box.y1, x2: m.box.x2, y2: m.box.y2 }
     const stepMs = at - state.at
     const c0 = center(state.box)
@@ -121,7 +127,7 @@ const stepTarget = (state, frame, opts = {}) => {
     return {
         lost: false,
         observation: { ...base, behavior: CLASS_TO_BEHAVIOR[m.box.cls] || 'not_visible', box, matchScore: Math.round(m.score * 1000) / 1000 },
-        state: { box, at, velocity: stepMs > 0 ? { dx: (c1.x - c0.x) / stepMs, dy: (c1.y - c0.y) / stepMs, stepMs } : null }
+        state: { box, at, frameAt: at, missedMs: 0, velocity: stepMs > 0 ? { dx: (c1.x - c0.x) / stepMs, dy: (c1.y - c0.y) / stepMs, stepMs } : null }
     }
 }
 

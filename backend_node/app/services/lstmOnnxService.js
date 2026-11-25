@@ -24,11 +24,9 @@ const getOnnxSession = async () => {
     if (onnxSession) return onnxSession
 
     const modelPaths = [
-        path.resolve(__dirname, '../../../backend/app/weights/farm_lstm.onnx'),
         path.resolve(__dirname, '../../weights/farm_lstm.onnx'),
         path.resolve(__dirname, '../weights/farm_lstm.onnx'),
-        path.resolve(process.cwd(), 'app/weights/farm_lstm.onnx'),
-        path.resolve(process.cwd(), 'backend/app/weights/farm_lstm.onnx')
+        path.resolve(process.cwd(), 'app/weights/farm_lstm.onnx')
     ]
 
     let loaded = false

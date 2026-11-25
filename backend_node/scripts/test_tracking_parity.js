@@ -40,7 +40,7 @@ const scene = (stepSec, n) => {
         { stepSec: 1, n: 120 },
         { stepSec: 5, n: 200 },
         { stepSec: 60, n: 360 },
-        { stepSec: 60, n: 40, gapAfter: 20 }   // กล้องหลุด 20 นาที = หลุดการติดตาม
+        { stepSec: 60, n: 40, gapAfter: 20 }   // กล้องหลุด 20 นาที: ไม่นับเป็นเวลาที่หาวัวไม่เจอ ติดตามต่อได้
     ]
     for (const c of cases) {
         let frames = scene(c.stepSec, c.n)
@@ -51,7 +51,7 @@ const scene = (stepSec, n) => {
         const b = browser.trackTarget(frames, seedArg)
         assert.deepStrictEqual(b, s, `trackTarget step ${c.stepSec}s`)
         assert.ok(s.observations.length > 0)
-        if (c.gapAfter) assert.ok(s.lostAt, 'กล้องหลุดนานต้องหลุดการติดตาม')
+        if (c.gapAfter) assert.strictEqual(s.lostAt, null, 'กล้อง/เน็ตหลุดไม่ใช่วัวหาย ต้องติดตามต่อได้')
         const opts = { intervalSec: c.stepSec }
         const sb = server.buildBouts(s.observations, opts)
         assert.deepStrictEqual(browser.buildBouts(b.observations, opts), sb, 'buildBouts')

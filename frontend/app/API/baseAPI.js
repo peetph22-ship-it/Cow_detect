@@ -26,19 +26,6 @@ const resolveEnvNodeApi = () => {
   return 'https://cow-detect-zea6.onrender.com/api'
 }
 
-const resolveEnvFastApi = () => {
-  if (typeof window !== 'undefined' && window.__NUXT__?.config?.public?.apiBase) {
-    return String(window.__NUXT__.config.public.apiBase).replace(/\/+$/, '')
-  }
-  if (typeof import.meta !== 'undefined' && import.meta.env?.NUXT_PUBLIC_API_BASE) {
-    return String(import.meta.env.NUXT_PUBLIC_API_BASE).replace(/\/+$/, '')
-  }
-  if (typeof process !== 'undefined' && process.env?.NUXT_PUBLIC_API_BASE) {
-    return String(process.env.NUXT_PUBLIC_API_BASE).replace(/\/+$/, '')
-  }
-  return 'http://localhost:8000'
-}
-
 export const getNodeApiBase = () => {
   // 1. ตรวจสอบว่าผู้ใช้หรือเกษตรกรตั้งค่าเชื่อมต่อหลังบ้านเพื่อนไว้ในเครื่องหรือไม่
   if (typeof window !== 'undefined') {
@@ -84,18 +71,6 @@ export const getKnownBackends = () => [
   { key: 'local', name: 'เครื่องนี้ (Localhost 4001)', url: 'http://localhost:4001/api', desc: 'รัน backend_node ในเครื่อง' },
   { key: 'friend', name: 'หลังบ้านของเพื่อน (IP / Tunnel)', url: '', desc: 'ใส่ IP เช่น http://192.168.1.50:4001/api หรือ Cloudflare Tunnel' }
 ]
-
-export const getFastApiBase = () => {
-  try {
-    const config = useRuntimeConfig()
-    if (config?.public?.apiBase) {
-      return String(config.public.apiBase).replace(/\/+$/, '')
-    }
-  } catch (e) {
-    // Outside Nuxt setup context
-  }
-  return resolveEnvFastApi()
-}
 
 const defaultNode = resolveEnvNodeApi()
 

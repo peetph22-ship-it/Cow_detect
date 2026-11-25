@@ -316,16 +316,7 @@ npm run dev
 # เซิร์ฟเวอร์จะเริ่มทำงานบน http://localhost:4001 พร้อมเปิด Daily LSTM Cron Job ที่ 20:00 น.
 ```
 
-#### 2. Python FastAPI Backend (Port 8000)
-```bash
-cd backend
-source venv/bin/activate  # หรือ venv\Scripts\activate สำหรับ Windows
-pip install -r requirements.txt
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-# ทดสอบ API ได้ที่ http://localhost:8000/docs
-```
-
-#### 3. Frontend Nuxt 3 (Port 3000)
+#### 2. Frontend Nuxt (Port 3000)
 ```bash
 cd frontend
 npm install
@@ -352,5 +343,4 @@ npm run dev
 | **Devices** | `GET, POST, PUT, DELETE` | `/api/Admin/devices` | จัดการอุปกรณ์ IoT และกล้อง CCTV ในระบบ |
 | **Alerts & LINE**| `GET, POST` | `/api/Admin/alerts` | ประวัติการแจ้งเตือนและส่ง LINE Flex Message |
 | **Coop ESG** | `GET` | `/api/Admin/coop-report/:farmId` | ดึงสมุดความเสี่ยงสำหรับยื่นสหกรณ์และประเมินสินเชื่อ |
-| **Camera AI**| `GET` | `/api/cam/stream` (FastAPI) | สตรีมวิดีโอสดตรวจจับพฤติกรรมโค (YOLO26m) |
-| **YOLO AI** | `POST` | `/api/detect/image` | ส่งภาพเพื่อตรวจจับพฤติกรรมโคนมผ่าน YOLO |
+| **Camera** | `POST` | `/api/camera/snapshot` | กล่อง ESP32 ส่งภาพนิ่งจากกล้อง → YOLO26m บน server |

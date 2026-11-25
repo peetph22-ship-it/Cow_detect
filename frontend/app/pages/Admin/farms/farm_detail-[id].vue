@@ -113,10 +113,11 @@
         <div>
           <div class="flex items-center gap-2">
             <h4 class="text-sm font-black text-amber-900 tracking-tight">
-              ตรวจพบช่วงเวลาข้อมูลขาดหาย (Sensor Telemetry Disconnected)
+              {{ gapAlert.box_online ? 'กล่องออนไลน์ แต่ไม่มีค่าจากเซ็นเซอร์' : 'ตรวจพบช่วงเวลาข้อมูลขาดหาย (Sensor Telemetry Disconnected)' }}
             </h4>
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-200 text-amber-900 uppercase">
-              Offline
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase"
+              :class="gapAlert.box_online ? 'bg-sky-100 text-sky-900' : 'bg-amber-200 text-amber-900'">
+              {{ gapAlert.box_online ? 'Sensor' : 'Offline' }}
             </span>
           </div>
           <p class="text-xs text-amber-800 font-medium mt-0.5">
@@ -1235,25 +1236,22 @@
             </div>
           </div>
 
-          <!-- % โคนอนพัก รายชั่วโมง 24 ชม. (ค่าเฉลี่ยจากภาพทุก {{ cameraBehavior?.interval_min || 10 }} นาที) -->
-          <div class="p-4 rounded-[22px] bg-white border border-[#e5ece9] shadow-xs space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-black text-[#24433a]">% โคนอนพัก รายชั่วโมง (24 ชม.)</span>
-              <span class="text-[10px] text-[#718078]">ภาพทุก {{ cameraBehavior?.interval_min || 10 }} นาที</span>
-            </div>
-            <div v-if="cameraHourly.length" class="flex items-end gap-[3px] h-20">
-              <div
-                v-for="h in cameraHourly"
-                :key="h.hour"
-                class="flex-1 rounded-t bg-blue-500/80 hover:bg-blue-600 transition-colors min-h-[2px]"
-                :style="{ height: `${Math.max(2, h.lying_pct ?? 0)}%` }"
-                :title="`${formatHour(h.hour)} น. · นอน ${h.lying_pct ?? '-'}% · วัวเฉลี่ย ${h.avg_cows ?? '-'} ตัว · ${h.images} ภาพ`">
+          <!-- % โคนอนพัก รายชั่วโมง 24 ชม.: กราฟเส้นเทียบเกณฑ์ CCI 85% · ชั่วโมงที่ไม่มีภาพ = เส้นขาด -->
+          <div class="p-4 rounded-[22px] bg-white border border-[#e5ece9] shadow-xs space-y-1">
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <span class="text-xs font-black text-[#24433a]">% โคนอนพัก รายชั่วโมง (24 ชม.)</span>
+                <div v-if="herdLyingAvg != null" class="text-2xl font-black text-[#24433a] tabular-nums leading-tight">{{ herdLyingAvg }}%
+                  <span class="text-[11px] font-bold text-[#718078]">เฉลี่ย 24 ชม.</span>
+                </div>
               </div>
+              <span v-if="cameraHourly.length" class="text-[10px] text-[#718078]">{{ cameraHourlyImages }} ภาพ</span>
             </div>
-            <div v-if="cameraHourly.length" class="flex justify-between text-[10px] text-[#718078] font-mono">
-              <span>{{ formatHour(cameraHourly[0].hour) }}</span>
-              <span>{{ formatHour(cameraHourly[cameraHourly.length - 1].hour) }}</span>
-            </div>
+            <ClientOnly v-if="cameraHourly.length">
+              <ApexChart type="line" height="190" :options="herdLyingOptions" :series="herdLyingSeries" />
+              <template #fallback><div class="h-[190px]"></div></template>
+            </ClientOnly>
+            <p v-if="cameraHourly.length" class="text-[10px] text-[#718078]">เส้นประเขียว = เกณฑ์สากล 85% (ต่ำกว่าเส้น = โคนอนพักน้อย) · เส้นขาด = ชั่วโมงที่ไม่มีภาพ</p>
             <p v-else class="text-[11px] text-[#718078]">ยังไม่มีภาพจากกล้องใน 24 ชม. ที่ผ่านมา</p>
           </div>
 
@@ -1409,7 +1407,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
-import { getNodeApiBase, getFastApiBase } from '~/API/baseAPI'
+import { getNodeApiBase } from '~/API/baseAPI'
 import AdminEditFarmModal from '~/components/Admin/farm/EditFarmModal.vue'
 import AddCameraModal from '~/components/Admin/cctv/AddCameraModal.vue'
 import SystemAccuracyModal from '~/components/Admin/cctv/SystemAccuracyModal.vue'
@@ -1426,7 +1424,6 @@ definePageMeta({
 
 // อ่าน base ตอน setup: ใน setInterval เรียก useRuntimeConfig ไม่ได้ (จะตกไปใช้ URL production)
 const Admin = `${getNodeApiBase()}/Admin`
-const fastApi = getFastApiBase()
 const route = useRoute()
 const router = useRouter()
 const farmId = computed(() => {
@@ -1516,45 +1513,9 @@ const activeEngineInfo = computed(() => {
   }
 })
 
-// CCTV Smart Barn & YOLO26 Vision AI State
-const isCameraStreamActive = ref(false)
-const cameraFlip = ref(false)
-const cameraStreamKey = ref(Date.now())
-const cameraFeedError = ref(false)
-
+// กล้องหลักของฟาร์ม (ภาพล่าสุดแสดงใน CameraLatestView ไม่มีภาพสดผ่าน FastAPI แล้ว)
 const primaryCamera = computed(() => {
   return registeredCameras.value && registeredCameras.value.length > 0 ? registeredCameras.value[0] : null
-})
-
-const currentCameraSourceLabel = computed(() => {
-  if (primaryCamera.value) {
-    return `${primaryCamera.value.camera_name} (${primaryCamera.value.ip_address})`
-  }
-  return 'ยังไม่ได้ติดตั้งกล้อง'
-})
-
-// รายการกล้องไม่มีรหัสใน URL แล้ว: ขอ URL พร้อมรหัสจาก server (admin) เฉพาะตอนเปิดภาพสด
-const liveRtspUrl = ref('')
-const loadLiveRtspUrl = async () => {
-  liveRtspUrl.value = ''
-  const cam = primaryCamera.value
-  if (!cam || !farmId.value) return
-  try {
-    const token = getToken()
-    const res = await axios.get(`${Admin}/farms/${farmId.value}/cameras/${cam.id}/stream-url`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {}
-    })
-    liveRtspUrl.value = res.data?.sub_stream_url || res.data?.main_stream_url || ''
-  } catch (err) {
-    console.warn('[Camera] stream url:', err.response?.data?.message || err.message)
-  }
-}
-watch(() => primaryCamera.value?.id, loadLiveRtspUrl)
-
-const cameraStreamUrl = computed(() => {
-  if (!primaryCamera.value || !liveRtspUrl.value) return ''
-  const url = liveRtspUrl.value
-  return `${fastApi}/api/cam/stream?cam_id=rtsp&rtsp_url=${encodeURIComponent(url)}&flip=${cameraFlip.value}&t=${cameraStreamKey.value}`
 })
 
 // ผลจากกล้องจริง (YOLO จากภาพที่ ESP32 ส่งมา) ยังไม่มีข้อมูล = ไม่แสดงค่าสมมติ
@@ -1563,6 +1524,57 @@ const farmStreak = ref(null)
 const farmMethod = ref(null)
 const editingCamera = ref(null)
 const cameraHourly = computed(() => cameraBehavior.value?.hourly || [])
+const cameraHourlyImages = computed(() => cameraHourly.value.reduce((n, h) => n + (Number(h.images) || 0), 0).toLocaleString('th-TH'))
+// กราฟเส้น % นอนรายชั่วโมง: เติมชั่วโมงที่ไม่มีภาพเป็น null (เส้นขาด) เวลาไทยเสมอ (+7 ชม. แล้วอ่านแบบ UTC)
+const HOUR_MS = 3600e3
+const herdLyingSeries = computed(() => {
+  const rows = cameraHourly.value
+  if (!rows.length) return [{ name: '% นอน', data: [] }]
+  const byHour = new Map(rows.map(h => [new Date(h.hour).getTime(), h]))
+  const first = new Date(rows[0].hour).getTime()
+  const last = new Date(rows[rows.length - 1].hour).getTime()
+  const data = []
+  for (let t = first; t <= last; t += HOUR_MS) {
+    const h = byHour.get(t)
+    data.push({ x: t + 7 * HOUR_MS, y: h?.lying_pct ?? null, cows: h?.avg_cows, images: h?.images })
+  }
+  return [{ name: '% โคนอนพัก', data }]
+})
+const herdLyingAvg = computed(() => {
+  const v = cameraHourly.value.map(h => h.lying_pct).filter(x => x != null)
+  return v.length ? Math.round(v.reduce((a, b) => a + Number(b), 0) / v.length) : null
+})
+const herdLyingOptions = computed(() => ({
+  chart: { fontFamily: 'inherit', toolbar: { show: false }, zoom: { enabled: false }, animations: { enabled: false }, sparkline: { enabled: false } },
+  colors: ['#3b82f6'],
+  stroke: { curve: 'straight', width: 2 },
+  markers: { size: 0, hover: { size: 4 } },
+  dataLabels: { enabled: false },
+  xaxis: {
+    type: 'datetime',
+    labels: { datetimeUTC: true, rotate: 0, hideOverlappingLabels: true, formatter: (v) => new Date(Number(v)).toISOString().slice(11, 16), style: { fontSize: '10px', colors: '#718078' } },
+    // ช่วง 24 ชม. พอดี + 8 ขีด = ขีดทุก 3 ชม. ตรงต้นชั่วโมง
+    min: herdLyingSeries.value[0].data[0]?.x,
+    max: (herdLyingSeries.value[0].data[0]?.x ?? 0) + 24 * HOUR_MS,
+    tickAmount: 8,
+    axisBorder: { show: false },
+    axisTicks: { show: false },
+    tooltip: { enabled: false }
+  },
+  yaxis: { min: 0, max: 100, tickAmount: 2, labels: { formatter: (v) => `${Math.round(v)}%`, style: { fontSize: '10px', colors: '#a6b5aa' } } },
+  annotations: { yaxis: [{ y: 85, borderColor: '#10b981', strokeDashArray: 4, label: { text: 'เกณฑ์ 85%', position: 'right', textAnchor: 'end', borderColor: '#10b981', style: { color: '#fff', background: '#10b981', fontSize: '10px', fontWeight: 700 } } }] },
+  grid: { borderColor: '#f0f4f2', padding: { left: 4, right: 8 } },
+  legend: { show: false },   // เส้นเดียว ชื่อกราฟบอกอยู่แล้ว
+  tooltip: {
+    custom: ({ dataPointIndex, w }) => {
+      const p = w.config.series[0].data[dataPointIndex]
+      if (!p) return ''
+      const hh = new Date(p.x).toISOString().slice(11, 16)
+      return `<div style="padding:6px 10px;font-size:12px;line-height:1.6"><b>${hh} น.</b><br>` +
+        (p.y == null ? 'ไม่มีภาพชั่วโมงนี้' : `นอน <b style="color:#3b82f6">${Math.round(p.y)}%</b> · วัวเฉลี่ย ${p.cows ?? '-'} ตัว · ${p.images} ภาพ`) + '</div>'
+    }
+  }
+}))
 
 const liveCciScore = computed(() => {
   const v = cameraBehavior.value?.latest?.cci
@@ -1695,7 +1707,6 @@ const deleteRegisteredCamera = async (camId) => {
     await axios.delete(`${Admin}/farms/${farmId.value}/cameras/${camId}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     })
-    isCameraStreamActive.value = false
     await fetchRegisteredCameras()
   } catch (e) {
     alert(e.response?.data?.message || e.message)
@@ -1759,19 +1770,6 @@ const onCameraCreated = (cam) => {
 const onCameraUpdated = () => {
   editingCamera.value = null
   fetchRegisteredCameras()
-  loadLiveRtspUrl()
-}
-
-const onCameraChange = () => {
-  cameraFeedError.value = false
-  cameraStreamKey.value = Date.now()
-}
-
-const toggleCameraStream = async () => {
-  if (!primaryCamera.value) return
-  isCameraStreamActive.value = !isCameraStreamActive.value
-  cameraFeedError.value = false
-  cameraStreamKey.value = Date.now()
 }
 
 const runDailyJobNow = async () => {
@@ -1809,13 +1807,15 @@ const handleFarmDeleted = () => {
 
 const nowTimestamp = ref(Date.now())
 
-// Device Online State (ถือว่า Online หากมีการส่งข้อมูลล่าสุดภายใน 2 นาที)
+// กล่องออนไลน์ = ติดต่อมาล่าสุด (ค่าเซ็นเซอร์หรือ heartbeat ทุก 5 นาที) ภายใน 7 นาที ตรงกับ BOX_ONLINE_MIN ฝั่ง server
+// (เดิมดูแค่ค่าเซ็นเซอร์ภายใน 2 นาที กล่องที่เซ็นเซอร์เสียแต่ยังทำงานจึงขึ้น Offline)
+const BOX_ONLINE_MS = 7 * 60 * 1000
 const isDeviceOnline = computed(() => {
-  if (!device.value && !latestSensor.value) return false
-  const lastTime = latestSensor.value?.recorded_at || device.value?.last_seen_at
-  if (!lastTime) return false
-  const diffMs = nowTimestamp.value - new Date(lastTime).getTime()
-  return diffMs >= -60000 && diffMs < 2 * 60 * 1000 // หากเกิน 2 นาทีโดยไม่มีข้อมูลใหม่ ถือว่า Offline
+  const times = [latestSensor.value?.recorded_at, device.value?.last_seen_at]
+    .filter(Boolean).map(t => new Date(t).getTime()).filter(Number.isFinite)
+  if (!times.length) return false
+  const diffMs = nowTimestamp.value - Math.max(...times)
+  return diffMs >= -60000 && diffMs < BOX_ONLINE_MS
 })
 
 // ช่วง 24 ชม. ของสรุป เมื่อข้อมูลล่าสุดเก่ากว่า 1 วัน (null = ข้อมูลเป็นปัจจุบัน ไม่ต้องแสดง)

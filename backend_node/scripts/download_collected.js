@@ -10,50 +10,13 @@
  * แต่ละวันได้ index.csv (เวลา สถานะ จำนวนวัวแต่ละท่า เวลาประมวลผล) ไว้ใช้ตีกรอบ/วิเคราะห์ต่อ
  * ไฟล์ที่มีอยู่แล้วจะข้าม รันซ้ำเพื่อดึงต่อได้
  * ต้องมี SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY ใน backend_node/.env
+ * หลังดาวน์โหลด: ตรวจสำเนาแล้วลบออกจาก Storage ด้วย scripts/free_collected.js
  */
 const fs = require('fs')
 const path = require('path')
-require('dotenv').config({ path: path.join(__dirname, '..', '.env'), quiet: true })
+const { BUCKET, PREFIX, DEFAULT_OUT, parseArgs, getClient, listAll, dayFiles } = require('./lib/collectedStorage')
 
-const BUCKET = process.env.CAMERA_SAMPLE_BUCKET || 'camera-samples'
-const PREFIX = 'collect'
-const DEFAULT_OUT = path.resolve(__dirname, '../../backend/training_archive/farm_collect')
-const PAGE = 1000
 const PARALLEL = 4
-
-const parseArgs = (argv) => {
-    const out = {}
-    for (let i = 0; i < argv.length; i++) {
-        if (!argv[i].startsWith('--')) continue
-        const next = argv[i + 1]
-        if (next !== undefined && !next.startsWith('--')) { out[argv[i].slice(2)] = next; i++ } else out[argv[i].slice(2)] = true
-    }
-    return out
-}
-
-const getClient = () => {
-    const url = process.env.SUPABASE_URL
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-    if (!url || !key) {
-        throw new Error('ไม่มี SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY ใน backend_node/.env\n'
-            + '  เพิ่ม 2 บรรทัดนี้ใน backend_node/.env (ค่าเดียวกับ Render > Environment หรือ Supabase > Project Settings > API > service_role)\n'
-            + '  ห้าม commit ไฟล์ .env (มีใน .gitignore แล้ว)')
-    }
-    const { createClient } = require('@supabase/supabase-js')
-    return createClient(url, key, { auth: { persistSession: false } })
-}
-
-// รายการทั้งหมดในโฟลเดอร์ (โฟลเดอร์ย่อยมี id = null)
-const listAll = async (storage, dir) => {
-    const items = []
-    for (let offset = 0; ; offset += PAGE) {
-        const { data, error } = await storage.list(dir, { limit: PAGE, offset, sortBy: { column: 'name', order: 'asc' } })
-        if (error) throw new Error(`list ${dir}: ${error.message}`)
-        items.push(...(data || []).filter(x => x.name && x.name !== '.emptyFolderPlaceholder'))
-        if (!data || data.length < PAGE) break
-    }
-    return items
-}
 
 const csvCell = (v) => {
     if (v === null || v === undefined) return ''
@@ -114,7 +77,7 @@ const main = async () => {
         const remoteDir = `${PREFIX}/${farm}/${day}`
         const localDir = path.join(outRoot, farm, day)
         fs.mkdirSync(localDir, { recursive: true })
-        const files = (await listAll(storage, remoteDir)).filter(x => x.id && /^\d{6}\.(jpg|json)$/.test(x.name))
+        const files = await dayFiles(storage, farm, day)
         const todo = files.filter(f => !fs.existsSync(path.join(localDir, f.name)))
         let done = 0
         let failed = 0

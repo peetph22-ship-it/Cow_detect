@@ -24,6 +24,7 @@ const {
 const cowTarget = require('../services/cowTargetTracker')
 const { isCollecting } = require('../services/collectMode')
 const { assignBoxIds } = require('../services/cowIdAssign')
+const { recordFrame } = require('../services/hardwareLog')
 
 // แปลง error ของ body parser (เช่น รูปเกิน 2MB) ให้ตอบเป็น JSON ที่ firmware อ่านได้
 const rawJpeg = express.raw({ type: ['image/jpeg', 'application/octet-stream'], limit: '2mb' })
@@ -98,8 +99,11 @@ router.post(
         const next = settings.interval ? { next_interval_sec: settings.interval } : {}
         const collect = isCollecting(settings, receivedAt)
         const jpeg = req.body
+        // ทุกภาพที่ถึง server (ขนาด เวลาถ่าย เวลาที่ได้รับ) ใช้คำนวณความครบ ปริมาณเน็ต และความหน่วง ไม่รอผล
+        const frame = { deviceId: device.id, farmId: device.farmId, capturedAt, receivedAt, bytes: jpeg.length }
 
         if (!vision.canAccept()) {
+            recordFrame({ ...frame, status: 'busy' })
             // โหมดเก็บภาพทุกภาพ: ประมวลผลไม่ทันก็ยังเก็บภาพไว้ (กล่องข้ามภาพนี้ ไม่ส่งซ้ำ)
             if (collect) keepUnprocessed(device.farmId, capturedAt, jpeg, 'busy')
             res.set('Retry-After', '60')
@@ -107,6 +111,7 @@ router.post(
         }
 
         res.status(202).json({ success: true, accepted: true, captured_at: Math.floor(capturedAt.getTime() / 1000), ...next })
+        recordFrame({ ...frame, status: 'accepted' })
 
         // ประมวลผลเบื้องหลัง (บอร์ดไม่ต้องรอ) ผลลัพธ์ดูได้จากตาราง cctv_behavior_telemetry
         processSnapshot(device, capturedAt, jpeg, { collect, receivedAt }).catch(err => console.error('[Camera] processing failed:', err.message))
