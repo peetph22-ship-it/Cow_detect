@@ -72,6 +72,25 @@ router.get('/images', adminOnly, farmGuard, async (req, res) => {
     }
 })
 
+// ผลของโมเดลของภาพเดียวจาก telemetry (กรอบเรียงลำดับเดียวกับ latest.json ของภาพนั้น)
+// รับเฉพาะภาพของฟาร์มนี้ไม่เกิน 1 ชม. ที่แล้ว
+const readFrameResult = async (farmId, capturedAt) => {
+    const t = new Date(capturedAt)
+    if (!Number.isFinite(t.getTime()) || Date.now() - t.getTime() > 3600e3) return null
+    try {
+        const { rows } = await db.query(
+            `SELECT timestamp, detections->'boxes' AS boxes FROM cctv_behavior_telemetry
+             WHERE farm_id = $1 AND is_simulation = false AND timestamp = $2 AND detections IS NOT NULL
+             ORDER BY id DESC LIMIT 1`, [farmId, t.toISOString()])
+        const r = rows[0]
+        if (!r || !Array.isArray(r.boxes)) return null
+        return { captured_at: new Date(r.timestamp).toISOString(), boxes: r.boxes }
+    } catch (err) {
+        console.warn('[Cow Target] frame lookup failed:', err.message)
+        return null
+    }
+}
+
 router.post('/', adminOnly, farmGuard, async (req, res) => {
     const { farmId } = req.params
     const { source, captured_at: capturedAt, box_index: boxIndex } = req.body || {}
@@ -86,11 +105,15 @@ router.post('/', adminOnly, farmGuard, async (req, res) => {
     if (source !== 'latest' && !isSample) return res.status(400).json({ success: false, message: 'ภาพที่เลือกไม่ถูกต้อง' })
 
     try {
-        const meta = source === 'latest' ? await readLatestResult(farmId) : await readSampleResult(source)
+        let meta = source === 'latest' ? await readLatestResult(farmId) : await readSampleResult(source)
         if (!meta) return res.status(404).json({ success: false, message: 'ไม่พบภาพหรือผลของโมเดลของภาพนี้' })
-        // ภาพล่าสุดถูกเขียนทับทุกรอบถ่ายภาพ: ถ้าเปลี่ยนไปแล้ว กรอบลำดับเดิมอาจเป็นวัวตัวอื่น
+        // ภาพล่าสุดถูกเขียนทับทุกรอบถ่ายภาพ (ทุก 15 วิ ภาพมักเปลี่ยนก่อนผู้ใช้กดเลือกเสร็จ)
+        // ใช้กรอบของภาพที่ผู้ใช้เห็นจริงจาก telemetry (กรอบลำดับเดียวกับภาพล่าสุดตอนนั้น) แทนการให้เลือกใหม่
         if (capturedAt && meta.captured_at !== capturedAt) {
-            return res.status(409).json({ success: false, message: 'ภาพล่าสุดเปลี่ยนแล้ว กรุณาโหลดภาพใหม่แล้วเลือกอีกครั้ง' })
+            meta = source === 'latest' ? await readFrameResult(farmId, capturedAt) : null
+            if (!meta) {
+                return res.status(409).json({ success: false, message: 'ไม่พบผลของภาพที่เลือก (ภาพเก่าเกินไปหรือยังประมวลผลไม่เสร็จ) กรุณาโหลดภาพใหม่แล้วเลือกอีกครั้ง' })
+            }
         }
         const box = meta.boxes?.[boxIndex]
         if (!box) return res.status(400).json({ success: false, message: 'ไม่พบกรอบวัวที่เลือกในภาพนี้' })

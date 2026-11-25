@@ -80,6 +80,23 @@ assert.strictEqual(lost.lostAt, at(25))
 assert.strictEqual(lost.observations.length, 25)
 assert.strictEqual(lost.observations.filter(o => o.behavior === 'not_visible').length, 15)
 
+// --- 5b) กล้อง/เน็ตหลุด 20 นาที (ไม่มีภาพเข้ามาเลย) แล้ววัวยังอยู่ที่เดิม: ไม่นับเป็นเวลาที่หาวัวไม่เจอ ติดตามต่อได้
+const outageFrames = []
+for (let m = 0; m < 10; m++) outageFrames.push({ observedAt: at(m), boxes: [lie(0.49, 0.625)] })
+for (let m = 30; m < 35; m++) outageFrames.push({ observedAt: at(m), boxes: [lie(0.49, 0.625)] })
+const outage = trackTarget(outageFrames, { box: lie(0.49, 0.625), at: at(0) })
+assert.strictEqual(outage.lostAt, null, 'a camera outage is not the cow going missing')
+assert.strictEqual(outage.observations.length, 15)
+assert.ok(outage.observations.every(o => o.behavior === 'lying'))
+
+// --- 5c) หาย 10 นาที + กล้องหลุด 20 นาที + หายอีก 10 นาที = หายรวม 20 นาทีจากภาพที่เข้ามา -> หลุด
+const mixFrames = []
+for (let m = 0; m < 5; m++) mixFrames.push({ observedAt: at(m), boxes: [lie(0.49, 0.625)] })
+for (let m = 5; m < 15; m++) mixFrames.push({ observedAt: at(m), boxes: [] })
+for (let m = 35; m < 50; m++) mixFrames.push({ observedAt: at(m), boxes: [] })
+const mix = trackTarget(mixFrames, { box: lie(0.49, 0.625), at: at(0) })
+assert.ok(mix.lostAt, 'unseen time adds up across an outage')
+
 // --- 6) กล้องหลุด 30 นาที: ไม่ลากช่วงข้าม และไม่นับเป็นเวลาที่มีข้อมูล
 const gapObs = []
 for (let m = 0; m < 10; m++) gapObs.push({ observedAt: at(m), behavior: 'lying' })

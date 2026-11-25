@@ -43,6 +43,11 @@ const query = async (sql, p = []) => {
         db.targets.push(t)
         return { rows: [t] }
     }
+    if (sql.includes("detections->'boxes' AS boxes") && sql.includes('timestamp = $2')) {
+        // ผลของภาพเดียว (เลือกวัวจากภาพที่ผู้ใช้เห็น แม้ภาพล่าสุดเปลี่ยนไปแล้ว)
+        const r = db.telemetry.find(t => t.farm_id === p[0] && t.timestamp.toISOString() === p[1])
+        return { rows: r ? [{ timestamp: r.timestamp, boxes: r.detections.boxes }] : [] }
+    }
     if (sql.includes('FROM cctv_behavior_telemetry')) {
         return { rows: db.telemetry.filter(r => r.farm_id === p[0] && r.timestamp >= new Date(p[1])).sort((a, b) => a.timestamp - b.timestamp) }
     }
@@ -147,25 +152,41 @@ const server = app.listen(0, async () => {
         assert.strictEqual(db.targets.filter(t => t.active).length, 1, 'only one active target per farm')
         assert.strictEqual(db.cows.length, 1, 'same tag = same cow')
 
-        // วัวหายจากภาพนานเกิน 15 นาที: หลุดการติดตาม เลิก active
-        const gone = { id: 201, farm_id: FARM, camera_id: null, timestamp: at(50), detections: { boxes: [NEIGHBOUR] } }
-        db.telemetry.push(gone)
-        assert.strictEqual((await tracker.onSnapshot(FARM, gone)).lostAt, at(50).toISOString())
+        // วัวหายจากภาพ (ภาพยังเข้ามาทุกนาที) นานเกิน 15 นาที: หลุดการติดตาม เลิก active
+        let lostRes = null
+        for (let m = 31; m <= 50; m++) {
+            const gone = { id: 170 + m, farm_id: FARM, camera_id: null, timestamp: at(m), detections: { boxes: [NEIGHBOUR] } }
+            db.telemetry.push(gone)
+            const res = await tracker.onSnapshot(FARM, gone)
+            if (res?.lostAt) { lostRes = res; break }
+        }
+        assert.strictEqual(lostRes.lostAt, at(46).toISOString(), 'unseen for more than 15 min of incoming images')
         r = await call('GET', `/${FARM}/cow-target`)
-        assert.strictEqual(r.body.target.active, false); assert.strictEqual(r.body.target.lost_at, at(50).toISOString())
-        assert.strictEqual(await tracker.onSnapshot(FARM, { ...gone, id: 202, timestamp: at(51) }), null, 'no active target after lost')
+        assert.strictEqual(r.body.target.active, false); assert.strictEqual(r.body.target.lost_at, at(46).toISOString())
+        assert.strictEqual(await tracker.onSnapshot(FARM, { id: 299, farm_id: FARM, camera_id: null, timestamp: at(51), detections: { boxes: [NEIGHBOUR] } }), null, 'no active target after lost')
 
         // เลือกใหม่จากภาพแรก: การคำนวณย้อนหลังเจอช่วงที่วัวหายเกิน 15 นาทีเอง จึงหลุดตั้งแต่ตอนคำนวณ
         r = await call('POST', `/${FARM}/cow-target`, pick())
-        assert.strictEqual(r.body.lostAt, at(50).toISOString())
+        assert.strictEqual(r.body.lostAt, at(46).toISOString())
         assert.strictEqual((await call('POST', `/${FARM}/cow-target/stop`)).body.stopped, false, 'nothing active to stop')
 
         // เลือกใหม่ (ไม่มีช่วงที่หาย) แล้วกดเลิกติดตาม
-        db.telemetry = db.telemetry.filter(t => t.id !== 201)
+        db.telemetry = db.telemetry.filter(t => t.id < 201 || t.id > 220)
         await call('POST', `/${FARM}/cow-target`, pick())
         r = await call('POST', `/${FARM}/cow-target/stop`)
         assert.strictEqual(r.body.stopped, true)
         assert.strictEqual(db.targets.filter(t => t.active).length, 0)
+
+        // รอบ 15 วิ: ภาพล่าสุดเปลี่ยนก่อนกดเลือกเสร็จ ใช้กรอบของภาพที่ผู้ใช้เห็นจาก telemetry แทน (ไม่ต้องเลือกใหม่)
+        const seen = new Date(Math.floor((Date.now() - 30e3) / 1000) * 1000)
+        db.telemetry.push({ id: 400, farm_id: FARM, camera_id: null, timestamp: seen, detections: { boxes: [NEIGHBOUR, lie(0.49)] } })
+        r = await call('POST', `/${FARM}/cow-target`, pick({ captured_at: seen.toISOString() }))
+        assert.strictEqual(r.status, 200, JSON.stringify(r.body))
+        assert.strictEqual(db.targets.find(t => t.active).seed_box.x1, lie(0.49).x1, 'seed is the clicked cow in the image the user saw')
+        // ภาพที่ไม่มีใน telemetry (หรือเก่ากว่า 1 ชม.) ยังให้โหลดภาพใหม่
+        r = await call('POST', `/${FARM}/cow-target`, pick({ captured_at: new Date(seen.getTime() - 15e3).toISOString() }))
+        assert.strictEqual(r.status, 409)
+        await call('POST', `/${FARM}/cow-target/stop`)
 
         console.log('cow_target_test: all passed')
     } catch (e) {
