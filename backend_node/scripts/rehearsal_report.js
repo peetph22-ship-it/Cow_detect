@@ -308,7 +308,7 @@ const printReport = (r) => {
     const failed = new Set(fail.map(c => c.key))
     if (failed.has('processing') || failed.has('busy')) L('→ server ฟรีไม่ทัน: อัปเกรด Render เฉพาะเดือนที่เก็บข้อมูล หรือรัน backend บน laptop ที่ฟาร์ม (PROJECT_PLAN หัวข้อ 5)')
     if (failed.has('camera') && !failed.has('busy')) L('→ ภาพหายก่อนถึง server: ตรวจ Wi-Fi/เน็ตของกล่องและการเชื่อมต่อกล้อง (Serial Monitor บรรทัด [CAM])')
-    if (failed.has('sensor')) L('→ เซ็นเซอร์ขาดช่วง: ตรวจไฟเลี้ยงกล่อง สายเซ็นเซอร์ SHT40 (3.3V, SDA 8, SCL 9) และ Wi-Fi')
+    if (failed.has('sensor')) L('→ เซ็นเซอร์ขาดช่วง: ตรวจไฟเลี้ยงกล่อง สายเซ็นเซอร์ SHT40 (3.3V, SDA 11, SCL 12) และ Wi-Fi')
 }
 
 main().catch(async (err) => {

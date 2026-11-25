@@ -122,16 +122,21 @@ const float THI_SEVERE = 82.0f;
 Adafruit_ST7789 tft = Adafruit_ST7789(TFT_CS, TFT_DC, TFT_MOSI, TFT_SCLK, TFT_RST);
 
 // --- SHT40 (I2C) --- ไฟเลี้ยง 3.3V เท่านั้น (ห้ามต่อ 5V), สายแดง VCC, ดำ GND, เขียว SDA, เหลือง SCL
-// ขา 8/9 ว่าง (จอใช้ 1, 2, 40, 41, 42) เปลี่ยนได้ใน secrets.h ด้วย SHT_SDA_PIN_VAL / SHT_SCL_PIN_VAL
+// SDA ขา 11 / SCL ขา 12 (จอใช้ 1, 2, 40, 41, 42) เปลี่ยนได้ใน secrets.h ด้วย SHT_SDA_PIN_VAL / SHT_SCL_PIN_VAL
 #ifndef SHT_SDA_PIN_VAL
-#define SHT_SDA_PIN_VAL 8
+#define SHT_SDA_PIN_VAL 11
 #endif
 #ifndef SHT_SCL_PIN_VAL
-#define SHT_SCL_PIN_VAL 9
+#define SHT_SCL_PIN_VAL 12
 #endif
 #define SHT_SDA SHT_SDA_PIN_VAL
 #define SHT_SCL SHT_SCL_PIN_VAL
-const uint32_t I2C_HZ = 100000;          // 100 kHz: ทนสายยาว ~1 ม. ได้ดีกว่า 400 kHz
+// 50 kHz: ช้าแต่ทนกว่า ใช้ได้แม้ไม่มีตัวต้านทาน pull-up ภายนอก (อาศัย pull-up ในชิป ESP32 ~45 kΩ) กับสาย ~1 ม.
+// ถ้าใส่ตัวต้านทาน 4.7 kΩ แล้ว ตั้ง SHT_I2C_HZ_VAL 100000 ใน secrets.h ได้
+#ifndef SHT_I2C_HZ_VAL
+#define SHT_I2C_HZ_VAL 50000
+#endif
+const uint32_t I2C_HZ = SHT_I2C_HZ_VAL;
 const int SHT_RECOVER_AFTER = 5;         // อ่านพลาดติดกันกี่ครั้งถึงล้างบัส + soft reset + ตรวจรุ่นใหม่
 
 // หัววัดที่ขายออนไลน์อาจไม่ใช่รุ่นตามชื่อ: ตรวจรุ่นจริงตอนเปิดเครื่องแล้วอ่านด้วยคำสั่งของรุ่นนั้น
@@ -258,6 +263,12 @@ uint8_t crc8(const uint8_t* d, size_t n, uint8_t init) {
     for (int b = 0; b < 8; b++) crc = (crc & 0x80) ? (uint8_t)((crc << 1) ^ 0x31) : (uint8_t)(crc << 1);
   }
   return crc;
+}
+
+// เปิด pull-up ในชิป ESP32 ที่ขา SDA/SCL (สำรองกรณีไม่มีตัวต้านทานภายนอก)
+void enableI2cPullups() {
+  gpio_pullup_en((gpio_num_t)SHT_SDA);
+  gpio_pullup_en((gpio_num_t)SHT_SCL);
 }
 
 bool i2cPresent(uint8_t addr) {
@@ -436,6 +447,7 @@ void shtRecoverBus() {
   digitalWrite(SHT_SDA, HIGH);  // STOP
   delayMicroseconds(5);
   Wire.begin(SHT_SDA, SHT_SCL, I2C_HZ);
+  enableI2cPullups();
   if (sensKind == SENS_SHT4X) { const uint8_t r[] = { 0x94 }; i2cXfer(sensAddr, r, 1, 2, nullptr, 0); }
   if (sensKind == SENS_SHT3X) { const uint8_t r[] = { 0x30, 0xA2 }; i2cXfer(sensAddr, r, 2, 2, nullptr, 0); }
   SensorKind before = sensKind;
@@ -1235,6 +1247,7 @@ void setup() {
   esp_task_wdt_add(nullptr);  // loop ค้าง = watchdog รีบูต
 
   Wire.begin(SHT_SDA, SHT_SCL, I2C_HZ);
+  enableI2cPullups();
   delay(2);
   sensKind = detectSensor();
   reportSensor();

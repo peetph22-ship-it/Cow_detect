@@ -76,7 +76,7 @@ const summarizeHealth = ({ last_heartbeat_at, health, last_reading_at, last_seen
         message = 'กล่องไม่ได้ติดต่อมา ตรวจไฟและอินเทอร์เน็ตที่โรงเรือน'
     } else if (h.sensor_ok === false || (h.sensor_last_ok_s != null && h.sensor_last_ok_s > 120) || h.sensor_last_ok_s === -1) {
         status = 'sensor_fault'
-        message = 'กล่องออนไลน์ แต่อ่านค่าเซ็นเซอร์ไม่ได้ ตรวจสายและไฟเลี้ยงของเซ็นเซอร์ (SHT40: 3.3V, SDA 8, SCL 9)'
+        message = 'กล่องออนไลน์ แต่อ่านค่าเซ็นเซอร์ไม่ได้ ตรวจสายและไฟเลี้ยงของเซ็นเซอร์ (SHT40: 3.3V, SDA 11, SCL 12)'
     } else if ((h.queue || 0) + (h.pending || 0) > 40 || (readMin != null && readMin > READING_STALE_MIN)) {
         status = 'backlog'
         message = 'กล่องอ่านค่าได้ แต่ส่งข้อมูลขึ้นระบบไม่ทัน (ข้อมูลยังเก็บอยู่ในกล่อง)'
