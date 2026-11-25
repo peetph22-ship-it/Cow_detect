@@ -267,7 +267,8 @@
 
               <!-- Telemetry -->
               <td class="py-4 px-6">
-                <div v-if="device.temperature_c != null" class="flex items-center gap-2">
+                <div v-if="device.temperature_c != null" class="flex flex-wrap items-center gap-2"
+                  :class="isStaleReading(device) ? 'opacity-50' : ''">
                   <div class="bg-[#F6F7F5] px-2 py-1 rounded-lg border border-[#E4E8E5] text-center">
                     <div class="text-[9px] text-[#718078] font-bold uppercase">THI</div>
                     <div 
@@ -284,6 +285,11 @@
                     <div class="text-[9px] text-[#718078] font-bold uppercase">ความชื้น</div>
                     <div class="font-bold text-xs text-[#142820]">{{ device.humidity_pct }}%</div>
                   </div>
+                  <!-- อายุของค่า: ค่าเก่าไม่ใช่สภาพตอนนี้ -->
+                  <span v-if="device.reading_age_min != null" class="w-full text-[10px] font-bold"
+                    :class="isStaleReading(device) ? 'text-rose-600' : 'text-[#718078]'">
+                    {{ isStaleReading(device) ? 'ค่าเก่า: ' : 'วัดเมื่อ ' }}{{ ageText(device.reading_age_min) }}
+                  </span>
                 </div>
                 <div v-else class="text-[11px] text-[#718078] italic">
                   - ไม่มีข้อมูลล่าสุด -
@@ -508,6 +514,12 @@ const fetchDevices = async () => {
 
 // Stats Computed
 const totalDevices = computed(() => devices.value.length)
+// ค่าเซ็นเซอร์เก่ากว่า 10 นาที = ไม่ใช่สภาพตอนนี้ (กล่องส่งทุก 15 วินาที)
+const isStaleReading = (d) => d.reading_age_min != null && d.reading_age_min > 10
+const ageText = (min) => min < 1 ? 'เมื่อสักครู่'
+  : min < 60 ? `${min} นาทีที่แล้ว`
+  : min < 1440 ? `${Math.floor(min / 60)} ชม. ${min % 60} นาทีที่แล้ว`
+  : `${Math.floor(min / 1440)} วันที่แล้ว`
 const onlineCount = computed(() => devices.value.filter(d => d.computed_status === 'online').length)
 const healthClass = (st) => ({ ok: 'text-emerald-700', sensor_fault: 'text-rose-700 font-semibold', backlog: 'text-amber-700', offline: 'text-rose-700' }[st] || 'text-[#718078]')
 const offlineCount = computed(() => totalDevices.value - onlineCount.value)

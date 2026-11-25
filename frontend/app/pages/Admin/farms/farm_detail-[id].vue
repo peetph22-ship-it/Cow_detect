@@ -113,10 +113,11 @@
         <div>
           <div class="flex items-center gap-2">
             <h4 class="text-sm font-black text-amber-900 tracking-tight">
-              ตรวจพบช่วงเวลาข้อมูลขาดหาย (Sensor Telemetry Disconnected)
+              {{ gapAlert.box_online ? 'กล่องออนไลน์ แต่ไม่มีค่าจากเซ็นเซอร์' : 'ตรวจพบช่วงเวลาข้อมูลขาดหาย (Sensor Telemetry Disconnected)' }}
             </h4>
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-200 text-amber-900 uppercase">
-              Offline
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase"
+              :class="gapAlert.box_online ? 'bg-sky-100 text-sky-900' : 'bg-amber-200 text-amber-900'">
+              {{ gapAlert.box_online ? 'Sensor' : 'Offline' }}
             </span>
           </div>
           <p class="text-xs text-amber-800 font-medium mt-0.5">
@@ -1857,13 +1858,15 @@ const handleFarmDeleted = () => {
 
 const nowTimestamp = ref(Date.now())
 
-// Device Online State (ถือว่า Online หากมีการส่งข้อมูลล่าสุดภายใน 2 นาที)
+// กล่องออนไลน์ = ติดต่อมาล่าสุด (ค่าเซ็นเซอร์หรือ heartbeat ทุก 5 นาที) ภายใน 7 นาที ตรงกับ BOX_ONLINE_MIN ฝั่ง server
+// (เดิมดูแค่ค่าเซ็นเซอร์ภายใน 2 นาที กล่องที่เซ็นเซอร์เสียแต่ยังทำงานจึงขึ้น Offline)
+const BOX_ONLINE_MS = 7 * 60 * 1000
 const isDeviceOnline = computed(() => {
-  if (!device.value && !latestSensor.value) return false
-  const lastTime = latestSensor.value?.recorded_at || device.value?.last_seen_at
-  if (!lastTime) return false
-  const diffMs = nowTimestamp.value - new Date(lastTime).getTime()
-  return diffMs >= -60000 && diffMs < 2 * 60 * 1000 // หากเกิน 2 นาทีโดยไม่มีข้อมูลใหม่ ถือว่า Offline
+  const times = [latestSensor.value?.recorded_at, device.value?.last_seen_at]
+    .filter(Boolean).map(t => new Date(t).getTime()).filter(Number.isFinite)
+  if (!times.length) return false
+  const diffMs = nowTimestamp.value - Math.max(...times)
+  return diffMs >= -60000 && diffMs < BOX_ONLINE_MS
 })
 
 // ช่วง 24 ชม. ของสรุป เมื่อข้อมูลล่าสุดเก่ากว่า 1 วัน (null = ข้อมูลเป็นปัจจุบัน ไม่ต้องแสดง)

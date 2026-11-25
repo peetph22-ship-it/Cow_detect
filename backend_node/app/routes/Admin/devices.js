@@ -8,9 +8,9 @@ const router = express.Router()
 const db = require('../../config/db')
 const { verifyToken, requireRole } = require('../../middleware/authMiddleware')
 const { generateDeviceKey, hashDeviceKey } = require('../../middleware/deviceAuthMiddleware')
-const { summarizeHealth } = require('../../services/deviceHealth')
+const { summarizeHealth, BOX_ONLINE_MIN } = require('../../services/deviceHealth')
 const { calcThi } = require('../../services/heatStress')
-const { INTERVAL_MIN: CAMERA_INTERVAL_MIN } = require('../../services/cameraBehavior')
+const { cameraStatus, agoText, latestOf, lastFrameByFarm } = require('../../services/cameraStatus')
 const { MAX_MINUTES: COLLECT_MAX_MINUTES, DEFAULT_IMAGE_KB, parseCollectMinutes, collectState } = require('../../services/collectMode')
 const { BUCKET: SAMPLE_BUCKET, COLLECT_PREFIX } = require('../../services/cameraSamples')
 
@@ -80,7 +80,8 @@ router.get('/', verifyToken, requireRole('admin'), async (req, res) => {
                 f.name_farms,
                 f.province,
                 u.name_users AS farmer_name,
-                lt.last_image_at
+                lt.last_image_at,
+                di.interval_sec
             FROM cctv_cameras c
             LEFT JOIN tb_farms f ON f.id_farms = c.farm_id
             LEFT JOIN tb_users u ON u.id_users = f.id_users
@@ -89,15 +90,22 @@ router.get('/', verifyToken, requireRole('admin'), async (req, res) => {
                 FROM cctv_behavior_telemetry t
                 WHERE t.farm_id = c.farm_id AND t.is_simulation = false
             ) lt ON true
+            -- รอบถ่ายภาพของกล่องที่ผูกกับฟาร์มเดียวกัน (ใช้ตัดสินว่ากล้องขาดการติดต่อ)
+            LEFT JOIN LATERAL (
+                SELECT (to_jsonb(d)->>'camera_interval_sec')::int AS interval_sec
+                FROM tb_devices d WHERE d.id_farms = c.farm_id
+                ORDER BY d.last_seen_at DESC NULLS LAST LIMIT 1
+            ) di ON true
             ORDER BY c.created_at DESC
         `
 
-        const [devRes, camRes] = await Promise.all([
+        const [devRes, camRes, frames] = await Promise.all([
             db.query(queryDevices),
             db.query(queryCameras).catch(err => {
                 console.warn('[Admin Devices] cctv_cameras query error:', err.message)
                 return { rows: [] }
-            })
+            }),
+            lastFrameByFarm(db)
         ])
 
         const now = Date.now()
@@ -118,23 +126,27 @@ router.get('/', verifyToken, requireRole('admin'), async (req, res) => {
                 ...rest,
                 collect: collectState(dev, new Date(now)),
                 thi: calcThi(temp, hum),
-                computed_status: diffMin != null && diffMin < 5 ? 'online' : 'offline',
+                computed_status: diffMin != null && diffMin < BOX_ONLINE_MIN ? 'online' : 'offline',
                 minutes_since_seen: diffMin != null ? Math.round(diffMin) : null,
+                // อายุของค่าเซ็นเซอร์ล่าสุด (นาที) หน้าเว็บใช้บอกว่าเป็นค่าเก่า
+                reading_age_min: dev.last_reading_time ? Math.max(0, Math.round((now - new Date(dev.last_reading_time).getTime()) / 60000)) : null,
                 health_summary: health
             }
         })
 
-        // กล้อง: ออนไลน์ = มีภาพจริงเข้ามาภายใน 3 รอบ (เดิมถือว่าออนไลน์ทุกตัวที่เปิดใช้งาน)
+        // กล้อง: ออนไลน์ = มีภาพใหม่ภายใน 4 รอบถ่ายภาพจริงของกล่อง (อย่างน้อย 5 นาที) ดู services/cameraStatus.js
         const cameras = camRes.rows.map(cam => {
-            const imgMin = cam.last_image_at ? Math.round((now - new Date(cam.last_image_at).getTime()) / 60000) : null
-            const isOnline = cam.is_active !== false && imgMin != null && imgMin <= CAMERA_INTERVAL_MIN * 3
+            const lastImageAt = latestOf(cam.last_image_at, frames[String(cam.farm_id)])
+            const st = cameraStatus(lastImageAt, cam.interval_sec, now)
+            const imgMin = st.seconds_ago == null ? null : Math.round(st.seconds_ago / 60)
+            const isOnline = cam.is_active !== false && st.status === 'online'
             return {
                 id_devices: cam.id,
                 name_devices: cam.camera_name,
                 serial_no: `${cam.brand || 'กล้อง'} (${cam.ip_address})`,
                 type: 'camera',
                 status: cam.is_active !== false ? 'active' : 'inactive',
-                last_seen_at: cam.last_image_at || null,
+                last_seen_at: lastImageAt ? lastImageAt.toISOString() : null,
                 created_at: cam.created_at,
                 id_farms: cam.farm_id,
                 name_farms: cam.name_farms || 'ฟาร์มไม่ระบุ',
@@ -151,7 +163,7 @@ router.get('/', verifyToken, requireRole('admin'), async (req, res) => {
                     status: cam.is_active === false ? 'disabled' : imgMin == null ? 'never_seen' : isOnline ? 'ok' : 'offline',
                     message: cam.is_active === false ? 'ปิดใช้งาน'
                         : imgMin == null ? 'ยังไม่เคยได้รับภาพจากกล้องนี้'
-                        : isOnline ? `ภาพล่าสุด ${imgMin} นาทีที่แล้ว` : `ไม่มีภาพใหม่ ${imgMin} นาที`,
+                        : isOnline ? `ภาพล่าสุด ${agoText(st.seconds_ago)}` : `ไม่มีภาพใหม่ตั้งแต่ ${agoText(st.seconds_ago)} (รอบถ่าย ${st.interval_sec} วิ)`,
                     warnings: []
                 },
                 is_simulation: cam.is_simulation,

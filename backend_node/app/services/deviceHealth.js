@@ -5,6 +5,8 @@
 const HEARTBEAT_EVERY_MIN = 5
 const OFFLINE_AFTER_MIN = HEARTBEAT_EVERY_MIN * 3   // พลาด 3 รอบ
 const READING_STALE_MIN = 5                         // ค่าใหม่ทุก 15 วินาที
+// กล่องยังติดต่ออยู่: heartbeat ทุก 5 นาที + เผื่อ 2 นาที (เดิมใช้ 2 นาที กล่องที่เซ็นเซอร์เสียจึงขึ้นออฟไลน์เกือบตลอด)
+const BOX_ONLINE_MIN = HEARTBEAT_EVERY_MIN + 2
 
 // รับเฉพาะ field ที่รู้จัก และจำกัดขนาด กัน payload แปลกๆ ลง DB
 const num = (v, min, max) => (Number.isFinite(Number(v)) ? Math.min(max, Math.max(min, Math.round(Number(v)))) : null)
@@ -62,7 +64,7 @@ const summarizeHealth = ({ last_heartbeat_at, health, last_reading_at, last_seen
         message = 'กล่องไม่ได้ติดต่อมา ตรวจไฟและอินเทอร์เน็ตที่โรงเรือน'
     } else if (h.sensor_ok === false || (h.sensor_last_ok_s != null && h.sensor_last_ok_s > 120) || h.sensor_last_ok_s === -1) {
         status = 'sensor_fault'
-        message = 'กล่องออนไลน์ แต่อ่านค่าเซ็นเซอร์ไม่ได้ ตรวจสายเซ็นเซอร์ RS485'
+        message = 'กล่องออนไลน์ แต่อ่านค่าเซ็นเซอร์ไม่ได้ ตรวจสายและไฟเลี้ยงของเซ็นเซอร์ (SHT40: 3.3V, SDA 8, SCL 9)'
     } else if ((h.queue || 0) + (h.pending || 0) > 40 || (readMin != null && readMin > READING_STALE_MIN)) {
         status = 'backlog'
         message = 'กล่องอ่านค่าได้ แต่ส่งข้อมูลขึ้นระบบไม่ทัน (ข้อมูลยังเก็บอยู่ในกล่อง)'
@@ -87,4 +89,4 @@ const summarizeHealth = ({ last_heartbeat_at, health, last_reading_at, last_seen
     }
 }
 
-module.exports = { sanitizeHeartbeat, summarizeHealth, HEARTBEAT_EVERY_MIN }
+module.exports = { sanitizeHeartbeat, summarizeHealth, HEARTBEAT_EVERY_MIN, BOX_ONLINE_MIN }

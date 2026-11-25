@@ -12,6 +12,30 @@ const gapMessage = (lastAt, diffMinutes) => {
     const note = diffMinutes >= 24 * 60 ? ' สรุปและกราฟ 24 ชม. ในหน้านี้จึงเป็นข้อมูลช่วงก่อนกล่องหยุดส่ง ไม่ใช่ของวันนี้' : ''
     return `⚠️ กล่องเซ็นเซอร์ไม่ได้ส่งข้อมูลมา ${dur} (ข้อมูลล่าสุด ${when} น.)${note}`
 }
+
+// แถบเตือนข้อมูลขาด (ใช้ทั้งหน้าฟาร์มและ live sync): แยก "กล่องเงียบ" (เน็ต/ไฟ) ออกจาก "กล่องออนไลน์แต่เซ็นเซอร์ไม่ส่งค่า"
+// lastRecordedAt = ค่าเซ็นเซอร์ล่าสุด (null = ไม่เคยมี), boxOnline = กล่องติดต่อมา (ค่าหรือ heartbeat) ภายใน BOX_ONLINE_MIN
+const buildGapAlert = (lastRecordedAt, boxOnline) => {
+    if (!lastRecordedAt) {
+        return boxOnline
+            ? { is_gap_detected: true, box_online: true, duration_minutes: null, last_recorded_at: null,
+                message: '⚠️ กล่องออนไลน์ แต่ยังไม่เคยได้ค่าจากเซ็นเซอร์ ตรวจสายและไฟเลี้ยงของเซ็นเซอร์' }
+            : null
+    }
+    const diffMinutes = Math.floor(Math.max(0, Date.now() - new Date(lastRecordedAt).getTime()) / 60000)
+    const fresh = diffMinutes < 2
+    const msg = gapMessage(lastRecordedAt, diffMinutes)
+    return {
+        is_gap_detected: !fresh,
+        box_online: boxOnline,
+        duration_minutes: diffMinutes,
+        last_recorded_at: lastRecordedAt,
+        message: fresh ? null : boxOnline
+            ? `⚠️ กล่องออนไลน์ แต่ไม่มีค่าจากเซ็นเซอร์มา ${msg.replace(/^⚠️ กล่องเซ็นเซอร์ไม่ได้ส่งข้อมูลมา /, '').replace('ก่อนกล่องหยุดส่ง', 'ก่อนเซ็นเซอร์หยุดส่งค่า')} ตรวจสายและไฟเลี้ยงของเซ็นเซอร์`
+            : msg
+    }
+}
+const isRecent = (t, min) => Boolean(t) && Date.now() - new Date(t).getTime() < min * 60 * 1000
 const db = require('../../config/db')
 const { verifyToken, requireRole } = require('../../middleware/authMiddleware')
 const { 
@@ -24,6 +48,7 @@ const { generateBaselineForecast, isCurrentForecast } = require('../../services/
 const { buildRtspUrls } = require('../../services/rtspUrls')
 const { encryptSecret, CameraSecretError } = require('../../services/cameraSecrets')
 const { getCameraBehavior } = require('../../services/cameraBehavior')
+const { summarizeHealth, BOX_ONLINE_MIN } = require('../../services/deviceHealth')
 const { getFarm24h } = require('../../services/farmHistory')
 const { dailySeries, stressStreak, bkkDate } = require('../../services/heatMetrics')
 const { getFarmOutdoorComparison } = require('../../services/outdoorWeather')
@@ -358,14 +383,21 @@ router.get('/:id/latest', verifyToken, requireRole('admin'), async (req, res) =>
             LIMIT 1
         `, [id])
 
+        // กล่องติดต่อมาล่าสุด (heartbeat อัปเดต last_seen_at แม้เซ็นเซอร์เสีย)
+        const devRes = await db.query(
+            `SELECT MAX(last_seen_at) AS last_seen_at FROM tb_devices WHERE id_farms::text = $1`, [id])
+        const lastSeen = devRes.rows[0]?.last_seen_at || null
+
         if (rows.length === 0) {
+            const boxOnline = isRecent(lastSeen, BOX_ONLINE_MIN)
             return res.json({
                 success: true,
                 has_data: false,
-                is_online: false,
+                is_online: boxOnline,
                 latest_sensor: null,
-                gap_alert: {
+                gap_alert: buildGapAlert(null, boxOnline) || {
                     is_gap_detected: true,
+                    box_online: false,
                     duration_minutes: null,
                     message: 'ยังไม่มีข้อมูลเซ็นเซอร์ส่งเข้ามาจากอุปกรณ์'
                 }
@@ -373,10 +405,8 @@ router.get('/:id/latest', verifyToken, requireRole('admin'), async (req, res) =>
         }
 
         const latest = rows[0]
-        const lastTime = new Date(latest.recorded_at).getTime()
-        const diffMs = Math.max(0, Date.now() - lastTime)
-        const diffMinutes = Math.floor(diffMs / 60000)
-        const isOnline = diffMinutes < 2
+        // ออนไลน์ = ค่าเซ็นเซอร์หรือ heartbeat ล่าสุดภายใน BOX_ONLINE_MIN (เดิมดูแค่ค่าเซ็นเซอร์ภายใน 2 นาที)
+        const isOnline = isRecent(latest.recorded_at, BOX_ONLINE_MIN) || isRecent(lastSeen, BOX_ONLINE_MIN)
 
         const farmRes = await db.query(`SELECT * FROM tb_farms WHERE id_farms::text = $1 LIMIT 1`, [id])
         const profile = getFarmProfile(farmRes.rows[0])
@@ -387,12 +417,7 @@ router.get('/:id/latest', verifyToken, requireRole('admin'), async (req, res) =>
         const thi = calcThi(temp, hum) ?? (latest.thi != null ? parseFloat(latest.thi) : null)
         const stress = getRiskLevel(thi, profile)
 
-        const gapAlert = {
-            is_gap_detected: !isOnline,
-            duration_minutes: diffMinutes,
-            last_recorded_at: latest.recorded_at,
-            message: !isOnline ? gapMessage(latest.recorded_at, diffMinutes) : null
-        }
+        const gapAlert = buildGapAlert(latest.recorded_at, isOnline)
 
         return res.json({
             success: true,
@@ -784,9 +809,12 @@ router.get('/:id', verifyToken, requireRole('admin'), async (req, res) => {
         let device = null
         try {
             const devRes = await db.query(`
-                SELECT id_devices, name_devices, serial_no, status, type, last_seen_at
+                SELECT id_devices, name_devices, serial_no, status, type, last_seen_at,
+                       to_jsonb(tb_devices)->>'last_heartbeat_at' AS last_heartbeat_at,
+                       to_jsonb(tb_devices)->'health' AS health
                 FROM tb_devices
                 WHERE id_farms = $1
+                ORDER BY last_seen_at DESC NULLS LAST
                 LIMIT 1
             `, [farm.id_farms])
             if (devRes.rows.length > 0) {
@@ -836,7 +864,8 @@ router.get('/:id', verifyToken, requireRole('admin'), async (req, res) => {
             console.warn('[Farm Detail API] Latest reading query error:', err.message)
         }
 
-        // คำนวณสถานะ online/offline ของอุปกรณ์ตาม heartbeat 2 นาที (120 วินาที)
+        // กล่องออนไลน์ = ติดต่อมา (ค่าเซ็นเซอร์หรือ heartbeat) ภายใน BOX_ONLINE_MIN นาที
+        // (เดิม 2 นาที: heartbeat มาทุก 5 นาที กล่องที่เซ็นเซอร์เสียจึงขึ้นออฟไลน์เกือบตลอด)
         let lastActiveTime = 0
         if (device && device.last_seen_at) {
             lastActiveTime = Math.max(lastActiveTime, new Date(device.last_seen_at).getTime())
@@ -844,9 +873,15 @@ router.get('/:id', verifyToken, requireRole('admin'), async (req, res) => {
         if (latestReading && latestReading.recorded_at) {
             lastActiveTime = Math.max(lastActiveTime, new Date(latestReading.recorded_at).getTime())
         }
-        const isDeviceOnline = lastActiveTime > 0 && (Date.now() - lastActiveTime) < 2 * 60 * 1000
+        const isDeviceOnline = lastActiveTime > 0 && (Date.now() - lastActiveTime) < BOX_ONLINE_MIN * 60 * 1000
         if (device) {
             device.status = isDeviceOnline ? 'online' : 'offline'
+            // สถานะละเอียดจาก heartbeat: ออนไลน์แต่เซ็นเซอร์เสีย / ส่งไม่ทัน / ขาดการติดต่อ
+            device.health_summary = summarizeHealth({
+                last_heartbeat_at: device.last_heartbeat_at, health: device.health,
+                last_reading_at: latestReading?.recorded_at, last_seen_at: device.last_seen_at
+            })
+            delete device.health
         }
 
         // ประวัติ 24 ชม. (เฉลี่ยทุก 5 นาที) และสรุป 24 ชม. จากค่าดิบทั้งหมด ดู services/farmHistory.js
@@ -867,19 +902,7 @@ router.get('/:id', verifyToken, requireRole('admin'), async (req, res) => {
         }
 
         // ตรวจสอบความต่อเนื่องของสัญญาณเซ็นเซอร์ (Data Continuity & Gap Alert)
-        let gapAlert = null
-        if (latestReading && latestReading.recorded_at) {
-            const lastTime = new Date(latestReading.recorded_at).getTime()
-            const diffMs = Math.max(0, Date.now() - lastTime)
-            const diffMinutes = Math.floor(diffMs / 60000)
-            const isOnline = diffMinutes < 2
-            gapAlert = {
-                is_gap_detected: !isOnline,
-                duration_minutes: diffMinutes,
-                last_recorded_at: latestReading.recorded_at,
-                message: !isOnline ? gapMessage(latestReading.recorded_at, diffMinutes) : null
-            }
-        }
+        const gapAlert = device || latestReading ? buildGapAlert(latestReading?.recorded_at || null, isDeviceOnline) : null
 
         // ดึงข้อมูลเจ้าของฟาร์ม
         let owner = null
