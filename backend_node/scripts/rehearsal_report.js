@@ -11,7 +11,7 @@
  * ไม่ระบุช่วงเวลา = รอบเก็บภาพทุกภาพล่าสุดของกล่อง (ไม่เคยเปิด = 60 นาทีล่าสุด)
  * เวลาที่ไม่มีโซนเวลา = เวลาไทย, พิมพ์แค่ "10:00" = วันนี้
  * ต้องมี backend_node/.env (DATABASE_URL) เหมือนตอนรัน server
- * เกณฑ์: docs/PROJECT_PLAN.md ระยะ 1 และหัวข้อ 5 (services/rehearsalStats.js: CRITERIA)
+ * เกณฑ์: docs/PROJECT_PLAN.md ระยะ 2–3 (services/rehearsalStats.js: CRITERIA)
  */
 const path = require('path')
 require('dotenv').config({ path: path.join(__dirname, '..', '.env'), quiet: true })
