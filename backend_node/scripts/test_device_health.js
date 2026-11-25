@@ -36,5 +36,6 @@ assert.ok(warn('aht2x').warnings.some(w => w.includes('AHT2X')))
 assert.ok(warn('none').warnings.some(w => w.includes('หาเซ็นเซอร์ไม่เจอ')))
 assert.strictEqual(warn('sht3x').sensor_model, 'sht3x')
 assert.strictEqual(sanitizeHeartbeat({ sensor_addr: 68 }).sensor_addr, 68)
+assert.strictEqual(sanitizeHeartbeat({ heater_pulses: 3 }).heater_pulses, 3)
 
 console.log('test_device_health: all passed')

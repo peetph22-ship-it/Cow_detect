@@ -63,6 +63,7 @@
 | ส่งพลาดติดกัน | เว้นระยะ 15 วินาที → 1 นาที → 5 นาที |
 | ไฟดับ | คิวใน flash ยังอยู่ ค่าใน RAM ก่อนซิงก์เวลาจะหาย |
 | SHT40 อ่านพลาด | ไม่ส่งค่านั้น (จอขึ้น `CHECK SENSOR`) พลาด 5 ครั้งติดกัน = ล้างบัส I2C + soft reset เซ็นเซอร์เอง |
+| ความชื้น ≥ 95% ค้างนาน 10 นาที (SHT4x เท่านั้น) | เปิด heater ในชิป 200 mW 1 วินาที ไล่ไอน้ำที่เกาะผิวเซ็นเซอร์ แล้วพัก 30 วินาทีไม่ส่งค่า (ค่าตอนร้อนไม่ใช่อากาศในคอก) เปิดซ้ำได้ทุก 10 นาทีถ้ายังชื้น · Serial ขึ้น `heater pulse` และ heartbeat นับ `heater_pulses` |
 | server ไม่ตอบ 15 นาที | ต่อ Wi-Fi ใหม่ (เน็ต 4G ค้างทั้งที่ Wi-Fi ยังต่ออยู่) |
 | server ไม่ตอบ 30 นาที | รีบูตบอร์ด (คิวใน flash ไม่หาย) |
 | loop หรืองานกล้องค้างเกิน 3 นาที | watchdog รีบูตบอร์ด (heartbeat ถัดไปจะรายงาน `reset_reason: watchdog`) |
@@ -104,7 +105,7 @@ Serial ต้องเห็น `[CAM] snapshot 245 KB -> upload 202 (3100 ms)` 
   สัญญาณ Wi-Fi, เซ็นเซอร์ ok/fail, คิวค้าง, เวลาที่เปิดเครื่อง, สาเหตุรีสตาร์ต (เช่น `brownout` = ไฟตก), เวอร์ชัน firmware
   ต้องรัน `backend_node/migrations/20261025_device_heartbeat.sql` ดูผลที่หน้า Admin > Devices
 - อุปกรณ์ที่ยังไม่ลงทะเบียน server ตอบ `404` (ไม่สร้างให้อัตโนมัติแล้ว) บอร์ดเก็บข้อมูลไว้ในคิวจนกว่าจะลงทะเบียน
-- 1.6.0 ส่งเพิ่ม: `sensor_model` (รุ่นที่ตรวจเจอจริง: sht4x / sht3x / aht2x / htu21 / none), `sensor_addr`, `sensor_serial`, `i2c_recoveries` (ล้างบัสไปกี่ครั้ง), `last_server_ok_s`, `camera_last_round_s`
+- 1.6.0 ส่งเพิ่ม: `sensor_model` (รุ่นที่ตรวจเจอจริง: sht4x / sht3x / aht2x / htu21 / none), `sensor_addr`, `sensor_serial`, `heater_pulses`, `i2c_recoveries` (ล้างบัสไปกี่ครั้ง), `last_server_ok_s`, `camera_last_round_s`
 - Serial: `[HB] heartbeat -> 200 (sensor ok, ok 150 / fail 0, rssi -61)`
   ถ้า Serial Monitor ไม่แสดงข้อความ: Tools > **USB CDC On Boot = Enabled** แล้วแฟลชใหม่
 

@@ -39,7 +39,8 @@ const sanitizeHeartbeat = (b = {}) => ({
     sensor_serial: str(b.sensor_serial, 16),
     i2c_recoveries: num(b.i2c_recoveries, 0, 1e7),
     last_server_ok_s: num(b.last_server_ok_s, -1, 1e9),
-    camera_last_round_s: num(b.camera_last_round_s, -1, 1e9)
+    camera_last_round_s: num(b.camera_last_round_s, -1, 1e9),
+    heater_pulses: num(b.heater_pulses, 0, 1e7)   // SHT4x เปิด heater ไล่ความชื้นไปกี่ครั้ง (นับตั้งแต่เปิดเครื่อง)
 })
 
 const signalLabel = (rssi) => (rssi == null ? null : rssi >= -60 ? 'ดีมาก' : rssi >= -70 ? 'ดี' : rssi >= -80 ? 'พอใช้' : 'อ่อน')

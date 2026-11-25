@@ -139,6 +139,15 @@ Adafruit_ST7789 tft = Adafruit_ST7789(TFT_CS, TFT_DC, TFT_MOSI, TFT_SCLK, TFT_RS
 const uint32_t I2C_HZ = SHT_I2C_HZ_VAL;
 const int SHT_RECOVER_AFTER = 5;         // อ่านพลาดติดกันกี่ครั้งถึงล้างบัส + soft reset + ตรวจรุ่นใหม่
 
+// SHT4x มี heater ในชิป: ความชื้นสูงค้างนาน (คอกตอนกลางคืน/หน้าฝน) = เสี่ยงไอน้ำเกาะผิวเซ็นเซอร์และค่าความชื้นเพี้ยนค้าง
+// -> เปิด heater 200 mW 1 วินาที ไล่ความชื้น แล้วพักไม่ส่งค่าจนเซ็นเซอร์เย็นลง (ค่าตอนร้อนไม่ใช่อากาศในคอก)
+// ใช้กับ SHT4x เท่านั้น (รุ่นอื่นไม่มีคำสั่งนี้) · duty ต่ำกว่า 10% ตามที่ผู้ผลิตแนะนำมาก
+const float HEATER_RH_ON  = 95.0f;                         // ความชื้นตั้งแต่นี้ขึ้นไป = เริ่มนับเวลา
+const float HEATER_RH_OFF = 90.0f;                         // ต่ำกว่านี้ = เลิกนับ (กันสลับไปมาที่ขอบ)
+const unsigned long HEATER_AFTER_MS    = 10UL * 60UL * 1000UL;  // ชื้นสูงค้างนานเท่านี้ถึงเปิด heater
+const unsigned long HEATER_EVERY_MS    = 10UL * 60UL * 1000UL;  // เปิดซ้ำได้ไม่ถี่กว่านี้
+const unsigned long HEATER_COOLDOWN_MS = 30UL * 1000UL;         // พักไม่อ่าน/ไม่ส่งค่าหลังเปิด heater
+
 // หัววัดที่ขายออนไลน์อาจไม่ใช่รุ่นตามชื่อ: ตรวจรุ่นจริงตอนเปิดเครื่องแล้วอ่านด้วยคำสั่งของรุ่นนั้น
 // SHT4x (SHT40/41/45) 0x44/0x45 · SHT3x (SHT30/31/35) 0x44/0x45 · AHT1x/2x 0x38 · HTU21D/SHT2x/Si7021 0x40
 enum SensorKind : uint8_t { SENS_NONE, SENS_SHT4X, SENS_SHT3X, SENS_AHTX, SENS_HTU21 };
@@ -196,6 +205,10 @@ unsigned long nextSendAllowed = 0;
 uint32_t shtSerial = 0;            // เลขประจำตัวเซ็นเซอร์ (SHT4x/SHT3x, 0 = อ่านไม่ได้)
 SensorKind sensKind = SENS_NONE;    // รุ่นที่ตรวจเจอจริง
 uint8_t sensAddr = 0;
+unsigned long highRhSince = 0;      // เริ่มชื้นสูง (0 = ไม่ชื้นสูง)
+unsigned long lastHeaterMs = 0;
+unsigned long heaterCooldownUntil = 0;
+uint32_t heaterPulses = 0;          // นับตั้งแต่เปิดเครื่อง
 int shtFailStreak = 0;
 uint32_t i2cRecoveries = 0;        // นับตั้งแต่เปิดเครื่อง
 volatile unsigned long lastServerOkMs = 0;   // server ตอบกลับล่าสุด (รหัสใดก็ได้ = เน็ตใช้ได้)
@@ -361,6 +374,19 @@ void reportSensor() {
     if (shtSerial) Serial.printf(", serial %08lx", (unsigned long)shtSerial);
     Serial.println();
   }
+}
+
+// SHT4x heater 200 mW 1 วินาที (คำสั่ง 0x39 คืนค่าวัดตอนท้ายมาด้วย ไม่ใช้ค่านั้น)
+void runSht4xHeater(unsigned long now) {
+  const uint8_t cmd[] = { 0x39 };
+  uint8_t b[6];
+  bool ok = i2cXfer(sensAddr, cmd, 1, 1100, b, 6);
+  heaterPulses++;
+  lastHeaterMs = now;
+  heaterCooldownUntil = millis() + HEATER_COOLDOWN_MS;
+  firstFilter = true;  // หลังเย็นลงเริ่มค่าใหม่ ไม่ผสมกับค่าตอนก่อน heater
+  Serial.printf("[SENSOR] RH >= %.0f%% for %lu min - heater pulse %lu (%s), pause readings %lu s\n",
+                HEATER_RH_ON, HEATER_AFTER_MS / 60000UL, (unsigned long)heaterPulses, ok ? "ok" : "no reply", HEATER_COOLDOWN_MS / 1000UL);
 }
 
 bool readSht4x(float& t, float& h) {
@@ -929,7 +955,7 @@ void sendHeartbeat() {
     "\"last_http_code\":%d,\"wifi_reconnects\":%lu,\"reset_reason\":\"%s\","
     "\"camera_enabled\":%s,\"camera_status\":%u,\"tls\":\"%s\","
     "\"sensor_model\":\"%s\",\"sensor_addr\":%u,\"sensor_serial\":\"%08lx\",\"i2c_recoveries\":%lu,"
-    "\"last_server_ok_s\":%ld,\"camera_last_round_s\":%ld}",
+    "\"last_server_ok_s\":%ld,\"camera_last_round_s\":%ld,\"heater_pulses\":%lu}",
     DEVICE_SERIAL, FW_VERSION, nowMs / 1000UL, (int)WiFi.RSSI(),
     (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getMinFreeHeap(), (unsigned long)ESP.getFreePsram(),
     (unsigned long)qCount(), pendingCount, fsOk ? "true" : "false",
@@ -938,7 +964,8 @@ void sendHeartbeat() {
     CAMERA_ENABLED ? "true" : "false", (unsigned)camStatus, TLS_INSECURE_VAL ? "insecure" : "verified",
     SENS_NAMES[sensKind], (unsigned)sensAddr, (unsigned long)shtSerial, (unsigned long)i2cRecoveries,
     lastServerOkMs ? (long)((nowMs - lastServerOkMs) / 1000UL) : -1L,
-    lastCamRoundMs ? (long)((nowMs - lastCamRoundMs) / 1000UL) : -1L);
+    lastCamRoundMs ? (long)((nowMs - lastCamRoundMs) / 1000UL) : -1L,
+    (unsigned long)heaterPulses);
   String resp;
   int code = httpPost("/heartbeat", body, resp, 8000);
   Serial.printf("[HB] heartbeat -> %d (sensor %s, ok %lu / fail %lu, rssi %d)\n", code,
@@ -1294,7 +1321,11 @@ void loop() {
 
     float newTemp = 0, newHum = 0;
     bool readSuccess = false;
-    if (sensorRead(newTemp, newHum) && newTemp >= -10.0f && newTemp <= 65.0f) {
+    // หลังเปิด heater: เซ็นเซอร์ยังร้อน ข้ามรอบนี้ (ไม่นับเป็นอ่านพลาด ไม่ส่งค่า)
+    bool cooling = (long)(heaterCooldownUntil - now) > 0;
+    if (cooling) {
+      // ไม่ทำอะไร: ค่าบนจอยังเป็นค่าก่อน heater
+    } else if (sensorRead(newTemp, newHum) && newTemp >= -10.0f && newTemp <= 65.0f) {
       if (firstFilter) {
         currentTemp = newTemp;
         currentHum = newHum;
@@ -1305,14 +1336,23 @@ void loop() {
       }
       readSuccess = true;
       shtFailStreak = 0;
+      if (sensKind == SENS_SHT4X) {
+        if (newHum >= HEATER_RH_ON) { if (!highRhSince) highRhSince = now ? now : 1; }
+        else if (newHum < HEATER_RH_OFF) highRhSince = 0;
+        if (highRhSince && now - highRhSince >= HEATER_AFTER_MS && (lastHeaterMs == 0 || now - lastHeaterMs >= HEATER_EVERY_MS)) {
+          runSht4xHeater(now);
+        }
+      }
     } else if (++shtFailStreak >= SHT_RECOVER_AFTER) {
       shtRecoverBus();
       shtFailStreak = 0;
     }
-    lastReadOk = readSuccess;
-    if (readSuccess) { sensorOkReads++; lastSensorOkMs = now; everSensorOk = true; }
-    else sensorFailReads++;
-    updateDashboard(readSuccess);
+    if (!cooling) {
+      lastReadOk = readSuccess;
+      if (readSuccess) { sensorOkReads++; lastSensorOkMs = now; everSensorOk = true; }
+      else sensorFailReads++;
+      updateDashboard(readSuccess);
+    }
 
     // ต่อ Wi-Fi ใหม่ทุก 30 วินาที (ถี่กว่านี้จะขัดจังหวะการเชื่อมต่อที่กำลังทำอยู่)
     // ใช้ disconnect + begin แทน WiFi.reconnect() ซึ่งบางครั้งต่อไม่ติดเมื่อ AP หายไปนาน

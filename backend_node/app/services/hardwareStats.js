@@ -77,6 +77,7 @@ const heartbeatStats = (rows, from, to) => {
         min_free_heap: (() => { const v = H.map(h => h.min_free_heap).filter(Number.isFinite); return v.length ? Math.min(...v) : null })(),
         queue_max: maxOf('queue'),
         i2c_recoveries_max: maxOf('i2c_recoveries'),
+        heater_pulses_max: maxOf('heater_pulses'),
         wifi_reconnects_max: maxOf('wifi_reconnects'),
         fw_versions: uniq('fw_version'),
         sensor_models: uniq('sensor_model')

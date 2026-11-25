@@ -91,7 +91,7 @@ const print = (r, from, to) => {
         const reasons = Object.entries(H.reboots.by_reason).map(([k, v]) => `${REASON_TH[k] || k} ${v}`).join(', ')
         L(`  รีบูต ${H.reboots.count} ครั้ง${reasons ? ` (${reasons})` : ''}`)
         L(`  สัญญาณ Wi-Fi ${H.rssi.min} ถึง ${H.rssi.max} dBm (มัธยฐาน ${H.rssi.median}) · หน่วยความจำว่างต่ำสุด ${H.min_free_heap ?? '-'} ไบต์ · คิวค้างสูงสุด ${H.queue_max ?? '-'} ค่า`)
-        L(`  firmware ${H.fw_versions.join(', ') || '-'} · เซ็นเซอร์ ${H.sensor_models.join(', ') || '-'}${H.i2c_recoveries_max ? ` · ล้างบัส I2C ${H.i2c_recoveries_max} ครั้ง` : ''}`)
+        L(`  firmware ${H.fw_versions.join(', ') || '-'} · เซ็นเซอร์ ${H.sensor_models.join(', ') || '-'}${H.i2c_recoveries_max ? ` · ล้างบัส I2C ${H.i2c_recoveries_max} ครั้ง` : ''}${H.heater_pulses_max ? ` · เปิด heater ไล่ความชื้น ${H.heater_pulses_max} ครั้ง (ค่าช่วงพักหลัง heater ไม่ถูกส่ง)` : ''}`)
     }
 
     const S = r.sensor
