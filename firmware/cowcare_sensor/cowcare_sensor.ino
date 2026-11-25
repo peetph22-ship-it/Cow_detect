@@ -1,5 +1,8 @@
 /*
- * CowCare AI - ESP32-S3 Barn Sensor (SHT20 RS485 Modbus ตระกูล XY-MD02 + ST7789 display)
+ * CowCare AI - ESP32-S3 Barn Sensor (SHT40 I2C + ST7789 display)
+ *
+ * 1.6.0: เปลี่ยนจากหัววัด XY-MD02 (SHT20 RS485 Modbus ที่เสีย) เป็น SHT40 แบบ I2C
+ *        + watchdog (กล่องค้าง = รีบูตเอง) + รีบูตเมื่อส่งข้อมูลไม่สำเร็จนานเกิน 30 นาที
  *
  * Store-and-forward:
  *  - ทุกค่าประทับเวลาจริง (Unix epoch UTC จาก NTP)
@@ -14,6 +17,9 @@
  */
 
 #include <Adafruit_GFX.h>
+#include <Wire.h>
+#include <esp_task_wdt.h>
+#include <esp_arduino_version.h>
 #include <Adafruit_ST7789.h>
 #include <SPI.h>
 #include <WiFi.h>
@@ -79,7 +85,13 @@ const size_t CAM_BUF_HEAP  = 200UL * 1024UL;   // บอร์ดที่ไม
 const unsigned long readInterval   = 2000;   // อ่านเซ็นเซอร์ทุก 2 วินาที
 const unsigned long sampleInterval = 15000;  // บันทึก/ส่งทุก 15 วินาที
 const unsigned long HEARTBEAT_MS = 5UL * 60UL * 1000UL;  // รายงานสถานะกล่องทุก 5 นาที
-const char* FW_VERSION = "1.5.0";  // 1.5.0: รอบถ่ายภาพตั้งจากหน้าเว็บได้ (next_interval_sec)
+const char* FW_VERSION = "1.6.0";  // 1.6.0: SHT40 I2C + watchdog, 1.5.0: รอบถ่ายภาพตั้งจากหน้าเว็บได้ (next_interval_sec)
+
+// Watchdog: งานไหนค้างเกินนี้ (loop หรือกล้อง) = รีบูต ต้องนานกว่างานที่ช้าที่สุด (รอคิวเน็ต 60 วิ + ส่งภาพ 30 วิ)
+const uint32_t WDT_TIMEOUT_S = 180;
+// server ไม่ตอบเลย (เน็ตค้าง): 15 นาที = ต่อ Wi-Fi ใหม่, 30 นาที = รีบูต (คิวใน flash ไม่หาย)
+const unsigned long NO_SERVER_RECONNECT_MS = 15UL * 60UL * 1000UL;
+const unsigned long NO_SERVER_RESTART_MS   = 30UL * 60UL * 1000UL;
 
 // เวลา: กองทัพเรือ (มาตรฐานเวลาไทย) เป็นหลัก, pool.ntp.org สำรอง
 const char* NTP_PRIMARY   = "time.navy.mi.th";
@@ -109,9 +121,19 @@ const float THI_SEVERE = 82.0f;
 #define TFT_SCLK  1
 Adafruit_ST7789 tft = Adafruit_ST7789(TFT_CS, TFT_DC, TFT_MOSI, TFT_SCLK, TFT_RST);
 
-// --- ขาเซ็นเซอร์ RS485 ---
-#define RX_PIN 18
-#define TX_PIN 17
+// --- SHT40 (I2C) --- ไฟเลี้ยง 3.3V เท่านั้น (ห้ามต่อ 5V), สายแดง VCC, ดำ GND, เขียว SDA, เหลือง SCL
+// ขา 8/9 ว่าง (จอใช้ 1, 2, 40, 41, 42) เปลี่ยนได้ใน secrets.h ด้วย SHT_SDA_PIN_VAL / SHT_SCL_PIN_VAL
+#ifndef SHT_SDA_PIN_VAL
+#define SHT_SDA_PIN_VAL 8
+#endif
+#ifndef SHT_SCL_PIN_VAL
+#define SHT_SCL_PIN_VAL 9
+#endif
+#define SHT_SDA SHT_SDA_PIN_VAL
+#define SHT_SCL SHT_SCL_PIN_VAL
+const uint8_t SHT40_ADDR = 0x44;
+const uint32_t I2C_HZ = 100000;          // 100 kHz: ทนสายยาว ~1 ม. ได้ดีกว่า 400 kHz
+const int SHT_RECOVER_AFTER = 5;         // อ่านพลาดติดกันกี่ครั้งถึงล้างบัส + soft reset
 
 // ==========================================
 // 2. สี RGB565
@@ -160,6 +182,14 @@ uint32_t wifiReconnects = 0;
 unsigned long lastHeartbeat = 0;
 bool firstHeartbeatDone = false;
 unsigned long nextSendAllowed = 0;
+
+// SHT40 + การกู้ตัวเอง
+uint32_t shtSerial = 0;            // เลขประจำตัวเซ็นเซอร์ (0 = อ่านไม่ได้)
+int shtFailStreak = 0;
+uint32_t i2cRecoveries = 0;        // นับตั้งแต่เปิดเครื่อง
+volatile unsigned long lastServerOkMs = 0;   // server ตอบกลับล่าสุด (รหัสใดก็ได้ = เน็ตใช้ได้)
+bool noServerReconnectDone = false;
+volatile unsigned long lastCamRoundMs = 0;
 unsigned long backoffMs = 0;
 
 // ค่าแบบอัดขนาด 8 bytes (เก็บในคิว)
@@ -212,18 +242,91 @@ class BufStream : public Stream {
 };
 
 // -----------------------------------------------------
-// CRC16 Modbus RTU
+// SHT40 (I2C): CRC-8 (poly 0x31, init 0xFF) ตามเอกสารของ Sensirion
 // -----------------------------------------------------
-uint16_t crc16(const uint8_t *d, size_t n) {
-  uint16_t crc = 0xFFFF;
-  for (size_t i = 0; i < n; i++) {
+uint8_t shtCrc(const uint8_t* d) {
+  uint8_t crc = 0xFF;
+  for (int i = 0; i < 2; i++) {
     crc ^= d[i];
-    for (int b = 0; b < 8; b++) {
-      crc = (crc & 1) ? (crc >> 1) ^ 0xA001 : (crc >> 1);
-    }
+    for (int b = 0; b < 8; b++) crc = (crc & 0x80) ? (uint8_t)((crc << 1) ^ 0x31) : (uint8_t)(crc << 1);
   }
   return crc;
 }
+
+// ส่งคำสั่ง 1 byte แล้วอ่าน 6 bytes (2 คำ + CRC) false = ไม่ตอบ / อ่านไม่ครบ / CRC ผิด
+bool shtCommand(uint8_t cmd, uint16_t waitMs, uint16_t& w1, uint16_t& w2) {
+  Wire.beginTransmission(SHT40_ADDR);
+  Wire.write(cmd);
+  if (Wire.endTransmission() != 0) return false;
+  delay(waitMs);
+  if (Wire.requestFrom((uint8_t)SHT40_ADDR, (uint8_t)6) != 6) {
+    while (Wire.available()) Wire.read();
+    return false;
+  }
+  uint8_t b[6];
+  for (int i = 0; i < 6; i++) b[i] = Wire.read();
+  if (shtCrc(b) != b[2] || shtCrc(b + 3) != b[5]) return false;
+  w1 = ((uint16_t)b[0] << 8) | b[1];
+  w2 = ((uint16_t)b[3] << 8) | b[4];
+  return true;
+}
+
+// วัดแบบแม่นสูง (0xFD ใช้เวลาไม่เกิน 8.3 ms)
+bool shtRead(float& t, float& h) {
+  uint16_t rt, rh;
+  if (!shtCommand(0xFD, 10, rt, rh)) return false;
+  t = -45.0f + 175.0f * rt / 65535.0f;
+  h = -6.0f + 125.0f * rh / 65535.0f;
+  if (h < 0.0f) h = 0.0f;
+  if (h > 100.0f) h = 100.0f;
+  return true;
+}
+
+bool shtReadSerial() {
+  uint16_t hi, lo;
+  if (!shtCommand(0x89, 2, hi, lo)) return false;
+  shtSerial = ((uint32_t)hi << 16) | lo;
+  return true;
+}
+
+// บัสค้าง (เช่น SDA ถูกดึงต่ำ): ตี SCL 9 ครั้ง + STOP แล้วเริ่ม Wire ใหม่ + soft reset (0x94)
+void shtRecoverBus() {
+  i2cRecoveries++;
+  Serial.printf("[SHT40] %d failed reads in a row - recovering the I2C bus\n", shtFailStreak);
+  Wire.end();
+  pinMode(SHT_SDA, INPUT_PULLUP);
+  pinMode(SHT_SCL, OUTPUT_OPEN_DRAIN);
+  for (int i = 0; i < 9; i++) {
+    digitalWrite(SHT_SCL, LOW);
+    delayMicroseconds(5);
+    digitalWrite(SHT_SCL, HIGH);
+    delayMicroseconds(5);
+  }
+  pinMode(SHT_SDA, OUTPUT_OPEN_DRAIN);
+  digitalWrite(SHT_SDA, LOW);
+  delayMicroseconds(5);
+  digitalWrite(SHT_SDA, HIGH);  // STOP
+  delayMicroseconds(5);
+  Wire.begin(SHT_SDA, SHT_SCL, I2C_HZ);
+  Wire.beginTransmission(SHT40_ADDR);
+  Wire.write(0x94);
+  Wire.endTransmission();
+  delay(2);
+  firstFilter = true;  // ค่าหลังกู้ไม่ผสมกับค่าเก่า
+}
+
+// -----------------------------------------------------
+// Watchdog
+// -----------------------------------------------------
+void wdtSetup() {
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
+  esp_task_wdt_config_t cfg = { .timeout_ms = WDT_TIMEOUT_S * 1000, .idle_core_mask = 0, .trigger_panic = true };
+  if (esp_task_wdt_reconfigure(&cfg) != ESP_OK) esp_task_wdt_init(&cfg);
+#else
+  esp_task_wdt_init(WDT_TIMEOUT_S, true);
+#endif
+}
+inline void wdtFeed() { esp_task_wdt_reset(); }
 
 // -----------------------------------------------------
 // THI (NRC 1971) และระดับความเสี่ยง
@@ -375,12 +478,15 @@ void secureClient(WiFiClientSecure& client) {
 
 int httpPost(const String& path, const String& body, String& response, uint16_t timeoutMs) {
   // กล้องกำลังส่งภาพอยู่: รอได้ไม่เกิน 30 วินาที ไม่งั้นนับเป็นส่งไม่สำเร็จ (ค่าเข้าคิวตามปกติ)
+  wdtFeed();
   if (netMutex && xSemaphoreTake(netMutex, pdMS_TO_TICKS(30000)) != pdTRUE) {
     lastHttpCode = -1;
     return -1;
   }
+  wdtFeed();
   WiFiClientSecure client;
   secureClient(client);
+  client.setHandshakeTimeout(20);  // วินาที: 4G ค้างตอน TLS ไม่ให้ลากยาว
   HTTPClient http;
   http.begin(client, String(SERVER_BASE) + path);
   http.setTimeout(timeoutMs);
@@ -391,6 +497,8 @@ int httpPost(const String& path, const String& body, String& response, uint16_t 
   http.end();
   if (netMutex) xSemaphoreGive(netMutex);
   lastHttpCode = code;
+  if (code > 0) lastServerOkMs = millis();
+  wdtFeed();
   return code;
 }
 
@@ -567,6 +675,7 @@ void applyServerInterval(const String& body) {
 int camUpload(const uint8_t* buf, size_t len, uint32_t capturedAt) {
   WiFiClientSecure client;
   secureClient(client);
+  client.setHandshakeTimeout(20);
   HTTPClient http;
   if (!http.begin(client, camUploadUrl())) return -1;
   http.setTimeout(30000);
@@ -612,8 +721,11 @@ void cameraRound(BufStream& bs) {
     return;
   }
   unsigned long t0 = millis();
+  wdtFeed();
   int up = camUpload(bs.buf, bs.len, capturedAt);
   xSemaphoreGive(netMutex);
+  wdtFeed();
+  if (up > 0) lastServerOkMs = millis();
   Serial.printf("[CAM] snapshot %u KB -> upload %d (%lu ms)\n", (unsigned)(bs.len / 1024), up, millis() - t0);
   camStatus = (up == 202) ? CAM_OK : CAM_NET;
 }
@@ -633,13 +745,16 @@ void cameraTask(void*) {
   BufStream bs(mem, cap);
   bool first = true;
   unsigned long lastShot = 0;
+  esp_task_wdt_add(nullptr);  // งานกล้องค้าง = watchdog รีบูต
   for (;;) {
+    wdtFeed();
     vTaskDelay(pdMS_TO_TICKS(1000));
     if (WiFi.status() != WL_CONNECTED || !timeSynced()) continue;
     if (!first && millis() - lastShot < camIntervalMs) continue;
     first = false;
     lastShot = millis();
     cameraRound(bs);
+    lastCamRoundMs = millis();
   }
 }
 
@@ -664,20 +779,25 @@ const char* resetReasonText() {
 void sendHeartbeat() {
   unsigned long nowMs = millis();
   long sensorLastOkS = everSensorOk ? (long)((nowMs - lastSensorOkMs) / 1000UL) : -1;
-  char body[640];
+  char body[900];
   snprintf(body, sizeof(body),
     "{\"serial_no\":\"%s\",\"fw_version\":\"%s\",\"uptime_s\":%lu,\"rssi\":%d,"
     "\"free_heap\":%lu,\"min_free_heap\":%lu,\"psram_free\":%lu,"
     "\"queue\":%lu,\"pending\":%d,\"fs_ok\":%s,"
     "\"sensor_ok\":%s,\"sensor_ok_reads\":%lu,\"sensor_fail_reads\":%lu,\"sensor_last_ok_s\":%ld,"
     "\"last_http_code\":%d,\"wifi_reconnects\":%lu,\"reset_reason\":\"%s\","
-    "\"camera_enabled\":%s,\"camera_status\":%u,\"tls\":\"%s\"}",
+    "\"camera_enabled\":%s,\"camera_status\":%u,\"tls\":\"%s\","
+    "\"sensor_model\":\"sht40\",\"sensor_serial\":\"%08lx\",\"i2c_recoveries\":%lu,"
+    "\"last_server_ok_s\":%ld,\"camera_last_round_s\":%ld}",
     DEVICE_SERIAL, FW_VERSION, nowMs / 1000UL, (int)WiFi.RSSI(),
     (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getMinFreeHeap(), (unsigned long)ESP.getFreePsram(),
     (unsigned long)qCount(), pendingCount, fsOk ? "true" : "false",
     lastReadOk ? "true" : "false", (unsigned long)sensorOkReads, (unsigned long)sensorFailReads, sensorLastOkS,
     lastHttpCode, (unsigned long)wifiReconnects, resetReasonText(),
-    CAMERA_ENABLED ? "true" : "false", (unsigned)camStatus, TLS_INSECURE_VAL ? "insecure" : "verified");
+    CAMERA_ENABLED ? "true" : "false", (unsigned)camStatus, TLS_INSECURE_VAL ? "insecure" : "verified",
+    (unsigned long)shtSerial, (unsigned long)i2cRecoveries,
+    lastServerOkMs ? (long)((nowMs - lastServerOkMs) / 1000UL) : -1L,
+    lastCamRoundMs ? (long)((nowMs - lastCamRoundMs) / 1000UL) : -1L);
   String resp;
   int code = httpPost("/heartbeat", body, resp, 8000);
   Serial.printf("[HB] heartbeat -> %d (sensor %s, ok %lu / fail %lu, rssi %d)\n", code,
@@ -982,7 +1102,13 @@ void setup() {
     Serial.println("[QUEUE] LittleFS mount failed - check Partition Scheme (needs SPIFFS/FATFS/LittleFS)");
   }
 
-  Serial1.begin(9600, SERIAL_8N1, RX_PIN, TX_PIN);
+  wdtSetup();
+  esp_task_wdt_add(nullptr);  // loop ค้าง = watchdog รีบูต
+
+  Wire.begin(SHT_SDA, SHT_SCL, I2C_HZ);
+  delay(2);
+  if (shtReadSerial()) Serial.printf("[SHT40] found, serial %08lx (SDA %d, SCL %d)\n", (unsigned long)shtSerial, SHT_SDA, SHT_SCL);
+  else Serial.printf("[SHT40] no answer at 0x44 on SDA %d / SCL %d - check wiring and 3.3V\n", SHT_SDA, SHT_SCL);
 
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
@@ -998,7 +1124,24 @@ void setup() {
 }
 
 void loop() {
+  wdtFeed();
   unsigned long now = millis();
+
+  // server ไม่ตอบนานเกินไป (เน็ต 4G ค้าง ทั้งที่ Wi-Fi ยังต่ออยู่): ต่อ Wi-Fi ใหม่ แล้วรีบูต
+  unsigned long sinceOk = now - lastServerOkMs;  // lastServerOkMs = 0 ตอนบูต = นับจากเปิดเครื่อง
+  if (sinceOk > NO_SERVER_RECONNECT_MS && !noServerReconnectDone) {
+    noServerReconnectDone = true;
+    Serial.println("[NET] no answer from the server for 15 min - restarting Wi-Fi");
+    wifiReconnects++;
+    WiFi.disconnect();
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  }
+  if (sinceOk <= NO_SERVER_RECONNECT_MS) noServerReconnectDone = false;
+  if (sinceOk > NO_SERVER_RESTART_MS) {
+    Serial.println("[NET] no answer from the server for 30 min - restarting the board (queue is kept in flash)");
+    delay(200);
+    ESP.restart();
+  }
 
   if (WiFi.status() == WL_CONNECTED && (!timeSynced() || now - lastNtpSync > NTP_RESYNC_MS)) {
     if (now - lastNtpSync > 30000UL || now - lastNtpSync > NTP_RESYNC_MS) startNtp();
@@ -1007,37 +1150,22 @@ void loop() {
   if (now - lastReadTime >= readInterval) {
     lastReadTime = now;
 
-    uint8_t req[8] = { 0x01, 0x04, 0x00, 0x01, 0x00, 0x02, 0, 0 };
-    uint16_t crc = crc16(req, 6);
-    req[6] = crc & 0xFF;
-    req[7] = crc >> 8;
-    while (Serial1.available()) Serial1.read();
-    Serial1.write(req, 8);
-    Serial1.flush();
-    delay(80);
-
+    float newTemp = 0, newHum = 0;
     bool readSuccess = false;
-    if (Serial1.available() >= 9) {
-      uint8_t res[9];
-      Serial1.readBytes(res, 9);
-      uint16_t recvCrc = (res[8] << 8) | res[7];
-      if (res[0] == 0x01 && res[1] == 0x04 && res[2] == 0x04 && crc16(res, 7) == recvCrc) {
-        int16_t temp_raw = (res[3] << 8) | res[4];
-        uint16_t hum_raw = (res[5] << 8) | res[6];
-        float newTemp = temp_raw / 10.0f;
-        float newHum = hum_raw / 10.0f;
-        if (newTemp >= -10.0f && newTemp <= 65.0f && newHum >= 0.0f && newHum <= 100.0f) {
-          if (firstFilter) {
-            currentTemp = newTemp;
-            currentHum = newHum;
-            firstFilter = false;
-          } else {  // EMA alpha 0.7
-            currentTemp = (0.7f * newTemp) + (0.3f * currentTemp);
-            currentHum = (0.7f * newHum) + (0.3f * currentHum);
-          }
-          readSuccess = true;
-        }
+    if (shtRead(newTemp, newHum) && newTemp >= -10.0f && newTemp <= 65.0f) {
+      if (firstFilter) {
+        currentTemp = newTemp;
+        currentHum = newHum;
+        firstFilter = false;
+      } else {  // EMA alpha 0.7
+        currentTemp = (0.7f * newTemp) + (0.3f * currentTemp);
+        currentHum = (0.7f * newHum) + (0.3f * currentHum);
       }
+      readSuccess = true;
+      shtFailStreak = 0;
+    } else if (++shtFailStreak >= SHT_RECOVER_AFTER) {
+      shtRecoverBus();
+      shtFailStreak = 0;
     }
     lastReadOk = readSuccess;
     if (readSuccess) { sensorOkReads++; lastSensorOkMs = now; everSensorOk = true; }

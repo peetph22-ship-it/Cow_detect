@@ -30,7 +30,13 @@ const sanitizeHeartbeat = (b = {}) => ({
     reset_reason: str(b.reset_reason, 20),
     camera_enabled: bool(b.camera_enabled),
     camera_status: num(b.camera_status, 0, 9),
-    tls: str(b.tls, 10)
+    tls: str(b.tls, 10),
+    // firmware 1.6.0+: SHT40 I2C + watchdog
+    sensor_model: str(b.sensor_model, 16),
+    sensor_serial: str(b.sensor_serial, 16),
+    i2c_recoveries: num(b.i2c_recoveries, 0, 1e7),
+    last_server_ok_s: num(b.last_server_ok_s, -1, 1e9),
+    camera_last_round_s: num(b.camera_last_round_s, -1, 1e9)
 })
 
 const signalLabel = (rssi) => (rssi == null ? null : rssi >= -60 ? 'ดีมาก' : rssi >= -70 ? 'ดี' : rssi >= -80 ? 'พอใช้' : 'อ่อน')

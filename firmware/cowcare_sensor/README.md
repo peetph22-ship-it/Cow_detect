@@ -1,11 +1,30 @@
 # CowCare Sensor Firmware (ESP32-S3)
 
-กล่องเซ็นเซอร์ SHT20 (โมดูล RS485 Modbus ตระกูล XY-MD02) + จอ ST7789 ส่งข้อมูลขึ้น `backend_node` แบบ store-and-forward
+กล่องเซ็นเซอร์ SHT40 (I2C) + จอ ST7789 ส่งข้อมูลขึ้น `backend_node` แบบ store-and-forward (firmware 1.6.0)
+
+> 1.6.0 เปลี่ยนจากหัววัด XY-MD02 (SHT20 ผ่าน RS485 + บอร์ด HW-726) ซึ่งเสียแล้ว มาใช้ SHT40 ต่อตรงเข้า ESP32 ไม่ต้องใช้ HW-726 อีก
+
+## ต่อสาย SHT40
+
+| สายหัววัด SHT40 | ต่อเข้า ESP32-S3 | หมายเหตุ |
+|---|---|---|
+| แดง (VCC) | **3V3** | **ห้ามต่อ 5V** (SHT40 รับ 1.8–3.6 V) |
+| ดำ (GND) | GND | |
+| เขียว (SDA) | GPIO **8** | |
+| เหลือง (SCL) | GPIO **9** | |
+
+- ขาที่ใช้แล้ว: จอ 1, 2, 40, 41, 42 ส่วนขา 17/18 (RS485 เดิม) ว่างแล้ว
+- เปลี่ยนขาได้ใน `secrets.h`: `#define SHT_SDA_PIN_VAL 8` / `#define SHT_SCL_PIN_VAL 9`
+- สายยาวไม่เกินประมาณ 1 ม. ถ้าโมดูลไม่มีตัวต้านทาน pull-up ให้ใส่ 4.7 kΩ จาก SDA และ SCL ขึ้น 3V3
+- ตั้งหัววัดให้พ้นแดด ฝน และไอน้ำโดยตรง แต่อากาศผ่านได้ (เช่น ใต้หลังคาคอก ในกล่องกันแดดที่มีรูระบาย)
+- เปิดเครื่องแล้ว Serial ต้องขึ้น `[SHT40] found, serial xxxxxxxx (SDA 8, SCL 9)`
+  ถ้าขึ้น `[SHT40] no answer at 0x44` ให้เช็กสาย ไฟ 3V3 และสลับ SDA/SCL
 
 ## เตรียมก่อนแฟลช
 
 1. **Library** (Arduino Library Manager): Adafruit GFX, Adafruit ST7735 and ST7789
-   (WiFi, HTTPClient, WiFiClientSecure, LittleFS มากับ ESP32 core อยู่แล้ว ไม่ต้องใช้ ArduinoJson)
+   (Wire, WiFi, HTTPClient, WiFiClientSecure, LittleFS มากับ ESP32 core อยู่แล้ว ไม่ต้องลง library ของ SHT40)
+   ทดสอบคอมไพล์แล้วกับ ESP32 core 3.3.12, บอร์ด ESP32S3 Dev Module, Flash 16MB, PSRAM OPI
 2. **Tools > Partition Scheme**: เลือกแบบที่มีพื้นที่ไฟล์ เช่น `16M Flash (3MB APP/9.9MB FATFS)`
    firmware จะ mount LittleFS บนพื้นที่ชื่อ `spiffs` หรือ `ffat` อย่างใดอย่างหนึ่ง
    ถ้าเลือกแบบไม่มีพื้นที่ไฟล์ Serial Monitor จะขึ้น `LittleFS mount failed` และบอร์ดจะเก็บคิวไม่ได้
@@ -27,6 +46,10 @@
 | ยังไม่ได้เวลาจาก NTP | เก็บใน RAM (สูงสุด 240 ค่า) แล้วคำนวณเวลาย้อนหลังเมื่อซิงก์ได้ |
 | ส่งพลาดติดกัน | เว้นระยะ 15 วินาที → 1 นาที → 5 นาที |
 | ไฟดับ | คิวใน flash ยังอยู่ ค่าใน RAM ก่อนซิงก์เวลาจะหาย |
+| SHT40 อ่านพลาด | ไม่ส่งค่านั้น (จอขึ้น `CHECK SENSOR`) พลาด 5 ครั้งติดกัน = ล้างบัส I2C + soft reset เซ็นเซอร์เอง |
+| server ไม่ตอบ 15 นาที | ต่อ Wi-Fi ใหม่ (เน็ต 4G ค้างทั้งที่ Wi-Fi ยังต่ออยู่) |
+| server ไม่ตอบ 30 นาที | รีบูตบอร์ด (คิวใน flash ไม่หาย) |
+| loop หรืองานกล้องค้างเกิน 3 นาที | watchdog รีบูตบอร์ด (heartbeat ถัดไปจะรายงาน `reset_reason: watchdog`) |
 
 จอมุมขวาบนแสดง `Q:<จำนวน>` เมื่อมีค่ารอส่ง และสถานะ `CLOUD OK` / `NO SERVER` / `WIFI OFFLINE` / `TIME SYNC...`
 
@@ -65,6 +88,7 @@ Serial ต้องเห็น `[CAM] snapshot 245 KB -> upload 202 (3100 ms)` 
   สัญญาณ Wi-Fi, เซ็นเซอร์ ok/fail, คิวค้าง, เวลาที่เปิดเครื่อง, สาเหตุรีสตาร์ต (เช่น `brownout` = ไฟตก), เวอร์ชัน firmware
   ต้องรัน `backend_node/migrations/20261025_device_heartbeat.sql` ดูผลที่หน้า Admin > Devices
 - อุปกรณ์ที่ยังไม่ลงทะเบียน server ตอบ `404` (ไม่สร้างให้อัตโนมัติแล้ว) บอร์ดเก็บข้อมูลไว้ในคิวจนกว่าจะลงทะเบียน
+- 1.6.0 ส่งเพิ่ม: `sensor_model` (sht40), `sensor_serial`, `i2c_recoveries` (ล้างบัสไปกี่ครั้ง), `last_server_ok_s`, `camera_last_round_s`
 - Serial: `[HB] heartbeat -> 200 (sensor ok, ok 150 / fail 0, rssi -61)`
   ถ้า Serial Monitor ไม่แสดงข้อความ: Tools > **USB CDC On Boot = Enabled** แล้วแฟลชใหม่
 
