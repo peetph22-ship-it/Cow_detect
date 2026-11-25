@@ -15,7 +15,22 @@
  */
 const path = require('path')
 require('dotenv').config({ path: path.join(__dirname, '..', '.env'), quiet: true })
+// เน็ตบางที่ต่อฐานข้อมูลช้า (5–30 วิ): รอได้นานขึ้นและลองใหม่ ก่อนโหลด config/db
+process.env.DB_CONNECT_TIMEOUT_MS = process.env.DB_CONNECT_TIMEOUT_MS || '30000'
 const db = require('../app/config/db')
+
+const connectWithRetry = async (tries = 3) => {
+    for (let i = 1; ; i++) {
+        try {
+            return await db.pool.connect()
+        } catch (err) {
+            if (i >= tries || !/timeout|ECONNRESET|terminated/i.test(err.message)) {
+                throw new Error(`${err.message} (ลองต่อฐานข้อมูล ${i} ครั้งแล้ว ถ้ายังไม่ได้ ลองเปลี่ยนเน็ต เช่น hotspot มือถือ)`)
+            }
+            console.log(`ต่อฐานข้อมูลไม่ทัน (ครั้งที่ ${i}) กำลังลองใหม่...`)
+        }
+    }
+}
 const { CRITERIA, SENSOR_INTERVAL_SEC, coverage, summarizeSeconds, cameraBreakdown, judge } = require('../app/services/rehearsalStats')
 
 const BUCKET = process.env.CAMERA_SAMPLE_BUCKET || 'camera-samples'
@@ -75,7 +90,11 @@ const BEHAVIOR_TH = { lying: 'นอน', standing: 'ยืน', feeding: 'ก�
 const main = async () => {
     const args = parseArgs(process.argv.slice(2))
     const now = new Date()
-    const client = await db.pool.connect()
+    // ตรวจเวลาที่พิมพ์ก่อนต่อฐานข้อมูล (เช่น ลืมแก้ HH:MM ในตัวอย่าง)
+    for (const k of ['from', 'to']) {
+        if (args[k] && !parseTime(args[k], now)) throw new Error(`อ่านเวลา --${k} "${args[k]}" ไม่ได้ ใส่เวลาจริง เช่น "2026-11-25 16:00" หรือ "16:00"`)
+    }
+    const client = await connectWithRetry()
     // query ที่อาจไม่มีตาราง/คอลัมน์ (ยังไม่รัน migration): ห่อด้วย savepoint ไม่ให้ transaction ทั้งก้อนล้ม
     const tryQuery = async (sql, params) => {
         await client.query('SAVEPOINT q')
@@ -289,7 +308,7 @@ const printReport = (r) => {
     const failed = new Set(fail.map(c => c.key))
     if (failed.has('processing') || failed.has('busy')) L('→ server ฟรีไม่ทัน: อัปเกรด Render เฉพาะเดือนที่เก็บข้อมูล หรือรัน backend บน laptop ที่ฟาร์ม (PROJECT_PLAN หัวข้อ 5)')
     if (failed.has('camera') && !failed.has('busy')) L('→ ภาพหายก่อนถึง server: ตรวจ Wi-Fi/เน็ตของกล่องและการเชื่อมต่อกล้อง (Serial Monitor บรรทัด [CAM])')
-    if (failed.has('sensor')) L('→ เซ็นเซอร์ขาดช่วง: ตรวจไฟเลี้ยงกล่อง หัววัด RS485 และ Wi-Fi')
+    if (failed.has('sensor')) L('→ เซ็นเซอร์ขาดช่วง: ตรวจไฟเลี้ยงกล่อง สายเซ็นเซอร์ SHT40 (3.3V, SDA 8, SCL 9) และ Wi-Fi')
 }
 
 main().catch(async (err) => {
