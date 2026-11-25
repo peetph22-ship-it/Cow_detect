@@ -17,8 +17,21 @@
 - เปลี่ยนขาได้ใน `secrets.h`: `#define SHT_SDA_PIN_VAL 8` / `#define SHT_SCL_PIN_VAL 9`
 - สายยาวไม่เกินประมาณ 1 ม. ถ้าโมดูลไม่มีตัวต้านทาน pull-up ให้ใส่ 4.7 kΩ จาก SDA และ SCL ขึ้น 3V3
 - ตั้งหัววัดให้พ้นแดด ฝน และไอน้ำโดยตรง แต่อากาศผ่านได้ (เช่น ใต้หลังคาคอก ในกล่องกันแดดที่มีรูระบาย)
-- เปิดเครื่องแล้ว Serial ต้องขึ้น `[SHT40] found, serial xxxxxxxx (SDA 8, SCL 9)`
-  ถ้าขึ้น `[SHT40] no answer at 0x44` ให้เช็กสาย ไฟ 3V3 และสลับ SDA/SCL
+- เปิดเครื่องแล้ว Serial ต้องขึ้น `[SENSOR] found sht4x at 0x44, serial xxxxxxxx`
+  ถ้าขึ้น `[SENSOR] no temperature/humidity sensor found` ให้เช็กสาย ไฟ 3V3 และสลับ SDA/SCL
+
+**หัววัดอาจไม่ใช่รุ่นตามชื่อที่ขาย** firmware ตรวจรุ่นจริงตอนเปิดเครื่องแล้วอ่านด้วยคำสั่งของรุ่นนั้น:
+
+| Serial ขึ้นว่า | ชิปจริง | ที่อยู่ I2C | อ่านค่าได้ |
+|---|---|---|---|
+| `found sht4x` | SHT40 / SHT41 / SHT45 | 0x44 / 0x45 | ✅ (ตรงตามที่สั่ง) |
+| `found sht3x ... NOT the SHT40` | SHT30 / SHT31 / SHT35 | 0x44 / 0x45 | ✅ ความแม่นตามสเปกของ SHT3x |
+| `found aht2x ... NOT the SHT40` | AHT10 / AHT20 / AHT21 | 0x38 | ✅ ความแม่นตามสเปกของ AHT |
+| `found htu21 ... NOT the SHT40` | HTU21D / SHT20 / Si7021 | 0x40 | ✅ ความแม่นตามสเปกของรุ่นนั้น |
+
+ถ้าไม่ใช่ SHT40 หน้า Admin > อุปกรณ์ จะขึ้นคำเตือน (heartbeat ส่ง `sensor_model` ที่ตรวจเจอจริง) เก็บภาพหน้าจอ Serial ไว้เป็นหลักฐานขอคืนเงิน
+และในเปเปอร์ต้องระบุรุ่นที่ได้จริง ไม่ใช่รุ่นที่สั่ง
+ถอดเสียบหัววัดระหว่างเปิดเครื่องได้: อ่านพลาด 5 ครั้งติดกัน firmware จะล้างบัสแล้วตรวจรุ่นใหม่เอง
 
 ## เตรียมก่อนแฟลช
 
@@ -88,7 +101,7 @@ Serial ต้องเห็น `[CAM] snapshot 245 KB -> upload 202 (3100 ms)` 
   สัญญาณ Wi-Fi, เซ็นเซอร์ ok/fail, คิวค้าง, เวลาที่เปิดเครื่อง, สาเหตุรีสตาร์ต (เช่น `brownout` = ไฟตก), เวอร์ชัน firmware
   ต้องรัน `backend_node/migrations/20261025_device_heartbeat.sql` ดูผลที่หน้า Admin > Devices
 - อุปกรณ์ที่ยังไม่ลงทะเบียน server ตอบ `404` (ไม่สร้างให้อัตโนมัติแล้ว) บอร์ดเก็บข้อมูลไว้ในคิวจนกว่าจะลงทะเบียน
-- 1.6.0 ส่งเพิ่ม: `sensor_model` (sht40), `sensor_serial`, `i2c_recoveries` (ล้างบัสไปกี่ครั้ง), `last_server_ok_s`, `camera_last_round_s`
+- 1.6.0 ส่งเพิ่ม: `sensor_model` (รุ่นที่ตรวจเจอจริง: sht4x / sht3x / aht2x / htu21 / none), `sensor_addr`, `sensor_serial`, `i2c_recoveries` (ล้างบัสไปกี่ครั้ง), `last_server_ok_s`, `camera_last_round_s`
 - Serial: `[HB] heartbeat -> 200 (sensor ok, ok 150 / fail 0, rssi -61)`
   ถ้า Serial Monitor ไม่แสดงข้อความ: Tools > **USB CDC On Boot = Enabled** แล้วแฟลชใหม่
 

@@ -131,9 +131,13 @@ Adafruit_ST7789 tft = Adafruit_ST7789(TFT_CS, TFT_DC, TFT_MOSI, TFT_SCLK, TFT_RS
 #endif
 #define SHT_SDA SHT_SDA_PIN_VAL
 #define SHT_SCL SHT_SCL_PIN_VAL
-const uint8_t SHT40_ADDR = 0x44;
 const uint32_t I2C_HZ = 100000;          // 100 kHz: ทนสายยาว ~1 ม. ได้ดีกว่า 400 kHz
-const int SHT_RECOVER_AFTER = 5;         // อ่านพลาดติดกันกี่ครั้งถึงล้างบัส + soft reset
+const int SHT_RECOVER_AFTER = 5;         // อ่านพลาดติดกันกี่ครั้งถึงล้างบัส + soft reset + ตรวจรุ่นใหม่
+
+// หัววัดที่ขายออนไลน์อาจไม่ใช่รุ่นตามชื่อ: ตรวจรุ่นจริงตอนเปิดเครื่องแล้วอ่านด้วยคำสั่งของรุ่นนั้น
+// SHT4x (SHT40/41/45) 0x44/0x45 · SHT3x (SHT30/31/35) 0x44/0x45 · AHT1x/2x 0x38 · HTU21D/SHT2x/Si7021 0x40
+enum SensorKind : uint8_t { SENS_NONE, SENS_SHT4X, SENS_SHT3X, SENS_AHTX, SENS_HTU21 };
+const char* const SENS_NAMES[] = { "none", "sht4x", "sht3x", "aht2x", "htu21" };
 
 // ==========================================
 // 2. สี RGB565
@@ -184,7 +188,9 @@ bool firstHeartbeatDone = false;
 unsigned long nextSendAllowed = 0;
 
 // SHT40 + การกู้ตัวเอง
-uint32_t shtSerial = 0;            // เลขประจำตัวเซ็นเซอร์ (0 = อ่านไม่ได้)
+uint32_t shtSerial = 0;            // เลขประจำตัวเซ็นเซอร์ (SHT4x/SHT3x, 0 = อ่านไม่ได้)
+SensorKind sensKind = SENS_NONE;    // รุ่นที่ตรวจเจอจริง
+uint8_t sensAddr = 0;
 int shtFailStreak = 0;
 uint32_t i2cRecoveries = 0;        // นับตั้งแต่เปิดเครื่อง
 volatile unsigned long lastServerOkMs = 0;   // server ตอบกลับล่าสุด (รหัสใดก็ได้ = เน็ตใช้ได้)
@@ -242,57 +248,179 @@ class BufStream : public Stream {
 };
 
 // -----------------------------------------------------
-// SHT40 (I2C): CRC-8 (poly 0x31, init 0xFF) ตามเอกสารของ Sensirion
+// เซ็นเซอร์อุณหภูมิ/ความชื้น I2C: ตรวจรุ่นจริง แล้วอ่านด้วยคำสั่งของรุ่นนั้น
+// CRC-8 poly 0x31 (Sensirion init 0xFF, HTU21/SHT2x init 0x00)
 // -----------------------------------------------------
-uint8_t shtCrc(const uint8_t* d) {
-  uint8_t crc = 0xFF;
-  for (int i = 0; i < 2; i++) {
+uint8_t crc8(const uint8_t* d, size_t n, uint8_t init) {
+  uint8_t crc = init;
+  for (size_t i = 0; i < n; i++) {
     crc ^= d[i];
     for (int b = 0; b < 8; b++) crc = (crc & 0x80) ? (uint8_t)((crc << 1) ^ 0x31) : (uint8_t)(crc << 1);
   }
   return crc;
 }
 
-// ส่งคำสั่ง 1 byte แล้วอ่าน 6 bytes (2 คำ + CRC) false = ไม่ตอบ / อ่านไม่ครบ / CRC ผิด
-bool shtCommand(uint8_t cmd, uint16_t waitMs, uint16_t& w1, uint16_t& w2) {
-  Wire.beginTransmission(SHT40_ADDR);
-  Wire.write(cmd);
+bool i2cPresent(uint8_t addr) {
+  Wire.beginTransmission(addr);
+  return Wire.endTransmission() == 0;
+}
+
+// เขียนคำสั่ง (1–3 bytes) รอ แล้วอ่าน n bytes false = ไม่ตอบ / อ่านไม่ครบ
+bool i2cXfer(uint8_t addr, const uint8_t* cmd, size_t cmdLen, uint16_t waitMs, uint8_t* out, size_t n) {
+  Wire.beginTransmission(addr);
+  Wire.write(cmd, cmdLen);
   if (Wire.endTransmission() != 0) return false;
   delay(waitMs);
-  if (Wire.requestFrom((uint8_t)SHT40_ADDR, (uint8_t)6) != 6) {
+  if (n == 0) return true;
+  if (Wire.requestFrom(addr, (uint8_t)n) != n) {
     while (Wire.available()) Wire.read();
     return false;
   }
-  uint8_t b[6];
-  for (int i = 0; i < 6; i++) b[i] = Wire.read();
-  if (shtCrc(b) != b[2] || shtCrc(b + 3) != b[5]) return false;
+  for (size_t i = 0; i < n; i++) out[i] = Wire.read();
+  return true;
+}
+
+// Sensirion: 6 bytes = คำ 16 บิต 2 คำ แต่ละคำมี CRC
+bool sensirionWords(const uint8_t* b, uint16_t& w1, uint16_t& w2) {
+  if (crc8(b, 2, 0xFF) != b[2] || crc8(b + 3, 2, 0xFF) != b[5]) return false;
   w1 = ((uint16_t)b[0] << 8) | b[1];
   w2 = ((uint16_t)b[3] << 8) | b[4];
   return true;
 }
 
-// วัดแบบแม่นสูง (0xFD ใช้เวลาไม่เกิน 8.3 ms)
-bool shtRead(float& t, float& h) {
-  uint16_t rt, rh;
-  if (!shtCommand(0xFD, 10, rt, rh)) return false;
+bool sht4xSerial(uint8_t addr) {
+  const uint8_t cmd[] = { 0x89 };
+  uint8_t b[6]; uint16_t hi, lo;
+  if (!i2cXfer(addr, cmd, 1, 2, b, 6) || !sensirionWords(b, hi, lo)) return false;
+  shtSerial = ((uint32_t)hi << 16) | lo;
+  return true;
+}
+
+bool sht3xSerial(uint8_t addr) {
+  const uint8_t cmd[] = { 0x37, 0x80 };
+  uint8_t b[6]; uint16_t hi, lo;
+  if (!i2cXfer(addr, cmd, 2, 2, b, 6) || !sensirionWords(b, hi, lo)) return false;
+  shtSerial = ((uint32_t)hi << 16) | lo;
+  return true;
+}
+
+bool sht3xStatus(uint8_t addr) {
+  const uint8_t cmd[] = { 0xF3, 0x2D };
+  uint8_t b[3];
+  return i2cXfer(addr, cmd, 2, 2, b, 3) && crc8(b, 2, 0xFF) == b[2];
+}
+
+bool ahtInit() {
+  const uint8_t status[] = { 0x71 };
+  uint8_t st = 0;
+  if (!i2cXfer(0x38, status, 1, 0, &st, 1)) return false;
+  if (!(st & 0x08)) {  // ยังไม่ได้ calibrate: AHT20 ใช้ 0xBE, AHT10 ใช้ 0xE1
+    const uint8_t init20[] = { 0xBE, 0x08, 0x00 };
+    const uint8_t init10[] = { 0xE1, 0x08, 0x00 };
+    if (!i2cXfer(0x38, init20, 3, 10, nullptr, 0)) i2cXfer(0x38, init10, 3, 10, nullptr, 0);
+  }
+  return true;
+}
+
+// ตรวจรุ่นที่ต่ออยู่จริง: ลองรุ่นที่ตั้งใจใช้ (SHT4x) ก่อน
+SensorKind detectSensor() {
+  shtSerial = 0;
+  sensAddr = 0;
+  const uint8_t shtAddrs[] = { 0x44, 0x45 };
+  for (uint8_t a : shtAddrs) {
+    if (!i2cPresent(a)) continue;
+    sensAddr = a;
+    if (sht4xSerial(a)) return SENS_SHT4X;
+    const uint8_t softReset3x[] = { 0x30, 0xA2 };
+    i2cXfer(a, softReset3x, 2, 2, nullptr, 0);
+    if (sht3xSerial(a) || sht3xStatus(a)) return SENS_SHT3X;
+  }
+  if (i2cPresent(0x38) && ahtInit()) { sensAddr = 0x38; return SENS_AHTX; }
+  if (i2cPresent(0x40)) { sensAddr = 0x40; return SENS_HTU21; }
+  sensAddr = 0;
+  return SENS_NONE;
+}
+
+void reportSensor() {
+  if (sensKind == SENS_NONE) {
+    Serial.printf("[SENSOR] no temperature/humidity sensor found on SDA %d / SCL %d - check wiring and 3.3V\n", SHT_SDA, SHT_SCL);
+  } else {
+    Serial.printf("[SENSOR] found %s at 0x%02X%s", SENS_NAMES[sensKind], sensAddr,
+                  sensKind == SENS_SHT4X ? "" : " (NOT the SHT40 that was ordered - accuracy follows this chip's datasheet)");
+    if (shtSerial) Serial.printf(", serial %08lx", (unsigned long)shtSerial);
+    Serial.println();
+  }
+}
+
+bool readSht4x(float& t, float& h) {
+  const uint8_t cmd[] = { 0xFD };  // แม่นสูง ไม่เกิน 8.3 ms
+  uint8_t b[6]; uint16_t rt, rh;
+  if (!i2cXfer(sensAddr, cmd, 1, 10, b, 6) || !sensirionWords(b, rt, rh)) return false;
   t = -45.0f + 175.0f * rt / 65535.0f;
   h = -6.0f + 125.0f * rh / 65535.0f;
+  return true;
+}
+
+bool readSht3x(float& t, float& h) {
+  const uint8_t cmd[] = { 0x24, 0x00 };  // single shot แม่นสูง ไม่ใช้ clock stretching ไม่เกิน 15.5 ms
+  uint8_t b[6]; uint16_t rt, rh;
+  if (!i2cXfer(sensAddr, cmd, 2, 16, b, 6) || !sensirionWords(b, rt, rh)) return false;
+  t = -45.0f + 175.0f * rt / 65535.0f;
+  h = 100.0f * rh / 65535.0f;
+  return true;
+}
+
+bool readAht(float& t, float& h) {
+  const uint8_t cmd[] = { 0xAC, 0x33, 0x00 };
+  uint8_t b[7];
+  if (!i2cXfer(0x38, cmd, 3, 80, b, 7)) return false;
+  // AHT20/21 มี CRC ที่ byte 7, AHT10 ไม่มี: CRC ไม่ตรงรับได้เฉพาะเมื่อชิปบอกว่า calibrate แล้ว (ช่วงค่าตรวจซ้ำที่ loop)
+  if (crc8(b, 6, 0xFF) != b[6] && !(b[0] & 0x08)) return false;
+  if (b[0] & 0x80) return false;  // ยังวัดไม่เสร็จ
+  uint32_t rh = ((uint32_t)b[1] << 12) | ((uint32_t)b[2] << 4) | (b[3] >> 4);
+  uint32_t rt = ((uint32_t)(b[3] & 0x0F) << 16) | ((uint32_t)b[4] << 8) | b[5];
+  h = rh * 100.0f / 1048576.0f;
+  t = rt * 200.0f / 1048576.0f - 50.0f;
+  return true;
+}
+
+// HTU21D / SHT2x / Si7021: วัดทีละค่า (ไม่ hold master) ค่า CRC init 0x00
+bool readHtuWord(uint8_t cmdByte, uint16_t waitMs, uint16_t& raw) {
+  const uint8_t cmd[] = { cmdByte };
+  uint8_t b[3];
+  if (!i2cXfer(0x40, cmd, 1, waitMs, b, 3) || crc8(b, 2, 0x00) != b[2]) return false;
+  raw = (((uint16_t)b[0] << 8) | b[1]) & 0xFFFC;
+  return true;
+}
+
+bool readHtu21(float& t, float& h) {
+  uint16_t rt, rh;
+  if (!readHtuWord(0xF3, 85, rt) || !readHtuWord(0xF5, 29, rh)) return false;
+  t = -46.85f + 175.72f * rt / 65536.0f;
+  h = -6.0f + 125.0f * rh / 65536.0f;
+  return true;
+}
+
+bool sensorRead(float& t, float& h) {
+  bool ok = false;
+  switch (sensKind) {
+    case SENS_SHT4X: ok = readSht4x(t, h); break;
+    case SENS_SHT3X: ok = readSht3x(t, h); break;
+    case SENS_AHTX:  ok = readAht(t, h); break;
+    case SENS_HTU21: ok = readHtu21(t, h); break;
+    default: return false;
+  }
+  if (!ok) return false;
   if (h < 0.0f) h = 0.0f;
   if (h > 100.0f) h = 100.0f;
   return true;
 }
 
-bool shtReadSerial() {
-  uint16_t hi, lo;
-  if (!shtCommand(0x89, 2, hi, lo)) return false;
-  shtSerial = ((uint32_t)hi << 16) | lo;
-  return true;
-}
-
-// บัสค้าง (เช่น SDA ถูกดึงต่ำ): ตี SCL 9 ครั้ง + STOP แล้วเริ่ม Wire ใหม่ + soft reset (0x94)
+// บัสค้าง (เช่น SDA ถูกดึงต่ำ): ตี SCL 9 ครั้ง + STOP แล้วเริ่ม Wire ใหม่ + soft reset แล้วตรวจรุ่นใหม่
+// (ถอดเสียบหัววัดหรือเปลี่ยนรุ่นระหว่างเปิดเครื่องก็ใช้ได้)
 void shtRecoverBus() {
   i2cRecoveries++;
-  Serial.printf("[SHT40] %d failed reads in a row - recovering the I2C bus\n", shtFailStreak);
+  Serial.printf("[SENSOR] %d failed reads in a row - recovering the I2C bus\n", shtFailStreak);
   Wire.end();
   pinMode(SHT_SDA, INPUT_PULLUP);
   pinMode(SHT_SCL, OUTPUT_OPEN_DRAIN);
@@ -308,10 +436,11 @@ void shtRecoverBus() {
   digitalWrite(SHT_SDA, HIGH);  // STOP
   delayMicroseconds(5);
   Wire.begin(SHT_SDA, SHT_SCL, I2C_HZ);
-  Wire.beginTransmission(SHT40_ADDR);
-  Wire.write(0x94);
-  Wire.endTransmission();
-  delay(2);
+  if (sensKind == SENS_SHT4X) { const uint8_t r[] = { 0x94 }; i2cXfer(sensAddr, r, 1, 2, nullptr, 0); }
+  if (sensKind == SENS_SHT3X) { const uint8_t r[] = { 0x30, 0xA2 }; i2cXfer(sensAddr, r, 2, 2, nullptr, 0); }
+  SensorKind before = sensKind;
+  sensKind = detectSensor();
+  if (sensKind != before) reportSensor();
   firstFilter = true;  // ค่าหลังกู้ไม่ผสมกับค่าเก่า
 }
 
@@ -787,7 +916,7 @@ void sendHeartbeat() {
     "\"sensor_ok\":%s,\"sensor_ok_reads\":%lu,\"sensor_fail_reads\":%lu,\"sensor_last_ok_s\":%ld,"
     "\"last_http_code\":%d,\"wifi_reconnects\":%lu,\"reset_reason\":\"%s\","
     "\"camera_enabled\":%s,\"camera_status\":%u,\"tls\":\"%s\","
-    "\"sensor_model\":\"sht40\",\"sensor_serial\":\"%08lx\",\"i2c_recoveries\":%lu,"
+    "\"sensor_model\":\"%s\",\"sensor_addr\":%u,\"sensor_serial\":\"%08lx\",\"i2c_recoveries\":%lu,"
     "\"last_server_ok_s\":%ld,\"camera_last_round_s\":%ld}",
     DEVICE_SERIAL, FW_VERSION, nowMs / 1000UL, (int)WiFi.RSSI(),
     (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getMinFreeHeap(), (unsigned long)ESP.getFreePsram(),
@@ -795,7 +924,7 @@ void sendHeartbeat() {
     lastReadOk ? "true" : "false", (unsigned long)sensorOkReads, (unsigned long)sensorFailReads, sensorLastOkS,
     lastHttpCode, (unsigned long)wifiReconnects, resetReasonText(),
     CAMERA_ENABLED ? "true" : "false", (unsigned)camStatus, TLS_INSECURE_VAL ? "insecure" : "verified",
-    (unsigned long)shtSerial, (unsigned long)i2cRecoveries,
+    SENS_NAMES[sensKind], (unsigned)sensAddr, (unsigned long)shtSerial, (unsigned long)i2cRecoveries,
     lastServerOkMs ? (long)((nowMs - lastServerOkMs) / 1000UL) : -1L,
     lastCamRoundMs ? (long)((nowMs - lastCamRoundMs) / 1000UL) : -1L);
   String resp;
@@ -1107,8 +1236,8 @@ void setup() {
 
   Wire.begin(SHT_SDA, SHT_SCL, I2C_HZ);
   delay(2);
-  if (shtReadSerial()) Serial.printf("[SHT40] found, serial %08lx (SDA %d, SCL %d)\n", (unsigned long)shtSerial, SHT_SDA, SHT_SCL);
-  else Serial.printf("[SHT40] no answer at 0x44 on SDA %d / SCL %d - check wiring and 3.3V\n", SHT_SDA, SHT_SCL);
+  sensKind = detectSensor();
+  reportSensor();
 
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
@@ -1152,7 +1281,7 @@ void loop() {
 
     float newTemp = 0, newHum = 0;
     bool readSuccess = false;
-    if (shtRead(newTemp, newHum) && newTemp >= -10.0f && newTemp <= 65.0f) {
+    if (sensorRead(newTemp, newHum) && newTemp >= -10.0f && newTemp <= 65.0f) {
       if (firstFilter) {
         currentTemp = newTemp;
         currentHum = newHum;

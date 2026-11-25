@@ -26,4 +26,15 @@ assert.strictEqual(odd.i2c_recoveries, 1e7)
 assert.strictEqual(odd.last_server_ok_s, -1)
 assert.ok(!('extra' in odd))
 
+// รุ่นที่ตรวจเจอจริง: ไม่ใช่ SHT40 = เตือน, หาไม่เจอ = เตือน, SHT40 = ไม่เตือน
+const { summarizeHealth } = require('../app/services/deviceHealth')
+const now = new Date().toISOString()
+const warn = (model) => summarizeHealth({ last_heartbeat_at: now, last_reading_at: now, health: sanitizeHeartbeat({ sensor_model: model, sensor_ok: true, sensor_last_ok_s: 3 }) })
+assert.ok(!warn('sht4x').warnings.some(w => w.includes('SHT40')))
+assert.ok(warn('sht3x').warnings.some(w => w.includes('SHT3X') && w.includes('ไม่ใช่ SHT40')))
+assert.ok(warn('aht2x').warnings.some(w => w.includes('AHT2X')))
+assert.ok(warn('none').warnings.some(w => w.includes('หาเซ็นเซอร์ไม่เจอ')))
+assert.strictEqual(warn('sht3x').sensor_model, 'sht3x')
+assert.strictEqual(sanitizeHeartbeat({ sensor_addr: 68 }).sensor_addr, 68)
+
 console.log('test_device_health: all passed')

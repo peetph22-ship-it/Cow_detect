@@ -34,7 +34,8 @@ const sanitizeHeartbeat = (b = {}) => ({
     camera_status: num(b.camera_status, 0, 9),
     tls: str(b.tls, 10),
     // firmware 1.6.0+: SHT40 I2C + watchdog
-    sensor_model: str(b.sensor_model, 16),
+    sensor_model: str(b.sensor_model, 16),     // รุ่นที่ firmware ตรวจเจอจริง: sht4x | sht3x | aht2x | htu21 | none
+    sensor_addr: num(b.sensor_addr, 0, 127),
     sensor_serial: str(b.sensor_serial, 16),
     i2c_recoveries: num(b.i2c_recoveries, 0, 1e7),
     last_server_ok_s: num(b.last_server_ok_s, -1, 1e9),
@@ -58,6 +59,11 @@ const summarizeHealth = ({ last_heartbeat_at, health, last_reading_at, last_seen
     if (h.reset_reason === 'crash' || h.reset_reason === 'watchdog') warnings.push('บอร์ดรีสตาร์ตเองเพราะโปรแกรมค้าง')
     if (h.fs_ok === false) warnings.push('พื้นที่เก็บคิวใช้ไม่ได้ ถ้าเน็ตหลุดข้อมูลจะหาย')
     if (h.tls === 'insecure') warnings.push('บอร์ดใช้โหมดไม่ตรวจใบรับรอง HTTPS (โหมดฉุกเฉิน)')
+    // หัววัดที่สั่งมาอาจไม่ใช่รุ่นตามชื่อ: firmware 1.6.0+ ตรวจรุ่นจริงแล้วรายงานมา
+    if (h.sensor_model === 'none') warnings.push('กล่องหาเซ็นเซอร์ไม่เจอ ตรวจสาย SDA/SCL และไฟ 3.3V')
+    else if (h.sensor_model && !['sht4x', 'sht40'].includes(h.sensor_model)) {
+        warnings.push(`หัววัดเป็นรุ่น ${h.sensor_model.toUpperCase()} ไม่ใช่ SHT40 ที่สั่ง (ยังอ่านค่าได้ แต่ความแม่นเป็นไปตามสเปกของรุ่นนี้)`)
+    }
 
     let status
     let message
@@ -91,6 +97,7 @@ const summarizeHealth = ({ last_heartbeat_at, health, last_reading_at, last_seen
         queue: h.queue ?? null,
         uptime_h: h.uptime_s != null ? Math.round(h.uptime_s / 360) / 10 : null,
         reset_reason: h.reset_reason || null,
+        sensor_model: h.sensor_model || null,
         sensor_fail_reads: h.sensor_fail_reads ?? null
     }
 }
