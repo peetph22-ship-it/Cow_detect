@@ -30,7 +30,7 @@
 
           <!-- Easy-to-read Subtitle -->
           <p class="text-base sm:text-lg text-[#5A6B63] leading-relaxed max-w-xl font-normal">
-            วัดอุณหภูมิ ความชื้น และ <span class="text-[#142820] font-semibold">THI</span> ในคอกด้วยเซ็นเซอร์ SHT20 พยากรณ์ล่วงหน้า 3 วัน (ECMWF + ปรับค่าเพี้ยนจากเซ็นเซอร์ฟาร์ม) และ<span class="text-[#142820] font-semibold">ติดตามท่าทางวัวเป้าหมาย 1 ตัว</span>จากกล้องวงจรปิดด้วย YOLO26m — คลิกเลือกวัวบนภาพครั้งเดียว ทุกช่วงพฤติกรรมบันทึก THI ขณะนั้น <span class="text-[#142820] font-semibold">· ต้นแบบ อยู่ระหว่างเตรียมทดลองในฟาร์ม</span>
+            วัดอุณหภูมิ ความชื้น และ <span class="text-[#142820] font-semibold">THI</span> ในคอกด้วยเซ็นเซอร์ SHT40 พยากรณ์ล่วงหน้า 3 วัน (ECMWF + ปรับค่าเพี้ยนจากเซ็นเซอร์ฟาร์ม) และ<span class="text-[#142820] font-semibold">ติดตามท่าทางวัวเป้าหมาย 1 ตัว</span>จากกล้องวงจรปิดด้วย YOLO26m — คลิกเลือกวัวบนภาพครั้งเดียว ทุกช่วงพฤติกรรมบันทึก THI ขณะนั้น <span class="text-[#142820] font-semibold">· ต้นแบบ อยู่ระหว่างเตรียมทดลองในฟาร์ม</span>
           </p>
 
           <!-- Clean Inline Highlights instead of Heavy Boxes -->
@@ -261,7 +261,7 @@
               <div class="flex items-center justify-between text-xs text-white/70 pb-3 border-b border-white/10">
                 <span class="flex items-center gap-2 font-mono">
                   <span class="w-2 h-2 rounded-full bg-[#10B981]"></span>
-                  YOLO26m · SHT20
+                  YOLO26m · SHT40
                 </span>
                 <span class="px-2.5 py-0.5 rounded-full bg-white/10 text-[10px] font-semibold text-white/80">
                   ตัวอย่างการแสดงผล (ข้อมูลจำลอง)
@@ -617,7 +617,7 @@ const archLayers = [
     badge: 'LAYER 01 • EDGE & IOT SENSING',
     icon: 'mdi-access-point',
     title: 'วัดความร้อนในคอก และติดตามวัวเป้าหมายโดยไม่แตะตัววัว',
-    desc: 'เซ็นเซอร์ SHT20 (XY-MD02 RS485, ±0.3°C / ±3% RH) วัดอุณหภูมิ-ความชื้นทุก 15 วินาที และกล้องวงจรปิด Dahua ส่งภาพตามรอบที่ตั้งจากหน้าเว็บ โมเดล YOLO26m ตรวจท่าของวัวทุกตัวในภาพ แล้วระบบติดตามวัวเป้าหมาย 1 ตัวที่คุณคลิกเลือก',
+    desc: 'เซ็นเซอร์ SHT40 (I2C, ±0.2°C / ±1.8% RH ตามสเปก) วัดอุณหภูมิ-ความชื้นทุก 15 วินาที และกล้องวงจรปิด Dahua ส่งภาพตามรอบที่ตั้งจากหน้าเว็บ โมเดล YOLO26m ตรวจท่าของวัวทุกตัวในภาพ แล้วระบบติดตามวัวเป้าหมาย 1 ตัวที่คุณคลิกเลือก',
     points: [
       'ตรวจจับ 4 ท่า (นอน ยืน กิน ดื่ม) ของวัวทุกตัว ทุก 1–10 นาที ตั้งรอบถ่ายภาพจากหน้าเว็บได้',
       'คลิกเลือกวัวเป้าหมายบนภาพล่าสุดหรือภาพย้อนหลัง ผูกเบอร์หู แล้วระบบติดตามต่อจากตำแหน่ง ถ้าไม่แน่ใจจะบอกว่า "ไม่เห็นในภาพ" ไม่เดา',

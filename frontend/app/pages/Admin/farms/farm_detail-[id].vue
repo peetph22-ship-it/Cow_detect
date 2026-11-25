@@ -151,7 +151,7 @@
                 <v-icon icon="mdi-fire-alert" size="18" :class="cockpitThiTheme.iconColor" />
               </span>
               <span class="text-xs font-black uppercase tracking-wider text-[#718078]">
-                {{ staleWindowText ? `ดัชนีความร้อน THI ค่าล่าสุดที่มี (${formatDateTime(latestSensor?.recorded_at)} น.)` : 'ดัชนีความร้อนสะสม THI ปัจจุบัน' }}
+                {{ isSensorStale ? `ดัชนีความร้อน THI ค่าล่าสุดที่มี (${formatDateTime(latestSensor?.recorded_at)} น.)` : 'ดัชนีความร้อนสะสม THI ปัจจุบัน' }}
               </span>
             </div>
 
@@ -191,7 +191,12 @@
           </div>
 
           <!-- Giant THI Number Display -->
-          <div class="my-4 flex items-baseline gap-3">
+          <!-- ค่าเก่ากว่า 10 นาที = ไม่ใช่สภาพตอนนี้: ทำให้จางและบอกอายุ -->
+          <div v-if="isSensorStale && latestSensor?.recorded_at" class="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white/80 text-rose-700 border border-rose-200">
+            <v-icon icon="mdi-clock-alert-outline" size="14" />
+            ค่าเก่า {{ sensorAgeText }} · ไม่ใช่สภาพในคอกตอนนี้
+          </div>
+          <div class="my-4 flex items-baseline gap-3" :class="isSensorStale ? 'opacity-40' : ''">
             <span class="text-6xl md:text-7xl font-black tabular-nums tracking-tight leading-none" :class="cockpitThiTheme.text">
               {{ latestSensor?.thi ? Number(latestSensor.thi).toFixed(1) : '-' }}
             </span>
@@ -257,7 +262,7 @@
               <span>สภาพอากาศในโรงเรือน &amp; ภายนอก</span>
             </h3>
             <span class="text-[10px] font-bold text-sky-800 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-[6px]">
-              SHT20 + Open-Meteo
+              เซ็นเซอร์ในคอก + Open-Meteo
             </span>
           </div>
 
@@ -275,7 +280,7 @@
 
             <div class="flex items-baseline justify-between gap-2 mb-2">
               <div class="flex items-baseline gap-1.5">
-                <span class="text-4xl font-black text-[#24433a] tabular-nums tracking-tight">
+                <span class="text-4xl font-black text-[#24433a] tabular-nums tracking-tight" :class="isSensorStale ? 'opacity-40' : ''">
                   {{ latestSensor?.temperature_c ? Number(latestSensor.temperature_c).toFixed(1) : '-' }}
                 </span>
                 <span class="text-sm font-black text-[#718078]">°C (ในโรงเรือน)</span>
@@ -311,7 +316,7 @@
 
             <div class="flex items-baseline justify-between gap-2 mb-2">
               <div class="flex items-baseline gap-1.5">
-                <span class="text-4xl font-black text-sky-800 tabular-nums tracking-tight">
+                <span class="text-4xl font-black text-sky-800 tabular-nums tracking-tight" :class="isSensorStale ? 'opacity-40' : ''">
                   {{ latestSensor?.humidity_pct ? Number(latestSensor.humidity_pct).toFixed(1) : '-' }}
                 </span>
                 <span class="text-sm font-black text-[#718078]">%RH (ในโรงเรือน)</span>
@@ -335,7 +340,8 @@
         </div>
 
         <p class="text-[11px] text-[#718078] font-medium mt-3 pt-2 border-t border-[#f0f4f2] text-right">
-          ตรวจวัดล่าสุด: {{ isDeviceOnline ? formatTime(latestSensor?.recorded_at) : formatDateTime(latestSensor?.recorded_at) }}
+          ตรวจวัดล่าสุด: {{ isSensorStale ? formatDateTime(latestSensor?.recorded_at) : formatTime(latestSensor?.recorded_at) }}
+          <span v-if="isSensorStale && latestSensor?.recorded_at" class="text-rose-700 font-bold"> · ค่าเก่า {{ sensorAgeText }}</span>
         </p>
       </div>
 
@@ -1819,6 +1825,21 @@ const isDeviceOnline = computed(() => {
 })
 
 // ช่วง 24 ชม. ของสรุป เมื่อข้อมูลล่าสุดเก่ากว่า 1 วัน (null = ข้อมูลเป็นปัจจุบัน ไม่ต้องแสดง)
+// อายุของค่าเซ็นเซอร์ล่าสุด (กล่องส่งทุก 15 วิ): เกิน 10 นาที = ค่าเก่า ไม่ใช่สภาพตอนนี้
+const SENSOR_STALE_MIN = 10
+const sensorAgeMin = computed(() => {
+  const t = latestSensor.value?.recorded_at
+  return t ? Math.max(0, Math.floor((nowTimestamp.value - new Date(t).getTime()) / 60000)) : null
+})
+const isSensorStale = computed(() => sensorAgeMin.value != null && sensorAgeMin.value > SENSOR_STALE_MIN)
+const sensorAgeText = computed(() => {
+  const m = sensorAgeMin.value
+  if (m == null) return ''
+  if (m < 60) return `${m} นาทีที่แล้ว`
+  if (m < 1440) return `${Math.floor(m / 60)} ชม. ${m % 60} นาทีที่แล้ว`
+  return `${Math.floor(m / 1440)} วันที่แล้ว`
+})
+
 const staleWindowText = computed(() => {
   const end = dailySummary.value?.window_end
   const start = dailySummary.value?.window_start

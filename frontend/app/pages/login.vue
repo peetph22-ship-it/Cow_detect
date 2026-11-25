@@ -192,7 +192,7 @@
                 ดูแลโคนมเชิงรุกด้วย Multimodal AI
               </h2>
               <p class="text-xs text-white/75 leading-relaxed">
-                เชื่อมโยงเซนเซอร์อุณหภูมิ-ความชื้น RS485 (SHT20), กล้องตรวจจับพฤติกรรม YOLO26m ONNX และการพยากรณ์ THI ล่วงหน้า 3 วัน (ต้นแบบ ทดสอบในบ้านแล้ว)
+                เชื่อมโยงเซนเซอร์อุณหภูมิ-ความชื้น (SHT40), กล้องตรวจจับพฤติกรรม YOLO26m ONNX และการพยากรณ์ THI ล่วงหน้า 3 วัน (ต้นแบบ ทดสอบในบ้านแล้ว)
               </p>
             </div>
 
@@ -222,7 +222,7 @@
             </div>
 
             <div class="relative z-10 pt-4 border-t border-white/10 flex items-center justify-between text-[11px] text-white/60">
-              <span>ESP32-S3 • SHT20 • YOLO26m</span>
+              <span>ESP32-S3 • SHT40 • YOLO26m</span>
               <span class="text-white/90 font-bold">CowCare AI</span>
             </div>
           </div>
