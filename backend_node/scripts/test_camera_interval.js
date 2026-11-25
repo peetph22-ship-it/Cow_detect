@@ -23,6 +23,7 @@ stub('../app/config/db', {
         }
         if (sql.includes('UPDATE tb_devices')) return { rows: p[5] === DEV ? [{ id_devices: DEV, name_devices: 'box' }] : [] }
         if (sql.includes('INSERT INTO cctv_behavior_telemetry')) return { rows: [{ id: 1 }] }
+        if (sql.includes('INSERT INTO tb_camera_frames')) return { rows: [] }
         if (sql.includes('FROM cctv_cameras') || sql.includes('FROM tb_cow_tracking_targets')) return { rows: [] }
         throw new Error('unexpected query: ' + sql.slice(0, 80))
     },
