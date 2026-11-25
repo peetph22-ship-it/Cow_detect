@@ -142,11 +142,28 @@ const int SHT_RECOVER_AFTER = 5;         // อ่านพลาดติดก
 // SHT4x มี heater ในชิป: ความชื้นสูงค้างนาน (คอกตอนกลางคืน/หน้าฝน) = เสี่ยงไอน้ำเกาะผิวเซ็นเซอร์และค่าความชื้นเพี้ยนค้าง
 // -> เปิด heater 200 mW 1 วินาที ไล่ความชื้น แล้วพักไม่ส่งค่าจนเซ็นเซอร์เย็นลง (ค่าตอนร้อนไม่ใช่อากาศในคอก)
 // ใช้กับ SHT4x เท่านั้น (รุ่นอื่นไม่มีคำสั่งนี้) · duty ต่ำกว่า 10% ตามที่ผู้ผลิตแนะนำมาก
-const float HEATER_RH_ON  = 95.0f;                         // ความชื้นตั้งแต่นี้ขึ้นไป = เริ่มนับเวลา
-const float HEATER_RH_OFF = 90.0f;                         // ต่ำกว่านี้ = เลิกนับ (กันสลับไปมาที่ขอบ)
-const unsigned long HEATER_AFTER_MS    = 10UL * 60UL * 1000UL;  // ชื้นสูงค้างนานเท่านี้ถึงเปิด heater
-const unsigned long HEATER_EVERY_MS    = 10UL * 60UL * 1000UL;  // เปิดซ้ำได้ไม่ถี่กว่านี้
-const unsigned long HEATER_COOLDOWN_MS = 30UL * 1000UL;         // พักไม่อ่าน/ไม่ส่งค่าหลังเปิด heater
+// ค่าเปลี่ยนได้ตอนคอมไพล์ (ใช้ทดสอบบนโต๊ะ เช่น -DHEATER_RH_ON_VAL=60 -DHEATER_AFTER_SEC_VAL=60)
+#ifndef HEATER_RH_ON_VAL
+#define HEATER_RH_ON_VAL 95.0f
+#endif
+#ifndef HEATER_RH_OFF_VAL
+#define HEATER_RH_OFF_VAL 90.0f
+#endif
+#ifndef HEATER_AFTER_SEC_VAL
+#define HEATER_AFTER_SEC_VAL 600
+#endif
+#ifndef HEATER_EVERY_SEC_VAL
+#define HEATER_EVERY_SEC_VAL 600
+#endif
+const float HEATER_RH_ON  = HEATER_RH_ON_VAL;               // ความชื้นตั้งแต่นี้ขึ้นไป = เริ่มนับเวลา
+const float HEATER_RH_OFF = HEATER_RH_OFF_VAL;              // ต่ำกว่านี้ = เลิกนับ (กันสลับไปมาที่ขอบ)
+const unsigned long HEATER_AFTER_MS    = (unsigned long)HEATER_AFTER_SEC_VAL * 1000UL;  // ชื้นสูงค้างนานเท่านี้ถึงเปิด heater
+const unsigned long HEATER_EVERY_MS    = (unsigned long)HEATER_EVERY_SEC_VAL * 1000UL;  // เปิดซ้ำได้ไม่ถี่กว่านี้
+// ทดสอบบนโต๊ะ 25 พ.ย.: หลัง heater 30 วิ ค่ายังสูงกว่าเดิม +0.4 °C และกลับปกติราว 80 วิ -> พัก 90 วิ
+#ifndef HEATER_COOLDOWN_SEC_VAL
+#define HEATER_COOLDOWN_SEC_VAL 90
+#endif
+const unsigned long HEATER_COOLDOWN_MS = (unsigned long)HEATER_COOLDOWN_SEC_VAL * 1000UL;  // พักไม่อ่าน/ไม่ส่งค่าหลังเปิด heater
 
 // หัววัดที่ขายออนไลน์อาจไม่ใช่รุ่นตามชื่อ: ตรวจรุ่นจริงตอนเปิดเครื่องแล้วอ่านด้วยคำสั่งของรุ่นนั้น
 // SHT4x (SHT40/41/45) 0x44/0x45 · SHT3x (SHT30/31/35) 0x44/0x45 · AHT1x/2x 0x38 · HTU21D/SHT2x/Si7021 0x40
@@ -385,8 +402,8 @@ void runSht4xHeater(unsigned long now) {
   lastHeaterMs = now;
   heaterCooldownUntil = millis() + HEATER_COOLDOWN_MS;
   firstFilter = true;  // หลังเย็นลงเริ่มค่าใหม่ ไม่ผสมกับค่าตอนก่อน heater
-  Serial.printf("[SENSOR] RH >= %.0f%% for %lu min - heater pulse %lu (%s), pause readings %lu s\n",
-                HEATER_RH_ON, HEATER_AFTER_MS / 60000UL, (unsigned long)heaterPulses, ok ? "ok" : "no reply", HEATER_COOLDOWN_MS / 1000UL);
+  Serial.printf("[SENSOR] RH >= %.0f%% for %lu s - heater pulse %lu (%s), pause readings %lu s\n",
+                HEATER_RH_ON, HEATER_AFTER_MS / 1000UL, (unsigned long)heaterPulses, ok ? "ok" : "no reply", HEATER_COOLDOWN_MS / 1000UL);
 }
 
 bool readSht4x(float& t, float& h) {
