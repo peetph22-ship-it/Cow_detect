@@ -7,6 +7,7 @@ const { verifyToken, requireRole } = require('../../middleware/authMiddleware')
 const { calcThi, getRiskLevel } = require('../../services/heatStress')
 const { MAX_BATCH, parseReading, resolveDevice, insertReadings } = require('../../services/sensorIngest')
 const { sanitizeHeartbeat } = require('../../services/deviceHealth')
+const { recordHeartbeat } = require('../../services/hardwareLog')
 
 const UNKNOWN_DEVICE = { success: false, message: 'ไม่พบอุปกรณ์นี้ในระบบ ลงทะเบียนในหน้า Admin > Devices ก่อน (ข้อมูลยังเก็บอยู่ในกล่อง)' }
 
@@ -145,6 +146,8 @@ router.post('/heartbeat', verifyDeviceKey, async (req, res) => {
             await db.query(`UPDATE tb_devices SET status = 'online', last_seen_at = NOW() WHERE id_devices = $1`, [dev.deviceId])
             return res.json({ success: true, stored: false })
         }
+        // ประวัติทุก heartbeat (uptime, รีบูต, สัญญาณ Wi-Fi ย้อนหลัง) บันทึกพลาดไม่กระทบคำตอบ
+        await recordHeartbeat(dev.deviceId, health)
         return res.json({ success: true, stored: true })
     } catch (err) {
         console.error('[Heartbeat Error]:', err.message)
