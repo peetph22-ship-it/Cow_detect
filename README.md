@@ -27,7 +27,8 @@
 5. **ออกแบบสำหรับฟาร์มรายย่อย:** เกษตรกรไม่ต้องกรอกข้อมูลรายวัน ใช้กล่องเซ็นเซอร์และกล้องวงจรปิดที่มีอยู่ ไม่ต้องใช้ปลอกคออัจฉริยะ
 
 ### 1.3 ขั้นตอนปัจจุบัน
-**เตรียมทดลองภาคสนาม:** ดูหน้างาน ≈ 25 พ.ย. 2569 → วันเก็บข้อมูล 4–6 ชม. (กล้องทุก 1 นาที) สำหรับเปเปอร์ที่ส่งก่อนสิ้นปี 2569 รายละเอียด เกณฑ์ผ่านแต่ละระยะ และสถานะ ดูที่ [`docs/PROJECT_PLAN.md`](docs/PROJECT_PLAN.md)
+**เตรียมทดลองภาคสนาม:** ไปฟาร์ม **6 ธ.ค. 2569** (ติดตั้ง + วันทดสอบ) และ **7 ธ.ค. 2569** (วันเก็บข้อมูลจริง อัดวิดีโอเป็นคำตอบอ้างอิง) กล้องทุก 15 วินาที เซ็นเซอร์ทุก 15 วินาที เปเปอร์ส่งก่อนสิ้นปี 2569 โดย**เน้นตัวกล่องอุปกรณ์** (ความต่อเนื่อง ความครบของข้อมูล ความแม่นของเซ็นเซอร์ ปริมาณเน็ต การใช้ไฟ ต้นทุน) ส่วนพฤติกรรมวัวเป้าหมายเป็นตัวอย่างการใช้งาน
+รายละเอียด เกณฑ์ผ่านแต่ละระยะ และสถานะ ดูที่ [`docs/PROJECT_PLAN.md`](docs/PROJECT_PLAN.md) · ขั้นตอนหน้างานและคืนวันที่ 6 ดูที่ [`docs/SITE_SURVEY_CHECKLIST.md`](docs/SITE_SURVEY_CHECKLIST.md)
 
 ---
 
@@ -37,18 +38,20 @@
 ┌───────────────────────────────────────────────────────────────────────────────────┐
 │ ชั้นที่ 1: อุปกรณ์หน้างานในโรงเรือน (BARN EDGE)                                     │
 │                                                                                   │
-│  [ กล่อง ESP32-S3 (firmware 1.5.0) + หัววัด XY-MD02 (SHT20, RS485) ]                │
+│  [ กล่อง ESP32-S3 (firmware 1.6.0) + หัววัด SHT40 (I2C, SDA 8 / SCL 9, ไฟ 3.3V) ]    │
+│    (หัววัดเดิม XY-MD02 แบบ RS485 เสียแล้ว · 1.6.0 อยู่บน branch feat/sht40-firmware  │
+│     จนกว่าจะทดสอบกับเซ็นเซอร์จริง)                                                 │
 │    • ส่งอุณหภูมิ/ความชื้นทุก 15 วินาที ผ่าน HTTPS (ตรวจใบรับรอง + X-Device-Key)       │
 │    • เน็ตหลุด → เก็บลงแฟลช (LittleFS) แล้วทยอยส่งเมื่อเน็ตกลับมา                     │
-│    • รายงานสุขภาพกล่องทุก 5 นาที                                                   │
+│    • รายงานสุขภาพกล่องทุก 5 นาที · watchdog รีบูตเมื่อค้าง · เน็ตค้าง 30 นาที = รีบูต   │
 │    • ดึงภาพนิ่ง JPEG จากกล้อง Dahua ในวงแลน (HTTP Digest) ตามรอบที่ตั้งจากหน้าเว็บ     │
-│      (15 วินาที–60 นาที; วันเก็บข้อมูลใช้ 1 นาที, ค่าเริ่มต้นในเฟิร์มแวร์ 10 นาที)      │
+│      (15 วินาที–60 นาที; วันไปฟาร์มใช้ 15 วินาที, ค่าเริ่มต้นในเฟิร์มแวร์ 10 นาที)     │
 │  [ กล้องวงจรปิด Dahua DH-IPC-HFW2231TP-ZAS-S2 (สายแลน, IP 192.168.1.108) ]          │
 └─────────────────────────────────────────┬─────────────────────────────────────────┘
                                           │ HTTPS POST
                                           ▼
 ┌───────────────────────────────────────────────────────────────────────────────────┐
-│ ชั้นที่ 2: Backend (Node.js Express บน Render) + Supabase                          │
+│ ชั้นที่ 2: Backend (Node.js Express บน Render แพ็ก 0.5 CPU) + Supabase             │
 │                                                                                   │
 │  ความร้อน: heatStress / heatMetrics / heatEvents / forecastService / outdoorWeather │
 │  กล้อง:   visionService + visionWorker (YOLO26m ONNX บน worker thread)              │
@@ -57,7 +60,9 @@
 │           → cowTracking (จับคู่ตำแหน่ง, รวมช่วงพฤติกรรม, การเดิน)                      │
 │           → cowBehaviorTimeline (ไทม์ไลน์ + THI ของแต่ละช่วง + สรุปเวลา)              │
 │  ภาพตัวอย่างรายชั่วโมง + JSON ผลโมเดล → Supabase Storage (camera-samples)            │
-│  โหมดเก็บภาพทุกภาพ (ช่วงเวลาที่ตั้ง) → camera-samples/collect/ (วันดูหน้างาน/วันเก็บข้อมูล)  │
+│  โหมดเก็บภาพทุกภาพ (ช่วงเวลาที่ตั้ง) → camera-samples/collect/ (วันไปฟาร์ม)          │
+│  หลักฐานฮาร์ดแวร์: ทุก heartbeat (tb_device_heartbeats) + ทุกภาพที่ถึง server          │
+│           (tb_camera_frames: ขนาด เวลาถ่าย เวลารับ) → uptime ความครบ ปริมาณเน็ต ความหน่วง │
 │  งานสรุปรายวัน 20:00 น. (รันบน Render หรือเมื่อ ENABLE_DAILY_CRON=1 เท่านั้น)          │
 └─────────────────────────────────────────┬─────────────────────────────────────────┘
                                           │ REST API (JWT)
@@ -82,7 +87,7 @@
 ### 3.1 สมการ THI (NRC, 1971)
 $$\text{THI} = (1.8 \times T + 32) - (0.55 - 0.0055 \times \text{RH}) \times (1.8 \times T - 26)$$
 
-* $T$, $\text{RH}$ จาก SHT20 (XY-MD02, สเปก $\pm 0.3^\circ\text{C}$ / $\pm 3\%\text{ RH}$ ≈ THI $\pm 0.7$) — สมการเดียวกับงานวิจัยโคนมไทย (Sae-tiao et al., 2019)
+* $T$, $\text{RH}$ จาก SHT40 (สเปกทั่วไป $\pm 0.2^\circ\text{C}$ / $\pm 1.8\%\text{ RH}$ ≈ THI $\pm 0.4$ ที่ 30 °C, 70 %RH; ความแม่นจริงในคอกวัดเทียบเครื่องอ้างอิงตอนทดสอบ) — สมการเดียวกับงานวิจัยโคนมไทย (Sae-tiao et al., 2019)
 
 ### 3.2 ระดับความเครียดความร้อน (Boonkum et al., 2011; 2024)
 
@@ -163,7 +168,9 @@ $$\text{THI} = (1.8 \times T + 32) - (0.55 - 0.0055 \times \text{RH}) \times (1.
 
 | ตาราง / ที่เก็บ | เก็บอะไร |
 | :--- | :--- |
-| `tb_sensor_readings` | อุณหภูมิ/ความชื้นทุก 15 วิ (~241 ไบต์/แถว, ~40 MB/เดือน ต่อกล่อง) |
+| `tb_sensor_readings` | อุณหภูมิ/ความชื้นทุก 15 วิ (~241 ไบต์/แถว, ~40 MB/เดือน ต่อกล่อง) · `received_at` = เวลาที่ server ได้รับ (ค่าที่ค้างในคิวตอนเน็ตหลุดถึงช้าแค่ไหน) |
+| `tb_device_heartbeats` | heartbeat ทุกครั้ง (ทุก 5 นาที): uptime, สัญญาณ Wi-Fi, สาเหตุรีบูต, รุ่นเซ็นเซอร์ |
+| `tb_camera_frames` | ทุกภาพที่ถึง server (รวมภาพที่ server ยุ่ง): ขนาดไฟล์, เวลาถ่าย, เวลารับ |
 | `cctv_behavior_telemetry` | ผลกล้องต่อภาพ: จำนวนแต่ละท่า + กรอบวัวทุกตัว (`detections`) |
 | `tb_cows` | วัวในฟาร์ม: เบอร์หู (`tag_id`), ชื่อ |
 | `tb_cow_tracking_targets` | วัวเป้าหมายที่กำลังติดตาม (ภาพที่คลิก, สถานะล่าสุด, 1 ตัวต่อฟาร์ม) |
@@ -186,11 +193,13 @@ testYOLO26/
 │   │                              # cowBehaviorTimeline, cameraSamples, farmerCharts, deviceHealth ...
 │   ├── migrations/                # SQL สำหรับ Supabase
 │   └── scripts/                   # test_*.js (เทสต์), eval_counts.js (วัดผลโมเดล),
-│                                  # rehearsal_report.js (รายงานซ้อม อ่านอย่างเดียว), download_collected.js (ดึงภาพที่เก็บ)
+│                                  # rehearsal_report.js (รายงานซ้อม อ่านอย่างเดียว), download_collected.js (ดึงภาพที่เก็บ),
+│                                  # free_collected.js (ตรวจสำเนาแล้วลบภาพออกจาก Storage)
 ├── frontend/                      # Nuxt 4 (Cloudflare Pages)
 │   └── app/  pages/ components/ composables/ utils/ (browserYolo.ts, farmerCharts.ts ...)
-├── firmware/cowcare_sensor/       # ESP32-S3 firmware 1.5.0 (ค่าเน็ต/กล้องใน secrets.h)
-├── backend/
+├── firmware/cowcare_sensor/       # ESP32-S3 firmware (ค่าเน็ต/กล้องใน secrets.h, วิธีต่อ SHT40 ใน README ของโฟลเดอร์)
+├── backend/                       # งาน Python สำหรับฝึกโมเดลเท่านั้น (ไม่มี server Python แล้ว)
+│   ├── app/weights/               # best1.pt, yolo26m.pt (ใช้กับ training_archive/train.py)
 │   ├── ml_lstm/forecast_eval/     # สคริปต์ทดสอบพยากรณ์ย้อนหลัง
 │   └── training_archive/          # ชุดข้อมูลฝึก/ทดสอบโมเดล (Roboflow, CBVD-5 แปลงเป็น YOLO)
 └── docs/                          # PROJECT_PLAN.md (แผน/สถานะ), paper/ (เอกสารเปเปอร์), DEV_SETUP.md
@@ -212,9 +221,14 @@ cd frontend && npm install && NUXT_PUBLIC_NODE_API_BASE=http://localhost:5099/ap
 # เทสต์ทั้งหมด
 for f in backend_node/scripts/test_*.js; do node "$f" || echo "FAIL $f"; done
 
-# รายงานซ้อมกล่อง/กล้อง (อ่านอย่างเดียว) และดึงภาพจากโหมดเก็บภาพทุกภาพ
-node backend_node/scripts/rehearsal_report.js --device ESP32-S3-01
-node backend_node/scripts/download_collected.js --farm <farm_id>   # ต้องมี SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY ใน .env
+# รายงานซ้อมกล่อง/กล้อง (อ่านอย่างเดียว) ใส่ช่วงเวลาที่ซ้อมจริง
+# เน็ตบางที่ต่อฐานข้อมูลช้า: ถ้าขึ้น connection timeout ให้ใช้ hotspot มือถือ
+node backend_node/scripts/rehearsal_report.js --device ESP32-S3-01 --from "2026-12-06 09:00" --to "2026-12-06 15:00"
+
+# ดึงภาพจากโหมดเก็บภาพทุกภาพ แล้วตรวจสำเนาก่อนลบออกจาก Storage (ต้องมี SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY ใน .env)
+node backend_node/scripts/download_collected.js --farm <farm_id> --date 2026-12-06
+node backend_node/scripts/free_collected.js --farm <farm_id> --date 2026-12-06 --backup <สำเนาที่ 2>          # ตรวจอย่างเดียว
+node backend_node/scripts/free_collected.js --farm <farm_id> --date 2026-12-06 --backup <สำเนาที่ 2> --delete # ลบ (ต้องพิมพ์วันที่ยืนยัน)
 ```
 
 | ตัวแปร (`backend_node/.env`) | ค่าเริ่มต้น | คำอธิบาย |
@@ -224,7 +238,9 @@ node backend_node/scripts/download_collected.js --farm <farm_id>   # ต้อ�
 | `DEVICE_AUTH_MODE` | `warn` | `enforce` = บังคับ `X-Device-Key` |
 | `ENABLE_DAILY_CRON` | *(ว่าง)* | สรุปรายวัน 20:00 น. รันบน Render หรือเมื่อตั้งเป็น `1` เท่านั้น |
 | `YOLO_MODEL_FILE` | `yolo26m_480.onnx` | ไฟล์โมเดลตรวจจับ |
-| `CAMERA_INTERVAL_MIN` | `10` | รอบภาพเริ่มต้น (นาที) ใช้ตัดสินกล้องออฟไลน์; ตั้งรายกล่องได้ที่หน้าอุปกรณ์ |
+| `CAMERA_INTERVAL_MIN` | `10` | รอบภาพในเฟิร์มแวร์ (นาที) ใช้เมื่อกล่องไม่ได้ตั้งรอบจากหน้าอุปกรณ์ (ขาดการติดต่อ = ไม่มีภาพใหม่เกิน 4 รอบ อย่างน้อย 5 นาที) |
+| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | *(ว่าง)* | Storage ภาพ (server) และสคริปต์ดึง/ลบภาพบนโน้ตบุ๊ก · คีย์สิทธิ์สูงสุด ห้าม commit |
+| `DB_CONNECT_TIMEOUT_MS` | `10000` | เวลารอต่อฐานข้อมูล (สคริปต์รายงานซ้อมตั้ง 30000 + ลองใหม่ 3 ครั้งเอง) |
 
 ---
 
