@@ -1,33 +1,5 @@
+# บริการสำหรับรันในเครื่อง (หลังบ้าน Python FastAPI เดิมถูกเอาออกแล้ว ระบบจริงใช้ backend_node บน Render)
 services:
-  backend: 
-    build: ./backend
-    container_name: cow_detect_backend
-    ports: ["8000:8000"]
-    dns:
-      - 10.1.254.2
-      - 8.8.8.8
-      - 1.1.1.1
-    extra_hosts:
-      - "aws-0-ap-southeast-2.pooler.supabase.com:13.238.183.126"
-    env_file: 
-      - ./backend/.env
-    environment:
-      - PORT=8000
-      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
-      - NODE_BACKEND_URL=http://backend_node:4001
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-    volumes:
-      - ./backend:/app
-      - ./backend/app/weights:/app/app/weights
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    networks:
-      - app-network
-    restart: always
-  
   backend_node:
     build: ./backend_node
     container_name: cow_detect_node
@@ -46,11 +18,7 @@ services:
       - SUPABASE_KEY=${SUPABASE_KEY}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - DATABASE_URL=${DATABASE_URL}
-      - AI_BACKEND_URL=http://backend:8000
       - INTERNAL_API_KEY=${INTERNAL_API_KEY}
-    depends_on:
-      backend:
-        condition: service_healthy
     volumes:
       - ./backend_node:/app
       - /app/node_modules
@@ -66,8 +34,6 @@ services:
     environment: 
       - PORT=3000
       - NODE_ENV=development
-      - NUXT_PUBLIC_API_BASE=http://localhost:8000
-      - NUXT_API_BASE=http://backend:8000
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_KEY=${SUPABASE_KEY}
       - NUXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
@@ -79,8 +45,6 @@ services:
     command: sh -c "npm install && npm run dev"
     env_file:
       - ./frontend/.env
-    depends_on:
-      - backend
     networks:
       - app-network
     restart: always

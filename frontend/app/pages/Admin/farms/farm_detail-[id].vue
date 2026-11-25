@@ -1407,7 +1407,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
-import { getNodeApiBase, getFastApiBase } from '~/API/baseAPI'
+import { getNodeApiBase } from '~/API/baseAPI'
 import AdminEditFarmModal from '~/components/Admin/farm/EditFarmModal.vue'
 import AddCameraModal from '~/components/Admin/cctv/AddCameraModal.vue'
 import SystemAccuracyModal from '~/components/Admin/cctv/SystemAccuracyModal.vue'
@@ -1424,7 +1424,6 @@ definePageMeta({
 
 // อ่าน base ตอน setup: ใน setInterval เรียก useRuntimeConfig ไม่ได้ (จะตกไปใช้ URL production)
 const Admin = `${getNodeApiBase()}/Admin`
-const fastApi = getFastApiBase()
 const route = useRoute()
 const router = useRouter()
 const farmId = computed(() => {
@@ -1514,45 +1513,9 @@ const activeEngineInfo = computed(() => {
   }
 })
 
-// CCTV Smart Barn & YOLO26 Vision AI State
-const isCameraStreamActive = ref(false)
-const cameraFlip = ref(false)
-const cameraStreamKey = ref(Date.now())
-const cameraFeedError = ref(false)
-
+// กล้องหลักของฟาร์ม (ภาพล่าสุดแสดงใน CameraLatestView ไม่มีภาพสดผ่าน FastAPI แล้ว)
 const primaryCamera = computed(() => {
   return registeredCameras.value && registeredCameras.value.length > 0 ? registeredCameras.value[0] : null
-})
-
-const currentCameraSourceLabel = computed(() => {
-  if (primaryCamera.value) {
-    return `${primaryCamera.value.camera_name} (${primaryCamera.value.ip_address})`
-  }
-  return 'ยังไม่ได้ติดตั้งกล้อง'
-})
-
-// รายการกล้องไม่มีรหัสใน URL แล้ว: ขอ URL พร้อมรหัสจาก server (admin) เฉพาะตอนเปิดภาพสด
-const liveRtspUrl = ref('')
-const loadLiveRtspUrl = async () => {
-  liveRtspUrl.value = ''
-  const cam = primaryCamera.value
-  if (!cam || !farmId.value) return
-  try {
-    const token = getToken()
-    const res = await axios.get(`${Admin}/farms/${farmId.value}/cameras/${cam.id}/stream-url`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {}
-    })
-    liveRtspUrl.value = res.data?.sub_stream_url || res.data?.main_stream_url || ''
-  } catch (err) {
-    console.warn('[Camera] stream url:', err.response?.data?.message || err.message)
-  }
-}
-watch(() => primaryCamera.value?.id, loadLiveRtspUrl)
-
-const cameraStreamUrl = computed(() => {
-  if (!primaryCamera.value || !liveRtspUrl.value) return ''
-  const url = liveRtspUrl.value
-  return `${fastApi}/api/cam/stream?cam_id=rtsp&rtsp_url=${encodeURIComponent(url)}&flip=${cameraFlip.value}&t=${cameraStreamKey.value}`
 })
 
 // ผลจากกล้องจริง (YOLO จากภาพที่ ESP32 ส่งมา) ยังไม่มีข้อมูล = ไม่แสดงค่าสมมติ
@@ -1744,7 +1707,6 @@ const deleteRegisteredCamera = async (camId) => {
     await axios.delete(`${Admin}/farms/${farmId.value}/cameras/${camId}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     })
-    isCameraStreamActive.value = false
     await fetchRegisteredCameras()
   } catch (e) {
     alert(e.response?.data?.message || e.message)
@@ -1808,19 +1770,6 @@ const onCameraCreated = (cam) => {
 const onCameraUpdated = () => {
   editingCamera.value = null
   fetchRegisteredCameras()
-  loadLiveRtspUrl()
-}
-
-const onCameraChange = () => {
-  cameraFeedError.value = false
-  cameraStreamKey.value = Date.now()
-}
-
-const toggleCameraStream = async () => {
-  if (!primaryCamera.value) return
-  isCameraStreamActive.value = !isCameraStreamActive.value
-  cameraFeedError.value = false
-  cameraStreamKey.value = Date.now()
 }
 
 const runDailyJobNow = async () => {

@@ -85,7 +85,6 @@ export default defineNuxtConfig({
       appName: 'Cow-detect-Project',
 
       // API Endpoints จาก Environment Variables หรือ fallback Production Render URL
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8000',
       nodeApiBase: process.env.NUXT_PUBLIC_NODE_API_BASE || 'https://cow-detect-zea6.onrender.com/api',
     },
   },

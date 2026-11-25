@@ -52,7 +52,6 @@ docs/prompts/
 
 # ภาพ active learning ที่ระบบเก็บเองจากกล้องจริง (อาจติดคน/ในบ้าน) ไม่ขึ้น repo
 # ไฟล์ที่ track ไว้แล้ว (al_simulation_* 82 ไฟล์) ยังอยู่ใน repo ตามเดิม git ไม่สนกฎ ignore กับไฟล์ที่ track แล้ว
-backend/app/active_learning_samples/*
 
 # CBVD-5 dataset (Kaggle, CC0): images stay local (3+ GB); tools, camera groups, YOLO labels and split are committed
 backend/training_archive/cbvd5/raw/
