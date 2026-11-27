@@ -1,6 +1,6 @@
 # CowCare Sensor Firmware (ESP32-S3)
 
-กล่องเซ็นเซอร์ SHT40 (I2C) + จอ ST7789 ส่งข้อมูลขึ้น `backend_node` แบบ store-and-forward (firmware 1.6.0)
+กล่องเซ็นเซอร์ SHT40 (I2C) + จอ ST7789 ส่งข้อมูลขึ้น `backend_node` แบบ store-and-forward (firmware 1.6.1)
 
 > 1.6.0 เปลี่ยนจากหัววัด XY-MD02 (SHT20 ผ่าน RS485 + บอร์ด HW-726) ซึ่งเสียแล้ว มาใช้ SHT40 ต่อตรงเข้า ESP32 ไม่ต้องใช้ HW-726 อีก
 
