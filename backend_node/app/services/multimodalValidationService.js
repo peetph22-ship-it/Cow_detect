@@ -20,7 +20,7 @@ const evaluateMultimodalStatus = async (farmId) => {
         SELECT sr.temperature_c, sr.humidity_pct, sr.thi, sr.recorded_at, d.name_devices
         FROM tb_sensor_readings sr
         LEFT JOIN tb_devices d ON d.id_devices = sr.id_devices
-        WHERE (d.id_farms = $1 OR sr.id_farms = $1)
+        WHERE sr.id_farms = $1
         ORDER BY sr.recorded_at DESC
         LIMIT 1
     `

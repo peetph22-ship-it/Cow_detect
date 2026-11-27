@@ -41,7 +41,7 @@ const computeFarmRisk = async (farm) => {
         SELECT sr.temperature_c, sr.humidity_pct, ${thiSql('sr')}::float AS thi, sr.recorded_at
         FROM tb_sensor_readings sr
         LEFT JOIN tb_devices d ON d.id_devices = sr.id_devices
-        WHERE (d.id_farms = $1 OR sr.id_farms = $1)
+        WHERE sr.id_farms = $1
         ORDER BY sr.recorded_at DESC
         LIMIT 1
     `, [farm.id_farms])
@@ -65,10 +65,11 @@ const computeFarmRisk = async (farm) => {
     const periodEnd = new Date()
     const periodStart = new Date(periodEnd.getTime() - REPORT_DAYS * 86400000)
     const { rows: [firstRow] } = await db.query(`
-        SELECT MIN(sr.recorded_at) AS first_at
+        SELECT sr.recorded_at AS first_at
         FROM tb_sensor_readings sr
-        LEFT JOIN tb_devices d ON d.id_devices = sr.id_devices
-        WHERE (d.id_farms = $1 OR sr.id_farms = $1)
+        WHERE sr.id_farms = $1
+        ORDER BY sr.recorded_at ASC
+        LIMIT 1
     `, [farm.id_farms])
     const firstAt = firstRow?.first_at ? new Date(firstRow.first_at) : null
     const periodHours = REPORT_DAYS * 24

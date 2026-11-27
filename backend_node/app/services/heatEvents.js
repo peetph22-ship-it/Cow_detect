@@ -85,10 +85,11 @@ const loadFarmEvents = async (farm, days = 7) => {
 // เวลาข้อมูลเซ็นเซอร์ล่าสุดของฟาร์ม (ทุกกล่องในฟาร์ม)
 const lastReadingAt = async (farmId) => {
     const { rows } = await db.query(
-        `SELECT MAX(sr.recorded_at) AS last
+        `SELECT sr.recorded_at AS last
          FROM tb_sensor_readings sr
-         LEFT JOIN tb_devices d ON d.id_devices = sr.id_devices
-         WHERE (d.id_farms = $1 OR sr.id_farms = $1)`,
+         WHERE sr.id_farms = $1
+         ORDER BY sr.recorded_at DESC
+         LIMIT 1`,
         [farmId]
     )
     return rows[0]?.last || null

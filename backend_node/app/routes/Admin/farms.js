@@ -59,6 +59,13 @@ const CAMERA_PUBLIC_COLUMNS = `id, farm_id, camera_name, barn_unit, brand, model
     username, channel_no, main_stream_url, sub_stream_url, is_active, is_simulation, created_at, updated_at`
 
 // Helper function to check if a string is a valid UUID
+// ค่าเซ็นเซอร์ที่กล่องส่งมาตอนยังไม่ผูกฟาร์ม (id_farms = NULL) ให้เป็นของฟาร์มที่เพิ่งผูก
+// query ฝั่งอ่านใช้ sr.id_farms อย่างเดียว (ใช้ index ได้) จึงต้องเติมตอนผูก
+const claimUnassignedReadings = (client, farmId) => client.query(
+    `UPDATE tb_sensor_readings sr SET id_farms = d.id_farms
+     FROM tb_devices d
+     WHERE d.id_farms = $1 AND sr.id_devices = d.id_devices AND sr.id_farms IS NULL`, [farmId])
+
 const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str || '').trim())
 
 // เวลารีดนม/ให้อาหาร 'HH:MM' (เวลาไทย) undefined = ไม่แก้, [] = ล้าง
@@ -304,7 +311,7 @@ router.post('/', verifyToken, requireRole('admin'), async (req, res) => {
             }
         } else if (device_serial && device_serial.trim()) {
             const serial = device_serial.trim()
-            const devName = new_device_name ? new_device_name.trim() : `ESP32 SHT20 (${serial})`
+            const devName = new_device_name ? new_device_name.trim() : `ESP32 SHT40 (${serial})`
             const devRes = await client.query(
                 // admin ลงทะเบียนบอร์ดใหม่: เริ่มเป็น offline จนกว่าบอร์ดจะส่งข้อมูลจริง
                 `INSERT INTO tb_devices (id_farms, type, name_devices, serial_no, status, created_at, updated_at)
@@ -315,6 +322,8 @@ router.post('/', verifyToken, requireRole('admin'), async (req, res) => {
             )
             if (devRes.rows.length > 0) assignedDevice = devRes.rows[0]
         }
+
+        if (assignedDevice) await claimUnassignedReadings(client, farmId)
 
         // 4. ผูกกล้อง CCTV กับฟาร์ม (ถ้ามีการส่งข้อมูลกล้องมา)
         let assignedCamera = null
@@ -373,12 +382,13 @@ router.post('/', verifyToken, requireRole('admin'), async (req, res) => {
 router.get('/:id/latest', verifyToken, requireRole('admin'), async (req, res) => {
     try {
         const { id } = req.params
+        if (!isUUID(id)) return res.status(404).json({ success: false, message: 'Farm not found' })
 
         const { rows } = await db.query(`
             SELECT sr.*, d.serial_no, d.name_devices, d.status AS device_status, d.last_seen_at
-            FROM tb_devices d
-            JOIN tb_sensor_readings sr ON sr.id_devices = d.id_devices
-            WHERE d.id_farms::text = $1 OR sr.id_farms::text = $1
+            FROM tb_sensor_readings sr
+            LEFT JOIN tb_devices d ON d.id_devices = sr.id_devices
+            WHERE sr.id_farms = $1
             ORDER BY sr.recorded_at DESC
             LIMIT 1
         `, [id])
@@ -634,16 +644,17 @@ router.get('/dashboard-stats', verifyToken, requireRole('admin'), async (req, re
 
         // 3. ดึงค่าเซ็นเซอร์ล่าสุดของแต่ละฟาร์ม/อุปกรณ์
         const latestReadingsRes = await db.query(`
-            SELECT DISTINCT ON (COALESCE(sr.id_farms, d.id_farms))
-                sr.*, 
-                f.name_farms,
-                d.serial_no,
-                d.name_devices
-            FROM tb_sensor_readings sr
+            -- ค่าล่าสุดของแต่ละฟาร์ม: ดึงทีละฟาร์มจาก index (id_farms, recorded_at) แทนการอ่านทั้งตาราง
+            SELECT sr.*, f.name_farms, d.serial_no, d.name_devices
+            FROM tb_farms f
+            CROSS JOIN LATERAL (
+                SELECT * FROM tb_sensor_readings s
+                WHERE s.id_farms = f.id_farms
+                ORDER BY s.recorded_at DESC
+                LIMIT 1
+            ) sr
             LEFT JOIN tb_devices d ON d.id_devices = sr.id_devices
-            LEFT JOIN tb_farms f ON f.id_farms = COALESCE(sr.id_farms, d.id_farms)
-            WHERE COALESCE(sr.id_farms, d.id_farms) IS NOT NULL
-            ORDER BY COALESCE(sr.id_farms, d.id_farms), sr.recorded_at DESC
+            ORDER BY f.id_farms
         `)
         const latestReadings = latestReadingsRes.rows
 
@@ -1191,6 +1202,7 @@ router.put('/:id', verifyToken, requireRole('admin'), async (req, res) => {
             } else {
                 await client.query(`UPDATE tb_devices SET id_farms = $1 WHERE serial_no = $2`, [id, String(id_devices).trim()])
             }
+            await claimUnassignedReadings(client, id)
         }
 
         // จัดการผูก/แก้ไขกล้องวงจรปิดประจำฟาร์ม

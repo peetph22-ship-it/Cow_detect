@@ -33,7 +33,7 @@ const loadBuckets = async (farmId, from, to) => {
                COUNT(*)::int AS n, MAX(d.serial_no) AS serial_no
         FROM tb_sensor_readings sr
         LEFT JOIN tb_devices d ON d.id_devices = sr.id_devices
-        WHERE (d.id_farms = $1 OR sr.id_farms = $1)
+        WHERE sr.id_farms = $1
           AND sr.temperature_c IS NOT NULL AND sr.humidity_pct IS NOT NULL
           AND sr.recorded_at >= $2 AND sr.recorded_at < $3
         GROUP BY 1 ORDER BY 1
@@ -108,10 +108,11 @@ const summarizeBuckets = (buckets, profile, windowHours) => {
 // 24 ชม. ย้อนจากค่าล่าสุดของฟาร์ม (อุปกรณ์ออฟไลน์ก็ยังเห็นวันสุดท้ายที่มีข้อมูล)
 const rolling24h = async (farmId, profile) => {
     const { rows: [last] } = await db.query(`
-        SELECT MAX(sr.recorded_at) AS t
+        SELECT sr.recorded_at AS t
         FROM tb_sensor_readings sr
-        LEFT JOIN tb_devices d ON d.id_devices = sr.id_devices
-        WHERE (d.id_farms = $1 OR sr.id_farms = $1)
+        WHERE sr.id_farms = $1
+        ORDER BY sr.recorded_at DESC
+        LIMIT 1  -- แทน MAX(): ใช้ index (id_farms, recorded_at) ได้ (MAX อ่านทั้งตารางเมื่อทุกแถวเป็นฟาร์มเดียว)
     `, [farmId])
     if (!last?.t) return { buckets: [], summary: summarizeBuckets([], profile, 24), window_start: null, window_end: null }
     const end = new Date(new Date(last.t).getTime() + 1000)

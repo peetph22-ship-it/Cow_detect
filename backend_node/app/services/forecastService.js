@@ -131,7 +131,7 @@ const fetchHourlyThi = async (farmId, endTime = new Date(), hours = LOOKBACK_HOU
             COUNT(*)::int AS n
         FROM tb_sensor_readings sr
         LEFT JOIN tb_devices d ON d.id_devices = sr.id_devices
-        WHERE (d.id_farms = $1 OR sr.id_farms = $1)
+        WHERE sr.id_farms = $1
           AND sr.recorded_at > $2
           AND sr.recorded_at <= $3
           AND sr.temperature_c IS NOT NULL

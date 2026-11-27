@@ -67,7 +67,7 @@ const fetch72HourMultimodalWindow = async (farmId, targetDateStr = null) => {
             COUNT(sr.id_sensor_readings) AS readings_count
         FROM tb_sensor_readings sr
         LEFT JOIN tb_devices d ON d.id_devices = sr.id_devices
-        WHERE (d.id_farms = $1 OR sr.id_farms = $1)
+        WHERE sr.id_farms = $1
           AND sr.recorded_at >= $2
           AND sr.recorded_at <= $3
         GROUP BY hour_bucket
@@ -102,37 +102,6 @@ const fetch72HourMultimodalWindow = async (farmId, targetDateStr = null) => {
         }
     } catch (cctvErr) {
         // cctv_behavior_telemetry table query error fallback
-    }
-
-    // 3. Fallback เพิ่มเติมจาก behavior_logs (ถ้ามี)
-    let behaviorMap = new Map()
-    try {
-        const behaviorQuery = `
-            SELECT 
-                date_trunc('hour', recorded_at AT TIME ZONE 'Asia/Bangkok') AS hour_bucket,
-                COUNT(*) FILTER (WHERE behavior = 'standing') AS standing_count,
-                COUNT(*) FILTER (WHERE behavior = 'lying') AS lying_count,
-                COUNT(*) AS total_detected
-            FROM behavior_logs
-            WHERE farm_id = $1
-              AND recorded_at >= $2
-              AND recorded_at <= $3
-            GROUP BY hour_bucket
-        `
-        const { rows: behRows } = await db.query(behaviorQuery, [farmId, past72hDate.toISOString(), targetDate.toISOString()])
-        for (const b of behRows) {
-            const k = new Date(b.hour_bucket).toISOString()
-            const total = parseInt(b.total_detected, 10) || 1
-            const standRatio = parseFloat((parseInt(b.standing_count, 10) / total).toFixed(2))
-            const lieRatio = parseFloat((parseInt(b.lying_count, 10) / total).toFixed(2))
-            behaviorMap.set(k, {
-                standing_pct: parseFloat((standRatio * 100).toFixed(1)),
-                lying_pct: parseFloat((lieRatio * 100).toFixed(1)),
-                cow_comfort_index: parseFloat(((lieRatio / (standRatio + lieRatio || 1)) * 100).toFixed(1))
-            })
-        }
-    } catch (behErr) {
-        // behavior_logs fallback
     }
 
     // 4. ตรวจสอบชั่วโมงที่มีข้อมูล
@@ -195,8 +164,8 @@ const fetch72HourMultimodalWindow = async (farmId, targetDateStr = null) => {
         const hSin = parseFloat(Math.sin(bangkokHour * 2 * Math.PI / 24).toFixed(3))
         const hCos = parseFloat(Math.cos(bangkokHour * 2 * Math.PI / 24).toFixed(3))
 
-        // รวมข้อมูลพฤติกรรม: กล้อง CCTV -> behavior_logs (ไม่เติมค่า "วัวสบายดี" แทนข้อมูลที่ขาด)
-        const cctvBeh = telemetryMap.get(hourStr) || behaviorMap.get(hourStr) || null
+        // ข้อมูลพฤติกรรมจากกล้อง CCTV (ไม่เติมค่า "วัวสบายดี" แทนข้อมูลที่ขาด)
+        const cctvBeh = telemetryMap.get(hourStr) || null
         if (!cctvBeh) missingBehaviorHours++
 
         hourlyData.push({

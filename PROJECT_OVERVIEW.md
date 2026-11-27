@@ -106,7 +106,6 @@ erDiagram
     tb_farms ||--o{ tb_sensor_readings : "เป็นเจ้าของข้อมูล"
     tb_farms ||--o{ tb_farm_daily_summaries : "สรุปผลรายวัน (Batch 20:00)"
     tb_farms ||--o{ cctv_behavior_telemetry : "บันทึกพฤติกรรมจากกล้อง"
-    tb_farms ||--o{ tb_farmer_daily_actions : "เช็กลิสต์การดูแลรายวัน"
 
     tb_users {
         uuid id_users PK
