@@ -57,9 +57,11 @@ const heartbeatStats = (rows, from, to) => {
     for (let i = 0; i < hb.length; i++) {
         const h = hb[i].health || {}
         const prev = i > 0 ? hb[i - 1].health || {} : null
-        const restarted = prev ? (Number.isFinite(h.uptime_s) && Number.isFinite(prev.uptime_s) && h.uptime_s < prev.uptime_s)
-            // heartbeat แรกในช่วง: เปิดเครื่องหลังเริ่มช่วงเวลา = รีบูตในช่วงนี้
-            : (Number.isFinite(h.uptime_s) && toMs(hb[i].received_at) - h.uptime_s * 1000 > toMs(from))
+        // เวลาเปิดเครื่อง = เวลาที่ server ได้รับ - uptime: ถ้าเปิดเครื่องหลัง heartbeat ก่อนหน้า (หรือหลังเริ่มช่วง) = รีบูตในช่วงนี้
+        // (เดิมดูแค่ uptime ลดลง: รีบูตติดกัน 2 ครั้งที่ heartbeat ทั้งคู่ส่งตอน uptime 9 วิ จะนับไม่ได้)
+        const since = prev ? toMs(hb[i - 1].received_at) : toMs(from)
+        const bootedAfter = Number.isFinite(h.uptime_s) && toMs(hb[i].received_at) - h.uptime_s * 1000 > since + 5000
+        const restarted = bootedAfter || Boolean(prev && Number.isFinite(h.uptime_s) && Number.isFinite(prev.uptime_s) && h.uptime_s < prev.uptime_s)
         if (restarted) reboots.push({ at: new Date(toMs(hb[i].received_at) - (h.uptime_s || 0) * 1000), reason: h.reset_reason || 'unknown' })
     }
     const byReason = {}

@@ -31,6 +31,18 @@ assert.deepStrictEqual(h.fw_versions, ['1.6.0']); assert.deepStrictEqual(h.senso
 const late = heartbeatStats([{ received_at: at(1800), health: { uptime_s: 60, reset_reason: 'power_on' } }], from, to)
 assert.strictEqual(late.reboots.count, 1)
 
+// รีบูตติดกัน: heartbeat แรกหลังบูตส่งตอน uptime 9 วิทุกครั้ง (uptime ไม่ลดลง แต่เปิดเครื่องใหม่หลัง heartbeat ก่อนหน้า) = 3 ครั้ง
+// ข้อมูลจริง 27 พ.ย. ซ้อมรอบภาพ 15 วิ: 20:32:47, 20:40:35, 20:49:20 uptime 9 ทั้งหมด
+const chain = heartbeatStats([
+    { received_at: at(600), health: { uptime_s: 4000, reset_reason: 'power_on' } },
+    { received_at: at(1200), health: { uptime_s: 9, reset_reason: 'watchdog' } },
+    { received_at: at(1700), health: { uptime_s: 9, reset_reason: 'crash' } },
+    { received_at: at(2200), health: { uptime_s: 9, reset_reason: 'watchdog' } },
+    { received_at: at(2500), health: { uptime_s: 309, reset_reason: 'watchdog' } }
+], from, to)
+assert.strictEqual(chain.reboots.count, 3, `back-to-back reboots ${chain.reboots.count}`)
+assert.deepStrictEqual(chain.reboots.by_reason, { watchdog: 2, crash: 1 })
+
 // ไม่มี heartbeat เลย = ขาดการติดต่อทั้งช่วง
 assert.ok(availability([], from, to).pct < 2)
 
