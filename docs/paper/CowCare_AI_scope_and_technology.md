@@ -1,10 +1,10 @@
 # CowCare AI — ขอบเขตงานและเทคโนโลยีที่ใช้ (Hardware & Software)
 
-*CowCare AI · ร่างสำหรับ paper · 6 พ.ย. 2569 · ปรับปรุงจุดตรวจ D1: 21 พ.ย. 2569*
+*CowCare AI · ร่างสำหรับ paper · 6 พ.ย. 2569 · ปรับปรุงจุดตรวจ D1: 21 พ.ย. 2569 · ปรับส่วนฮาร์ดแวร์ (SHT40, firmware 1.6.x, วิธีประเมินฮาร์ดแวร์): 27 พ.ย. 2569*
 
-ร่างนี้เขียนจากโค้ดและเฟิร์มแวร์จริงใน repository (commit `5753503`) ทุกตัวเลขตรวจกับซอร์สโค้ดแล้ว ข้อมูลที่ยังไม่มี เช่น รุ่นกล้อง และผลทดสอบความแม่นยำของเซ็นเซอร์ ทำเครื่องหมาย **\[ต้องเติม\]** ไว้ หัวข้อ 7 เป็นร่างภาษาอังกฤษสำหรับใช้ใน paper
+ร่างนี้เขียนจากโค้ดและเฟิร์มแวร์จริงใน repository (ตรวจกับซอร์สโค้ดล่าสุด 27 พ.ย. 2569) ทุกตัวเลขตรวจกับซอร์สโค้ดแล้ว ข้อมูลที่ยังไม่มี เช่น ราคาหัววัด SHT40 และผลทดสอบความแม่นยำของเซ็นเซอร์ ทำเครื่องหมาย **\[ต้องเติม\]** ไว้ หัวข้อ 7 เป็นร่างภาษาอังกฤษสำหรับใช้ใน paper
 
-> **สถานะสำคัญ (21 พ.ย. 2569):** แนวทางปรับจากท่าทางระดับฝูงเป็น **THI ในคอก + ท่าทางของวัวเป้าหมาย 1 ตัว** ที่คลิกเลือกบนภาพ (หัวข้อ 5.4) ระบบพัฒนาและทดสอบในบ้านแล้ว แต่**ยังไม่ได้ติดตั้งที่ฟาร์มโคนม** — ดูหน้างาน ≈ 25 พ.ย. 2569 แล้วเก็บข้อมูล 1 วัน 4–6 ชม. (กล้องทุก 1 นาที) ผลภาคสนามจึงยังไม่มี
+> **สถานะสำคัญ (27 พ.ย. 2569):** paper ฉบับนี้**เน้นฮาร์ดแวร์** (กล่อง IoT ราคาต่ำ: ความเสถียร ความครบของข้อมูล ความแม่นเซ็นเซอร์เทียบเครื่องอ้างอิง แบนด์วิดท์ ไฟ และต้นทุน) โดยใช้ **THI ในคอก + ท่าทางของวัวเป้าหมาย 1 ตัว** (หัวข้อ 5.4) เป็นตัวอย่างการใช้งาน หัววัดเปลี่ยนจาก SHT20 (RS485) ที่เสีย เป็น **SHT40 (I2C)** แล้ว ระบบทดสอบในบ้านแล้ว แต่**ยังไม่ได้ติดตั้งที่ฟาร์มโคนม** — ติดตั้ง + วันทดสอบ 6 ธ.ค. 2569 และวันเก็บข้อมูลจริง 7 ธ.ค. 2569 (6–8 ชม. ภาพทุก 15 วินาที พร้อมวิดีโออ้างอิง) ผลภาคสนามจึงยังไม่มี วิธีประเมินฮาร์ดแวร์อยู่ในหัวข้อ 5.5
 
 ## 1. ขอบเขตงาน (Scope of work)
 
@@ -17,7 +17,7 @@
 3.  สรุปตัวชี้วัดความร้อนสะสม: ชั่วโมงร้อน ชั่วโมงกลางคืนที่ THI ต่ำกว่าเกณฑ์ วันร้อนติดกัน เหตุการณ์ความร้อน และความครบถ้วนของข้อมูล พร้อมบันทึกสรุปประจำวันอัตโนมัติ
 4.  ติดตามสถานะกล่องเซ็นเซอร์ (สัญญาณ Wi-Fi หน่วยความจำ คิวค้างส่ง สถานะเซ็นเซอร์) ทุก 5 นาที เพื่อรู้ปัญหาก่อนข้อมูลหาย
 5.  พยากรณ์ THI เฉลี่ยรายวันล่วงหน้า 1–3 วัน โดยปรับพยากรณ์ ECMWF ด้วยค่าเพี้ยนที่เรียนจากเซ็นเซอร์ในคอก
-6.  ตรวจจับท่าทาง 4 คลาส (ยืน นอน กิน ดื่ม) ของวัวทุกตัวในภาพนิ่งด้วย YOLO ตามรอบที่ตั้งจากหน้าเว็บ (15 วินาที–60 นาที; วันเก็บข้อมูลใช้ 1 นาที) เก็บเป็นตัวเลขและตำแหน่งกรอบ (JSON) แทนวิดีโอ แล้ว**ติดตามวัวเป้าหมาย 1 ตัว**ที่ผู้ดูแลคลิกเลือกบนภาพ (ผูกเบอร์หู) สร้างไทม์ไลน์ นอน/ยืน/กิน/เดิน พร้อม THI ของแต่ละช่วง (ดูหัวข้อ 5.4)
+6.  ตรวจจับท่าทาง 4 คลาส (ยืน นอน กิน ดื่ม) ของวัวทุกตัวในภาพนิ่งด้วย YOLO ตามรอบที่ตั้งจากหน้าเว็บ (15 วินาที–60 นาที; วันเก็บข้อมูลใช้ 15 วินาที แล้วลดความถี่ตอนวิเคราะห์เพื่อหารอบที่เหมาะสม) เก็บเป็นตัวเลขและตำแหน่งกรอบ (JSON) แทนวิดีโอ แล้ว**ติดตามวัวเป้าหมาย 1 ตัว**ที่ผู้ดูแลคลิกเลือกบนภาพ (ผูกเบอร์หู) สร้างไทม์ไลน์ นอน/ยืน/กิน/เดิน พร้อม THI ของแต่ละช่วง (ดูหัวข้อ 5.4)
 7.  วิเคราะห์ความสัมพันธ์ระหว่างสัดส่วนท่านอนกับ THI เพื่อหาค่า THI ที่วัวในคอกเริ่มนอนน้อยลง (โค้ดพร้อม แต่ต้องมีข้อมูล ≥ 14 วัน จึงทำหลังส่ง paper ฉบับนี้ ซึ่งใช้ข้อมูล 1 วันเชิงพรรณนา)
 8.  เทียบสภาพในคอกกับอากาศภายนอกจากแบบจำลองที่พิกัดฟาร์ม
 9.  หน้าเว็บสำหรับเกษตรกร (มือถือ ผู้สูงอายุ) และผู้ดูแลระบบ พร้อมเครื่องมือตรวจความแม่นยำของกล้องแบบ blind audit
@@ -29,7 +29,7 @@
 - การควบคุมพัดลมหรือระบบพ่นน้ำอัตโนมัติ
 - การแจ้งเตือนผ่าน LINE และผู้ช่วย Generative AI สำหรับผู้ดูแลและสัตวแพทย์ (ออกแบบแล้ว ยังไม่พัฒนา)
 - หลายเซ็นเซอร์หรือหลายกล้องในคอกเดียว (ฐานข้อมูลรองรับ แต่การประมวลผลรองรับ 1 + 1 ต่อคอก)
-- การบันทึกวิดีโอต่อเนื่อง (ใช้ภาพนิ่งทุก 1–10 นาที) และการวัดปริมาณอาหารหรือน้ำที่กินจริง (คลาส "กิน/ดื่ม" บอกแค่ท่าทาง)
+- การบันทึกวิดีโอต่อเนื่อง (ใช้ภาพนิ่งทุก 15 วินาที–60 นาที) และการวัดปริมาณอาหารหรือน้ำที่กินจริง (คลาส "กิน/ดื่ม" บอกแค่ท่าทาง)
 - การปรับเกณฑ์ THI อัตโนมัติจากผลวิเคราะห์ท่าทาง (ต้องให้ผู้เชี่ยวชาญพิจารณาก่อน)
 - พยากรณ์ด้วยโมเดลอนุกรมเวลา (LSTM/GRU) ที่เรียนรู้ส่วนที่วิธีปรับค่าเพี้ยนยังคลาดเคลื่อน (ทดลองเมื่อมีข้อมูลในคอกต่อเนื่องหลายเดือน และเปิดใช้เฉพาะเมื่อ MAE ย้อนหลังต่ำกว่าวิธีปัจจุบันทั้ง 3 ระยะ; LSTM และ GRU ขนาดเล็กที่ทดสอบกับสถานีกลางแจ้งยังแพ้วิธีปัจจุบันทั้ง 3 ระยะ ดูหัวข้อ 5.3)
 
@@ -105,10 +105,10 @@
 
 ```mermaid
 flowchart LR
-  SEN["SHT20 RS485 sensor"] -->|Modbus RTU| ESP["ESP32-S3"]
+  SEN["SHT40 sensor"] -->|I2C| ESP["ESP32-S3"]
   CAM["IP camera (LAN)"] -->|HTTP snapshot, Digest auth| ESP
   ESP -->|HTTPS, every 15 s| API["Node.js / Express API (Render)"]
-  ESP -->|HTTPS JPEG, every 10 min| API
+  ESP -->|HTTPS JPEG, every 15 s–60 min| API
   API --> DB[("PostgreSQL + Object Storage (Supabase)")]
   API --> YOLO["YOLO26m ONNX (worker thread)"]
   OM["Open-Meteo: ECMWF IFS 0.25°"] --> API
@@ -130,29 +130,46 @@ flowchart LR
 | อุปกรณ์ | ทำหน้าที่อะไร | ราคา (บาท) |
 |----|----|----|
 | ESP32-S3 N16R8 | "สมอง" ของกล่อง: อ่านค่าเซ็นเซอร์ แสดงผล เก็บข้อมูลค้างส่ง ส่งข้อมูลขึ้นอินเทอร์เน็ต และดึงภาพจากกล้อง | 290 |
-| หัวโพรบ SHT20 (RS485) | วัดอุณหภูมิและความชื้นในคอก | 287 |
-| โมดูลแปลงสัญญาณ TTL–RS485 | แปลงสัญญาณให้ ESP32 คุยกับหัวโพรบได้ (สาย RS485 ลากได้ไกลและทนสัญญาณรบกวน) | 60 |
+| หัวโพรบ SHT40 (I2C, สาย 1 ม.) | วัดอุณหภูมิและความชื้นในคอก (สเปก ±0.2 °C, ±1.8 %RH) ต่อตรงเข้า ESP32 ไม่ต้องมีโมดูลแปลงสัญญาณ | **\[ต้องเติม\]** |
 | จอ LCD TFT 2.4" 320×240 | แสดงค่า THI ระดับความเสี่ยง และสถานะการเชื่อมต่อที่ตัวกล่อง | 250 |
 | Adapter 12 V 2 A | รับไฟจากไฟบ้าน | 90 |
 | โมดูล step-down 12 V → 3.3 / 5 V | ลดแรงดันไฟให้เหมาะกับบอร์ดและเซ็นเซอร์ | ~150 |
 | กล่อง Nano | ป้องกันวงจรจากฝุ่นและน้ำในคอก | 250 |
 | สายจัมเปอร์ | ต่อวงจรระหว่างชิ้นส่วน | 100 |
-| **รวมชุดเซ็นเซอร์** | ไม่รวมกล้อง | **1,477** |
-| กล้อง IP Dahua (เสริม) | ถ่ายภาพนิ่งในคอกให้ AI ตรวจท่าทางของฝูง (ยืมจากอาจารย์ช่วงพัฒนา คืนแล้ว) **\[ต้องเติม: รุ่น\]** | — |
+| **รวมชุดเซ็นเซอร์** | ไม่รวมกล้องและเน็ต | **1,130 + ราคา SHT40** |
+| กล้อง IP Dahua DH-IPC-HFW2231TP-ZAS-S2 | ถ่ายภาพนิ่งในคอกให้ AI ตรวจท่าทางวัว (2 MP, IR, IP67) | **\[ต้องเติม\]** |
+| เราเตอร์ 4G + ซิม | ให้กล่องและกล้องอยู่วงแลนเดียวกันและออกอินเทอร์เน็ตได้ (ฟาร์มไม่มีเน็ต) | **\[ต้องเติม\]** + ค่าเน็ตรายเดือน |
 | Breadboard MB-102 | ใช้ทดสอบวงจรช่วงแรกเท่านั้น ไม่อยู่ในชุดจริง | 60 |
 
-> ต้นทุนชุดเซ็นเซอร์ 1,477 บาท (ราคาปลีกปี 2569 ไม่รวมกล้องและค่าแรงประกอบ) สูงกว่าเป้าหมายรุ่นถัดไปที่ตั้งไว้ไม่เกิน 1,000 บาท ลดได้ด้วยการใช้ PCB แทนสายจัมเปอร์ และซื้อชิ้นส่วนเป็นจำนวนมาก
+> ต้นทุนชุดเซ็นเซอร์รุ่นเดิม (SHT20 + โมดูล RS485) คือ 1,477 บาท รุ่นปัจจุบันตัดหัวโพรบ SHT20 (287) และโมดูล RS485 (60) ออก แล้วใส่ SHT40 แทน จึงเท่ากับ 1,130 บาท + ราคา SHT40 (ราคาปลีกปี 2569 ไม่รวมกล้อง เราเตอร์ และค่าแรงประกอบ) ราคาจริงทุกชิ้นต้องเติมจากใบเสร็จก่อนส่ง paper ลดต้นทุนได้อีกด้วย PCB แทนสายจัมเปอร์ และซื้อชิ้นส่วนเป็นจำนวนมาก
+
+#### การต่อสาย (แผนผัง: `docs/paper/wiring_diagram.svg`)
+
+![แผนผังการต่อสายและเส้นทางข้อมูลของกล่องในคอก](wiring_diagram.svg)
+
+| จาก | ไปที่ | หมายเหตุ |
+|----|----|----|
+| SHT40 สายแดง (VCC) | ESP32 3V3 | ไฟ 3.3 V เท่านั้น (ห้ามต่อ 5 V) |
+| SHT40 สายดำ (GND) | ESP32 GND | |
+| SHT40 สายเขียว (SDA) | ESP32 GPIO11 | ใช้ pull-up ในชิป ESP32 + I2C 50 kHz (ถ้าอ่านพลาดบ่อย ใส่ตัวต้านทาน 4.7 kΩ ไป 3V3) |
+| SHT40 สายเหลือง (SCL) | ESP32 GPIO12 | |
+| จอ ST7789 | ESP32 GPIO 1, 2, 40, 41, 42 | ใช้ขาเหล่านี้แล้ว ห้ามใช้กับเซ็นเซอร์ |
+| Adapter 12 V → step-down | ESP32 5V/3V3 | |
+| ESP32 (Wi-Fi) ↔ กล้อง (LAN) | เราเตอร์ 4G | อยู่วงแลนเดียวกัน (เช่น 192.168.1.x) กล้องไม่ต้องเปิด port ออกนอก |
 
 ### ② โปรแกรมในกล่อง (Firmware บน ESP32)
 
 | ความสามารถ | ทำหน้าที่อะไร |
 |----|----|
-| อ่านและกรองค่า | อ่านเซ็นเซอร์ทุก 2 วินาที ตัดค่าที่ผิดปกติทิ้ง แล้วทำให้ค่าเรียบ (EMA) ส่งค่าออก 1 ค่าทุก 15 วินาที |
+| ตรวจรุ่นหัววัดจริง | ตอนเปิดเครื่องถามชิปว่าเป็นรุ่นอะไร (SHT4x / SHT3x / AHT / HTU21) แล้วอ่านด้วยคำสั่งของรุ่นนั้น รายงานรุ่นและเลข serial ของชิปขึ้นระบบ (กันหัววัดที่ขายผิดรุ่น: หัววัดที่ใช้ตรวจพบ `sht4x` ที่ 0x44) |
+| อ่านและกรองค่า | อ่านเซ็นเซอร์ทุก 2 วินาที ตรวจ CRC และช่วงค่า แล้วทำให้ค่าเรียบ (EMA) ส่งค่าออก 1 ค่าทุก 15 วินาทีตามนาฬิกาคงที่ (ไม่เลื่อนตามเวลาที่ส่งเสร็จ) |
+| ไล่ไอน้ำที่ผิวเซ็นเซอร์ | SHT4x มีขดลวดความร้อนในชิป: ถ้าความชื้น ≥ 95 % นาน 10 นาที (คอกกลางคืน/หน้าฝน) ให้ความร้อน 1 วินาที แล้วพักไม่อ่านค่า 90 วินาที ทำซ้ำได้ทุก 10 นาที (ตามที่ผู้ผลิตแนะนำให้ใช้น้อยกว่า 10% ของเวลา) |
+| กู้ตัวเองเมื่อค้าง | watchdog รีบูตถ้าโปรแกรมค้างเกิน 180 วินาที · server ไม่ตอบ 15 นาที ต่อ Wi-Fi ใหม่ · 30 นาที รีบูต (ข้อมูลในคิวไม่หาย) · บัส I2C ค้างจะล้างบัสเอง |
 | ตั้งเวลา (NTP) | ดึงเวลามาตรฐานจากกรมอุทกศาสตร์ กองทัพเรือ ให้ทุกค่ามีเวลาที่วัดจริงกำกับ |
 | เก็บข้อมูลค้างส่ง (store-and-forward) | ถ้าเน็ตหลุด เก็บค่าไว้ในหน่วยความจำของกล่องได้ประมาณ 3 สัปดาห์ แล้วส่งย้อนหลังให้เองเมื่อเน็ตกลับมา |
 | ส่งข้อมูลอย่างปลอดภัย | ส่งผ่าน HTTPS ตรวจใบรับรองเซิร์ฟเวอร์ และยืนยันตัวกล่องด้วยรหัสเฉพาะเครื่อง |
 | รายงานสถานะกล่อง | ทุก 5 นาที ส่งความแรงสัญญาณ Wi-Fi หน่วยความจำ คิวค้างส่ง และสถานะเซ็นเซอร์ ให้รู้ปัญหาก่อนข้อมูลหาย |
-| ดึงภาพจากกล้อง | ทุก 10 นาที ขอภาพนิ่งจากกล้องในเครือข่ายเดียวกัน แล้วส่งขึ้น cloud (ไม่ต้องมีคอมพิวเตอร์ที่ฟาร์ม) |
+| ดึงภาพจากกล้อง | ตามรอบที่ตั้งจากหน้าเว็บ (15 วินาที–60 นาที) ขอภาพนิ่งจากกล้องในเครือข่ายเดียวกัน แล้วส่งขึ้น cloud (ไม่ต้องมีคอมพิวเตอร์ที่ฟาร์ม) ทำใน task แยก ส่งค่าเซ็นเซอร์ไม่ต้องรอภาพ (firmware 1.6.2) |
 
 ### ③ ระบบหลังบ้าน (Cloud)
 
@@ -218,8 +235,8 @@ flowchart LR
 
 ### รายละเอียดทางเทคนิค (สำหรับเขียน Methods ใน paper)
 
-- **เซ็นเซอร์:** Modbus RTU ผ่าน RS485, 9600 baud 8N1, function 0x04 (input registers 0x0001–0x0002), ตรวจ CRC16; ช่วงค่าที่รับ −10 ถึง 65 °C และ 0–100 %RH; EMA α = 0.7
-- **Firmware 1.4.1:** Arduino core for ESP32, Adafruit GFX/ST7789, LittleFS; คิวสูงสุด 2 MB, ส่งย้อนหลังชุดละ 100 ค่า, backoff 15 วินาที → 1 นาที → 5 นาที; NTP `time.navy.mi.th` + `pool.ntp.org` ซิงก์ทุก 6 ชม.; ภาพ JPEG ≤ 1.5 MB ใน PSRAM, Digest/Basic auth
+- **เซ็นเซอร์:** Sensirion SHT40 ผ่าน I2C (SDA GPIO11, SCL GPIO12, 50 kHz, pull-up ในชิป) คำสั่งวัดความแม่นสูง 0xFD, ตรวจ CRC-8 ทุกค่า; ช่วงค่าที่รับ −10 ถึง 65 °C และ 0–100 %RH; EMA α = 0.7; heater 0x39 (200 mW, 1 วินาที) เมื่อ RH ≥ 95 % นาน 10 นาที พัก 90 วินาที
+- **Firmware 1.6.x (Arduino core for ESP32 3.3):** Adafruit GFX/ST7789, LittleFS; คิวสูงสุด 2 MB (8 ไบต์/ค่า ≈ 3 สัปดาห์), ส่งย้อนหลังชุดละ 100 ค่า, backoff 15 วินาที → 1 นาที → 5 นาที; NTP `time.navy.mi.th` + `pool.ntp.org` ซิงก์ทุก 6 ชม.; ภาพ JPEG ≤ 1.5 MB ใน PSRAM, Digest/Basic auth; task watchdog 180 วินาที; heartbeat ทุก 5 นาที (รุ่นและ serial ของหัววัด, จำนวนครั้งที่ล้างบัส I2C, เวลาตั้งแต่ server ตอบล่าสุด, จำนวนครั้งที่เปิด heater, เหตุผลการรีบูตครั้งล่าสุด)
 - **เวอร์ชันซอฟต์แวร์:** Node.js 24, Express 5.2, node-postgres 8.23, onnxruntime-node 1.30, sharp 0.35, node-cron 4.6, bcrypt 6.0, jsonwebtoken 9.0, @supabase/supabase-js 2.117, Ultralytics 8.4 (ใช้วัดผล mAP และเครื่องมือภาพสด), Nuxt 4.5, Vue 3.5, Vuetify 4.2, Tailwind CSS 4.3, ApexCharts 7.8
 - **Open-Meteo:** Forecast API และ Previous Runs API, แบบจำลอง ECMWF IFS 0.25°
 - **การสื่อสาร:** REST API ผ่าน HTTPS (JSON); ภาพ JPEG ส่งแบบ HTTP POST; กล้อง ↔ ESP32 ใช้ HTTP snapshot ในเครือข่ายภายใน
@@ -307,14 +324,32 @@ T = อุณหภูมิ (°C), RH = ความชื้นสัมพั
 
 > **เครื่องมือภาพสด (แยกจากการเก็บข้อมูล):** ใช้วิดีโอ RTSP + YOLO + ByteTrack ให้หมายเลขวัวต่อเนื่องข้ามเฟรม ประมาณ 9 เฟรมต่อวินาที ใช้ได้เฉพาะในเครือข่ายเดียวกับกล้อง สำหรับให้ผู้ดูแลตรวจมุมกล้อง ไม่ได้บันทึกเป็นข้อมูลวิจัย
 
+### 5.5 การประเมินฮาร์ดแวร์ (Hardware evaluation protocol)
+
+ทุกตัวเลขในหัวข้อนี้คำนวณจากสคริปต์ใน `backend_node/scripts/` ที่รันซ้ำได้ (อ่านฐานข้อมูลแบบอ่านอย่างเดียว) ขั้นตอนทดสอบในบ้านอยู่ใน `docs/HARDWARE_TEST.md`
+
+| สิ่งที่วัด | วิธีวัด | สคริปต์ / แหล่งข้อมูล |
+|----|----|----|
+| ความพร้อมใช้งานของกล่อง (uptime) | สัดส่วนช่วง heartbeat 5 นาทีที่ได้รับ จำนวนครั้งที่รีบูตและสาเหตุ (ไฟดับ ไฟตก watchdog สั่งรีบูต) | `hardware_report.js` (`tb_device_heartbeats`) |
+| ความครบของค่าเซ็นเซอร์ | ค่าที่ได้รับ ÷ ค่าที่ควรได้ (1 ค่า/15 วินาที) และช่วงที่ขาดนานที่สุด | `hardware_report.js` (`tb_sensor_readings`) |
+| ความหน่วงการส่ง | เวลาที่ server ได้รับ − เวลาที่กล่องวัด (มัธยฐาน, p90, สูงสุด) และสัดส่วนค่าที่ส่งย้อนหลังจากคิว (ช้ากว่า 60 วินาที) | `hardware_report.js` (`received_at − recorded_at`) |
+| ความครบของภาพ | ภาพที่ถึง server ÷ ภาพที่ควรได้ตามรอบ ขนาดภาพ ภาพที่ server ยุ่ง และเวลาประมวลผล YOLO ต่อภาพ | `hardware_report.js`, `rehearsal_report.js` (`tb_camera_frames`, `cctv_behavior_telemetry`) |
+| แบนด์วิดท์ | ขนาดภาพรวมต่อวัน (วัดจริง) + คำขอค่าเซ็นเซอร์/heartbeat (ประมาณ 1 KB/คำขอ) | `hardware_report.js` |
+| ความแม่นของเซ็นเซอร์ | วาง SHT40 คู่เครื่องวัดอ้างอิง (ห่าง ≤ 10 ซม.) จดค่าอ้างอิงอย่างน้อยทุกชั่วโมง จับคู่กับค่ากล่องภายใน ±60 วินาที แล้วคำนวณ MAE, bias และค่าคลาดเคลื่อนสูงสุดของอุณหภูมิ ความชื้น และ THI | `compare_sensor.js` |
+| การกู้ตัวเอง | ถอดเน็ต 10 นาที · ดึงปลั๊กกล่อง 2 นาที · ถอดสายกล้อง 5 นาที · รีสตาร์ต server แล้วตรวจว่ากลับมาเองและค่าที่ค้างในคิวส่งครบ | `docs/HARDWARE_TEST.md` + `hardware_report.js` |
+| การใช้ไฟ | มิเตอร์ USB วัดกำลังไฟ (W) ของกล่องทั้งขณะปกติและขณะส่งภาพ | มิเตอร์ USB **\[ต้องเติม: รุ่น\]** |
+| เวลานอน/ยืน/กินเทียบวิดีโอ และผลของรอบถ่ายภาพ | อัดวิดีโอวัวเป้าหมายตลอดวันที่ 7 ธ.ค. จดช่วงพฤติกรรมจากวิดีโอ แล้วเทียบกับผลระบบที่รอบ 15 วินาที และที่ลดความถี่เป็น 30/60/120/300 วินาที | `compare_video.js`, `docs/VIDEO_ANNOTATION.md` |
+
+ผลทดสอบบนโต๊ะเบื้องต้น (26–27 พ.ย. 2569, firmware 1.6.0, เซ็นเซอร์อย่างเดียว ไม่เปิดกล้อง, Wi-Fi บ้าน): heartbeat 288/288 ใน 24 ชม. (100%), ไม่รีบูต, ความหน่วงมัธยฐาน 1.8 วินาที (p90 2.1 วินาที), ไม่มีค่าที่ต้องส่งย้อนหลัง · ความครบ 93.8% เกิดจาก firmware 1.6.0 ส่งรอบละ ~16 วินาที (ไม่ใช่ข้อมูลหาย ช่วงขาดนานสุด 0.3 นาที) แก้แล้วใน 1.6.1 ต้องวัดซ้ำ — ตัวเลขชุดนี้ใช้เป็นผลเบื้องต้นเท่านั้น ไม่ใช่ผลในคอก
+
 ## 6. สถานะปัจจุบันและข้อจำกัดของงาน
 
 รวบรวมข้อจำกัดทั้งหมดที่ทราบ ณ ตอนนี้ แบ่งตามหมวด ใช้เขียนหัวข้อ Limitations ใน paper และวางแผนงานต่อ
 
 ### 6.1 การทดสอบและความถูกต้องของผล
 
-1.  **ยังไม่ได้ติดตั้งในฟาร์มโคนม:** ระบบทดสอบในบ้านเท่านั้น ข้อมูลภาคสนามของ paper ฉบับนี้จะเป็นการเก็บ 1 วัน 4–6 ชม. (กรณีศึกษา)
-2.  **ความแม่นยำของเซ็นเซอร์ยังไม่ได้ยืนยัน:** อยู่ระหว่างทดสอบเทียบกับเครื่องวัดอ้างอิง
+1.  **ยังไม่ได้ติดตั้งในฟาร์มโคนม:** ระบบทดสอบในบ้านเท่านั้น ข้อมูลภาคสนามของ paper ฉบับนี้มาจาก 2 วัน: 6 ธ.ค. 2569 (ติดตั้ง + วันทดสอบ) และ 7 ธ.ค. 2569 (วันจริง 6–8 ชม.) เป็นกรณีศึกษา
+2.  **ความแม่นยำของเซ็นเซอร์ยังไม่ได้ยืนยัน:** จะทดสอบเทียบเครื่องวัดอ้างอิงในบ้าน 24 ชม. (30 พ.ย.–3 ธ.ค.) และในคอกวันที่ 7 ธ.ค. ด้วย `compare_sensor.js` ตอนนี้มีแค่ค่าตามสเปกผู้ผลิต (±0.2 °C, ±1.8 %RH)
 3.  **ผลทดสอบพยากรณ์เป็นการเทียบกับอากาศภายนอก:** ใช้สถานีสนามบินเชียงใหม่ ไม่ใช่ข้อมูลในคอก และการทดสอบใช้ค่าเฉลี่ยของค่าเพี้ยน ขณะที่ระบบปัจจุบันใช้มัธยฐาน จึงต้องประเมินซ้ำกับระบบรุ่นปัจจุบันและข้อมูลในคอก
 4.  **ค่าเพี้ยนระดับภูมิภาคมาจากสถานีเดียว:** ยังไม่ได้ทดสอบกับพื้นที่อื่นนอกเชียงใหม่
 5.  **โมเดลกล้องยังไม่ได้วัดความแม่นยำในโรงเรือนไทย:** เทรนจากชุดข้อมูลสาธารณะ (Roboflow) ที่ไม่ใช่ภาพจากคอกในไทย ชุดทดสอบเดิมมาจากกล้องเดียวกับชุดฝึกและ 22% เกือบซ้ำกับภาพฝึก (mAP50 0.720 จึงสูงเกินจริงสำหรับคอกใหม่) และชุดฝึกตีกรอบไม่ครบ (เทียบกับ CBVD-5 บนภาพเดียวกัน 969 ภาพ: วัว 2,481 ตัวไม่มีกรอบ, 281 กรอบรวมวัวหลายตัว) ซึ่งสอนให้โมเดลมองข้ามวัวบางตัว ผลตรวจแบบเข้มงวด Recall 0.70–0.72 วัวตัวเล็ก/ไกลถูกพลาดบ่อย คลาส "ดื่ม" แม่นยำต่ำ (AP50 0.37) และภาพกลางคืน (อินฟราเรด) อาจทำให้แม่นยำน้อยลง (ปัญหาย่อภาพไม่ตรงกับภาพฝึกแก้แล้วเมื่อ 20 พ.ย. 2569)
@@ -328,25 +363,27 @@ T = อุณหภูมิ (°C), RH = ความชื้นสัมพั
 3.  **ไม่มีข้อมูลจากตัวสัตว์:** ไม่มีอุณหภูมิร่างกาย อัตราการหายใจ การหอบ การเคี้ยวเอื้อง หรือปริมาณน้ำนม จึงสรุปผลต่อสุขภาพหรือผลผลิตไม่ได้
 4.  **ติดตามวัวได้ทีละ 1 ตัวด้วยตำแหน่ง:** ไม่จำลายหรือเครื่องหมายของวัว ถ้าวัวอยู่ชิดกันหรือย้ายไปตำแหน่งที่วัวตัวอื่นเพิ่งอยู่ อาจสลับตัว และพฤติกรรมที่สั้นกว่ารอบถ่ายภาพจะไม่ถูกบันทึก
 5.  **สัดส่วนท่านอนไม่ใช่ดัชนีความสบายที่ผ่านการรับรอง:** ได้รับผลจากเวลาให้อาหาร การรีดนม การบังกันในภาพ และความผิดพลาดของโมเดล
-6.  **ข้อมูล 1 วัน (4–6 ชม.) ใช้ได้เชิงพรรณนา:** ช่วง THI ในวันเดียวแคบ จึงยังสรุปความสัมพันธ์ THI–พฤติกรรมเชิงสถิติไม่ได้ การวิเคราะห์สัดส่วนท่านอนเทียบ THI ต้องมีข้อมูลอย่างน้อย 14 วัน และเป็นความสัมพันธ์เชิงสำรวจในฟาร์มเดียว
+6.  **ข้อมูล 2 วัน (วันทดสอบ + วันจริง 6–8 ชม.) ใช้ได้เชิงพรรณนา:** ช่วง THI ในวันเดียวแคบ จึงยังสรุปความสัมพันธ์ THI–พฤติกรรมเชิงสถิติไม่ได้ การวิเคราะห์สัดส่วนท่านอนเทียบ THI ต้องมีข้อมูลอย่างน้อย 14 วัน และเป็นความสัมพันธ์เชิงสำรวจในฟาร์มเดียว
 7.  **ยังรองรับเซ็นเซอร์ 1 ตัวและกล้อง 1 ตัวต่อคอก:** ฐานข้อมูลรองรับหลายตัว แต่การประมวลผลยังไม่รองรับ
 
 ### 6.3 ฮาร์ดแวร์และการติดตั้ง
 
-1.  **ยังไม่มีกล้องสำหรับติดตั้งที่ฟาร์ม:** กล้องช่วงพัฒนายืมจากอาจารย์และคืนแล้ว
-2.  **ยังไม่มีอินเทอร์เน็ตที่ฟาร์ม:** ยังไม่ได้ซื้ออุปกรณ์ปล่อยสัญญาณ (เราเตอร์หรือ 4G) ระบบต้องใช้อินเทอร์เน็ตส่งข้อมูล ถ้าเน็ตหลุด กล่องเก็บค่าเซ็นเซอร์ค้างส่งได้ประมาณ 3 สัปดาห์ แต่ภาพจากกล้องไม่ถูกเก็บไว้ส่งทีหลัง
+1.  **กล้องที่ฟาร์ม:** ใช้กล้อง Dahua DH-IPC-HFW2231TP-ZAS-S2 ตัวเดียวกับช่วงพัฒนา **\[ต้องยืนยัน: ได้กล้องคืนจากอาจารย์ / ใส่ microSD สำหรับวิดีโออ้างอิงได้หรือไม่\]** มุมกล้องและจุดติดตั้งเห็นครั้งแรกวันที่ 6 ธ.ค.
+2.  **อินเทอร์เน็ตที่ฟาร์มใช้เราเตอร์ 4G:** ฟาร์มไม่มีเน็ต ต้องใช้เราเตอร์ 4G + ซิม **\[ต้องเติม: รุ่น/ค่าบริการ\]** ถ้าเน็ตหลุด กล่องเก็บค่าเซ็นเซอร์ค้างส่งได้ประมาณ 3 สัปดาห์ แต่ภาพจากกล้องไม่ถูกเก็บไว้ส่งทีหลัง
 3.  **ไม่มีแบตเตอรี่สำรอง:** ใช้ไฟบ้านผ่าน adapter ถ้าไฟดับจะไม่มีการวัด และค่าที่ยังไม่ได้ตั้งเวลาจาก NTP (ค้างใน RAM) จะหาย
 4.  **ความทนทานในโรงเรือน:** ยังไม่ทราบระดับกันน้ำและฝุ่นของกล่อง และยังไม่ได้ทดสอบกับความชื้นสูง แอมโมเนีย และฝุ่นในคอก
 5.  **วงจรต้นแบบต่อด้วยสายจัมเปอร์:** อาจหลวมหรือเสียได้เมื่อใช้งานนาน ยังไม่ได้ทำ PCB
-6.  **ต้นทุนจริง 1,477 บาท:** สูงกว่าเป้าหมายรุ่นถัดไปที่ตั้งไว้ไม่เกิน 1,000 บาท และยังไม่รวมกล้อง อุปกรณ์อินเทอร์เน็ต ค่าแรง และค่าบริการรายเดือน
+6.  **ต้นทุนชุดเซ็นเซอร์ 1,130 บาท + ราคา SHT40:** สูงกว่าเป้าหมายรุ่นถัดไปที่ตั้งไว้ไม่เกิน 1,000 บาท และยังไม่รวมกล้อง เราเตอร์ 4G ค่าแรง และค่าเน็ตรายเดือน
+7.  **หัววัดต่อสาย I2C ยาว 1 ม. โดยใช้ pull-up ในชิป:** I2C ไม่ได้ออกแบบมาสำหรับสายยาว จึงใช้ความเร็ว 50 kHz และให้ firmware ล้างบัสเองเมื่อค้าง (นับจำนวนครั้งใน heartbeat) ถ้าในคอกอ่านพลาดบ่อยต้องเพิ่มตัวต้านทาน 4.7 kΩ หรือย้ายกล่องให้ใกล้จุดวัด
+8.  **หัววัดเดิม (SHT20, RS485) เสียระหว่างพัฒนา:** สาเหตุไม่ทราบ หัววัดใหม่จึงยังไม่มีประวัติการใช้งานยาวในความชื้นสูง (มี heater ไล่ไอน้ำ แต่ยังไม่ได้ทดสอบในคอก)
 
 ### 6.4 ซอฟต์แวร์และโครงสร้างพื้นฐาน
 
-1.  **ใช้ cloud รุ่นฟรี:** YOLO บนเซิร์ฟเวอร์ใช้เวลาประมาณ 30 วินาทีต่อภาพ ถ้าภาพเข้ามาพร้อมกันเกินคิว (2 ภาพ) ภาพนั้นจะถูกข้าม และขยายไปหลายฟาร์มไม่ได้ถ้าไม่อัปเกรด
+1.  **ประมวลผลภาพบน cloud ขนาดเล็ก:** server แพ็ก 0.5 CPU (Render, US$7/เดือน ช่วงเก็บข้อมูล) เวลา YOLO ต่อภาพบน server จริงยังไม่ได้วัด (จะวัดตอนซ้อมรอบ 15 วินาที; อ้างอิง: บนโน้ตบุ๊ก Apple M2 1 thread = 0.44 วินาที/ภาพ; แพ็กฟรีเดิมประมาณ 30 วินาที/ภาพ) ถ้าภาพเข้ามาพร้อมกันเกินคิว (2 ภาพ) ภาพนั้นจะถูกข้าม และขยายไปหลายฟาร์มต้องเพิ่มเครื่อง
 2.  **ฐานข้อมูลรุ่นฟรีหยุดชั่วคราวเมื่อไม่มีการใช้งาน:** เคยเกิดขึ้นจริงระหว่างพัฒนา ระหว่างนั้นระบบรับข้อมูลไม่ได้ ถ้าใช้งานจริงต้องเปลี่ยนเป็นแผนแบบเสียเงิน
 3.  **พึ่งบริการภายนอก:** Open-Meteo รุ่นฟรีใช้ได้เฉพาะงานที่ไม่ใช่เชิงพาณิชย์ และเคยถูกจำกัดจำนวนครั้งการเรียก (HTTP 429) ระบบจึงมีเซิร์ฟเวอร์สำรองและแคชไว้
-4.  **การยืนยันตัวกล่องยังเป็นโหมดเตือน:** ยังรับข้อมูลแม้ key ไม่ถูกต้อง ต้องเปลี่ยนเป็นโหมดบังคับก่อนใช้งานจริง
-5.  **ยังไม่มีชุดทดสอบอัตโนมัติ:** ทดสอบด้วยมือเป็นหลัก
+4.  **การยืนยันตัวกล่องตั้งได้ 2 โหมด (`DEVICE_AUTH_MODE`):** ค่าเริ่มต้นคือโหมดเตือน (รับข้อมูลแม้ key ไม่ถูกต้อง) ต้องตั้งเป็น `enforce` บน server ก่อนใช้งานจริง **\[ต้องเช็กค่าบน Render\]**
+5.  **ชุดทดสอบอัตโนมัติครอบคลุมเฉพาะ logic ฝั่ง server:** มีสคริปต์ทดสอบ `backend_node/scripts/test_*.js` (การติดตามวัว สถิติฮาร์ดแวร์ การเทียบเซ็นเซอร์/วิดีโอ ฯลฯ) แต่ firmware และหน้าเว็บยังทดสอบด้วยมือ
 
 ### 6.5 ผู้ใช้และฟีเจอร์
 
@@ -368,7 +405,11 @@ Heat-stress forecasts offered to dairy farmers, such as Dairy Australia's Dairy 
 
 ### Hardware
 
-Each barn unit consists of an ESP32-S3 N16R8 microcontroller (16 MB flash, 8 MB PSRAM), an SHT20 temperature–humidity probe with an RS485 interface read over Modbus RTU (9600 baud) through a TTL–RS485 converter, a 2.4-inch 320×240 TFT display (ST7789), a 12 V 2 A adapter with a 12 V to 3.3/5 V step-down regulator, and an enclosure, with a total component cost of about 1,477 THB (approx. USD **\[ต้องเติม: อัตราแลกเปลี่ยน\]**). An IP camera on the farm network supplies the images (a Dahua IP camera was used during development). The firmware samples the sensor every 2 s, applies range and CRC checks and an exponential moving average (α = 0.7), and transmits one time-stamped reading every 15 s over HTTPS. Readings that cannot be sent are queued in on-board flash (up to 2 MB, about three weeks) and uploaded in batches when connectivity returns. At an interval set from the web interface (15 s to 60 min; 1 min during the field recording), the same microcontroller retrieves a JPEG snapshot from the camera over the local network and uploads it, so no on-farm computer or inbound network access is required. A heartbeat every 5 min reports signal strength, memory, queue length and sensor health.
+Each barn unit consists of an ESP32-S3 N16R8 microcontroller (16 MB flash, 8 MB PSRAM), a Sensirion SHT40 temperature–humidity probe (specified accuracy ±0.2 °C and ±1.8 %RH) on a 1 m cable connected directly to the microcontroller over I2C (50 kHz, internal pull-ups), a 2.4-inch 320×240 TFT display (ST7789), a 12 V 2 A adapter with a 12 V to 3.3/5 V step-down regulator, and an enclosure, with a component cost of 1,130 THB plus the probe **\[ต้องเติม: ราคา SHT40 และอัตราแลกเปลี่ยน\]**; a Dahua DH-IPC-HFW2231TP-ZAS-S2 IP camera and a 4G router complete the installation. At start-up the firmware identifies the probe chip from its I2C response and reports the detected model and chip serial number, which guards against mislabelled low-cost probes. The firmware samples the sensor every 2 s, applies CRC and range checks and an exponential moving average (α = 0.7), and transmits one time-stamped reading on a fixed 15-s schedule over HTTPS. Readings that cannot be sent are queued in on-board flash (up to 2 MB, about three weeks) and uploaded in batches when connectivity returns. To counter condensation in humid barns, the probe's built-in heater is pulsed for 1 s when relative humidity stays at or above 95% for 10 min, and readings are skipped for 90 s afterwards. A task watchdog (180 s) restarts a stalled program, and the unit reconnects to Wi-Fi after 15 min and reboots after 30 min without a server response, keeping the queue. At an interval set from the web interface (15 s to 60 min; 15 s during the field recording), the same microcontroller retrieves a JPEG snapshot from the camera over the local network in a separate task and uploads it, so no on-farm computer or inbound network access is required; sensor transmissions never wait for an image upload. A heartbeat every 5 min reports signal strength, memory, queue length, sensor model and health, bus recoveries, heater pulses and the reason for the last reset.
+
+### Hardware evaluation
+
+Hardware performance is reported from scripts in the project repository that read the database without modifying it. Availability is the share of 5-min heartbeat intervals received, together with the number and cause of resets; data completeness is the number of readings and images received relative to the number expected at the configured interval, with the longest gap; delivery latency is the difference between server receipt and measurement time; and bandwidth combines measured image sizes with an estimate for sensor and heartbeat requests. Sensor accuracy is assessed by placing the probe next to a reference instrument **\[ต้องเติม: รุ่น\]** and pairing readings within ±60 s, reporting the mean absolute error, bias and maximum error of temperature, relative humidity and THI. Recovery is tested by removing network access for 10 min, power for 2 min and the camera link for 5 min, and by restarting the server, and power draw is measured with a USB power meter. Behaviour time budgets of the target cow are compared with continuous video of the same animal, and the snapshot interval is evaluated by subsampling the 15-s series to 30, 60, 120 and 300 s.
 
 ### Software
 
@@ -380,20 +421,21 @@ The camera provides a second, animal-based dimension alongside the environmental
 
 ### Limitations
 
-The system has so far been tested only outside a dairy barn; sensor accuracy against a reference instrument, in-barn forecast accuracy and detector accuracy on Thai barn images are still to be measured. The forecast evaluation used an outdoor weather station rather than barn data. The THI thresholds were derived from daily station data and have not been validated for 5-min in-barn readings. A single sensor per barn does not capture spatial variation, and THI ignores wind speed and radiation. The system records no animal-based measures (body temperature, respiration, rumination, milk yield) and therefore cannot attribute health or production effects. The detector was trained on public images from other barns; its recall on unseen frames was about 0.70, and small or distant cows are often missed. Tracking follows a single cow by position only and may switch to a neighbouring cow when animals are close, and behaviours shorter than the snapshot interval are missed. The field data reported here cover a single day (4–6 h), so the relationship between behaviour and THI is described rather than tested statistically. The prototype depends on farm internet access (sensor readings are buffered for about three weeks; images are not), has no battery backup, and runs on free-tier cloud services with limited inference throughput.
+The system has so far been tested only outside a dairy barn; sensor accuracy against a reference instrument, in-barn forecast accuracy and detector accuracy on Thai barn images are still to be measured. The forecast evaluation used an outdoor weather station rather than barn data. The THI thresholds were derived from daily station data and have not been validated for 5-min in-barn readings. A single sensor per barn does not capture spatial variation, and THI ignores wind speed and radiation. The system records no animal-based measures (body temperature, respiration, rumination, milk yield) and therefore cannot attribute health or production effects. The detector was trained on public images from other barns; its recall on unseen frames was about 0.70, and small or distant cows are often missed. Tracking follows a single cow by position only and may switch to a neighbouring cow when animals are close, and behaviours shorter than the snapshot interval are missed. The relationship between behaviour and THI is therefore described rather than tested statistically. The field data come from two consecutive days on one farm (an installation and trial day and a 6–8 h recording day). The prototype depends on farm internet access through a 4G router (sensor readings are buffered for about three weeks; images are not), has no battery backup, connects the probe over a 1 m I2C cable without external pull-up resistors, and runs inference on a small cloud instance (0.5 vCPU) with limited throughput.
 
 > หมายเหตุ: ประโยคผลทดสอบพยากรณ์ควรระบุใน paper ว่าเป็นการทดสอบกับสถานีอากาศภายนอก และต้องเพิ่มผลจากคอกจริงหลังติดตั้ง
 
 ## 8. ข้อมูลที่ต้องเติม (ต้องให้พีทหรืออาจารย์ช่วยระบุ)
 
-1.  ผลทดสอบความแม่นยำของหัวโพรบ SHT20 เทียบเครื่องอ้างอิง (อยู่ระหว่างทดสอบ) และค่าจาก datasheet ผู้ผลิต
-2.  รุ่นกล้อง Dahua ที่ยืมจากอาจารย์ (ความละเอียด IR ราคาตลาด) และกล้องที่จะใช้ตอนติดตั้งที่ฟาร์ม
+1.  ผลทดสอบความแม่นยำของหัวโพรบ SHT40 เทียบเครื่องอ้างอิง (`compare_sensor.js` หลังทดสอบ 30 พ.ย.–3 ธ.ค. และ 7 ธ.ค.)
+2.  ราคาจริงของทุกชิ้นจากใบเสร็จ (SHT40, กล้อง, เราเตอร์ 4G, ซิม/ค่าเน็ตรายเดือน) และยืนยันว่ากล้อง Dahua ที่ใช้ติดตั้งคือรุ่น DH-IPC-HFW2231TP-ZAS-S2
 3.  ขนาดและระดับกันน้ำของกล่อง
-4.  อุปกรณ์อินเทอร์เน็ตที่จะใช้ที่ฟาร์ม (เมื่อซื้อแล้ว)
-5.  เครื่องวัดอ้างอิงที่ใช้ทดสอบความแม่นยำของเซ็นเซอร์
+4.  รุ่นเราเตอร์ 4G และเครือข่ายมือถือที่ใช้ที่ฟาร์ม
+5.  รุ่นเครื่องวัดอ้างอิง และรุ่นมิเตอร์ USB ที่ใช้วัดไฟ
 6.  อัตราแลกเปลี่ยนบาท → ดอลลาร์สหรัฐ สำหรับต้นทุนในร่างภาษาอังกฤษ
 7.  ทบทวนวรรณกรรมให้ครบก่อนอ้างว่าพยากรณ์ THI ในคอกเป็นงานแรก อ่านฉบับเต็มของเอกสารอ้างอิงในหัวข้อ 2 และเติม URL ของบริการพยากรณ์
+8.  ผลฮาร์ดแวร์ทั้งหมดในหัวข้อ 5.5 (ทดสอบในบ้าน 24 ชม. + วันที่ 6–7 ธ.ค.) จาก `hardware_report.js --json`
 
 ------------------------------------------------------------------------
 
-*เขียนจากซอร์สโค้ดใน repository CowCare AI ณ commit 5753503 (6 พ.ย. 2569)*
+*เขียนจากซอร์สโค้ดใน repository CowCare AI (ร่างแรก 6 พ.ย. 2569 · ส่วนฮาร์ดแวร์ปรับตามโค้ดล่าสุด 27 พ.ย. 2569)*

@@ -1,0 +1,50 @@
+/* Layout: เอกสารคอลัมน์เดียว ส่วนไทยสำหรับอาจารย์ + ส่วนอังกฤษสำหรับคัดลอกลง paper */
+:root {
+  --bg: #f5f6f3; --paper: #ffffff; --ink: #18241f; --muted: #56655e; --line: #dde3dc;
+  --accent: #2f6b55; --accent-soft: #e5efe9; --todo-bg: #fdf3dc; --todo-ink: #7a5208;
+  --code-bg: #eef1ec;
+  --f-display: "Anuphan", "IBM Plex Sans Thai", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans Thai", "Noto Sans Thai", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg:#121815; --paper:#19211d; --ink:#e6ece8; --muted:#9fb0a7; --line:#2c3832; --accent:#7fc4a5; --accent-soft:#213229; --todo-bg:#2f2614; --todo-ink:#f0c97a; --code-bg:#222c27; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --bg:#121815; --paper:#19211d; --ink:#e6ece8; --muted:#9fb0a7; --line:#2c3832; --accent:#7fc4a5; --accent-soft:#213229; --todo-bg:#2f2614; --todo-ink:#f0c97a; --code-bg:#222c27; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 16px; line-height: 1.75;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 32px 64px; }
+main { max-width: 880px; margin: 0 auto; display: grid; gap: 24px; }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; line-height: 1.35; margin: 0; }
+h1 { font-size: clamp(1.7rem, 4vw, 2.3rem); } h2 { font-size: 1.4rem; } h3 { font-size: 1.1rem; margin-top: 6px; }
+p { margin: 0; }
+section { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 22px clamp(16px, 4vw, 30px); display: grid; gap: 12px; min-width: 0; }
+.eyebrow { font-family: var(--f-mono); font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.lede { color: var(--muted); max-width: 68ch; }
+ul, ol { margin: 0; padding-left: 1.3em; display: grid; gap: 4px; }
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; min-width: 600px; font-size: .92rem; }
+th, td { text-align: left; vertical-align: top; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+th { font-family: var(--f-display); font-weight: 600; background: var(--accent-soft); }
+tr:last-child td { border-bottom: 0; }
+code { font-family: var(--f-mono); font-size: .85em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+.todo { background: var(--todo-bg); color: var(--todo-ink); font-weight: 600; padding: 0 6px; border-radius: 4px; white-space: nowrap; }
+.formula { font-family: var(--f-mono); background: var(--code-bg); padding: 10px 14px; border-radius: 8px; overflow-x: auto; font-size: .9rem; }
+.en { font-family: var(--f-body); }
+.en p, .en li { max-width: 72ch; }
+pre.mermaid { background: var(--paper); margin: 0; overflow-x: auto; text-align: center; }
+.note { background: var(--accent-soft); border-radius: 10px; padding: 12px 16px; font-size: .95rem; }
+footer { color: var(--muted); font-size: .85rem; text-align: center; }
+nav ol { columns: 2; column-gap: 28px; } @media (max-width: 560px) { nav ol { columns: 1; } }
+nav a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--line); }
+nav a:hover, nav a:focus-visible { color: var(--accent); border-color: var(--accent); outline: none; }
+.flow { display:flex; flex-wrap:wrap; gap:6px 8px; align-items:center; font-family:var(--f-display); font-size:.92rem; }
+.flow span:not([aria-hidden]) { background:var(--accent-soft); border-radius:99px; padding:3px 12px; }
+.flow span[aria-hidden] { color:var(--muted); }
+th.r, td.r { text-align:right; font-variant-numeric: tabular-nums; white-space:nowrap; }
+tr.total td { font-weight:700; border-top:2px solid var(--line); }
+tr.muted td { color:var(--muted); }
+details.spec { border:1px solid var(--line); border-radius:10px; padding:10px 14px; }
+details.spec summary { cursor:pointer; font-family:var(--f-display); font-weight:600; }
+details.spec ul { margin-top:8px; font-size:.92rem; }
+ol.refs { gap: 6px; } ol.refs li { font-size: .9rem; } ol.refs a { color: var(--accent); word-break: break-all; }

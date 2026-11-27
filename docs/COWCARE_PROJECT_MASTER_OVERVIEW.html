@@ -1,688 +1,396 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CowCare AI — รายงานสรุปภาพรวมโครงการฉบับสมบูรณ์ (Master Project Overview)</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CowCare AI — รายงานสรุปภาพรวมโครงการฉบับสมบูรณ์ (Master Project Overview)</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anuphan:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: เอกสารคอลัมน์เดียว ส่วนไทยสำหรับอาจารย์ + ส่วนอังกฤษสำหรับคัดลอกลง paper */
+:root {
+  --bg: #f5f6f3; --paper: #ffffff; --ink: #18241f; --muted: #56655e; --line: #dde3dc;
+  --accent: #2f6b55; --accent-soft: #e5efe9; --todo-bg: #fdf3dc; --todo-ink: #7a5208;
+  --code-bg: #eef1ec;
+  --f-display: "Anuphan", "IBM Plex Sans Thai", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans Thai", "Noto Sans Thai", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg:#121815; --paper:#19211d; --ink:#e6ece8; --muted:#9fb0a7; --line:#2c3832; --accent:#7fc4a5; --accent-soft:#213229; --todo-bg:#2f2614; --todo-ink:#f0c97a; --code-bg:#222c27; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --bg:#121815; --paper:#19211d; --ink:#e6ece8; --muted:#9fb0a7; --line:#2c3832; --accent:#7fc4a5; --accent-soft:#213229; --todo-bg:#2f2614; --todo-ink:#f0c97a; --code-bg:#222c27; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 16px; line-height: 1.75;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 32px 64px; }
+main { max-width: 880px; margin: 0 auto; display: grid; gap: 24px; }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; line-height: 1.35; margin: 0; }
+h1 { font-size: clamp(1.7rem, 4vw, 2.3rem); } h2 { font-size: 1.4rem; } h3 { font-size: 1.1rem; margin-top: 6px; }
+p { margin: 0; }
+section { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 22px clamp(16px, 4vw, 30px); display: grid; gap: 12px; min-width: 0; }
+.eyebrow { font-family: var(--f-mono); font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.lede { color: var(--muted); max-width: 68ch; }
+ul, ol { margin: 0; padding-left: 1.3em; display: grid; gap: 4px; }
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; min-width: 600px; font-size: .92rem; }
+th, td { text-align: left; vertical-align: top; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+th { font-family: var(--f-display); font-weight: 600; background: var(--accent-soft); }
+tr:last-child td { border-bottom: 0; }
+code { font-family: var(--f-mono); font-size: .85em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+.todo { background: var(--todo-bg); color: var(--todo-ink); font-weight: 600; padding: 0 6px; border-radius: 4px; white-space: nowrap; }
+.formula { font-family: var(--f-mono); background: var(--code-bg); padding: 10px 14px; border-radius: 8px; overflow-x: auto; font-size: .9rem; }
+.en { font-family: var(--f-body); }
+.en p, .en li { max-width: 72ch; }
+pre.mermaid { background: var(--paper); margin: 0; overflow-x: auto; text-align: center; }
+.note { background: var(--accent-soft); border-radius: 10px; padding: 12px 16px; font-size: .95rem; }
+footer { color: var(--muted); font-size: .85rem; text-align: center; }
+nav ol { columns: 2; column-gap: 28px; } @media (max-width: 560px) { nav ol { columns: 1; } }
+nav a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--line); }
+nav a:hover, nav a:focus-visible { color: var(--accent); border-color: var(--accent); outline: none; }
+.flow { display:flex; flex-wrap:wrap; gap:6px 8px; align-items:center; font-family:var(--f-display); font-size:.92rem; }
+.flow span:not([aria-hidden]) { background:var(--accent-soft); border-radius:99px; padding:3px 12px; }
+.flow span[aria-hidden] { color:var(--muted); }
+th.r, td.r { text-align:right; font-variant-numeric: tabular-nums; white-space:nowrap; }
+tr.total td { font-weight:700; border-top:2px solid var(--line); }
+tr.muted td { color:var(--muted); }
+details.spec { border:1px solid var(--line); border-radius:10px; padding:10px 14px; }
+details.spec summary { cursor:pointer; font-family:var(--f-display); font-weight:600; }
+details.spec ul { margin-top:8px; font-size:.92rem; }
+ol.refs { gap: 6px; } ol.refs li { font-size: .9rem; } ol.refs a { color: var(--accent); word-break: break-all; }
 
-  <!-- Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+Thai:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
-
-  <!-- KaTeX for Mathematical Equations -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"
-          onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}]});"></script>
-
-  <style>
-    :root {
-      --primary: #163026;
-      --primary-light: #24433A;
-      --accent: #D97736;
-      --accent-soft: #FFF7ED;
-      --bg: #F4F7F5;
-      --surface: #FFFFFF;
-      --border: #E2E8E5;
-      --text: #11221B;
-      --text-muted: #5A6E65;
-      --green: #10B981;
-      --yellow: #F59E0B;
-      --orange: #EA580C;
-      --red: #EF4444;
-      --blue: #0284C7;
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-    }
-
-    body {
-      font-family: 'Inter', 'Noto Sans Thai', -apple-system, sans-serif;
-      background-color: var(--bg);
-      color: var(--text);
-      line-height: 1.68;
-      padding: 36px 20px 80px;
-    }
-
-    .container {
-      max-width: 1020px;
-      margin: 0 auto;
-      background: var(--surface);
-      padding: 52px 60px;
-      border-radius: 24px;
-      box-shadow: 0 14px 44px rgba(22, 48, 38, 0.06);
-      border: 1px solid var(--border);
-    }
-
-    /* Top Action Bar */
-    .action-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding-bottom: 24px;
-      margin-bottom: 36px;
-      border-bottom: 1px solid var(--border);
-      flex-wrap: wrap;
-      gap: 12px;
-    }
-
-    .doc-badge {
-      font-size: 13px;
-      font-weight: 700;
-      color: var(--primary);
-      background: #E8F2ED;
-      padding: 6px 14px;
-      border-radius: 999px;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .btn-export {
-      background: var(--primary);
-      color: #FFFFFF;
-      border: none;
-      padding: 12px 24px;
-      border-radius: 12px;
-      font-size: 14px;
-      font-weight: 700;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      transition: all 0.2s ease;
-      box-shadow: 0 6px 16px rgba(22, 48, 38, 0.18);
-    }
-
-    .btn-export:hover {
-      background: var(--primary-light);
-      transform: translateY(-1px);
-    }
-
-    /* Hero Banner */
-    .hero-banner {
-      background: linear-gradient(135deg, #163026 0%, #24433A 100%);
-      color: #FFFFFF;
-      padding: 36px 40px;
-      border-radius: 20px;
-      margin-bottom: 36px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .hero-tag {
-      display: inline-block;
-      background: rgba(255, 255, 255, 0.14);
-      color: #A7F3D0;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.6px;
-      text-transform: uppercase;
-      padding: 5px 12px;
-      border-radius: 999px;
-      margin-bottom: 14px;
-    }
-
-    .hero-banner h1 {
-      font-size: 28px;
-      font-weight: 900;
-      line-height: 1.3;
-      margin-bottom: 10px;
-      color: #FFFFFF;
-    }
-
-    .hero-banner p {
-      font-size: 15px;
-      color: #D1FAE5;
-      max-width: 820px;
-      margin-bottom: 22px;
-    }
-
-    .status-strip {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      padding-top: 18px;
-      border-top: 1px solid rgba(255, 255, 255, 0.15);
-    }
-
-    .status-pill {
-      background: rgba(16, 185, 129, 0.2);
-      border: 1px solid rgba(167, 243, 208, 0.35);
-      color: #ECFDF5;
-      font-size: 12px;
-      font-weight: 600;
-      padding: 5px 12px;
-      border-radius: 8px;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .dot-green {
-      width: 8px;
-      height: 8px;
-      background: #34D399;
-      border-radius: 50%;
-      display: inline-block;
-    }
-
-    /* Headings */
-    h2 {
-      font-size: 20px;
-      font-weight: 800;
-      color: var(--primary);
-      margin: 40px 0 18px;
-      padding-bottom: 10px;
-      border-bottom: 2px solid #E8F2ED;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    h3 {
-      font-size: 16px;
-      font-weight: 800;
-      color: #1E3A2F;
-      margin: 22px 0 10px;
-    }
-
-    p {
-      margin-bottom: 12px;
-      font-size: 14.5px;
-    }
-
-    ul, ol {
-      padding-left: 22px;
-      margin-bottom: 16px;
-      font-size: 14.5px;
-    }
-
-    li {
-      margin-bottom: 6px;
-    }
-
-    /* Bento & Cards */
-    .grid-2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 18px;
-      margin: 16px 0 24px;
-    }
-
-    .grid-3 {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
-      margin: 16px 0 24px;
-    }
-
-    .card {
-      background: #F9FBFA;
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 20px 22px;
-    }
-
-    .card-white {
-      background: #FFFFFF;
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 22px 24px;
-      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.02);
-    }
-
-    .card-title {
-      font-size: 15px;
-      font-weight: 800;
-      color: var(--primary);
-      margin-bottom: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .kpi-num {
-      font-size: 26px;
-      font-weight: 900;
-      color: var(--primary);
-      line-height: 1.2;
-      margin: 6px 0;
-    }
-
-    /* Formula Box */
-    .formula-box {
-      background: #F8FAF9;
-      border-left: 4px solid var(--primary);
-      border-radius: 12px;
-      padding: 16px 22px;
-      margin: 14px 0 20px;
-    }
-
-    .formula-math {
-      font-size: 16.5px;
-      margin: 8px 0;
-      text-align: center;
-    }
-
-    .formula-note {
-      font-size: 13px;
-      color: var(--text-muted);
-      border-top: 1px dashed var(--border);
-      padding-top: 8px;
-      margin-top: 8px;
-    }
-
-    /* Tables */
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 16px 0 24px;
-      font-size: 13.5px;
-    }
-
-    th {
-      background: #EFF5F2;
-      color: var(--primary);
-      font-weight: 800;
-      text-align: left;
-      padding: 11px 14px;
-      border-bottom: 2px solid var(--border);
-    }
-
-    td {
-      padding: 11px 14px;
-      border-bottom: 1px solid var(--border);
-      vertical-align: top;
-    }
-
-    tr:nth-child(even) td {
-      background: #FCFDFD;
-    }
-
-    /* Badges */
-    .badge {
-      display: inline-block;
-      padding: 3px 10px;
-      border-radius: 6px;
-      font-size: 11.5px;
-      font-weight: 700;
-    }
-    .badge-green { background: #D1FAE5; color: #065F46; }
-    .badge-yellow { background: #FEF3C7; color: #92400E; }
-    .badge-orange { background: #FFEDD5; color: #9A3412; }
-    .badge-red { background: #FEE2E2; color: #991B1B; }
-    .badge-blue { background: #E0F2FE; color: #075985; }
-
-    /* Code / Architecture Block */
-    pre, code {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 12.5px;
-    }
-
-    .arch-box {
-      background: #0F1F18;
-      color: #E2F1EB;
-      padding: 20px 24px;
-      border-radius: 14px;
-      overflow-x: auto;
-      line-height: 1.55;
-      margin: 16px 0 24px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 12.5px;
-    }
-
-    .footer {
-      margin-top: 48px;
-      padding-top: 20px;
-      border-top: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-      font-size: 12.5px;
-      color: var(--text-muted);
-    }
-
-    /* Print Media Query for Clean PDF Export */
-    @media print {
-      @page {
-        size: A4;
-        margin: 14mm 14mm 14mm 14mm;
-      }
-      body {
-        background: #FFFFFF;
-        padding: 0;
-        font-size: 12.5px;
-      }
-      .container {
-        box-shadow: none;
-        border: none;
-        padding: 0;
-        max-width: 100%;
-      }
-      .no-print {
-        display: none !important;
-      }
-      .hero-banner {
-        padding: 24px 28px;
-        margin-bottom: 24px;
-        page-break-inside: avoid;
-      }
-      .card, .card-white, .formula-box, .arch-box, table {
-        page-break-inside: avoid;
-      }
-      h2, h3 {
-        page-break-after: avoid;
-      }
-      .page-break {
-        page-break-before: always;
-      }
-    }
-  </style>
+img { max-width: 100%; height: auto; background: #fff; border-radius: 8px; }
+figure { margin: 0; display: grid; gap: 6px; } figcaption { color: var(--muted); font-size: .85rem; }
+blockquote { margin: 0; background: var(--accent-soft); border-radius: 10px; padding: 12px 16px; }
+@media print { body { background: #fff; padding: 0; } section { break-inside: auto; } nav { display: none; } }
+</style>
 </head>
 <body>
+<main>
+<header style="display:grid;gap:10px">
+  <h1>CowCare AI — รายงานสรุปภาพรวมโครงการฉบับสมบูรณ์ (Master Project Overview)</h1>
+<p><strong>ระบบเฝ้าระวังและวิเคราะห์ความเครียดจากความร้อนในโคนมด้วย IoT Telemetry และ Computer Vision</strong><br />
+<em>อัปเดตล่าสุด: 27 พฤศจิกายน 2569 | สถานะ: ทดสอบในบ้านแล้ว ยังไม่ได้ติดตั้งที่ฟาร์ม (ไปฟาร์ม 6–7 ธ.ค. 2569) | ไฟล์ภาพรวมหลักไฟล์เดียวของโปรเจกต์ (รวม <code>PROJECT_OVERVIEW.md</code> เดิมเข้ามาแล้ว)</em></p>
+<hr />
 
-  <div class="container">
-
-    <!-- Action Bar (Hidden when printing to PDF) -->
-    <div class="action-bar no-print">
-      <div class="doc-badge">
-        🐄 CowCare AI • Master Project Report (อัปเดตล่าสุด: 24 ต.ค. 2026)
-      </div>
-      <button class="btn-export" onclick="window.print()">
-        🖨️ พิมพ์รายงาน / บันทึกเป็น PDF (Export PDF)
-      </button>
-    </div>
-
-    <!-- Hero Cover Section -->
-    <div class="hero-banner">
-      <div class="hero-tag">Smart Dairy Farming • IoT Telemetry + YOLO26m ONNX Computer Vision</div>
-      <h1>CowCare AI — สรุปภาพรวมระบบเฝ้าระวังและวิเคราะห์ความเครียดความร้อนในโคนม</h1>
-      <p>
-        ระบบเฝ้าระวังความเครียดจากความร้อนสำหรับฟาร์มโคนมรายย่อยในประเทศไทย ผสานกล่องเซ็นเซอร์สภาพแวดล้อม IoT (ESP32-S3 v1.4.1 + SHT20 RS485) และกล้องวงจรปิด Dahua ร่วมกับโมเดล YOLO26m ONNX นับท่าวัวอัตโนมัติ (ทดสอบในบ้านแล้ว พร้อมติดตั้งที่ฟาร์มจริง)
-      </p>
-      <div class="status-strip">
-        <span class="status-pill"><span class="dot-green"></span> Web Dashboard: cow-detect.pages.dev</span>
-        <span class="status-pill"><span class="dot-green"></span> Cloud API &amp; Vision Worker: Render Singapore</span>
-        <span class="status-pill"><span class="dot-green"></span> Database &amp; Private Storage: Supabase</span>
-        <span class="status-pill"><span class="dot-green"></span> IoT Box: ESP32-S3 v1.4.1 + SHT20 (ทดสอบแล้ว)</span>
-        <span class="status-pill"><span class="dot-green"></span> IP Camera: Dahua Snapshot 10-Min (ทดสอบแล้ว)</span>
-      </div>
-    </div>
-
-    <!-- 1. Executive Summary & Problem Statement -->
-    <h2>📌 1. ที่มาและความสำคัญของโครงการ (Problem &amp; Solution Overview)</h2>
-    <p>
-      เกษตรกรผู้เลี้ยงโคนมในประเทศไทยส่วนใหญ่เป็นเกษตรกรรายย่อยที่เผชิญกับปัญหา <strong>สภาวะความเครียดจากความร้อน (Heat Stress)</strong> เนื่องจากสภาพอากาศร้อนชื้นและโครงสร้างโรงเรือนที่ระบายอากาศได้ไม่เต็มที่ ส่งผลให้:
-    </p>
-    <div class="grid-3">
-      <div class="card">
-        <div class="card-title">📉 จุดเริ่มเครียดโคนมลูกผสมไทย</div>
-        <div class="kpi-num">THI 74 / 76 / 82</div>
-        <p style="font-size: 13px; color: var(--text-muted); margin:0;">
-          อ้างอิงงานวิจัยโคนมลูกผสมไทย (Boonkum et al., 2011; 2024) น้ำนมเริ่มลดที่ THI เฉลี่ยรายวัน 74–76 และลดเร็วขึ้นเมื่อเกิน 82
-        </p>
-      </div>
-      <div class="card">
-        <div class="card-title">🌙 การพักฟื้นจากความร้อนตอนกลางคืน</div>
-        <div class="kpi-num">THI &lt; 74</div>
-        <p style="font-size: 13px; color: var(--text-muted); margin:0;">
-          หากโคนมเผชิญความร้อนต่อเนื่องโดยที่ช่วงกลางคืน (22:00–06:00 น.) ค่า THI ไม่ลดต่ำกว่า 74 แม่โคจะระบายความร้อนสะสมออกไม่ทัน (Igono et al., 1992)
-        </p>
-      </div>
-      <div class="card">
-        <div class="card-title">💧 ข้อจำกัดการพ่นหมอกในอากาศชื้น</div>
-        <div class="kpi-num">RH ≥ 75%</div>
-        <p style="font-size: 13px; color: var(--text-muted); margin:0;">
-          เมื่อความชื้นตั้งแต่ 75% ขึ้นไป การพ่นหมอกฝอยจะไม่ช่วยลดความร้อน ระบบจึงแนะนำให้ราดน้ำตัววัวช่วงสั้นๆ ร่วมกับเปิดพัดลมแทน
-        </p>
-      </div>
-    </div>
-
-    <!-- 2. System Architecture & Deployment Status -->
-    <h2>🏛️ 2. สถาปัตยกรรมระบบและสถานะปัจจุบัน (System Architecture)</h2>
-    <p>
-      ระบบออกแบบให้ทำงานที่ฟาร์มได้โดย <strong>ไม่ต้องตั้งคอมพิวเตอร์ทิ้งไว้ที่โรงเรือน</strong> โดยบอร์ด ESP32-S3 ทำหน้าที่ทั้งส่งค่าเซ็นเซอร์และดึงภาพนิ่งจากกล้องในวงแลนขึ้นไปประมวลผลบน Cloud:
-    </p>
-
-    <div class="arch-box">[1. ชั้นอุปกรณ์หน้างานในโรงเรือน (Barn Edge Layer)]
- ├── 📦 กล่องเซ็นเซอร์ ESP32-S3 (Firmware v1.4.1) + หัววัด XY-MD02 (SHT20 RS485) + จอ TFT ST7789
- │    ├── ส่งข้อมูลแบบ HTTPS ที่ตรวจใบรับรองจริง (Root CA) + บังคับใช้ X-Device-Key
- │    ├── เก็บข้อมูลไว้ในบอร์ด (/q.bin บน LittleFS) เมื่อเน็ตหลุด แล้วทยอยส่งเมื่อเน็ตกลับมา
- │    ├── รายงานสถานะกล่องทุก 5 นาที (Heartbeat): ปกติ / เซ็นเซอร์เสีย / ข้อมูลค้างส่ง / ออฟไลน์
- │    └── ดึงภาพจากกล้อง Dahua ทุก 10 นาที (HTTP Digest Auth) ส่งขึ้นเซิร์ฟเวอร์
+</header>
+<nav aria-label="สารบัญ"><section>
+  <h2 style="font-size:1.05rem">สารบัญ</h2>
+  <ol><li><a href="#s1">📌 1. ที่มาและความสำคัญของโครงการ (Problem &amp; Solution Overview)</a></li><li><a href="#s2">🏛️ 2. สถาปัตยกรรมระบบและสถานะการ Deploy ปัจจุบัน (System Architecture)</a></li><li><a href="#s3">🔌 3. รายละเอียดอุปกรณ์ฮาร์ดแวร์ในระบบ (Hardware Specifications)</a></li><li><a href="#s4">🧮 4. สูตรการคำนวณและเกณฑ์โคนมลูกผสมไทย (Single Source of Truth)</a></li><li><a href="#s5">🧠 5. โมเดล Computer Vision และการพยากรณ์ THI ล่วงหน้า 3 วัน</a></li><li><a href="#s6">🔄 6. เส้นทางข้อมูลจากกล่องถึงหน้าเว็บ (Ingestion)</a></li><li><a href="#s7">🌙 7. สรุปประจำวันอัตโนมัติ (Daily Job)</a></li><li><a href="#s8">🗄️ 8. ฐานข้อมูล (Supabase PostgreSQL · 15 ตาราง ณ 27 พ.ย. 2569)</a></li><li><a href="#s9">🔗 9. Endpoint หลัก</a></li><li><a href="#s10">⚠️ 10. ข้อจำกัดปัจจุบันและแผนงานระยะถัดไป (Limitations &amp; Deferred Roadmap)</a></li></ol>
+</section></nav>
+<section id="s1">
+<h2 id="ทมาและความสำคญของโครงการ-problem-solution-overview">📌 1. ที่มาและความสำคัญของโครงการ (Problem &amp; Solution Overview)</h2>
+<p>เกษตรกรผู้เลี้ยงโคนมในประเทศไทยส่วนใหญ่เป็นเกษตรกรรายย่อยที่เผชิญกับปัญหา <strong>สภาวะความเครียดจากความร้อน (Heat Stress)</strong> เนื่องจากสภาพอากาศร้อนชื้นและโครงสร้างโรงเรือนที่ระบายความร้อนได้จำกัด ส่งผลให้: * <strong>ผลผลิตน้ำนมและอัตราผสมติดลดลง (Boonkum et al., 2011; 2024):</strong> โคนมลูกผสมไทยเริ่มได้รับผลกระทบเมื่อดัชนีความร้อน (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtext mathvariant="normal">THI</mtext><annotation encoding="application/x-tex">\text{THI}</annotation></semantics></math>) เฉลี่ยรายวันถึงเกณฑ์ <strong>74–76</strong> และผลผลิตลดลงเร็วขึ้นเมื่อ <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">THI</mtext><mo>≥</mo><mn>82</mn></mrow><annotation encoding="application/x-tex">\text{THI} \ge 82</annotation></semantics></math> * <strong>ความร้อนสะสมและการพักฟื้นในเวลากลางคืน (Igono et al., 1992):</strong> หากโคนมเผชิญความร้อนต่อเนื่องหลายวันโดยที่เวลากลางคืน (22:00–06:00 น.) อากาศไม่เย็นลงต่ำกว่าเกณฑ์เฝ้าระวัง <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mtext mathvariant="normal">THI </mtext><mspace width="0.333em"></mspace></mrow><mn>74</mn></mrow><annotation encoding="application/x-tex">\text{THI } 74</annotation></semantics></math> ของระบบ แม่โคจะระบายความร้อนสะสมออกจากตัวได้ยาก (ค่า 74 เป็นเกณฑ์ของระบบ ไม่ใช่ค่าจาก Igono) * <strong>ข้อจำกัดของการพ่นหมอกในอากาศชื้น (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">RH</mtext><mo>≥</mo><mn>75</mn><mi>%</mi></mrow><annotation encoding="application/x-tex">\text{RH} \ge 75\%</annotation></semantics></math>):</strong> ในสภาพอากาศชื้นสูง การพ่นหมอกละอองฝอยทำให้อากาศอิ่มตัวแต่ไม่ช่วยลดอุณหภูมิ จึงควรเปลี่ยนไปใช้ <strong>การฉีดน้ำเม็ดใหญ่ให้ตัววัวเปียกเป็นช่วงสั้นๆ ร่วมกับเปิดพัดลมแรง</strong> แทน (Penn State Extension)</p>
+<hr />
+</section>
+<section id="s2">
+<h2 id="สถาปตยกรรมระบบและสถานะการ-deploy-ปจจบน-system-architecture">🏛️ 2. สถาปัตยกรรมระบบและสถานะการ Deploy ปัจจุบัน (System Architecture)</h2>
+<p>ระบบออกแบบให้ทำงานที่ฟาร์มได้โดย <strong>ไม่ต้องตั้งคอมพิวเตอร์ทิ้งไว้ที่โรงเรือน</strong> ใช้เพียงกล่องเซ็นเซอร์ ESP32-S3 และกล้องวงจรปิดเชื่อมกับอินเทอร์เน็ตที่ฟาร์ม ส่งข้อมูลขึ้นเซิร์ฟเวอร์ Cloud ตลอด 24 ชั่วโมง:</p>
+<pre class="text"><code>[1. ชั้นอุปกรณ์หน้างานในโรงเรือน (Barn Edge Layer)]
+ ├── 📦 กล่องเซ็นเซอร์ ESP32-S3 (Firmware v1.6.1) + หัววัด SHT40 (I2C) + จอ TFT ST7789
+ │    ├── อ่านค่าอุณหภูมิ/ความชื้น ──► ส่ง HTTPS POST (ตรวจใบรับรองจริง + X-Device-Key)
+ │    ├── เก็บข้อมูลลงแฟลชในบอร์ด (/q.bin บน LittleFS) เมื่อเน็ตหลุด และทยอยส่งเมื่อเน็ตกลับมา
+ │    ├── ส่งรายงานสถานะกล่อง (Heartbeat) ทุก 5 นาที (ปกติ / เซ็นเซอร์เสีย / ข้อมูลค้างส่ง / ออฟไลน์)
+ │    └── ดึงภาพนิ่ง (JPEG Snapshot) จากกล้อง Dahua ในวงแลนตามรอบที่ตั้งต่ออุปกรณ์ (ทดสอบ 15 วิ) (HTTP Digest Auth) ส่งขึ้นเซิร์ฟเวอร์
  └── 🎥 กล้องวงจรปิด Dahua DH-IPC-HFW2231TP-ZAS-S2 (IP: 192.168.1.108)
-      └── เชื่อมต่อในวงแลนเดียวกับบอร์ด ESP32-S3 (ไม่เก็บรหัสผ่านไว้ในลิงก์ RTSP)
+      └── เชื่อมต่อในวงแลนเดียวกับบอร์ด ESP32-S3 (ไม่ต้องทำ Port Forwarding ที่เราเตอร์ฟาร์ม)
 
 [2. ชั้นประมวลผลคลาวด์และปัญญาประดิษฐ์ (Cloud API &amp; Vision Worker Layer)]
  ├── ☁️ Backend Node.js API (Render Cloud Singapore — https://cow-detect-zea6.onrender.com)
+ │    ├── รับข้อมูลเซ็นเซอร์ (/api/sensors/data) พร้อมป้องกันข้อมูลซ้ำด้วย (id_devices, recorded_at)
  │    ├── คำนวณตัวชี้วัดความร้อนชุดเดียวกันทั้งระบบ (เฉลี่ยทุก 5 นาที ด้วย heatMetrics.js และ heatStress.js)
  │    ├── พยากรณ์ THI ล่วงหน้า 3 วัน (forecastService.js: Open-Meteo ECMWF + ปรับค่าเพี้ยนจากเซ็นเซอร์ฟาร์ม 3–14 วัน)
  │    ├── เปรียบเทียบอากาศในโรงเรือนกับภายนอกย้อนหลัง 72 ชม. ช่วงบ่าย 12:00–16:59 น. (outdoorWeather.js)
- │    ├── รันโมเดล YOLO26m ONNX (best.onnx) บน Worker Thread นับวัวแยก 4 ท่า (drinking / feeding / lying down / standing)
- │    ├── เก็บภาพตัวอย่างชั่วโมงละ 1 รูป พร้อมไฟล์ JSON ลง Supabase Storage แบบ Private
- │    └── เข้ารหัสรหัสผ่านกล้องด้วย AES-256-GCM
- └── 🗄️ Cloud Database &amp; Storage (Supabase PostgreSQL &amp; Private Buckets)
-      └── เก็บข้อมูลฟาร์ม, ค่าเซ็นเซอร์, โมเดล ONNX (ตรวจด้วย SHA-256) และภาพตัวอย่างรายชั่วโมง
+ │    ├── รันโมเดล YOLO26m ONNX (yolo26m_480.onnx) บน Worker Thread นับวัวแยก 4 ท่า (drinking / feeding / lying down / standing)
+ │    ├── เก็บภาพตัวอย่างชั่วโมงละ 1 รูป พร้อมไฟล์ JSON ลง Supabase Storage (Private Bucket)
+ │    └── เข้ารหัสรหัสผ่านกล้องด้วย AES-256-GCM (ไม่เก็บรหัสผ่านไว้ในลิงก์ RTSP)
+ └── 🗄️ Cloud Database &amp; Storage (Supabase PostgreSQL &amp; Private Storage)
+      ├── ตารางข้อมูล: 15 ตาราง (ดูหัวข้อ 8) เช่น tb_farms, tb_devices, tb_sensor_readings, tb_device_heartbeats, cctv_behavior_telemetry
+      └── Private Buckets: เก็บไฟล์โมเดล ONNX (ตรวจด้วย SHA-256) และภาพตัวอย่างรายชั่วโมง (camera-samples)
 
 [3. ชั้นส่วนติดต่อผู้ใช้งาน (Frontend Web Application Layer)]
- └── 🌐 Nuxt 3 + Vuetify + Tailwind CSS + ApexCharts (https://cow-detect.pages.dev)
+ └── 🌐 Nuxt 4 + Vuetify + Tailwind CSS + ApexCharts (https://cow-detect.pages.dev)
       ├── หน้าเกษตรกร (4 หน้า): วันนี้ / ย้อนหลัง / แจ้งเตือน / ฉัน (เช็กลิสต์แตะเลือก ไม่ต้องกรอกข้อมูลรายวัน)
-      └── หน้า Admin: แดชบอร์ดเครือข่าย, เปรียบเทียบอากาศภายนอก, สุขภาพกล่องเซ็นเซอร์, จัดการกล้อง, และสมุดสหกรณ์</div>
-
-    <table>
-      <thead>
-        <tr>
-          <th>ส่วนประกอบ (Component)</th>
-          <th>เทคโนโลยี / รุ่นอุปกรณ์</th>
-          <th>รายละเอียดการเชื่อมต่อ</th>
-          <th>สถานะปัจจุบัน</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><strong>Frontend Web App</strong></td>
-          <td>Nuxt 3 (SPA Mode), Vuetify, ApexCharts</td>
-          <td><code>https://cow-detect.pages.dev</code></td>
-          <td><span class="badge badge-green">🟢 ทดสอบในบ้านแล้ว</span></td>
-        </tr>
-        <tr>
-          <td><strong>Cloud Backend API</strong></td>
-          <td>Node.js, Express 5, ONNX Runtime Worker</td>
-          <td><code>https://cow-detect-zea6.onrender.com</code></td>
-          <td><span class="badge badge-green">🟢 ทดสอบในบ้านแล้ว</span></td>
-        </tr>
-        <tr>
-          <td><strong>Cloud Database</strong></td>
-          <td>Supabase PostgreSQL + Private Storage</td>
-          <td><code>aws-0-ap-southeast-2.pooler.supabase.com</code></td>
-          <td><span class="badge badge-green">🟢 Online 24/7</span></td>
-        </tr>
-        <tr>
-          <td><strong>IoT Sensor Box</strong></td>
-          <td>ESP32-S3 (v1.4.1) + XY-MD02 (SHT20 RS485)</td>
-          <td>HTTPS (Root CA) + <code>X-Device-Key</code> + LittleFS Queue</td>
-          <td><span class="badge badge-green">🟢 ทดสอบในบ้านแล้ว</span></td>
-        </tr>
-        <tr>
-          <td><strong>IP Camera (CCTV)</strong></td>
-          <td>Dahua <code>DH-IPC-HFW2231TP-ZAS-S2</code></td>
-          <td>ESP32 ดึงภาพทุก 10 นาทีผ่าน HTTP Digest ในแลน</td>
-          <td><span class="badge badge-green">🟢 ทดสอบในบ้านแล้ว</span></td>
-        </tr>
-        <tr>
-          <td><strong>Vision AI Worker</strong></td>
-          <td>YOLO26m ONNX (<code>best.onnx</code> บน Node Worker)</td>
-          <td>ตัดกรอบซ้อนแบบ Class-Agnostic NMS (1 ตัว = 1 กรอบ)</td>
-          <td><span class="badge badge-blue">🔵 ทดสอบกับชุดภาพ 203 ภาพแล้ว</span></td>
-        </tr>
-        <tr>
-          <td><strong>3-Day THI Forecast</strong></td>
-          <td>Open-Meteo ECMWF + Farm Sensor Bias (<code>hybrid-ecmwf-bias-v1</code>)</td>
-          <td>ปรับค่าเพี้ยนมัธยฐานจากเซ็นเซอร์ฟาร์ม 3–14 วัน</td>
-          <td><span class="badge badge-blue">🔵 ทดสอบย้อนหลัง 354 วัน (WMO 48327)</span></td>
-        </tr>
-      </tbody>
-    </table>
-
-    <!-- 3. Hardware Details -->
-    <div class="page-break"></div>
-    <h2>🔌 3. รายละเอียดอุปกรณ์ฮาร์ดแวร์ในระบบ (Hardware Specifications)</h2>
-
-    <div class="grid-2">
-      <div class="card-white">
-        <div class="card-title">
-          <span>📟 1. กล่องตรวจวัดสภาพแวดล้อม (ESP32-S3 v1.4.1)</span>
-          <span class="badge badge-green">ทดสอบในบ้านแล้ว</span>
-        </div>
-        <ul>
-          <li><strong>ความปลอดภัยการส่งข้อมูล:</strong> ส่งผ่าน HTTPS ที่ตรวจใบรับรองจริง และบังคับใช้ <code>X-Device-Key</code></li>
-          <li><strong>หัววัดอุณหภูมิ-ความชื้น:</strong> โมดูล RS485 Modbus RTU ตระกูล <strong>XY-MD02 ชิป SHT20</strong> (ตรวจยืนยันด้วยสคริปต์อ่านรีจิสเตอร์ <code>sensor_probe_scan.ino</code>) ความแม่นยำตามสเปก $\pm 0.3^\circ\text{C}$ / $\pm 3\%\text{ RH}$ (ค่า THI คลาดได้ประมาณ $\pm 0.7$)</li>
-          <li><strong>สำรองข้อมูลเมื่อเน็ตหลุด:</strong> เก็บข้อมูลไว้ในบอร์ด (<code>/q.bin</code> บน LittleFS) เมื่อเน็ตหลุด แล้วทยอยส่งเมื่อเน็ตกลับมา</li>
-          <li><strong>รายงานสุขภาพกล่อง (Heartbeat ทุก 5 นาที):</strong> แจ้งสถานะ ปกติ / เซ็นเซอร์เสีย / ข้อมูลค้างส่ง / ออฟไลน์</li>
-        </ul>
-      </div>
-
-      <div class="card-white">
-        <div class="card-title">
-          <span>🎥 2. กล้องวงจรปิด (Dahua Starlight Bullet)</span>
-          <span class="badge badge-green">ทดสอบในบ้านแล้ว</span>
-        </div>
-        <ul>
-          <li><strong>รุ่น:</strong> <code>Dahua DH-IPC-HFW2231TP-ZAS-S2</code></li>
-          <li><strong>ความละเอียดและเซ็นเซอร์:</strong> 2MP Full HD (1920×1080) เซ็นเซอร์ 1/2.8" CMOS <strong>Starlight</strong> เลนส์ซูมไฟฟ้า 2.7mm–13.5mm มาตรฐานกันน้ำกันฝุ่น IP67</li>
-          <li><strong>การทำงานร่วมกับบอร์ด:</strong> บอร์ด ESP32-S3 ดึงภาพนิ่งจากกล้องทุก 10 นาทีผ่าน HTTP Digest Auth ส่งขึ้นเซิร์ฟเวอร์</li>
-          <li><strong>ความปลอดภัยรหัสผ่านกล้อง:</strong> เข้ารหัสรหัสผ่านกล้องด้วย <strong>AES-256-GCM</strong> และไม่เก็บรหัสผ่านไว้ในลิงก์ RTSP</li>
-        </ul>
-      </div>
-    </div>
-
-    <!-- 4. Mathematical Formulations -->
-    <h2>🧮 4. สูตรการคำนวณและเกณฑ์โคนมลูกผสมไทยในระบบ</h2>
-
-    <div class="formula-box">
-      <strong>4.1 สูตรดัชนีอุณหภูมิและความชื้นมาตรฐาน (NRC, 1971)</strong>
-      <div class="formula-math">
-        $$\text{THI} = (1.8 \times T + 32) - (0.55 - 0.0055 \times \text{RH}) \times (1.8 \times T - 26)$$
-      </div>
-      <div class="formula-note">
-        โดย $T$ = อุณหภูมิอากาศ ($^\circ\text{C}$) และ $\text{RH}$ = ความชื้นสัมพัทธ์ ($\%$) ใช้สูตร NRC (1971) ชุดเดียวกันทั้งระบบ และใช้เกณฑ์โคนมลูกผสมไทย <strong>74 (เฝ้าระวัง) / 76 (เครียด) / 82 (วิกฤต)</strong> อ้างอิง Boonkum et al. (2011, 2024)
-      </div>
-    </div>
-
-    <div class="formula-box">
-      <strong>4.2 วิธีคำนวณตัวชี้วัดความร้อนชุดเดียวกันทั้งระบบ (5-Minute Bucketed Metrics)</strong>
-      <div class="formula-math">
-        $$\text{Data Hours} = N_{\text{buckets}} \times \frac{5}{60}, \qquad \text{Coverage (\%)} = \min\left(100,\; \text{round}\left(\frac{\text{Data Hours}}{\text{Window Hours}} \times 100\right)\right)$$
-      </div>
-      <div class="formula-note">
-        • <strong>ชั่วโมงเครียด:</strong> นับจำนวนช่วง 5 นาทีที่มี $\text{THI} \ge 76$ คูณ $\frac{5}{60}$ ชม. (ไม่เดาค่าในช่วงที่เซ็นเซอร์ขาดหาย)<br>
-        • <strong>ระดับความเครียดรายวัน:</strong> ประเมินจากค่าเฉลี่ย THI ทั้งวัน เพื่อเทียบตรงตามวิธีของงานวิจัย<br>
-        • <strong>ชั่วโมงกลางคืนที่ได้พัก:</strong> นับชั่วโมงในช่วง 22:00–06:00 น. ที่ $\text{THI} &lt; 74$<br>
-        • <strong>จำนวนวันเครียดติดต่อกัน:</strong> นับจำนวนวันล่าสุดที่ THI เฉลี่ยรายวัน $\ge 76$ ติดต่อกัน (เฉพาะวันที่มีข้อมูลอย่างน้อย 12 ชม.)
-      </div>
-    </div>
-
-    <!-- 5. Deep Learning & AI Models -->
-    <div class="page-break"></div>
-    <h2>🧠 5. ระบบนับท่าวัวจากกล้องและการพยากรณ์ THI ล่วงหน้า 3 วัน</h2>
-
-    <table>
-      <thead>
-        <tr>
-          <th>โมดูล</th>
-          <th>สถาปัตยกรรม / ไฟล์</th>
-          <th>การทำงานในระบบ</th>
-          <th>ผลการทดสอบและข้อจำกัด</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><strong>1. ระบบนับท่าวัวจากกล้อง</strong><br><span class="badge badge-blue">Computer Vision</span></td>
-          <td>
-            <strong>YOLO26m ONNX</strong><br>
-            ไฟล์: <code>best.onnx</code> (เก็บใน Supabase Private Storage ตรวจด้วย SHA-256)
-          </td>
-          <td>
-            • รันบน Node.js Worker Thread ทุก 10 นาทีเมื่อบอร์ดส่งภาพมา (ไม่มีระบบติดตามตัววัวและไม่ตรวจจับท่าหอบ)<br>
-            • นับวัวแยกตาม 4 ท่า: <strong>ดื่มน้ำ (<code>drinking</code>), กินอาหาร (<code>feeding</code>), นอน (<code>lying down</code>), ยืน (<code>standing</code>)</strong><br>
-            • ตัดกรอบซ้อนโดยไม่ดูท่า (Class-Agnostic NMS: <code>conf = 0.25</code>, <code>IoU = 0.70</code>, 1 ตัว = 1 กรอบ)<br>
-            • เก็บภาพตัวอย่างชั่วโมงละ 1 รูป พร้อมไฟล์ JSON เพื่อทำ Dataset โรงเรือนไทย
-          </td>
-          <td>
-            ทดสอบกับภาพชุดทดสอบ 203 ภาพ:<br>
-            • วัวที่ถูกนับซ้ำลดจาก <strong>11 คู่ เหลือ 0 คู่</strong><br>
-            • จำนวนวัวนอนคลาดเฉลี่ย <strong>0.47 ตัวต่อภาพ</strong><br>
-            • พลาดวัวประมาณ <strong>21%</strong> (เทรนจากภาพต่างประเทศ ต้องวัดซ้ำในโรงเรือนไทยหลังติดตั้ง)
-          </td>
-        </tr>
-        <tr>
-          <td><strong>2. ระบบพยากรณ์ THI 3 วัน</strong><br><span class="badge badge-green">ECMWF + Sensor Bias</span></td>
-          <td>
-            <strong>Open-Meteo ECMWF + ปรับค่าเพี้ยนจากเซ็นเซอร์ฟาร์ม</strong><br>
-            ไฟล์: <code>forecastService.js</code> (<code>hybrid-ecmwf-bias-v1</code>)
-          </td>
-          <td>
-            • ดึงพยากรณ์อากาศรายชั่วโมงจาก Open-Meteo <strong>ECMWF (<code>ecmwf_ifs025</code>)</strong> ณ พิกัดฟาร์ม (สำรองด้วย <code>best_match</code> หรือค่าเฉลี่ย 72 ชม.)<br>
-            • หักลบค่าเพี้ยนมัธยฐานแยกตามระยะล่วงหน้า (+1/+2/+3 วัน) จากเซ็นเซอร์ฟาร์มย้อนหลัง <strong>3–14 วัน</strong> (เฉพาะวันที่ข้อมูลครบ ≥ 20 ชม. และช่วง 10:00–17:00 น. ขาดไม่เกิน 1 ชม. จำกัดค่าปรับ ±6 THI)<br>
-            • กรณีฟาร์มมีข้อมูลไม่ถึง 3 วันในภาคเหนือ ใช้ค่าเพี้ยนภูมิภาคเชียงใหม่ (<code>-1.41 / -1.37 / -1.32</code>)<br>
-            • โมเดล LSTM/GRU ถูกปิดไว้เนื่องจากทดสอบแล้วแพ้วิธีปัจจุบัน
-          </td>
-          <td>
-            ทดสอบย้อนหลังกับข้อมูลจริง <strong>สถานีสนามบินเชียงใหม่ (WMO 48327) 354 วัน</strong> (19 ธ.ค. 2024 – 7 ธ.ค. 2025) ค่า MAE ของ THI เฉลี่ยรายวันล่วงหน้า +1/+2/+3 วัน:<br>
-            • ค่าเฉลี่ย 72 ชม.: <strong>1.10 / 1.38 / 1.56</strong><br>
-            • ECMWF ดิบ: <strong>1.34 / 1.32 / 1.35</strong><br>
-            • <strong>ECMWF + ปรับค่าเพี้ยน 14 วัน: 0.69 / 0.78 / 0.88</strong> (ระดับความเสี่ยงตรง <strong>94% / 93% / 92%</strong>)<br>
-            • GRU (1,212 พารามิเตอร์): <strong>0.88 / 0.91 / 0.91</strong> (ไม่เปิดใช้)<br>
-            • วัดกับสถานีกลางแจ้ง ต้องวัดซ้ำในโรงเรือนจริงหลังติดตั้ง และยังไม่ประเมินปริมาณน้ำนมที่ลดลง
-          </td>
-        </tr>
-      </tbody>
-    </table>
-
-    <!-- 6. Web Dashboard & Admin Features -->
-    <h2>🖥️ 6. ฟีเจอร์หลักบนหน้าเกษตรกรและหน้า Admin</h2>
-    <div class="grid-2">
-      <div class="card">
-        <h3>👨‍🌾 หน้าเกษตรกร (ออกแบบใหม่ 4 หน้า)</h3>
-        <ul>
-          <li><strong>4 หน้าหลัก:</strong> วันนี้ / ย้อนหลัง / แจ้งเตือน / ฉัน (เช็กลิสต์การดูแลแบบแตะเลือก ไม่ต้องกรอกข้อมูลรายวัน)</li>
-          <li><strong>ปุ่มโทรด่วน:</strong> กดโทรหาสัตวแพทย์ประจำฟาร์มได้ทันที (แสดงเฉพาะเมื่อตั้งเบอร์โทรศัพท์จริงไว้)</li>
-          <li><strong>ความโปร่งใสของข้อมูล:</strong> แสดงรายการช่วงที่วัวเครียด ช่วงที่เซ็นเซอร์ขาดหาย สูตรคำนวณ ข้อควรทราบ และงานวิจัยอ้างอิง</li>
-        </ul>
-      </div>
-      <div class="card">
-        <h3>🛡️ หน้า Admin &amp; สมุดสหกรณ์</h3>
-        <ul>
-          <li><strong>การ์ดสรุปตัวชี้วัดและการเปรียบเทียบภายนอก:</strong> ความครบถ้วนของข้อมูล, ชั่วโมงกลางคืนได้พัก, จำนวนวันเครียดติดต่อกัน และการเทียบอากาศในโรงเรือนกับภายนอกย้อนหลัง 72 ชม. ช่วงบ่าย 12:00–16:59 น. (เผื่อความคลาดเคลื่อนโมเดล ±2°C)</li>
-          <li><strong>สถานะสุขภาพกล่องในหน้าอุปกรณ์:</strong> แยกสถานะ ปกติ / เซ็นเซอร์เสีย / ข้อมูลค้างส่ง / ออฟไลน์</li>
-          <li><strong>การตั้งค่าฟาร์มและผู้ใช้:</strong> พิกัดฟาร์ม (<code>latitude</code>, <code>longitude</code>), กล้อง, เบอร์สัตวแพทย์, ชนิดหลังคา, เวลารีดนม/ให้อาหาร และการสร้าง/รีเซ็ตรหัสผ่านผู้ใช้โดย Admin เท่านั้น</li>
-          <li><strong>สมุดสหกรณ์:</strong> แสดงความครบถ้วนของข้อมูลจริงโดยไม่มีป้ายรับรองหรือตัวเลขสมมติ</li>
-        </ul>
-      </div>
-    </div>
-
-    <!-- 7. Next Steps Roadmap -->
-    <h2>🚀 7. ข้อจำกัดที่ต้องรู้และแผนงานระยะถัดไป (หลังติดตั้งที่ฟาร์มจริง)</h2>
-    <ol>
-      <li><strong>การทดสอบภาคสนาม:</strong> ปัจจุบันทุกส่วนทดสอบในบ้านแล้ว ขั้นต่อไปคือนำกล่องเซ็นเซอร์และกล้องไปติดตั้งที่โรงเรือนจริง และเทียบค่าเซ็นเซอร์กับเครื่องวัดอ้างอิง</li>
-      <li><strong>วัดความแม่นยำของการพยากรณ์ 3 วันในโรงเรือนจริง:</strong> หลังติดตั้ง 2 สัปดาห์ เทียบค่าพยากรณ์กับค่า THI เฉลี่ยรายวันจากเซ็นเซอร์ฟาร์มจริง</li>
-      <li><strong>วัดความแม่นของโมเดลกล้องในโรงเรือนไทย:</strong> ใช้ภาพตัวอย่างรายชั่วโมงที่ระบบเก็บไว้หลังติดตั้ง 2–3 สัปดาห์ เพื่อทำหน้านับเทียบความแม่นยำและหน้าวิเคราะห์ <code>% วัวนอน เทียบกับค่า THI</code></li>
-      <li><strong>ฟีเจอร์ระยะถัดไปที่ตกลงไว้:</strong> แจ้งเตือนผ่าน LINE รายฟาร์ม (ทำในงานแฮ็กกาธอน), เชื่อมต่อ Gemini AI, และระบบสั่งเปิดพัดลมอัตโนมัติ</li>
-    </ol>
-
-    <!-- Footer -->
-    <div class="footer">
-      <span>CowCare AI Project — Smart Dairy Barn Monitoring Platform</span>
-      <span>เอกสารสรุปสถานะโครงการ | อัปเดต 24 ตุลาคม 2026</span>
-    </div>
-
-  </div>
+      └── หน้า Admin: แดชบอร์ดเครือข่าย, เปรียบเทียบอากาศภายนอก, สุขภาพกล่องเซ็นเซอร์, จัดการกล้อง, และสมุดสหกรณ์</code></pre>
+<div class="tbl"><table>
+<colgroup>
+<col style="width: 23%" />
+<col style="width: 23%" />
+<col style="width: 23%" />
+<col style="width: 29%" />
+</colgroup>
+<thead>
+<tr>
+<th style="text-align: left;">ส่วนประกอบ (Component)</th>
+<th style="text-align: left;">เทคโนโลยี / รุ่นอุปกรณ์</th>
+<th style="text-align: left;">พิกัด / รายละเอียดการเชื่อมต่อ</th>
+<th style="text-align: center;">สถานะปัจจุบัน</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Frontend Web App</strong></td>
+<td style="text-align: left;">Nuxt 3 (SPA Mode), Vuetify, ApexCharts</td>
+<td style="text-align: left;"><code>https://cow-detect.pages.dev</code></td>
+<td style="text-align: center;">🟢 Online (ทดสอบในบ้านแล้ว)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Cloud Backend API</strong></td>
+<td style="text-align: left;">Node.js, Express 5, ONNX Runtime Worker</td>
+<td style="text-align: left;"><code>https://cow-detect-zea6.onrender.com</code></td>
+<td style="text-align: center;">🟢 Online (ทดสอบในบ้านแล้ว)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Cloud Database</strong></td>
+<td style="text-align: left;">Supabase PostgreSQL + Private Storage</td>
+<td style="text-align: left;"><code>aws-0-ap-southeast-2.pooler.supabase.com</code></td>
+<td style="text-align: center;">🟢 Online 24/7</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>IoT Sensor Box</strong></td>
+<td style="text-align: left;">ESP32-S3 (v1.6.1) + SHT40 (I2C)</td>
+<td style="text-align: left;">HTTPS (Root CA) + <code>X-Device-Key</code> + LittleFS Queue</td>
+<td style="text-align: center;">🟢 ทดสอบในบ้านแล้ว</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>IP Camera (CCTV)</strong></td>
+<td style="text-align: left;">Dahua <code>DH-IPC-HFW2231TP-ZAS-S2</code></td>
+<td style="text-align: left;">ESP32 ดึงภาพตามรอบที่ตั้ง (15–60 วิ) ผ่าน HTTP Digest ในแลน</td>
+<td style="text-align: center;">🟢 ทดสอบในบ้านแล้ว</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Vision AI Worker</strong></td>
+<td style="text-align: left;">YOLO26m ONNX (<code>best.onnx</code> บน Node Worker)</td>
+<td style="text-align: left;">ตัดกรอบซ้อนแบบ Class-Agnostic NMS (1 ตัว = 1 กรอบ)</td>
+<td style="text-align: center;">🟢 ทดสอบกับชุดภาพ 203 ภาพแล้ว</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>3-Day THI Forecast</strong></td>
+<td style="text-align: left;">Open-Meteo ECMWF + Farm Sensor Bias (<code>hybrid-ecmwf-bias-v1</code>)</td>
+<td style="text-align: left;">ปรับค่าเพี้ยนมัธยฐานจากเซ็นเซอร์ฟาร์ม 3–14 วัน</td>
+<td style="text-align: center;">🟢 ทดสอบย้อนหลัง 354 วัน (WMO 48327)</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+</section>
+<section id="s3">
+<h2 id="รายละเอยดอปกรณฮารดแวรในระบบ-hardware-specifications">🔌 3. รายละเอียดอุปกรณ์ฮาร์ดแวร์ในระบบ (Hardware Specifications)</h2>
+<h3 id="กลองตรวจวดสภาพแวดลอม-esp32-s3-sensor-box-firmware-v1.6.1">3.1 กล่องตรวจวัดสภาพแวดล้อม (ESP32-S3 Sensor Box — Firmware v1.6.1)</h3>
+<ul>
+<li><strong>ไมโครคอนโทรลเลอร์:</strong> ESP32-S3 เชื่อมต่อ Wi-Fi ส่งข้อมูลแบบ <strong>HTTPS ที่ตรวจใบรับรองจริง (Root CA)</strong> และบังคับใช้ <strong><code>X-Device-Key</code></strong> (อุปกรณ์ที่ไม่มีคีย์ไม่สามารถส่งข้อมูลเข้าระบบได้)</li>
+<li><strong>หัววัดอุณหภูมิ-ความชื้น:</strong> <strong>Sensirion SHT40</strong> ต่อ I2C (SDA = GPIO11, SCL = GPIO12, ไฟ 3.3 V) ความแม่นยำตามสเปก <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>±</mi><msup><mn>0.2</mn><mo>∘</mo></msup><mtext mathvariant="normal">C</mtext></mrow><annotation encoding="application/x-tex">\pm 0.2^\circ\text{C}</annotation></semantics></math> / <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>±</mi><mn>1.8</mn><mi>%</mi><mrow><mspace width="0.333em"></mspace><mtext mathvariant="normal"> RH</mtext></mrow></mrow><annotation encoding="application/x-tex">\pm 1.8\%\text{ RH}</annotation></semantics></math> · firmware ตรวจรุ่นชิปจริงตอนบูต (SHT4x/SHT3x/AHT/HTU21) แล้วรายงานรุ่นและ serial ขึ้น heartbeat (บอร์ดทดสอบตรวจพบ <code>sht4x</code> ที่ 0x44) · มี <strong>heater ในชิป</strong> ไล่ไอน้ำเมื่อ RH ≥ 95% นาน 10 นาที · มี watchdog และกู้ Wi-Fi/รีบูตเองเมื่อ server ไม่ตอบ 15/30 นาที (หัววัดเดิม XY-MD02 เสียแล้ว จึงเปลี่ยนมาใช้ SHT40)</li>
+<li><strong>ระบบสำรองข้อมูลเมื่อเน็ตหลุด (Store-and-Forward):</strong> เก็บข้อมูลลงไฟล์ <code>/q.bin</code> บนหน่วยความจำแฟลช LittleFS ในบอร์ด (สูงสุด 2 MB) พร้อมประทับเวลาจริงจาก NTP (<code>time.navy.mi.th</code>) เมื่ออินเทอร์เน็ตกลับมาจะทยอยส่งข้อมูลย้อนหลังเข้าเซิร์ฟเวอร์โดยไม่ซ้ำ</li>
+<li><strong>ระบบรายงานสุขภาพกล่อง (Heartbeat ทุก 5 นาที):</strong> แยกสถานะได้ชัดเจนระหว่าง <strong>ปกติ (<code>ok</code>)</strong>, <strong>เซ็นเซอร์เสีย/สายหลุด (<code>sensor_fault</code>)</strong>, <strong>มีข้อมูลค้างส่ง (<code>backlog</code>)</strong>, และ <strong>ออฟไลน์ (<code>offline</code>)</strong> รวมถึงแจ้งเตือนเมื่อบอร์ดรีเซ็ตจากไฟตก (<code>brownout</code>)</li>
+</ul>
+<h3 id="กลองวงจรปด-dahua-starlight-network-camera">3.2 กล้องวงจรปิด (Dahua Starlight Network Camera)</h3>
+<ul>
+<li><strong>รุ่น:</strong> <code>Dahua DH-IPC-HFW2231TP-ZAS-S2</code> (2MP Full HD 1080p, เซ็นเซอร์ 1/2.8" CMOS Starlight, เลนส์ซูมไฟฟ้า 2.7mm–13.5mm, มาตรฐานกันน้ำกันฝุ่น IP67)</li>
+<li><strong>การดึงภาพและรักษาความปลอดภัย:</strong> บอร์ด ESP32-S3 ดึงภาพนิ่งจากกล้องตามรอบที่ตั้ง (15–60 วิ) ผ่าน HTTP Digest Authentication ในวงแลนเดียวกัน แล้วส่งขึ้นเซิร์ฟเวอร์ ส่วนรหัสผ่านกล้องในฐานข้อมูลถูกเข้ารหัสด้วย <strong>AES-256-GCM</strong> และไม่เก็บรหัสผ่านไว้ในลิงก์ RTSP</li>
+</ul>
+<hr />
+</section>
+<section id="s4">
+<h2 id="สตรการคำนวณและเกณฑโคนมลกผสมไทย-single-source-of-truth">🧮 4. สูตรการคำนวณและเกณฑ์โคนมลูกผสมไทย (Single Source of Truth)</h2>
+<p>ระบบรวมศูนย์การคำนวณทั้งหมดไว้ที่ <code>heatStress.js</code>, <code>heatMetrics.js</code>, <code>forecastService.js</code> และ <code>outdoorWeather.js</code> เพื่อให้หน้าเกษตรกร หน้าแอดมิน รายงานสรุปรายวัน และสมุดสหกรณ์แสดงตัวเลขตรงกัน 100%:</p>
+<ol type="1">
+<li><p><strong>สูตรดัชนีอุณหภูมิและความชื้น (NRC, 1971):</strong> <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">THI</mtext><mo>=</mo><mo stretchy="false" form="prefix">(</mo><mn>1.8</mn><mo>×</mo><mi>T</mi><mo>+</mo><mn>32</mn><mo stretchy="false" form="postfix">)</mo><mo>−</mo><mo stretchy="false" form="prefix">(</mo><mn>0.55</mn><mo>−</mo><mn>0.0055</mn><mo>×</mo><mtext mathvariant="normal">RH</mtext><mo stretchy="false" form="postfix">)</mo><mo>×</mo><mo stretchy="false" form="prefix">(</mo><mn>1.8</mn><mo>×</mo><mi>T</mi><mo>−</mo><mn>26</mn><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\text{THI} = (1.8 \times T + 32) - (0.55 - 0.0055 \times \text{RH}) \times (1.8 \times T - 26)</annotation></semantics></math> <em>วัดค่า <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>T</mi><annotation encoding="application/x-tex">T</annotation></semantics></math> (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi></mi><mo>∘</mo></msup><mtext mathvariant="normal">C</mtext></mrow><annotation encoding="application/x-tex">^\circ\text{C}</annotation></semantics></math>) และ <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtext mathvariant="normal">RH</mtext><annotation encoding="application/x-tex">\text{RH}</annotation></semantics></math> (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>%</mi><annotation encoding="application/x-tex">\%</annotation></semantics></math>) ในโรงเรือนด้วยเซ็นเซอร์ของฟาร์ม โดยใช้สูตร NRC (1971) ตัวเดียวกับงานวิจัยโคนมไทย (Sae-tiao et al., 2019) และปรับใช้ที่ "ค่าเกณฑ์" ของโคนมลูกผสมไทย</em></p></li>
+<li><p><strong>เกณฑ์ระดับความเครียดความร้อนสำหรับโคนมลูกผสมไทย (Boonkum et al., 2011; 2024):</strong></p>
+<ul>
+<li><strong>ปกติ (<code>normal</code>):</strong> <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">THI</mtext><mo>&lt;</mo><mn>74</mn></mrow><annotation encoding="application/x-tex">\text{THI} &lt; 74</annotation></semantics></math></li>
+<li><strong>เฝ้าระวัง (<code>mild</code>):</strong> <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>74</mn><mo>≤</mo><mtext mathvariant="normal">THI</mtext><mo>&lt;</mo><mn>76</mn></mrow><annotation encoding="application/x-tex">74 \le \text{THI} &lt; 76</annotation></semantics></math> <em>(จุดที่น้ำนมเริ่มลดในแม่โคสายเลือดโฮลสไตน์สูง <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>≥</mo><mn>87.5</mn><mi>%</mi></mrow><annotation encoding="application/x-tex">\ge 87.5\%</annotation></semantics></math> ท้องที่ 3 ขึ้นไป — Boonkum et al., 2011)</em></li>
+<li><strong>เครียดจากความร้อน (<code>moderate</code>):</strong> <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>76</mn><mo>≤</mo><mtext mathvariant="normal">THI</mtext><mo>&lt;</mo><mn>82</mn></mrow><annotation encoding="application/x-tex">76 \le \text{THI} &lt; 82</annotation></semantics></math> <em>(เกณฑ์จุดเริ่มเครียดระดับประชากรโคนมลูกผสมไทย — Boonkum et al., 2024)</em></li>
+<li><strong>วิกฤต (<code>severe</code>):</strong> <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">THI</mtext><mo>≥</mo><mn>82</mn></mrow><annotation encoding="application/x-tex">\text{THI} \ge 82</annotation></semantics></math> <em>(จุดที่ผลผลิตน้ำนมลดลงเร็วขึ้นชัดเจน — Boonkum et al., 2011)</em></li>
+</ul></li>
+<li><p><strong>วิธีคำนวณตัวชี้วัดรายวันและรายชั่วโมง (5-Minute Bucketed Aggregation):</strong></p>
+<ul>
+<li><strong>การแบ่งถังเวลา 5 นาที:</strong> นำค่าเซ็นเซอร์มาเฉลี่ยทุก 5 นาที แล้วคำนวณ <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtext mathvariant="normal">THI</mtext><annotation encoding="application/x-tex">\text{THI}</annotation></semantics></math> ในแต่ละถัง โดยไม่เดาค่าในช่วงที่ไม่มีข้อมูล</li>
+<li><strong>ความครบถ้วนของข้อมูล (<code>coverage_pct</code>):</strong> <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">ชั่วโมงที่มีข้อมูลจริง</mtext><mo>÷</mo><mtext mathvariant="normal">ชั่วโมงทั้งหมดในช่วงที่สรุป</mtext><mo>×</mo><mn>100</mn><mi>%</mi></mrow><annotation encoding="application/x-tex">\text{ชั่วโมงที่มีข้อมูลจริง} \div \text{ชั่วโมงทั้งหมดในช่วงที่สรุป} \times 100\%</annotation></semantics></math></li>
+<li><strong>ชั่วโมงเครียด (<code>stress_hours</code>):</strong> จำนวนถัง 5 นาทีที่มี <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">THI</mtext><mo>≥</mo><mn>76</mn></mrow><annotation encoding="application/x-tex">\text{THI} \ge 76</annotation></semantics></math> คูณด้วย <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mfrac><mn>5</mn><mn>60</mn></mfrac><annotation encoding="application/x-tex">\frac{5}{60}</annotation></semantics></math> ชั่วโมง</li>
+<li><strong>ระดับความเสี่ยงรายวัน (<code>daily_mean_level</code>):</strong> ประเมินจาก <strong>ค่าเฉลี่ย <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtext mathvariant="normal">THI</mtext><annotation encoding="application/x-tex">\text{THI}</annotation></semantics></math> ทั้งวัน</strong> เพื่อเทียบตามวิธีของงานวิจัย</li>
+<li><strong>ชั่วโมงกลางคืนที่วัวได้พัก (<code>night_relief_hours</code>):</strong> จำนวนชั่วโมงในช่วง <strong>22:00–06:00 น.</strong> ที่ <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">THI</mtext><mo>&lt;</mo><mn>74</mn></mrow><annotation encoding="application/x-tex">\text{THI} &lt; 74</annotation></semantics></math></li>
+<li><strong>จำนวนวันเครียดติดต่อกัน (<code>stressStreak</code>):</strong> จำนวนวันล่าสุดที่ <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtext mathvariant="normal">THI</mtext><annotation encoding="application/x-tex">\text{THI}</annotation></semantics></math> เฉลี่ยรายวัน <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>≥</mo><mn>76</mn></mrow><annotation encoding="application/x-tex">\ge 76</annotation></semantics></math> ติดต่อกัน (นับเฉพาะวันที่มีข้อมูลอย่างน้อย 12 ชั่วโมง)</li>
+</ul></li>
+<li><p><strong>การเปรียบเทียบอากาศในโรงเรือนกับภายนอก (<code>outdoorWeather.js</code>) และคำแนะนำตามบริบทฟาร์มไทย:</strong></p>
+<ul>
+<li>เปรียบเทียบค่าเฉลี่ยรายชั่วโมงย้อนหลัง 72 ชั่วโมงในช่วงบ่าย (<strong>12:00–16:59 น.</strong>) ระหว่างเซ็นเซอร์ในโรงเรือนกับค่าจากโมเดลสภาพอากาศ Open-Meteo ณ พิกัดฟาร์ม โดยเผื่อความคลาดเคลื่อนของโมเดล <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>±</mi><msup><mn>2</mn><mo>∘</mo></msup><mtext mathvariant="normal">C</mtext></mrow><annotation encoding="application/x-tex">\pm 2^\circ\text{C}</annotation></semantics></math></li>
+<li>คำนวณ <strong>ช่วงเวลาร้อนที่สุด (4 ชม.)</strong> และ <strong>ช่วงเวลาเย็นที่สุดสำหรับให้อาหาร (3 ชม.)</strong> จากข้อมูลจริงของโรงเรือนนั้นย้อนหลัง 72 ชั่วโมง แทนการใช้เวลาตายตัว</li>
+<li>เมื่อความชื้นสัมพัทธ์ <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">RH</mtext><mo>≥</mo><mn>75</mn><mi>%</mi></mrow><annotation encoding="application/x-tex">\text{RH} \ge 75\%</annotation></semantics></math> แนะนำให้ <strong>งดพ่นหมอกฝอย และใช้การฉีดน้ำราดตัววัวช่วงสั้นๆ ร่วมกับเปิดพัดลมแรง</strong> แทน</li>
+</ul></li>
+</ol>
+<hr />
+</section>
+<section id="s5">
+<h2 id="โมเดล-computer-vision-และการพยากรณ-thi-ลวงหนา-3-วน">🧠 5. โมเดล Computer Vision และการพยากรณ์ THI ล่วงหน้า 3 วัน</h2>
+<div class="tbl"><table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th style="text-align: left;">โมดูล</th>
+<th style="text-align: left;">การทำงานในระบบปัจจุบัน</th>
+<th style="text-align: left;">ผลการทดสอบและข้อจำกัดที่ต้องทราบ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>1. ระบบนับท่าวัวจากกล้อง</strong><br><strong>YOLO26m ONNX</strong><br>(<code>visionService.js</code>, <code>visionPostprocess.js</code>)</td>
+<td style="text-align: left;">• รันโมเดล <code>best.onnx</code> บน Node.js Worker Thread (ไม่มีระบบติดตามตัววัว ByteTrack และไม่ตรวจจับท่าหอบ)<br>• นับจำนวนวัวแยก 4 ท่า: <strong>ดื่มน้ำ (<code>drinking</code>), กินอาหาร (<code>feeding</code>), นอน (<code>lying down</code>), ยืน (<code>standing</code>)</strong><br>• ตัดกรอบซ้อนโดยไม่ดูท่า (<strong>Class-Agnostic NMS</strong>, <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">conf</mtext><mo>=</mo><mn>0.25</mn></mrow><annotation encoding="application/x-tex">\text{conf} = 0.25</annotation></semantics></math>, <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">IoU</mtext><mo>=</mo><mn>0.70</mn></mrow><annotation encoding="application/x-tex">\text{IoU} = 0.70</annotation></semantics></math>) ให้วัว 1 ตัวมีได้ 1 กรอบ<br>• เก็บภาพตัวอย่างชั่วโมงละ 1 รูป พร้อมไฟล์ <code>.json</code> ลง Private Storage เพื่อทำ Dataset โรงเรือนไทย</td>
+<td style="text-align: left;">• ทดสอบกับชุดภาพทดสอบ <strong>203 ภาพ</strong>:<br> - การตัดกรอบแบบไม่ดูท่าช่วยลดปัญหานับวัวซ้ำจาก <strong>11 คู่ เหลือ 0 คู่</strong><br> - จำนวนวัวนอนคลาดเคลื่อนเฉลี่ย <strong>0.47 ตัวต่อภาพ</strong><br> - ยังพลาดวัวประมาณ <strong>21%</strong> (เนื่องจากโมเดลเทรนจากภาพต่างประเทศ ความแม่นยำในโรงเรือนไทยจริงต้องวัดหลังติดตั้ง)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>2. ระบบพยากรณ์ THI 3 วัน</strong><br><strong>ECMWF + Farm Sensor Bias</strong><br>(<code>forecastService.js</code>, <code>hybrid-ecmwf-bias-v1</code>)</td>
+<td style="text-align: left;">• ดึงพยากรณ์อากาศรายชั่วโมงจาก Open-Meteo <strong>ECMWF (<code>ecmwf_ifs025</code>)</strong> ณ พิกัดฟาร์ม (สำรองด้วย <code>best_match</code> หรือค่าเฉลี่ย 72 ชม. เมื่อไม่มีพิกัด/API ขัดข้อง)<br>• หักลบค่าเพี้ยนมัธยฐานแยกตามระยะล่วงหน้า (+1/+2/+3 วัน) ที่คำนวณจากเซ็นเซอร์จริงของฟาร์มในช่วง <strong>3–14 วันล่าสุด</strong> (เฉพาะวันที่ข้อมูลครบ <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>≥</mo><mn>20</mn></mrow><annotation encoding="application/x-tex">\ge 20</annotation></semantics></math> ชม. และช่วง 10:00–17:00 น. ขาดไม่เกิน 1 ชม. จำกัดค่าปรับ <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>±</mi><mn>6</mn><mrow><mspace width="0.333em"></mspace><mtext mathvariant="normal"> THI</mtext></mrow></mrow><annotation encoding="application/x-tex">\pm 6\text{ THI}</annotation></semantics></math>)<br>• หากฟาร์มมีข้อมูลไม่ถึง 3 วันในภาคเหนือ ใช้ค่าเพี้ยนภูมิภาคเชียงใหม่ (<code>-1.41 / -1.37 / -1.32</code>)<br>• โมเดล LSTM/GRU ถูกปิดไว้เนื่องจากทดสอบแล้วแพ้วิธีปัจจุบัน</td>
+<td style="text-align: left;">• ทดสอบย้อนหลังกับข้อมูลจริง <strong>สถานีสนามบินเชียงใหม่ (WMO 48327) 354 วัน</strong> (19 ธ.ค. 2024 – 7 ธ.ค. 2025) ค่า <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtext mathvariant="normal">MAE</mtext><annotation encoding="application/x-tex">\text{MAE}</annotation></semantics></math> ของ <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtext mathvariant="normal">THI</mtext><annotation encoding="application/x-tex">\text{THI}</annotation></semantics></math> เฉลี่ยรายวันล่วงหน้า +1/+2/+3 วัน:<br> - ค่าเฉลี่ย 72 ชม. ย้อนหลัง: <strong>1.10 / 1.38 / 1.56</strong><br> - ECMWF ดิบ: <strong>1.34 / 1.32 / 1.35</strong><br> - <strong>ECMWF + ปรับค่าเพี้ยน 14 วัน: 0.69 / 0.78 / 0.88</strong> (ระดับความเสี่ยงตรง <strong>94% / 93% / 92%</strong>)<br> - โมเดล GRU (1,212 พารามิเตอร์): <strong>0.88 / 0.91 / 0.91</strong> (ไม่เปิดใช้งาน)<br>• เป็นผลวัดกับสถานีตรวจอากาศกลางแจ้ง ยังต้องวัดซ้ำกับข้อมูลในโรงเรือนจริงหลังติดตั้ง และยังไม่ประเมินกิโลกรัมน้ำนมที่ลดลง</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+</section>
+<section id="s6">
+<h2 id="เสนทางขอมลจากกลองถงหนาเวบ-ingestion">🔄 6. เส้นทางข้อมูลจากกล่องถึงหน้าเว็บ (Ingestion)</h2>
+<ol type="1">
+<li><p><strong>ค่าเซ็นเซอร์:</strong> กล่องส่ง <code>POST /api/sensors/data</code> (ค่าเดียว) หรือ <code>/api/sensors/batch</code> (ค่าค้างในคิว สูงสุด 100 ค่า) พร้อม <code>X-Device-Key</code></p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode json"><code class="sourceCode json"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span> <span class="dt">&quot;serial_no&quot;</span><span class="fu">:</span> <span class="st">&quot;ESP32-S3-01&quot;</span><span class="fu">,</span> <span class="dt">&quot;recorded_at&quot;</span><span class="fu">:</span> <span class="dv">1764225600</span><span class="fu">,</span> <span class="dt">&quot;temperature_c&quot;</span><span class="fu">:</span> <span class="fl">29.6</span><span class="fu">,</span> <span class="dt">&quot;humidity_pct&quot;</span><span class="fu">:</span> <span class="fl">70.8</span> <span class="fu">}</span></span></code></pre></div>
+<p>server ตรวจช่วงค่า (−10..65 °C, 0..100 %RH, เวลาไม่เกิน 5 นาทีในอนาคตและไม่เก่ากว่า 30 วัน) → หากล่องจาก <code>serial_no</code> → บันทึก <code>tb_sensor_readings</code> พร้อม <code>id_farms</code> ของฟาร์มที่กล่องผูกอยู่ตอนวัด (ค่าซ้ำ <code>(id_devices, recorded_at)</code> ถูกข้าม) → <code>received_at</code> = เวลาที่ server ได้รับ</p></li>
+<li><p><strong>Heartbeat ทุก 5 นาที:</strong> <code>POST /api/sensors/heartbeat</code> → <code>tb_device_heartbeats</code> (รุ่นหัววัด, คิวค้าง, สัญญาณ, หน่วยความจำ, เหตุผลรีบูต) ใช้แยก "กล่องเงียบ" กับ "กล่องออนไลน์แต่เซ็นเซอร์ไม่ส่ง"</p></li>
+<li><p><strong>ภาพ:</strong> <code>POST /api/camera/snapshot</code> (JPEG ≤ 2 MB) → <code>tb_camera_frames</code> → YOLO บน worker (คิว 2 ภาพ เกินคิวตอบ "ยุ่ง" และข้ามภาพนั้น) → <code>cctv_behavior_telemetry</code> → ติดตามวัวเป้าหมาย → <code>tb_cow_behavior_observations</code> · โหมดเก็บทุกภาพเก็บภาพลง Storage ไว้ทำ dataset</p></li>
+<li><p><strong>หน้าเว็บ:</strong> farm_detail ดึง <code>/api/Admin/farms/:id/latest</code> ทุก 15 วิ (หยุดเมื่อแท็บซ่อน) และผลกล้องทุก ~1 นาที</p></li>
+</ol>
+</section>
+<section id="s7">
+<h2 id="สรปประจำวนอตโนมต-daily-job">🌙 7. สรุปประจำวันอัตโนมัติ (Daily Job)</h2>
+<ul>
+<li><code>dailyLstmScheduler.js</code> รันทุกวัน <strong>20:00 น.</strong> (Asia/Bangkok) สรุปค่าของวัน (ต่ำสุด/สูงสุด/เฉลี่ย, ชั่วโมงเครียด, ชั่วโมงวิกฤต, THI กลางคืน), เทียบกับเมื่อวาน, พยากรณ์ 3 วัน (<code>hybrid-ecmwf-bias-v1</code>) แล้ว upsert ลง <code>tb_farm_daily_summaries</code></li>
+<li>Bi-LSTM <strong>ปิดอยู่</strong> (ยังไม่ได้เทรนด้วยข้อมูลจริง) ห้ามอ้างในเปเปอร์ว่าใช้งาน</li>
+<li>สั่งรันเองได้: <code>POST /api/Admin/farms/:id/run-daily-summary</code> · <code>POST /api/Admin/farms/run-all-daily-summaries</code></li>
+</ul>
+</section>
+<section id="s8">
+<h2 id="ฐานขอมล-supabase-postgresql-15-ตาราง-ณ-27-พ.ย.-2569">🗄️ 8. ฐานข้อมูล (Supabase PostgreSQL · 15 ตาราง ณ 27 พ.ย. 2569)</h2>
+<div class="tbl"><table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>กลุ่ม</th>
+<th>ตาราง</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ผู้ใช้และฟาร์ม</td>
+<td><code>tb_users</code>, <code>tb_farms</code>, <code>tb_farm_members</code></td>
+</tr>
+<tr>
+<td>กล่องเซ็นเซอร์</td>
+<td><code>tb_devices</code>, <code>tb_sensor_readings</code> (index <code>(id_farms, recorded_at)</code>, <code>(id_devices, recorded_at)</code> unique, <code>recorded_at</code>), <code>tb_device_heartbeats</code>, <code>tb_farm_daily_summaries</code></td>
+</tr>
+<tr>
+<td>กล้องและวัว</td>
+<td><code>cctv_cameras</code>, <code>tb_camera_frames</code>, <code>cctv_behavior_telemetry</code>, <code>animal_behavior_alerts</code>, <code>tb_camera_sample_audits</code>, <code>tb_cows</code>, <code>tb_cow_tracking_targets</code>, <code>tb_cow_behavior_observations</code></td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li>แก้ schema = ไฟล์ใน <code>backend_node/migrations/</code> แล้วรันเองใน Supabase SQL Editor (Claude ตรวจแบบอ่านอย่างเดียว)</li>
+<li>27 พ.ย. 2569 ลบ 6 ตารางที่ไม่มีโค้ดใช้: <code>tb_alerts</code>, <code>tb_ai_advices</code>, <code>tb_thi_forecasts</code>, <code>tb_behavior_logs</code>, <code>behavior_logs</code>, <code>tb_farmer_daily_actions</code> (migration <code>20261127_query_indexes_and_drop_unused.sql</code>)</li>
+<li>Storage: bucket <code>models</code> (ไฟล์ YOLO ~78 MB) และ <code>camera-samples</code> (ภาพตัวอย่าง/ภาพที่เก็บทุกภาพ) · แผนฟรี 1 GB → ดึงภาพลงเครื่องแล้วลบด้วย <code>download_collected.js</code> / <code>free_collected.js</code></li>
+</ul>
+</section>
+<section id="s9">
+<h2 id="endpoint-หลก">🔗 9. Endpoint หลัก</h2>
+<div class="tbl"><table>
+<colgroup>
+<col style="width: 23%" />
+<col style="width: 29%" />
+<col style="width: 23%" />
+<col style="width: 23%" />
+</colgroup>
+<thead>
+<tr>
+<th style="text-align: left;">กลุ่ม</th>
+<th style="text-align: center;">Method</th>
+<th style="text-align: left;">Endpoint</th>
+<th style="text-align: left;">หน้าที่</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Auth</td>
+<td style="text-align: center;"><code>POST</code></td>
+<td style="text-align: left;"><code>/api/auth/login</code></td>
+<td style="text-align: left;">เข้าสู่ระบบ รับ JWT</td>
+</tr>
+<tr>
+<td style="text-align: left;">กล่อง</td>
+<td style="text-align: center;"><code>POST</code></td>
+<td style="text-align: left;"><code>/api/sensors/data</code> · <code>/batch</code> · <code>/heartbeat</code></td>
+<td style="text-align: left;">รับค่าเซ็นเซอร์ ค่าค้างในคิว และสถานะกล่อง (<code>X-Device-Key</code>)</td>
+</tr>
+<tr>
+<td style="text-align: left;">กล่อง</td>
+<td style="text-align: center;"><code>POST</code></td>
+<td style="text-align: left;"><code>/api/camera/snapshot</code></td>
+<td style="text-align: left;">รับภาพนิ่ง → YOLO</td>
+</tr>
+<tr>
+<td style="text-align: left;">ฟาร์ม</td>
+<td style="text-align: center;"><code>GET</code></td>
+<td style="text-align: left;"><code>/api/Admin/farms/all</code> · <code>/:id</code> · <code>/:id/latest</code> · <code>/dashboard-stats</code></td>
+<td style="text-align: left;">รายการฟาร์ม รายละเอียด ค่าล่าสุด สถิติรวม</td>
+</tr>
+<tr>
+<td style="text-align: left;">ฟาร์ม</td>
+<td style="text-align: center;"><code>POST/PUT/DELETE</code></td>
+<td style="text-align: left;"><code>/api/Admin/farms</code> · <code>/:id</code></td>
+<td style="text-align: left;">เพิ่ม/แก้/ลบฟาร์ม (ผูกกล่องแล้วรับค่าที่ส่งมาตอนยังไม่ผูกเข้าฟาร์ม)</td>
+</tr>
+<tr>
+<td style="text-align: left;">วัวเป้าหมาย</td>
+<td style="text-align: center;"><code>GET/POST</code></td>
+<td style="text-align: left;"><code>/api/Admin/farms/:id/cow-target</code> · <code>/:id/cow-behavior</code> · <code>/:id/cow-behavior/export</code></td>
+<td style="text-align: left;">เลือกวัว ไทม์ไลน์พฤติกรรม ส่งออก</td>
+</tr>
+<tr>
+<td style="text-align: left;">อุปกรณ์</td>
+<td style="text-align: center;"><code>GET/POST/PUT/DELETE</code></td>
+<td style="text-align: left;"><code>/api/Admin/devices</code></td>
+<td style="text-align: left;">จัดการกล่อง รอบถ่ายภาพ โหมดเก็บทุกภาพ</td>
+</tr>
+<tr>
+<td style="text-align: left;">เกษตรกร</td>
+<td style="text-align: center;"><code>GET</code></td>
+<td style="text-align: left;"><code>/api/farmer/...</code></td>
+<td style="text-align: left;">หน้ามือถือของเกษตรกร</td>
+</tr>
+</tbody>
+</table></div>
+<p>วิธีรันในเครื่องและโครงสร้างโฟลเดอร์ดูที่ <code>README.md</code> · ขั้นตอนตั้งค่าเครื่องพัฒนาดูที่ <code>docs/DEV_SETUP.md</code></p>
+</section>
+<section id="s10">
+<h2 id="ขอจำกดปจจบนและแผนงานระยะถดไป-limitations-deferred-roadmap">⚠️ 10. ข้อจำกัดปัจจุบันและแผนงานระยะถัดไป (Limitations &amp; Deferred Roadmap)</h2>
+<h3 id="ขอจำกดทตองทราบในระยะปจจบน">ข้อจำกัดที่ต้องทราบในระยะปัจจุบัน</h3>
+<ol type="1">
+<li><strong>สถานะการทดสอบ:</strong> ระบบทั้งหมดผ่านการทดสอบการทำงานในบ้านแล้ว (SHT40 + firmware 1.6.x ทำงานบนโต๊ะ (รอบเซ็นเซอร์ 15 วิตามนาฬิกาคงที่ตั้งแต่ 1.6.1)) แต่ยังไม่ได้ติดตั้งในโรงเรือนจริง · กำหนดไปฟาร์ม <strong>6–7 ธ.ค. 2569</strong> · รายละเอียดแผนอยู่ที่ <code>docs/PROJECT_PLAN.md</code> และ <code>docs/HANDOFF.md</code></li>
+<li><strong>ความแม่นยำของเซ็นเซอร์:</strong> ใช้ค่าความคลาดเคลื่อนตามสเปกโรงงานของชิป SHT40 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>±</mi><msup><mn>0.2</mn><mo>∘</mo></msup><mtext mathvariant="normal">C</mtext><mi>/</mi><mo>±</mo><mn>1.8</mn><mi>%</mi><mrow><mspace width="0.333em"></mspace><mtext mathvariant="normal"> RH</mtext></mrow></mrow><annotation encoding="application/x-tex">\pm 0.2^\circ\text{C} / \pm 1.8\%\text{ RH}</annotation></semantics></math>) ยังไม่ได้เทียบกับเครื่องวัดอ้างอิง · มีเครื่องมือ <code>compare_sensor.js</code> พร้อมแล้ว จะวัดช่วงทดสอบ 24 ชม. ที่บ้าน (30 พ.ย.–3 ธ.ค.) และที่ฟาร์ม 6–7 ธ.ค.</li>
+<li><strong>ความแม่นยำของระบบพยากรณ์ 3 วัน:</strong> ตัวเลข <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mtext mathvariant="normal">MAE </mtext><mspace width="0.333em"></mspace></mrow><mn>0.69</mn><mi>/</mi><mn>0.78</mn><mi>/</mi><mn>0.88</mn></mrow><annotation encoding="application/x-tex">\text{MAE } 0.69 / 0.78 / 0.88</annotation></semantics></math> วัดกับสถานีอุตุนิยมวิทยากลางแจ้งสนามบินเชียงใหม่ (WMO 48327) ส่วนความแม่นยำในโรงเรือนจริงจะต้องวัดซ้ำหลังติดตั้งอย่างน้อย 2 สัปดาห์</li>
+<li><strong>ความแม่นยำของโมเดลกล้อง:</strong> เทรนจากชุดภาพต่างประเทศ จึงต้องอาศัยระบบเก็บภาพรายชั่วโมงที่สร้างไว้เพื่อนำมานับเทียบและ Fine-tune ด้วยภาพโรงเรือนไทยจริง</li>
+</ol>
+<h3 id="สงทตกลงไววาจะทำในระยะถดไป-หลงตดตงทฟารมจรง">สิ่งที่ตกลงไว้ว่าจะทำในระยะถัดไป (หลังติดตั้งที่ฟาร์มจริง)</h3>
+<ol type="1">
+<li><strong>วัดความแม่นยำของการพยากรณ์ THI ล่วงหน้า 3 วันในโรงเรือนจริง</strong> (หลังติดตั้ง 2 สัปดาห์)</li>
+<li><strong>หน้านับเทียบความแม่นยำของโมเดลกล้อง และหน้าวิเคราะห์ <code>% วัวนอน เทียบกับค่า THI</code></strong> (หลังจากติดตั้งและเก็บภาพได้ 2–3 สัปดาห์)</li>
+<li><strong>ระบบแจ้งเตือนผ่าน LINE รายฟาร์ม</strong> (ทำในงานแฮ็กกาธอน)</li>
+<li><strong>การเชื่อมต่อ Google Gemini AI</strong> เพื่อช่วยสรุปรายงาน</li>
+<li><strong>ระบบสั่งเปิดพัดลมหรือระบบทำความเย็นอัตโนมัติ</strong></li>
+</ol>
+</section>
+<footer>สร้างจาก COWCARE_PROJECT_MASTER_OVERVIEW.md ด้วย docs/tools/md_to_html.py</footer>
+</main>
 
 </body>
 </html>

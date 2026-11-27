@@ -16,7 +16,7 @@
 - ก่อน commit: `for f in backend_node/scripts/test_*.js; do node "$f" || echo "FAIL $f"; done` ต้องผ่านทั้งหมด · แก้หน้าเว็บให้ build ผ่าน (`cd frontend && npx nuxi generate`)
 - แก้ `backend_node/app/services/cowTracking.js` แล้วต้องรัน `node backend_node/scripts/sync_browser_tracking.js` (สำเนาฝั่งหน้าเว็บ)
 - รันสคริปต์ที่ต่อฐานข้อมูลบนโน้ตบุ๊กแล้วช้า/timeout: ให้ผู้ใช้ใช้ hotspot มือถือ
-- **อัปเดตเอกสารไปพร้อมงานเสมอ:** ทุกครั้งที่งานเปลี่ยนสถานะระบบ (firmware, ฮาร์ดแวร์, ฟีเจอร์, ตัวเลข, การตัดสินใจ) ให้แก้ `README.md`, `docs/COWCARE_PROJECT_MASTER_OVERVIEW.md`, `docs/PROJECT_PLAN.md` (ตารางสถานะ) และ `docs/HANDOFF.md` ใน commit เดียวกัน · ไม่ต้องถามซ้ำ
+- **อัปเดตเอกสารไปพร้อมงานเสมอ:** ทุกครั้งที่งานเปลี่ยนสถานะระบบ (firmware, ฮาร์ดแวร์, ฟีเจอร์, ตัวเลข, การตัดสินใจ) ให้แก้ `README.md`, `docs/COWCARE_PROJECT_MASTER_OVERVIEW.md` (ไฟล์ภาพรวมไฟล์เดียว), `docs/PROJECT_PLAN.md` (ตารางสถานะ), `docs/HANDOFF.md` และถ้าเกี่ยวกับฮาร์ดแวร์/ตัวเลขในเปเปอร์ให้แก้ `docs/paper/CowCare_AI_scope_and_technology.md` ด้วย ใน commit เดียวกัน · แก้ .md แล้วสร้าง .html/.pdf ใหม่ด้วย `python3 docs/tools/md_to_html.py <ไฟล์.md> [--pdf]` · ไม่ต้องถามซ้ำ
 - ภาษาที่ใช้คุยกับผู้ใช้: ไทย
 
 ## แฟลช firmware (บอร์ดเสียบ USB ที่ `/dev/cu.usbmodem*`)

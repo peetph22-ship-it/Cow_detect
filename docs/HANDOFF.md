@@ -139,7 +139,7 @@ git checkout main && git pull && git merge --no-edit feat/sht40-firmware && git 
 
 ## 6. สิ่งที่ค้าง — Claude ทำได้ (ไม่ต้องรออุปกรณ์)
 
-1. **เอกสารฮาร์ดแวร์ของเปเปอร์:** แผนผังการต่อสาย (wiring diagram), ตาราง BOM (รอราคาจริงจากผู้ใช้), **แก้ SHT20 (XY-MD02) → SHT40 ใน `docs/paper/`**
+1. ~~เอกสารฮาร์ดแวร์ของเปเปอร์~~ ✅ 27 พ.ย.: `docs/paper/CowCare_AI_scope_and_technology.md` เปลี่ยนเป็น SHT40/firmware 1.6.x, แผนผัง `docs/paper/wiring_diagram.svg`, ตาราง BOM (ราคาจริงรอผู้ใช้ เติมที่ช่อง [ต้องเติม]), หัวข้อ 5.5 วิธีประเมินฮาร์ดแวร์ + ร่างภาษาอังกฤษ · ไฟล์ภาพรวมรวมเหลือไฟล์เดียว `docs/COWCARE_PROJECT_MASTER_OVERVIEW.md` (ลบ `PROJECT_OVERVIEW.md`) · สร้าง html/pdf ด้วย `docs/tools/md_to_html.py` · **ยังไม่ได้แก้:** `docs/paper/CowCare_AI_hardware_and_technology.docx` (ไฟล์ Word แยก ยังเขียน SHT20)
 2. **รวมดื่มน้ำเข้ากับยืน** ในหน้ารวมทั้งฝูงและไฟล์ export (ในหน้าวัวรายตัวทำแล้ว)
 3. ซ่อนการ์ดคำแนะนำเมื่อค่าเซ็นเซอร์เก่า (ไม่บังคับ)
 4. สคริปต์ประมวลผลภาพบนโน้ตบุ๊กแบบออฟไลน์ (ไม่บังคับ สำรองไว้ถ้า Render ช้า)

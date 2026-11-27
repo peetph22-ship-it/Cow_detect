@@ -242,3 +242,4 @@
 | 6. เอกสารสุดท้าย + D3 | ยังไม่เริ่ม (21–26 ธ.ค.) | |
 | performance หน้าเว็บ (27 พ.ย.) | เสร็จ (`perf/frontend-load`) | ไฟล์ที่ต้องโหลดก่อนเปิดหน้า 803 → 261 KB (gzip), กราฟโหลดเมื่อใช้, ภาพพื้นหลัง 6.3 MB → 174 KB, ไม่ยิง request ซ้ำ, หยุดดึงข้อมูลตอนแท็บซ่อน |
 | performance ฐานข้อมูล + ลบตารางที่ไม่ใช้ (27 พ.ย.) | โค้ดเสร็จ (`perf/db-queries`) · **รอผู้ใช้รัน migration `20261127_query_indexes_and_drop_unused.sql`** | วัดกับฐานข้อมูลจริง (63k แถว): ค่าล่าสุดของฟาร์ม 47 → 0.05 ms, ข้อมูล 24 ชม. 247 → 30 ms, Dashboard 122 → 0.07 ms · ลบ 6 ตาราง: tb_alerts, tb_ai_advices, tb_thi_forecasts, tb_behavior_logs, behavior_logs, tb_farmer_daily_actions |
+| เอกสารฮาร์ดแวร์ของเปเปอร์ (27 พ.ย.) | ร่างเสร็จ (`docs/paper-hardware`) · รอราคาจริง/รุ่นเครื่องวัดจากผู้ใช้ | SHT40 + firmware 1.6.x, `wiring_diagram.svg`, BOM, หัวข้อ 5.5 วิธีประเมินฮาร์ดแวร์ (ไทย + อังกฤษ) · ไฟล์ .docx ยังเป็น SHT20 |

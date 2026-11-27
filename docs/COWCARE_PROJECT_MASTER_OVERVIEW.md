@@ -1,6 +1,6 @@
 # CowCare AI — รายงานสรุปภาพรวมโครงการฉบับสมบูรณ์ (Master Project Overview)
 **ระบบเฝ้าระวังและวิเคราะห์ความเครียดจากความร้อนในโคนมด้วย IoT Telemetry และ Computer Vision**  
-*อัปเดตสถานะล่าสุด: 24 ตุลาคม 2026 | สถานะระบบ: ทดสอบในบ้านแล้ว (Pre-Field Validated) · พร้อมติดตั้งที่ฟาร์มจริง*
+*อัปเดตล่าสุด: 27 พฤศจิกายน 2569 | สถานะ: ทดสอบในบ้านแล้ว ยังไม่ได้ติดตั้งที่ฟาร์ม (ไปฟาร์ม 6–7 ธ.ค. 2569) | ไฟล์ภาพรวมหลักไฟล์เดียวของโปรเจกต์ (รวม `PROJECT_OVERVIEW.md` เดิมเข้ามาแล้ว)*
 
 ---
 
@@ -31,15 +31,15 @@
  │    ├── คำนวณตัวชี้วัดความร้อนชุดเดียวกันทั้งระบบ (เฉลี่ยทุก 5 นาที ด้วย heatMetrics.js และ heatStress.js)
  │    ├── พยากรณ์ THI ล่วงหน้า 3 วัน (forecastService.js: Open-Meteo ECMWF + ปรับค่าเพี้ยนจากเซ็นเซอร์ฟาร์ม 3–14 วัน)
  │    ├── เปรียบเทียบอากาศในโรงเรือนกับภายนอกย้อนหลัง 72 ชม. ช่วงบ่าย 12:00–16:59 น. (outdoorWeather.js)
- │    ├── รันโมเดล YOLO26m ONNX (best.onnx) บน Worker Thread นับวัวแยก 4 ท่า (drinking / feeding / lying down / standing)
+ │    ├── รันโมเดล YOLO26m ONNX (yolo26m_480.onnx) บน Worker Thread นับวัวแยก 4 ท่า (drinking / feeding / lying down / standing)
  │    ├── เก็บภาพตัวอย่างชั่วโมงละ 1 รูป พร้อมไฟล์ JSON ลง Supabase Storage (Private Bucket)
  │    └── เข้ารหัสรหัสผ่านกล้องด้วย AES-256-GCM (ไม่เก็บรหัสผ่านไว้ในลิงก์ RTSP)
  └── 🗄️ Cloud Database & Storage (Supabase PostgreSQL & Private Storage)
-      ├── ตารางข้อมูล: tb_users, tb_farms, tb_devices, tb_sensor_readings, tb_farm_daily_summaries, cctv_cameras
+      ├── ตารางข้อมูล: 15 ตาราง (ดูหัวข้อ 8) เช่น tb_farms, tb_devices, tb_sensor_readings, tb_device_heartbeats, cctv_behavior_telemetry
       └── Private Buckets: เก็บไฟล์โมเดล ONNX (ตรวจด้วย SHA-256) และภาพตัวอย่างรายชั่วโมง (camera-samples)
 
 [3. ชั้นส่วนติดต่อผู้ใช้งาน (Frontend Web Application Layer)]
- └── 🌐 Nuxt 3 + Vuetify + Tailwind CSS + ApexCharts (https://cow-detect.pages.dev)
+ └── 🌐 Nuxt 4 + Vuetify + Tailwind CSS + ApexCharts (https://cow-detect.pages.dev)
       ├── หน้าเกษตรกร (4 หน้า): วันนี้ / ย้อนหลัง / แจ้งเตือน / ฉัน (เช็กลิสต์แตะเลือก ไม่ต้องกรอกข้อมูลรายวัน)
       └── หน้า Admin: แดชบอร์ดเครือข่าย, เปรียบเทียบอากาศภายนอก, สุขภาพกล่องเซ็นเซอร์, จัดการกล้อง, และสมุดสหกรณ์
 ```
@@ -108,7 +108,51 @@
 
 ---
 
-## ⚠️ 6. ข้อจำกัดปัจจุบันและแผนงานระยะถัดไป (Limitations & Deferred Roadmap)
+## 🔄 6. เส้นทางข้อมูลจากกล่องถึงหน้าเว็บ (Ingestion)
+
+1. **ค่าเซ็นเซอร์:** กล่องส่ง `POST /api/sensors/data` (ค่าเดียว) หรือ `/api/sensors/batch` (ค่าค้างในคิว สูงสุด 100 ค่า) พร้อม `X-Device-Key`
+   ```json
+   { "serial_no": "ESP32-S3-01", "recorded_at": 1764225600, "temperature_c": 29.6, "humidity_pct": 70.8 }
+   ```
+   server ตรวจช่วงค่า (−10..65 °C, 0..100 %RH, เวลาไม่เกิน 5 นาทีในอนาคตและไม่เก่ากว่า 30 วัน) → หากล่องจาก `serial_no` → บันทึก `tb_sensor_readings` พร้อม `id_farms` ของฟาร์มที่กล่องผูกอยู่ตอนวัด (ค่าซ้ำ `(id_devices, recorded_at)` ถูกข้าม) → `received_at` = เวลาที่ server ได้รับ
+2. **Heartbeat ทุก 5 นาที:** `POST /api/sensors/heartbeat` → `tb_device_heartbeats` (รุ่นหัววัด, คิวค้าง, สัญญาณ, หน่วยความจำ, เหตุผลรีบูต) ใช้แยก "กล่องเงียบ" กับ "กล่องออนไลน์แต่เซ็นเซอร์ไม่ส่ง"
+3. **ภาพ:** `POST /api/camera/snapshot` (JPEG ≤ 2 MB) → `tb_camera_frames` → YOLO บน worker (คิว 2 ภาพ เกินคิวตอบ "ยุ่ง" และข้ามภาพนั้น) → `cctv_behavior_telemetry` → ติดตามวัวเป้าหมาย → `tb_cow_behavior_observations` · โหมดเก็บทุกภาพเก็บภาพลง Storage ไว้ทำ dataset
+4. **หน้าเว็บ:** farm_detail ดึง `/api/Admin/farms/:id/latest` ทุก 15 วิ (หยุดเมื่อแท็บซ่อน) และผลกล้องทุก ~1 นาที
+
+## 🌙 7. สรุปประจำวันอัตโนมัติ (Daily Job)
+
+- `dailyLstmScheduler.js` รันทุกวัน **20:00 น.** (Asia/Bangkok) สรุปค่าของวัน (ต่ำสุด/สูงสุด/เฉลี่ย, ชั่วโมงเครียด, ชั่วโมงวิกฤต, THI กลางคืน), เทียบกับเมื่อวาน, พยากรณ์ 3 วัน (`hybrid-ecmwf-bias-v1`) แล้ว upsert ลง `tb_farm_daily_summaries`
+- Bi-LSTM **ปิดอยู่** (ยังไม่ได้เทรนด้วยข้อมูลจริง) ห้ามอ้างในเปเปอร์ว่าใช้งาน
+- สั่งรันเองได้: `POST /api/Admin/farms/:id/run-daily-summary` · `POST /api/Admin/farms/run-all-daily-summaries`
+
+## 🗄️ 8. ฐานข้อมูล (Supabase PostgreSQL · 15 ตาราง ณ 27 พ.ย. 2569)
+
+| กลุ่ม | ตาราง |
+|---|---|
+| ผู้ใช้และฟาร์ม | `tb_users`, `tb_farms`, `tb_farm_members` |
+| กล่องเซ็นเซอร์ | `tb_devices`, `tb_sensor_readings` (index `(id_farms, recorded_at)`, `(id_devices, recorded_at)` unique, `recorded_at`), `tb_device_heartbeats`, `tb_farm_daily_summaries` |
+| กล้องและวัว | `cctv_cameras`, `tb_camera_frames`, `cctv_behavior_telemetry`, `animal_behavior_alerts`, `tb_camera_sample_audits`, `tb_cows`, `tb_cow_tracking_targets`, `tb_cow_behavior_observations` |
+
+- แก้ schema = ไฟล์ใน `backend_node/migrations/` แล้วรันเองใน Supabase SQL Editor (Claude ตรวจแบบอ่านอย่างเดียว)
+- 27 พ.ย. 2569 ลบ 6 ตารางที่ไม่มีโค้ดใช้: `tb_alerts`, `tb_ai_advices`, `tb_thi_forecasts`, `tb_behavior_logs`, `behavior_logs`, `tb_farmer_daily_actions` (migration `20261127_query_indexes_and_drop_unused.sql`)
+- Storage: bucket `models` (ไฟล์ YOLO ~78 MB) และ `camera-samples` (ภาพตัวอย่าง/ภาพที่เก็บทุกภาพ) · แผนฟรี 1 GB → ดึงภาพลงเครื่องแล้วลบด้วย `download_collected.js` / `free_collected.js`
+
+## 🔗 9. Endpoint หลัก
+
+| กลุ่ม | Method | Endpoint | หน้าที่ |
+| :--- | :---: | :--- | :--- |
+| Auth | `POST` | `/api/auth/login` | เข้าสู่ระบบ รับ JWT |
+| กล่อง | `POST` | `/api/sensors/data` · `/batch` · `/heartbeat` | รับค่าเซ็นเซอร์ ค่าค้างในคิว และสถานะกล่อง (`X-Device-Key`) |
+| กล่อง | `POST` | `/api/camera/snapshot` | รับภาพนิ่ง → YOLO |
+| ฟาร์ม | `GET` | `/api/Admin/farms/all` · `/:id` · `/:id/latest` · `/dashboard-stats` | รายการฟาร์ม รายละเอียด ค่าล่าสุด สถิติรวม |
+| ฟาร์ม | `POST/PUT/DELETE` | `/api/Admin/farms` · `/:id` | เพิ่ม/แก้/ลบฟาร์ม (ผูกกล่องแล้วรับค่าที่ส่งมาตอนยังไม่ผูกเข้าฟาร์ม) |
+| วัวเป้าหมาย | `GET/POST` | `/api/Admin/farms/:id/cow-target` · `/:id/cow-behavior` · `/:id/cow-behavior/export` | เลือกวัว ไทม์ไลน์พฤติกรรม ส่งออก |
+| อุปกรณ์ | `GET/POST/PUT/DELETE` | `/api/Admin/devices` | จัดการกล่อง รอบถ่ายภาพ โหมดเก็บทุกภาพ |
+| เกษตรกร | `GET` | `/api/farmer/...` | หน้ามือถือของเกษตรกร |
+
+วิธีรันในเครื่องและโครงสร้างโฟลเดอร์ดูที่ `README.md` · ขั้นตอนตั้งค่าเครื่องพัฒนาดูที่ `docs/DEV_SETUP.md`
+
+## ⚠️ 10. ข้อจำกัดปัจจุบันและแผนงานระยะถัดไป (Limitations & Deferred Roadmap)
 
 ### ข้อจำกัดที่ต้องทราบในระยะปัจจุบัน
 1. **สถานะการทดสอบ:** ระบบทั้งหมดผ่านการทดสอบการทำงานในบ้านแล้ว (SHT40 + firmware 1.6.x ทำงานบนโต๊ะ (รอบเซ็นเซอร์ 15 วิตามนาฬิกาคงที่ตั้งแต่ 1.6.1)) แต่ยังไม่ได้ติดตั้งในโรงเรือนจริง · กำหนดไปฟาร์ม **6–7 ธ.ค. 2569** · รายละเอียดแผนอยู่ที่ `docs/PROJECT_PLAN.md` และ `docs/HANDOFF.md`

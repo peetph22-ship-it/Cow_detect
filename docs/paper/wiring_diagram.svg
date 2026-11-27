@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" font-family="Helvetica, Arial, sans-serif" font-size="13">
+  <title>CowCare AI barn unit wiring (firmware 1.6.x)</title>
+  <rect width="960" height="560" fill="#ffffff"/>
+
+  <!-- ESP32-S3 -->
+  <rect x="380" y="150" width="220" height="250" rx="8" fill="#f4f6f8" stroke="#33415c" stroke-width="2"/>
+  <text x="490" y="178" text-anchor="middle" font-weight="bold" font-size="15">ESP32-S3 N16R8</text>
+  <text x="490" y="196" text-anchor="middle" fill="#555">16 MB flash · 8 MB PSRAM</text>
+  <g font-size="12">
+    <text x="392" y="232">3V3</text>
+    <text x="392" y="262">GND</text>
+    <text x="392" y="292">GPIO11 (SDA)</text>
+    <text x="392" y="322">GPIO12 (SCL)</text>
+    <text x="588" y="232" text-anchor="end">GPIO 1, 2, 40, 41, 42</text>
+    <text x="588" y="322" text-anchor="end">5V / GND</text>
+    <text x="490" y="372" text-anchor="middle" fill="#555">Wi-Fi 2.4 GHz</text>
+  </g>
+
+  <!-- SHT40 probe -->
+  <rect x="40" y="200" width="170" height="140" rx="8" fill="#ffffff" stroke="#33415c" stroke-width="2"/>
+  <text x="125" y="228" text-anchor="middle" font-weight="bold" font-size="15">SHT40 probe</text>
+  <text x="125" y="246" text-anchor="middle" fill="#555">I2C 0x44 · 1 m cable</text>
+  <text x="125" y="264" text-anchor="middle" fill="#555">±0.2 °C · ±1.8 %RH</text>
+  <text x="125" y="288" text-anchor="middle" fill="#555" font-size="12">built-in heater</text>
+  <text x="125" y="306" text-anchor="middle" fill="#555" font-size="12">(condensation)</text>
+
+  <!-- 4 wires -->
+  <g stroke-width="3" fill="none">
+    <path d="M210 228 H380" stroke="#d62728"/>
+    <path d="M210 258 H380" stroke="#222222"/>
+    <path d="M210 288 H380" stroke="#2ca02c"/>
+    <path d="M210 318 H380" stroke="#e6b800"/>
+  </g>
+  <g font-size="11" fill="#333">
+    <text x="295" y="222" text-anchor="middle">red · VCC 3.3 V</text>
+    <text x="295" y="252" text-anchor="middle">black · GND</text>
+    <text x="295" y="282" text-anchor="middle">green · SDA</text>
+    <text x="295" y="312" text-anchor="middle">yellow · SCL</text>
+  </g>
+  <text x="295" y="350" text-anchor="middle" font-size="11" fill="#555">internal pull-ups · 50 kHz</text>
+  <text x="295" y="366" text-anchor="middle" font-size="11" fill="#555">(add 4.7 kΩ to 3V3 if reads fail)</text>
+
+  <!-- TFT -->
+  <rect x="690" y="190" width="220" height="80" rx="8" fill="#ffffff" stroke="#33415c" stroke-width="2"/>
+  <text x="800" y="220" text-anchor="middle" font-weight="bold" font-size="15">TFT 2.4" ST7789</text>
+  <text x="800" y="240" text-anchor="middle" fill="#555">320×240 · THI and status</text>
+  <path d="M600 228 H690" stroke="#33415c" stroke-width="3" fill="none"/>
+
+  <!-- Power -->
+  <rect x="690" y="300" width="220" height="80" rx="8" fill="#ffffff" stroke="#33415c" stroke-width="2"/>
+  <text x="800" y="328" text-anchor="middle" font-weight="bold" font-size="15">Power</text>
+  <text x="800" y="348" text-anchor="middle" fill="#555">12 V 2 A adapter →</text>
+  <text x="800" y="366" text-anchor="middle" fill="#555">step-down 12 V → 5 V / 3.3 V</text>
+  <path d="M600 318 H690" stroke="#8c564b" stroke-width="3" fill="none"/>
+
+  <!-- Network -->
+  <rect x="380" y="460" width="220" height="70" rx="8" fill="#ffffff" stroke="#33415c" stroke-width="2"/>
+  <text x="490" y="488" text-anchor="middle" font-weight="bold" font-size="15">4G router (LAN 192.168.1.x)</text>
+  <text x="490" y="508" text-anchor="middle" fill="#555">outbound only · no open ports</text>
+  <path d="M490 400 V460" stroke="#1f77b4" stroke-width="3" stroke-dasharray="7 5" fill="none"/>
+  <text x="500" y="436" font-size="11" fill="#1f77b4">Wi-Fi</text>
+
+  <rect x="40" y="460" width="230" height="70" rx="8" fill="#ffffff" stroke="#33415c" stroke-width="2"/>
+  <text x="155" y="488" text-anchor="middle" font-weight="bold" font-size="15">IP camera (Dahua)</text>
+  <text x="155" y="508" text-anchor="middle" fill="#555">DH-IPC-HFW2231TP-ZAS-S2</text>
+  <path d="M270 495 H380" stroke="#33415c" stroke-width="3" fill="none"/>
+  <text x="325" y="487" text-anchor="middle" font-size="11" fill="#333">LAN</text>
+
+  <rect x="690" y="460" width="220" height="70" rx="8" fill="#ffffff" stroke="#33415c" stroke-width="2"/>
+  <text x="800" y="488" text-anchor="middle" font-weight="bold" font-size="15">Cloud server</text>
+  <text x="800" y="508" text-anchor="middle" fill="#555">HTTPS · readings + JPEG</text>
+  <path d="M600 495 H690" stroke="#1f77b4" stroke-width="3" fill="none"/>
+  <text x="645" y="487" text-anchor="middle" font-size="11" fill="#1f77b4">4G</text>
+
+  <text x="40" y="40" font-weight="bold" font-size="18">CowCare AI barn unit: wiring and data path</text>
+  <text x="40" y="62" fill="#555">Sensor reading every 15 s · camera snapshot pulled by the ESP32 over the LAN every 15 s–60 min · heartbeat every 5 min</text>
+  <text x="40" y="82" fill="#555">Display pins (1, 2, 40, 41, 42) are taken; the SHT40 must be powered from 3.3 V only.</text>
+</svg>
