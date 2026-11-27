@@ -105,6 +105,7 @@ Serial ต้องเห็น `[CAM] snapshot 245 KB -> upload 202 (3100 ms)` 
   สัญญาณ Wi-Fi, เซ็นเซอร์ ok/fail, คิวค้าง, เวลาที่เปิดเครื่อง, สาเหตุรีสตาร์ต (เช่น `brownout` = ไฟตก), เวอร์ชัน firmware
   ต้องรัน `backend_node/migrations/20261025_device_heartbeat.sql` ดูผลที่หน้า Admin > Devices
 - อุปกรณ์ที่ยังไม่ลงทะเบียน server ตอบ `404` (ไม่สร้างให้อัตโนมัติแล้ว) บอร์ดเก็บข้อมูลไว้ในคิวจนกว่าจะลงทะเบียน
+- 1.6.1: ส่งค่าตามนาฬิกาคงที่ทุก 15 วิ (1.6.0 ได้รอบละ ~16 วิ เพราะนับ 15 วิจากเวลาที่อ่านได้จริง)
 - 1.6.0 ส่งเพิ่ม: `sensor_model` (รุ่นที่ตรวจเจอจริง: sht4x / sht3x / aht2x / htu21 / none), `sensor_addr`, `sensor_serial`, `heater_pulses`, `i2c_recoveries` (ล้างบัสไปกี่ครั้ง), `last_server_ok_s`, `camera_last_round_s`
 - Serial: `[HB] heartbeat -> 200 (sensor ok, ok 150 / fail 0, rssi -61)`
   ถ้า Serial Monitor ไม่แสดงข้อความ: Tools > **USB CDC On Boot = Enabled** แล้วแฟลชใหม่

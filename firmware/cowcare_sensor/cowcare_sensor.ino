@@ -85,7 +85,7 @@ const size_t CAM_BUF_HEAP  = 200UL * 1024UL;   // บอร์ดที่ไม
 const unsigned long readInterval   = 2000;   // อ่านเซ็นเซอร์ทุก 2 วินาที
 const unsigned long sampleInterval = 15000;  // บันทึก/ส่งทุก 15 วินาที
 const unsigned long HEARTBEAT_MS = 5UL * 60UL * 1000UL;  // รายงานสถานะกล่องทุก 5 นาที
-const char* FW_VERSION = "1.6.0";  // 1.6.0: SHT40 I2C + watchdog, 1.5.0: รอบถ่ายภาพตั้งจากหน้าเว็บได้ (next_interval_sec)
+const char* FW_VERSION = "1.6.1";  // 1.6.1: ส่งค่าตามนาฬิกาคงที่ทุก 15 วิ (เดิมรอบละ 16 วิ), 1.6.0: SHT40 I2C + watchdog, 1.5.0: รอบถ่ายภาพตั้งจากหน้าเว็บได้ (next_interval_sec)
 
 // Watchdog: งานไหนค้างเกินนี้ (loop หรือกล้อง) = รีบูต ต้องนานกว่างานที่ช้าที่สุด (รอคิวเน็ต 60 วิ + ส่งภาพ 30 วิ)
 const uint32_t WDT_TIMEOUT_S = 180;
@@ -1388,7 +1388,9 @@ void loop() {
     }
 
     if (readSuccess && (now - lastSampleTime >= sampleInterval)) {
-      lastSampleTime = now;
+      // ตามนาฬิกาคงที่ทุก 15 วิ: ขยับกำหนดไปทีละรอบ ไม่ใช้ "เวลาที่อ่านได้จริง" (เดิมอ่านทุก 2 วิ จึงได้รอบละ 16 วิ = ค่าหาย ~6%)
+      // ถ้าช้าเกิน 2 รอบ (เช่น เพิ่งกลับจากช่วงพัก heater หรือเซ็นเซอร์อ่านพลาดนาน) ให้เริ่มนับใหม่จากตอนนี้
+      lastSampleTime = (now - lastSampleTime >= 2 * sampleInterval) ? now : lastSampleTime + sampleInterval;
       handleSample();
       updateHeaderStatus();
     }
