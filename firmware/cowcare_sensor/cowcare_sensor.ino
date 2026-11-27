@@ -85,7 +85,7 @@ const size_t CAM_BUF_HEAP  = 200UL * 1024UL;   // บอร์ดที่ไม
 const unsigned long readInterval   = 2000;   // อ่านเซ็นเซอร์ทุก 2 วินาที
 const unsigned long sampleInterval = 15000;  // บันทึก/ส่งทุก 15 วินาที
 const unsigned long HEARTBEAT_MS = 5UL * 60UL * 1000UL;  // รายงานสถานะกล่องทุก 5 นาที
-const char* FW_VERSION = "1.6.1";  // 1.6.1: ส่งค่าตามนาฬิกาคงที่ทุก 15 วิ (เดิมรอบละ 16 วิ), 1.6.0: SHT40 I2C + watchdog, 1.5.0: รอบถ่ายภาพตั้งจากหน้าเว็บได้ (next_interval_sec)
+const char* FW_VERSION = "1.6.2";  // 1.6.2: ค่าเซ็นเซอร์ไม่รอตอนกล้องส่งภาพ (เข้าคิวแทน กล้องหลีกให้), 1.6.1: ส่งค่าตามนาฬิกาคงที่ทุก 15 วิ (เดิมรอบละ 16 วิ), 1.6.0: SHT40 I2C + watchdog, 1.5.0: รอบถ่ายภาพตั้งจากหน้าเว็บได้ (next_interval_sec)
 
 // Watchdog: งานไหนค้างเกินนี้ (loop หรือกล้อง) = รีบูต ต้องนานกว่างานที่ช้าที่สุด (รอคิวเน็ต 60 วิ + ส่งภาพ 30 วิ)
 const uint32_t WDT_TIMEOUT_S = 180;
@@ -256,6 +256,11 @@ volatile uint8_t camStatus = CAM_WAIT;
 uint8_t prevCamStatus = 255;
 // ส่ง HTTPS ทีละงาน (เซ็นเซอร์กับกล้องไม่ใช้ TLS พร้อมกัน ประหยัด RAM)
 SemaphoreHandle_t netMutex = nullptr;
+// กล้องกำลังส่งภาพ: งานเซ็นเซอร์ไม่รอ (เดิมรอได้ถึง 30 วิ loop() ค้าง อ่านค่าไม่ได้ และนับเป็นส่งพลาดจน backoff)
+// ค่าเข้าคิวแทน แล้วตั้งธงให้กล้องหลีกทางก่อนรอบถัดไป
+const int NET_BUSY = -100;
+const unsigned long NET_LOCK_WAIT_MS = 1000;
+volatile bool sensorWaiting = false;
 
 // รับ body ของ HTTP ลง buffer ที่จองไว้ (ใช้กับ HTTPClient::writeToStream ซึ่งรองรับ chunked ด้วย)
 class BufStream : public Stream {
@@ -661,11 +666,11 @@ void secureClient(WiFiClientSecure& client) {
 }
 
 int httpPost(const String& path, const String& body, String& response, uint16_t timeoutMs) {
-  // กล้องกำลังส่งภาพอยู่: รอได้ไม่เกิน 30 วินาที ไม่งั้นนับเป็นส่งไม่สำเร็จ (ค่าเข้าคิวตามปกติ)
+  // กล้องกำลังส่งภาพอยู่: รอไม่เกิน 1 วิ แล้วคืน NET_BUSY (ไม่ใช่ส่งพลาด ไม่ backoff ค่าเข้าคิวไว้)
   wdtFeed();
-  if (netMutex && xSemaphoreTake(netMutex, pdMS_TO_TICKS(30000)) != pdTRUE) {
-    lastHttpCode = -1;
-    return -1;
+  if (netMutex && xSemaphoreTake(netMutex, pdMS_TO_TICKS(NET_LOCK_WAIT_MS)) != pdTRUE) {
+    sensorWaiting = true;
+    return NET_BUSY;
   }
   wdtFeed();
   WiFiClientSecure client;
@@ -693,18 +698,19 @@ String recJson(const QRec& r) {
   return String(buf);
 }
 
-// true = server รับแล้ว หรือข้อมูลผิดถาวร (ไม่ต้องส่งซ้ำ)
-bool sendSingle(const QRec& r) {
+// 1 = server รับแล้ว หรือข้อมูลผิดถาวร (ไม่ต้องส่งซ้ำ) · 0 = ส่งใหม่ภายหลัง · NET_BUSY = กล้องใช้เน็ตอยู่
+int sendSingle(const QRec& r) {
   String body = String("{\"serial_no\":\"") + DEVICE_SERIAL + "\"," + recJson(r).substring(1);
   String resp;
   int code = httpPost("/data", body, resp, 8000);
+  if (code == NET_BUSY) return NET_BUSY;
   Serial.printf("[CLOUD] single %d\n", code);
-  if (code == 200) return true;
-  if (code == 400) { Serial.println("[CLOUD] rejected as invalid: " + resp); return true; }
-  return false;  // 401/5xx/timeout -> เก็บไว้ส่งใหม่
+  if (code == 200) return 1;
+  if (code == 400) { Serial.println("[CLOUD] rejected as invalid: " + resp); return 1; }
+  return 0;  // 401/5xx/timeout -> เก็บไว้ส่งใหม่
 }
 
-// คืนจำนวนค่าที่ลบออกจากคิวได้ หรือ -1 ถ้าต้องลองใหม่
+// คืนจำนวนค่าที่ลบออกจากคิวได้, -1 ถ้าต้องลองใหม่, NET_BUSY ถ้ากล้องใช้เน็ตอยู่
 int sendBatch() {
   static QRec buf[BATCH_MAX];
   int n = qPeek(buf, BATCH_MAX);
@@ -720,6 +726,7 @@ int sendBatch() {
 
   String resp;
   int code = httpPost("/batch", body, resp, 15000);
+  if (code == NET_BUSY) return NET_BUSY;
   Serial.printf("[CLOUD] batch n=%d -> %d\n", n, code);
   if (code == 200) {
     int idx = resp.indexOf("\"processed\":");
@@ -899,6 +906,8 @@ void cameraRound(BufStream& bs) {
     return;
   }
 
+  // ค่าเซ็นเซอร์รอส่งอยู่: ให้ loop() ส่งก่อน (รอไม่เกิน 20 วิ แล้วส่งภาพต่อ)
+  for (int i = 0; i < 100 && sensorWaiting; i++) { wdtFeed(); vTaskDelay(pdMS_TO_TICKS(200)); }
   if (!netMutex || xSemaphoreTake(netMutex, pdMS_TO_TICKS(60000)) != pdTRUE) {
     Serial.println("[CAM] network busy, skip this round");
     camStatus = CAM_NET;
@@ -960,6 +969,8 @@ const char* resetReasonText() {
   }
 }
 
+bool heartbeatRetrySoon = false;  // กล้องใช้เน็ตอยู่ตอนถึงรอบ heartbeat: ลองใหม่ใน 15 วิ
+
 void sendHeartbeat() {
   unsigned long nowMs = millis();
   long sensorLastOkS = everSensorOk ? (long)((nowMs - lastSensorOkMs) / 1000UL) : -1;
@@ -985,6 +996,8 @@ void sendHeartbeat() {
     (unsigned long)heaterPulses);
   String resp;
   int code = httpPost("/heartbeat", body, resp, 8000);
+  if (code == NET_BUSY) { heartbeatRetrySoon = true; return; }
+  heartbeatRetrySoon = false;
   Serial.printf("[HB] heartbeat -> %d (sensor %s, ok %lu / fail %lu, rssi %d)\n", code,
                 lastReadOk ? "ok" : "FAIL", (unsigned long)sensorOkReads, (unsigned long)sensorFailReads, (int)WiFi.RSSI());
   if (code == 200) { sensorOkReads = 0; sensorFailReads = 0; }
@@ -993,6 +1006,8 @@ void sendHeartbeat() {
 // -----------------------------------------------------
 // รอบละ 15 วินาที: บันทึกค่าปัจจุบัน แล้วส่ง/ระบายคิว
 // -----------------------------------------------------
+void drainQueue();
+
 void handleSample() {
   int16_t t100 = (int16_t)lroundf(currentTemp * 100.0f);
   uint16_t h100 = (uint16_t)lroundf(currentHum * 100.0f);
@@ -1009,16 +1024,28 @@ void handleSample() {
     if (fsOk) { qAppend(r); queued = true; }
   }
   if (!queued && canSendNow()) {
-    if (sendSingle(r)) onSendSuccess();
-    else { qAppend(r); onSendFailure(); }
+    int sent = sendSingle(r);
+    if (sent == 1) onSendSuccess();
+    else {
+      qAppend(r);
+      if (sent != NET_BUSY) onSendFailure();
+      else return;  // กล้องใช้เน็ตอยู่: loop() จะระบายคิวทันทีที่ว่าง
+    }
   }
+  drainQueue();
+}
 
+// ระบายคิว (เรียกจาก handleSample และจาก loop() เมื่อเคยติดกล้อง)
+void drainQueue() {
   for (int i = 0; i < BATCHES_PER_TICK && qCount() > 0 && canSendNow(); i++) {
     int done = sendBatch();
+    if (done == NET_BUSY) return;
     if (done < 0) { onSendFailure(); break; }
     qPop(done);
     onSendSuccess();
   }
+  // ไม่มีอะไรรอส่ง (ทั้งคิวและ heartbeat) หรือ backoff อยู่: ไม่ต้องให้กล้องหลีก
+  if ((qCount() == 0 && !heartbeatRetrySoon) || !canSendNow()) sensorWaiting = false;
 }
 
 // -----------------------------------------------------
@@ -1396,9 +1423,17 @@ void loop() {
     }
   }
 
+  // ค่าเข้าคิวเพราะกล้องใช้เน็ตอยู่: ลองระบายทุก 1 วิ (กล้องรอให้ก่อน ดู cameraRound)
+  static unsigned long lastDrainTry = 0;
+  if (sensorWaiting && now - lastDrainTry >= 1000UL) {
+    lastDrainTry = now;
+    drainQueue();
+  }
+
   // ส่งสถานะกล่องแม้เซ็นเซอร์อ่านค่าไม่ได้ เพื่อให้ server แยกได้ว่าเสียที่เน็ต ไฟ หรือเซ็นเซอร์
   if (WiFi.status() == WL_CONNECTED && timeSynced() &&
-      (!firstHeartbeatDone || now - lastHeartbeat >= HEARTBEAT_MS)) {
+      (!firstHeartbeatDone || now - lastHeartbeat >= HEARTBEAT_MS ||
+       (heartbeatRetrySoon && now - lastHeartbeat >= 15000UL))) {
     lastHeartbeat = now;
     firstHeartbeatDone = true;
     sendHeartbeat();

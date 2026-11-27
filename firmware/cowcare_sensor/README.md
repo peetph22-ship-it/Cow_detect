@@ -1,6 +1,6 @@
 # CowCare Sensor Firmware (ESP32-S3)
 
-กล่องเซ็นเซอร์ SHT40 (I2C) + จอ ST7789 ส่งข้อมูลขึ้น `backend_node` แบบ store-and-forward (firmware 1.6.1)
+กล่องเซ็นเซอร์ SHT40 (I2C) + จอ ST7789 ส่งข้อมูลขึ้น `backend_node` แบบ store-and-forward (firmware 1.6.2)
 
 > 1.6.0 เปลี่ยนจากหัววัด XY-MD02 (SHT20 ผ่าน RS485 + บอร์ด HW-726) ซึ่งเสียแล้ว มาใช้ SHT40 ต่อตรงเข้า ESP32 ไม่ต้องใช้ HW-726 อีก
 
@@ -105,6 +105,7 @@ Serial ต้องเห็น `[CAM] snapshot 245 KB -> upload 202 (3100 ms)` 
   สัญญาณ Wi-Fi, เซ็นเซอร์ ok/fail, คิวค้าง, เวลาที่เปิดเครื่อง, สาเหตุรีสตาร์ต (เช่น `brownout` = ไฟตก), เวอร์ชัน firmware
   ต้องรัน `backend_node/migrations/20261025_device_heartbeat.sql` ดูผลที่หน้า Admin > Devices
 - อุปกรณ์ที่ยังไม่ลงทะเบียน server ตอบ `404` (ไม่สร้างให้อัตโนมัติแล้ว) บอร์ดเก็บข้อมูลไว้ในคิวจนกว่าจะลงทะเบียน
+- 1.6.2: ค่าเซ็นเซอร์ไม่รอตอนกล้องส่งภาพ (1.6.1 รอได้ถึง 30 วิ ทำให้ loop() ค้างและนับเป็นส่งพลาดจน backoff) ตอนนี้รอไม่เกิน 1 วิ แล้วเข้าคิว ระบายทุก 1 วิ และกล้องหลีกให้ก่อนส่งภาพรอบถัดไป (ไม่เกิน 20 วิ) · heartbeat ที่ชนกล้องลองใหม่ใน 15 วิ
 - 1.6.1: ส่งค่าตามนาฬิกาคงที่ทุก 15 วิ (1.6.0 ได้รอบละ ~16 วิ เพราะนับ 15 วิจากเวลาที่อ่านได้จริง)
 - 1.6.0 ส่งเพิ่ม: `sensor_model` (รุ่นที่ตรวจเจอจริง: sht4x / sht3x / aht2x / htu21 / none), `sensor_addr`, `sensor_serial`, `heater_pulses`, `i2c_recoveries` (ล้างบัสไปกี่ครั้ง), `last_server_ok_s`, `camera_last_round_s`
 - Serial: `[HB] heartbeat -> 200 (sensor ok, ok 150 / fail 0, rssi -61)`
