@@ -138,10 +138,10 @@ const fetchStats = async (showLoading = false) => {
 // Lifecycle
 onMounted(() => {
   fetchStats(true)
-  // Background polling every 12 seconds
+  // Background polling every 15 seconds (skipped while the tab is hidden)
   pollTimer = setInterval(() => {
-    fetchStats(false)
-  }, 12000)
+    if (!document.hidden) fetchStats(false)  // แท็บซ่อนอยู่ไม่ต้องดึง
+  }, 15000)
 })
 
 onUnmounted(() => {

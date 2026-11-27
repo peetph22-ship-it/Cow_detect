@@ -986,9 +986,10 @@ const toggleLiveSync = () => {
 
 const startLiveSync = () => {
   stopLiveSync()
+  // ค่าเซ็นเซอร์มาทุก 15 วิ · แท็บซ่อนอยู่ไม่ต้องดึง
   syncInterval = setInterval(() => {
-    fetchFarms(false)
-  }, 8000)
+    if (!document.hidden) fetchFarms(false)
+  }, 15000)
 }
 
 const stopLiveSync = () => {

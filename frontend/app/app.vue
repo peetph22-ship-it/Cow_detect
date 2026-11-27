@@ -12,6 +12,7 @@
   font-family: 'Thai'; /* ตั้งชื่อฟอนต์เองได้เลย */
   /* เรียกพาทไฟล์ฟอนต์ ห้ามมี public นำหน้านะครับ */
   src: url('/fonts/NotoSerifThai-VariableFont_wdth,wght.ttf') format('truetype');
+  font-display: swap; /* แสดงข้อความด้วยฟอนต์สำรองก่อน ไม่ต้องรอไฟล์ฟอนต์ */
   /* font-weight: normal;
   font-style: normal; */
 }
@@ -21,6 +22,7 @@
   font-family: 'Eng'; /* ตั้งชื่อฟอนต์เองได้เลย */
   /* เรียกพาทไฟล์ฟอนต์ ห้ามมี public นำหน้านะครับ */
   src: url('/fonts/LibreCaslonCondensed-Medium.ttf') format('truetype');
+  font-display: swap;
   /* font-weight: normal;
   font-style: normal; */
 }

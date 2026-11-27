@@ -1848,8 +1848,11 @@ const staleWindowText = computed(() => {
 })
 
 // Fetch Farm Telemetry Detail (Strict Real Data Mode)
-const fetchFarmDetail = async () => {
+// opts.withStatus = false: ตอนเปิดหน้า onMounted ดึงสถานะ/กล้องพร้อมกันไปแล้ว ไม่ต้องดึงซ้ำ
+// (ปุ่มรีเฟรช/@updated ส่ง event หรือไม่ส่งอะไร = ดึงทั้งหมด)
+const fetchFarmDetail = async (opts) => {
   if (!farmId.value) return
+  const withStatus = opts?.withStatus !== false
   isLoading.value = true
   try {
     const token = getToken()
@@ -1917,8 +1920,7 @@ const fetchFarmDetail = async () => {
       // อากาศภายนอกโหลดแยก ไม่ให้หน้าฟาร์มต้องรอ Open-Meteo
       fetchOutdoorWeather()
 
-      await fetchMultimodalStatus()
-      await fetchRegisteredCameras()
+      if (withStatus) await Promise.all([fetchMultimodalStatus(), fetchRegisteredCameras()])
     }
   } catch (err) {
     console.error('[Fetch Farm Detail Error]:', err)
@@ -1999,15 +2001,25 @@ const toggleAutoSync = () => {
   }
 }
 
+// กลับมาที่แท็บนี้: ดึงค่าล่าสุดทันที (ระหว่างซ่อนไม่ได้ดึง)
+const onVisible = () => {
+  if (document.hidden || !isAutoSync.value) return
+  nowTimestamp.value = Date.now()
+  pollLatestTelemetry()
+  fetchCameraBehavior()
+}
+
 const startAutoSync = () => {
   stopAutoSync()
   let ticks = 0
+  // ค่าเซ็นเซอร์มาทุก 15 วิ: ดึงถี่กว่านั้นไม่ได้ค่าใหม่ · แท็บซ่อนอยู่ไม่ต้องดึง (กลับมาดูแล้วดึงทันที ดู onVisible)
   syncTimer = setInterval(() => {
+    if (document.hidden) return
     nowTimestamp.value = Date.now()
     pollLatestTelemetry()
-    // ภาพจากกล้องมาทุก ~10 นาที: ดึงผลกล้องใหม่ทุก ~1 นาทีพอ
-    if (++ticks % 8 === 0) fetchCameraBehavior()
-  }, 8000)
+    // ผลกล้องดึงใหม่ทุก ~1 นาที
+    if (++ticks % 4 === 0) fetchCameraBehavior()
+  }, 15000)
 }
 
 const stopAutoSync = () => {
@@ -2527,12 +2539,13 @@ const chartOptions = computed(() => {
 
 // Lifecycle
 onMounted(() => {
-  fetchFarmDetail()
+  fetchFarmDetail({ withStatus: false })
   fetchMultimodalStatus()
   fetchRegisteredCameras()
   if (isAutoSync.value) {
     startAutoSync()
   }
+  document.addEventListener('visibilitychange', onVisible)
   // Clock timer เพื่อให้ computed(isDeviceOnline) รีเฟรชสถานะแบบเรียลไทม์ทุก 5 วินาที
   clockTimer = setInterval(() => {
     nowTimestamp.value = Date.now()
@@ -2540,6 +2553,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  document.removeEventListener('visibilitychange', onVisible)
   stopAutoSync()
   if (clockTimer) {
     clearInterval(clockTimer)
