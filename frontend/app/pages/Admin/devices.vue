@@ -311,7 +311,7 @@
                   <button
                     @click="openEditModal(device)"
                     class="p-2 rounded-xl text-[#718078] hover:text-[#142820] hover:bg-[#F2F4F2] transition-colors cursor-pointer"
-                    title="แก้ไขอุปกรณ์">
+                    :title="device.is_camera ? 'ตั้งรอบถ่ายภาพ (ที่กล่องของฟาร์มนี้)' : 'แก้ไขอุปกรณ์'">
                     <v-icon icon="mdi-pencil-outline" size="16" />
                   </button>
                   <button 
@@ -567,6 +567,16 @@ const openAddModal = () => {
 }
 
 const openEditModal = (dev) => {
+  // กล้องไม่มีค่าให้แก้ในหน้านี้: กล่องของฟาร์มเดียวกันเป็นตัวดึงภาพ รอบถ่ายภาพจึงตั้งที่กล่อง
+  // (เดิมส่งรหัสกล้องไปแก้ tb_devices จึงขึ้น "ไม่พบอุปกรณ์ที่ต้องการแก้ไข")
+  if (dev.is_camera) {
+    const box = devices.value.find(d => !d.is_camera && d.id_farms && d.id_farms === dev.id_farms)
+    if (!box) {
+      alert('ยังไม่มีกล่องเซ็นเซอร์ผูกกับฟาร์มของกล้องนี้ รอบถ่ายภาพตั้งที่กล่อง ส่วนข้อมูลกล้อง (IP/รหัส) แก้ที่หน้ารายละเอียดฟาร์ม')
+      return
+    }
+    dev = box
+  }
   isEditMode.value = true
   formDevice.value = {
     id_devices: dev.id_devices,
